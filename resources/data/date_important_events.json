@@ -1,0 +1,102 @@
+[
+	{
+		"event_id": "park_first_pause",
+		"location_id": "park",
+		"trigger": "first_visit",
+		"window_title": "重要约会",
+		"title": "长椅上的停顿",
+		"intro_lines": [
+			{
+				"speaker": "",
+				"text": "傍晚的{location_title}比白天安静，风从长椅旁边慢慢穿过去。"
+			},
+			{
+				"speaker": "林夏",
+				"text": "这里好像会让人不自觉地把说话速度放慢一点。"
+			},
+			{
+				"speaker": "",
+				"text": "她坐下以后没有立刻继续聊比赛，只是把目光停在跑道外侧的灯上。"
+			}
+		],
+		"choice_prompt": {
+			"speaker": "林夏",
+			"text": "我今天其实有点乱。你先说吧，现在你最想聊哪件事？"
+		},
+		"choices": [
+			{
+				"choice_id": 1,
+				"text": "先问她今天是不是太累了",
+				"summary": "你先关心了她的状态，让她更愿意把压力说出来。",
+				"result_tag": "supportive",
+				"affection_delta": 2,
+				"lines": [
+					{
+						"speaker": "你",
+						"text": "先不说项目了。你今天是不是已经累到不想再硬撑了？"
+					},
+					{
+						"speaker": "林夏",
+						"text": "……有一点。被你这么直接问出来，反而轻松了。"
+					},
+					{
+						"speaker": "林夏",
+						"text": "我不是不想做，只是最近总觉得自己一开口就会把气氛搞得很紧。"
+					}
+				]
+			},
+			{
+				"choice_id": 2,
+				"text": "直接聊比赛和你们现在的进度",
+				"summary": "你把话题拉回创作本身，让她重新整理了当前的焦虑。",
+				"result_tag": "pragmatic",
+				"affection_delta": 1,
+				"lines": [
+					{
+						"speaker": "你",
+						"text": "那就先把最乱的那部分拆开。现在最卡的是比赛本身，还是我们做法还没统一？"
+					},
+					{
+						"speaker": "林夏",
+						"text": "你这种问法真的很像在开小会。"
+					},
+					{
+						"speaker": "林夏",
+						"text": "不过……有用。至少我突然能分清楚自己到底在怕什么了。"
+					}
+				]
+			},
+			{
+				"choice_id": 3,
+				"text": "先什么都不说，只陪她坐一会儿",
+				"summary": "你没有催她开口，而是给了她一点安静的空间。",
+				"result_tag": "quiet",
+				"affection_delta": 3,
+				"lines": [
+					{
+						"speaker": "",
+						"text": "你没有立刻接话，只是陪她一起看着前面被风吹乱的树影。"
+					},
+					{
+						"speaker": "林夏",
+						"text": "……谢谢。你这样反而让我没那么想躲了。"
+					},
+					{
+						"speaker": "林夏",
+						"text": "有时候我其实只是不知道该先从哪一句开始说。"
+					}
+				]
+			}
+		],
+		"outro_lines": [
+			{
+				"speaker": "",
+				"text": "风又吹了一阵，刚才那点紧绷终于慢慢散掉。"
+			},
+			{
+				"speaker": "林夏",
+				"text": "走吧。今天至少比我来之前要好一点了。"
+			}
+		]
+	}
+]

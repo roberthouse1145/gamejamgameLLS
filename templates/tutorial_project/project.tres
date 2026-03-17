@@ -1,0 +1,307 @@
+[gd_resource type="Resource" script_class="AVGProject" format=3 uid="uid://ddc6g8py50ei"]
+
+[ext_resource type="Script" uid="uid://dipn7l870oj3x" path="res://scripts/avg/resources/avg_project.gd" id="1_script"]
+[ext_resource type="Resource" uid="uid://cmovjgvebv77t" path="res://templates/tutorial_project/scenes/scene_00_title.tres" id="2_scene00"]
+[ext_resource type="Resource" uid="uid://bd56p263m2ae1" path="res://templates/tutorial_project/scenes/scene_01_dialogue.tres" id="3_scene01"]
+[ext_resource type="Resource" uid="uid://cej6yofkdb6pf" path="res://templates/tutorial_project/scenes/scene_02_choices.tres" id="4_scene02"]
+[ext_resource type="Resource" uid="uid://cb2ro53i4k1nu" path="res://templates/tutorial_project/scenes/scene_03_variables.tres" id="5_scene03"]
+[ext_resource type="Resource" uid="uid://wfvjfhdhq3cq" path="res://templates/tutorial_project/scenes/scene_05_variable_test.tres" id="6b_scene05"]
+[ext_resource type="Resource" uid="uid://cmr1dsdtppd0m" path="res://templates/tutorial_project/scenes/scene_06_parallel_test.tres" id="6c_scene06"]
+[ext_resource type="Resource" uid="uid://d4lm7kpfctecf" path="res://templates/tutorial_project/scenes/scene_07_camera_test.tres" id="6d_scene07"]
+[ext_resource type="Resource" uid="uid://c7hocv61l4u2y" path="res://templates/tutorial_project/scenes/scene_08_transition_a.tres" id="6e_scene08"]
+[ext_resource type="Resource" uid="uid://sd7xynpbplyw" path="res://templates/tutorial_project/scenes/scene_09_transition_b.tres" id="6f_scene09"]
+[ext_resource type="Resource" uid="uid://dryccyxaj0e7d" path="res://templates/tutorial_project/scenes/scene_04_character_commands.tres" id="6_scene04"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/alice.tres" id="7_alice"]
+[ext_resource type="Script" uid="uid://brnj8wud76qq3" path="res://scripts/avg/resources/avg_variable.gd" id="8_var_script"]
+[ext_resource type="Resource" uid="uid://cviurb4vxyc6o" path="res://templates/tutorial_project/events/greeting_event.tres" id="9_event"]
+[ext_resource type="Script" uid="uid://ddhjo3v5gpfwl" path="res://scripts/avg/resources/avg_node.gd" id="10_button_script"]
+[ext_resource type="Script" uid="uid://b1pve6xq8ouco" path="res://scripts/avg/resources/avg_command.gd" id="11_cmd_script"]
+[ext_resource type="Script" uid="uid://cm2qbgaarjq40" path="res://scripts/avg/resources/avg_title_config.gd" id="12_title_config_script"]
+[ext_resource type="Script" uid="uid://bqmt6mnvjwjtl" path="res://scripts/avg/resources/nodes/avg_root_node.gd" id="15_cuee8"]
+[ext_resource type="Script" uid="uid://bp2jf8bgegffx" path="res://scripts/avg/resources/avg_scene.gd" id="16_6b4jt"]
+
+[sub_resource type="Resource" id="Resource_u65c2"]
+script = ExtResource("11_cmd_script")
+command_type = "SCREEN_FADE"
+params = {
+"direction": "in",
+"duration": 1.0
+}
+
+[sub_resource type="Resource" id="Resource_v3yvd"]
+script = ExtResource("11_cmd_script")
+command_type = "CHANGE_BACKGROUND"
+params = {
+"texture_path": "bg_dark_forest"
+}
+
+[sub_resource type="Resource" id="Resource_wgcmj"]
+script = ExtResource("11_cmd_script")
+command_type = "PLAY_BGM"
+params = {
+"audio_path": "bgm_mysterious"
+}
+
+[sub_resource type="Resource" id="Resource_fwst7"]
+script = ExtResource("11_cmd_script")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "set",
+"value": 1,
+"value_source": "constant",
+"variable_id": "ghost_encounter_started"
+}
+
+[sub_resource type="Resource" id="Resource_vhrj7"]
+script = ExtResource("11_cmd_script")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "A shadow appears in the darkness"
+}
+
+[sub_resource type="Resource" id="Resource_w2hn5"]
+script = ExtResource("11_cmd_script")
+command_type = "WAIT_CLICK"
+
+[sub_resource type="Resource" id="Resource_4e7lt"]
+script = ExtResource("11_cmd_script")
+command_type = "CHOICE"
+params = {
+"choices": Array[Dictionary]([{
+"commands": [{
+"command_type": "DIALOGUE",
+"params": {
+"speaker": "",
+"text": "You turn and flee into the night."
+}
+}, {
+"command_type": "SCREEN_FADE",
+"params": {
+"direction": "out",
+"duration": 1.0
+}
+}, {
+"command_type": "WAIT_TIME",
+"params": {
+"duration": 1.0
+}
+}, {
+"command_type": "SET_VARIABLE",
+"params": {
+"operation": "set",
+"value": 1,
+"value_source": "constant",
+"variable_id": "choice_made"
+}
+}],
+"condition_commands": [],
+"hidden_when_unmet": false,
+"text": "Run away"
+}, {
+"commands": [{
+"command_type": "DIALOGUE",
+"params": {
+"speaker": "",
+"text": "You stand your ground, heart pounding."
+}
+}, {
+"command_type": "SCREEN_FLASH",
+"params": {
+"color": "#FFFFFF",
+"duration": 0.3
+}
+}, {
+"command_type": "SET_VARIABLE",
+"params": {
+"operation": "set",
+"value": 2,
+"value_source": "constant",
+"variable_id": "choice_made"
+}
+}],
+"condition_commands": [],
+"hidden_when_unmet": false,
+"text": "Stay"
+}])
+}
+
+[sub_resource type="Resource" id="Resource_4t2aq"]
+script = ExtResource("11_cmd_script")
+command_type = "SCREEN_FADE"
+params = {
+"direction": "out",
+"duration": 1.0
+}
+
+[sub_resource type="Resource" id="Resource_8v8xw"]
+script = ExtResource("15_cuee8")
+node_id = "node_001"
+node_name = "Root"
+norm_size = Vector2(1, 1)
+command_tabs = [{
+"commands": Array[ExtResource("11_cmd_script")]([SubResource("Resource_u65c2"), SubResource("Resource_v3yvd"), SubResource("Resource_wgcmj"), SubResource("Resource_fwst7"), SubResource("Resource_vhrj7"), SubResource("Resource_w2hn5"), SubResource("Resource_4e7lt"), SubResource("Resource_4t2aq")]),
+"condition_commands": [],
+"condition_type": 0,
+"mode": 0
+}]
+
+[sub_resource type="Resource" id="Resource_sd73t"]
+script = ExtResource("16_6b4jt")
+scene_id = "scene_002"
+scene_name = "Ghost Encounter"
+nodes = [SubResource("Resource_8v8xw")]
+
+[sub_resource type="Resource" id="Resource_cuee8"]
+script = ExtResource("11_cmd_script")
+command_type = "CHANGE_BACKGROUND"
+params = {
+"texture_path": "res://backgrounds/room.png"
+}
+
+[sub_resource type="Resource" id="Resource_6b4jt"]
+script = ExtResource("11_cmd_script")
+command_type = "PLAY_BGM"
+params = {
+"audio_path": "res://bgm/relax.ogg"
+}
+
+[sub_resource type="Resource" id="Resource_f0bjy"]
+script = ExtResource("11_cmd_script")
+command_type = "SHOW_CHARACTER"
+params = {
+"character_id": "char_001",
+"emotion": "smile",
+"position": "center"
+}
+
+[sub_resource type="Resource" id="Resource_2e404"]
+script = ExtResource("11_cmd_script")
+command_type = "DIALOGUE"
+params = {
+"expression": "smile",
+"speaker_id": "char_001",
+"text": "嗨，你今天过得怎么样呀？"
+}
+
+[sub_resource type="Resource" id="Resource_hf2gc"]
+script = ExtResource("11_cmd_script")
+command_type = "CHANGE_EXPRESSION"
+params = {
+"character_id": "char_001",
+"expression": "\"happy\""
+}
+
+[sub_resource type="Resource" id="Resource_8wttc"]
+script = ExtResource("11_cmd_script")
+command_type = "PLAY_SFX"
+params = {
+"audio_path": "res://sfx/happy.wav"
+}
+
+[sub_resource type="Resource" id="Resource_kvm7d"]
+script = ExtResource("11_cmd_script")
+command_type = "DIALOGUE"
+params = {
+"expression": "happy",
+"speaker_id": "char_001",
+"text": "太好了！听到你这么说我真开心～"
+}
+
+[sub_resource type="Resource" id="Resource_0xeho"]
+script = ExtResource("11_cmd_script")
+command_type = "CHANGE_EXPRESSION"
+params = {
+"character_id": "char_001",
+"expression": "\"concerned\""
+}
+
+[sub_resource type="Resource" id="Resource_7yuvx"]
+script = ExtResource("11_cmd_script")
+command_type = "PLAY_SFX"
+params = {
+"audio_path": "res://sfx/soft.wav"
+}
+
+[sub_resource type="Resource" id="Resource_4v21l"]
+script = ExtResource("11_cmd_script")
+command_type = "DIALOGUE"
+params = {
+"expression": "concerned",
+"speaker_id": "char_001",
+"text": "啊，是这样吗...真让人担心，发生什么事了，可以和我说说吗？"
+}
+
+[sub_resource type="Resource" id="Resource_oebl3"]
+script = ExtResource("11_cmd_script")
+command_type = "CHOICE"
+params = {
+"choices": [{
+"commands": Array[ExtResource("11_cmd_script")]([SubResource("Resource_hf2gc"), SubResource("Resource_8wttc"), SubResource("Resource_kvm7d")]),
+"text": "今天过得很不错哦"
+}, {
+"commands": Array[ExtResource("11_cmd_script")]([SubResource("Resource_0xeho"), SubResource("Resource_7yuvx"), SubResource("Resource_4v21l")]),
+"text": "今天过得有点不太顺心"
+}]
+}
+
+[sub_resource type="Resource" id="Resource_7ka8c"]
+script = ExtResource("15_cuee8")
+node_id = "node_001"
+node_name = "Root"
+norm_size = Vector2(1, 1)
+command_tabs = [{
+"commands": Array[ExtResource("11_cmd_script")]([SubResource("Resource_cuee8"), SubResource("Resource_6b4jt"), SubResource("Resource_f0bjy"), SubResource("Resource_2e404"), SubResource("Resource_oebl3")]),
+"condition_commands": [],
+"condition_type": 0,
+"mode": 0
+}]
+
+[sub_resource type="Resource" id="Resource_k2jke"]
+script = ExtResource("16_6b4jt")
+scene_id = "scene_003"
+scene_name = "分支对话测试场景"
+nodes = [SubResource("Resource_7ka8c")]
+
+[sub_resource type="Resource" id="shared_btn_cmd_jump"]
+script = ExtResource("11_cmd_script")
+command_type = "JUMP_SCENE"
+params = {
+"scene_id": "scene_001"
+}
+
+[sub_resource type="Resource" id="shared_start_button"]
+script = ExtResource("10_button_script")
+node_id = "shared_start_button"
+node_name = "StartButton"
+norm_size = Vector2(0.15625, 0.074074)
+size = Vector2(300, 80)
+command_tabs = [{
+"commands": [SubResource("shared_btn_cmd_jump")],
+"condition_commands": [],
+"mode": 2
+}]
+text = "Start Game"
+font_size = 24
+
+[sub_resource type="Resource" id="title_config"]
+script = ExtResource("12_title_config_script")
+first_scene_id = "scene_001"
+title_text = "Tutorial Project"
+
+[sub_resource type="Resource" id="var_score"]
+script = ExtResource("8_var_script")
+variable_id = "var_001"
+variable_name = "score"
+description = "Player score"
+
+[resource]
+script = ExtResource("1_script")
+project_name = "Tutorial Project"
+resolution = Vector2i(2560, 1440)
+scenes = [ExtResource("2_scene00"), ExtResource("3_scene01"), ExtResource("4_scene02"), ExtResource("5_scene03"), ExtResource("6_scene04"), ExtResource("6b_scene05"), ExtResource("6c_scene06"), ExtResource("6d_scene07"), ExtResource("6e_scene08"), ExtResource("6f_scene09"), SubResource("Resource_sd73t"), SubResource("Resource_k2jke")]
+characters = [ExtResource("7_alice")]
+variables = [SubResource("var_score")]
+events = [ExtResource("9_event")]
+shared_nodes = [SubResource("shared_start_button")]
+title_config = SubResource("title_config")

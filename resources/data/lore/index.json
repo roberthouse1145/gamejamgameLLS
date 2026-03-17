@@ -1,0 +1,7 @@
+{
+	"version": 1,
+	"files": [
+		"res://resources/data/lore/global.json",
+		"res://resources/data/lore/npc_lin_xia.json"
+	]
+}

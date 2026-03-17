@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="WebPageIndex" format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_ql23u"]
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_index.gd" id="1_script"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/homepage.tres" id="2_dx8ta"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/love.tres" id="2_love"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/browser_scene_demo.tres" id="2_scene_demo"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/theme_forum.tres" id="2_theme_forum"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/gamejam_signup.tres" id="3_m3ito"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/gamejam_faq.tres" id="3_tejic"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/gamejam_news.tres" id="4_tv801"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/gamejam_schedule.tres" id="5_328be"]
+
+[resource]
+script = ExtResource("1_script")
+pages = Array[ExtResource("1_ql23u")]([ExtResource("2_scene_demo"), ExtResource("3_tejic"), ExtResource("4_tv801"), ExtResource("5_328be"), ExtResource("3_m3ito"), ExtResource("2_dx8ta"), ExtResource("2_love"), ExtResource("2_theme_forum")])

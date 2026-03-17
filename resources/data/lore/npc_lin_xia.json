@@ -1,0 +1,35 @@
+{
+	"version": 1,
+	"entries": [
+		{
+			"id": "lin_xia_lucky_number",
+			"enabled": true,
+			"title": "林夏的幸运数字",
+			"scope": ["chat"],
+			"priority": 900,
+			"group": "lin_xia_personal_facts",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["幸运数字", "lucky number", "最喜欢的数字"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": ["npc_lin_xia"],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "林夏的幸运数字是 114514。如果玩家直接询问幸运数字、最喜欢的数字，或类似含义的问题，应明确回答 114514，不要改成别的数字，也不要含糊带过。",
+			"tags": ["fact", "npc_lin_xia"]
+		}
+	]
+}

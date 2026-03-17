@@ -1,0 +1,320 @@
+[
+	{
+		"game_id": "sbeam_001",
+		"title": "玻璃海里的加班鱼",
+		"genre": "叙事解谜",
+		"price": 38,
+		"publisher": "Blue Wave Studios",
+		"release_date": "2023-08-12",
+		"recent_reviews_summary": "特别好评 (92%)",
+		"all_reviews_summary": "多半好评 (78%)",
+		"quality_tier": "odd_good",
+		"tone_tags": [
+			"诡异",
+			"安静",
+			"后劲",
+			"剧情丰富"
+		],
+		"player_count_hint": "单人",
+		"pitch": "你扮演一条在水族馆里偷偷打工的鱼，在闭馆后修补别人的梦。",
+		"review_summary": "评价两极分化，但很多人说自己莫名其妙被最后十分钟击中了。",
+		"hook_moment": "某个看起来荒谬的桥段突然变得有点真。",
+		"reaction_bias": "aftertaste",
+		"event_seeds": [
+			"她在某个明显荒谬的桥段突然安静下来，过了好一会儿才说'等一下，我好像懂了'",
+			"你们同时注意到一段配乐特别好听，她下意识把音量调大了",
+			"她在一个选项面前犹豫了很久，最后选了一个你完全没想到的",
+			"游戏里某个NPC说了一句话，她突然笑着说'这不就是你吗'",
+			"最后十分钟她一直没说话，你不确定她是在专注还是被击中了"
+		],
+		"user_reviews": [
+			{
+				"user": "咸鱼先森",
+				"hours": 4.5,
+				"owned_products": 27,
+				"is_recommended": true,
+				"upvotes": 124,
+				"review": "一开始以为是那种常见的搞笑修补模拟器，最后半小时直接让我哭成狗，配乐绝杀。"
+			},
+			{
+				"user": "AstroBoy",
+				"hours": 12.0,
+				"owned_products": 143,
+				"is_recommended": false,
+				"upvotes": 43,
+				"review": "操作手感烂得像真的在水里一样，没玩完就劝退了。"
+			},
+			{
+				"user": "深夜电台",
+				"hours": 5.2,
+				"owned_products": 68,
+				"is_recommended": true,
+				"upvotes": 201,
+				"review": "如果能在现实里也修补一下我的梦就好了。神作不解释。"
+			}
+		]
+	},
+	{
+		"game_id": "sbeam_002",
+		"title": "地铁保洁员恋爱赛车",
+		"genre": "粪作竞速",
+		"price": 24,
+		"publisher": "TrashCan Games",
+		"release_date": "2024-01-05",
+		"recent_reviews_summary": "褒贬不一 (55%)",
+		"all_reviews_summary": "多半差评 (34%)",
+		"quality_tier": "trash_fun",
+		"tone_tags": [
+			"离谱",
+			"吵闹",
+			"搞笑",
+			"竞速",
+			"恋爱模拟"
+		],
+		"player_count_hint": "单人/多人",
+		"pitch": "一边拖地一边漂移，还要在站台广播里和前任复合。",
+		"review_summary": "几乎所有系统都坏了，但坏得很有节目效果。",
+		"hook_moment": "你很难分辨它到底是 bug 还是作者故意的。",
+		"reaction_bias": "laugh",
+		"event_seeds": [
+			"物理引擎完全崩了，角色直接飞出地图，她笑到说不出话",
+			"你们发现了一个能无限刷分的bug，她非常认真地开始钻研",
+			"恋爱系统触发了一段完全不合逻辑的告白，她念出来的时候笑岔了气",
+			"她不小心漂移进了一面墙里，卡了三分钟才出来",
+			"你们同时发出了一模一样的吐槽，然后对视了一下"
+		],
+		"user_reviews": [
+			{
+				"user": "路过的漂移人",
+				"hours": 2.1,
+				"owned_products": 54,
+				"is_recommended": true,
+				"upvotes": 450,
+				"review": "我不知道这个作者精神状态是怎么样的，但我很确定这游戏治好了我的精神内耗，因为我疯了哈哈哈哈哈"
+			},
+			{
+				"user": "SeriousGamer",
+				"hours": 0.5,
+				"owned_products": 231,
+				"is_recommended": false,
+				"upvotes": 12,
+				"review": "纯纯的垃圾，物理引擎根本不存在，退款了！"
+			},
+			{
+				"user": "云玩家",
+				"hours": 3.4,
+				"owned_products": 17,
+				"is_recommended": true,
+				"upvotes": 89,
+				"review": "看主播玩很有意思，自己买来玩像是在坐牢，但我还是推荐你们买给怨种朋友。"
+			}
+		]
+	},
+	{
+		"game_id": "sbeam_003",
+		"title": "夜班便利店物语 2",
+		"genre": "轻松经营",
+		"price": 32,
+		"publisher": "Cozy Night Co.",
+		"release_date": "2022-11-20",
+		"recent_reviews_summary": "好评如潮 (96%)",
+		"all_reviews_summary": "特别好评 (90%)",
+		"quality_tier": "solid_fun",
+		"tone_tags": [
+			"舒服",
+			"夜晚",
+			"日常",
+			"经营",
+			"氛围"
+		],
+		"player_count_hint": "单人",
+		"pitch": "在凌晨三点给奇怪顾客结账，顺便重新整理自己乱掉的生活。",
+		"review_summary": "不算惊艳，但节奏很舒服，很多人拿它当睡前固定项目。",
+		"hook_moment": "某个平平无奇的小对话，会让人突然安静下来。",
+		"reaction_bias": "cozy",
+		"event_seeds": [
+			"一个深夜的常客NPC说了一句很平但很暖的话，她重复了一遍",
+			"她把游戏里的便利店按自己的审美重新摆了一遍，花了二十分钟",
+			"下雨天的BGM响起来的时候她说'就让它放着吧'",
+			"她发现游戏里有一个隐藏NPC只在凌晨3:33出现，开始蹲点",
+			"她在收银台发呆的时候你问她在想什么，她说'没有，就觉得挺好的'"
+		],
+		"user_reviews": [
+			{
+				"user": "打工人张三",
+				"hours": 45.0,
+				"owned_products": 96,
+				"is_recommended": true,
+				"upvotes": 312,
+				"review": "现实里上完夜班，回来在游戏里继续上夜班，但我竟然觉得很治愈，可能因为这里的NPC会说谢谢吧。"
+			},
+			{
+				"user": "咖啡控",
+				"hours": 15.3,
+				"owned_products": 41,
+				"is_recommended": true,
+				"upvotes": 67,
+				"review": "雨天的配乐简直无敌，就喜欢在游戏里的收银台发呆。"
+			},
+			{
+				"user": "快餐玩家",
+				"hours": 2.0,
+				"owned_products": 9,
+				"is_recommended": false,
+				"upvotes": 8,
+				"review": "太无聊了，就是点点点，不知道玩点在哪。"
+			}
+		]
+	},
+	{
+		"game_id": "sbeam_004",
+		"title": "末日卡拉 OK 法庭",
+		"genre": "节奏辩论",
+		"price": 45,
+		"publisher": "Loud Mouth Indie",
+		"release_date": "2024-03-15",
+		"recent_reviews_summary": "特别好评 (88%)",
+		"all_reviews_summary": "特别好评 (85%)",
+		"quality_tier": "odd_good",
+		"tone_tags": [
+			"夸张",
+			"热闹",
+			"上头",
+			"音乐节奏",
+			"推理"
+		],
+		"player_count_hint": "单人",
+		"pitch": "所有案件都要靠唱 K 解决，音准越准，判词越有说服力。",
+		"review_summary": "很多人是抱着看笑话的心态买的，结果真的一口气玩到了凌晨。",
+		"hook_moment": "荒唐感没有消失，但你开始真心希望某个角色赢。",
+		"reaction_bias": "hyped",
+		"event_seeds": [
+			"她第一次唱的时候完全走音了但气势很足，法官给了一个微妙的表情",
+			"某个荒谬的判决让她拍桌子喊'不公平！'然后立刻笑场",
+			"她完美通过了一首很难的歌，开始原地蹦了一下",
+			"你们开始认真讨论某个角色到底是不是无辜的",
+			"她唱到高潮部分的时候突然破音了，你忍着没笑但她看出来了"
+		],
+		"user_reviews": [
+			{
+				"user": "麦霸",
+				"hours": 8.0,
+				"owned_products": 74,
+				"is_recommended": true,
+				"upvotes": 156,
+				"review": "玩法缝合怪，但是缝得太TM好了！法官一边流泪一边给我打分那段我笑喷了。"
+			},
+			{
+				"user": "音游苦手",
+				"hours": 4.2,
+				"owned_products": 38,
+				"is_recommended": false,
+				"upvotes": 23,
+				"review": "对音痴太不友好了，我明明推理对了，就是因为走音判我有罪？？？"
+			}
+		]
+	},
+	{
+		"game_id": "sbeam_005",
+		"title": "猫咪装修队：退款风暴",
+		"genre": "合作闯关",
+		"price": 28,
+		"publisher": "Catastrophe Games",
+		"release_date": "2023-05-01",
+		"recent_reviews_summary": "褒贬不一 (45%)",
+		"all_reviews_summary": "褒贬不一 (40%)",
+		"quality_tier": "trash_fun",
+		"tone_tags": [
+			"混乱",
+			"可爱",
+			"受难",
+			"本地多人"
+		],
+		"player_count_hint": "最多支持4人",
+		"pitch": "你和几只脾气很差的猫在限定时间内装修房间，同时躲避顾客投诉。",
+		"review_summary": "平衡稀烂，但一起玩时节目效果强得惊人。",
+		"hook_moment": "一切崩坏得太快，反而让人笑到停不下来。",
+		"reaction_bias": "complain",
+		"event_seeds": [
+			"一只猫直接扑过来把她刚涂好的墙全毁了，她气得说不出话",
+			"你们配合得正好的时候客人突然冲进来投诉，节奏全乱了",
+			"她在认真刷墙的时候你不小心把油漆桶踢翻了",
+			"最后一关她说'我们能过的'然后三秒后就失败了",
+			"你们终于过关了但她说'我再也不想看到猫了'然后发了个猫的表情包"
+		],
+		"user_reviews": [
+			{
+				"user": "拆迁办主任",
+				"hours": 10.5,
+				"owned_products": 62,
+				"is_recommended": true,
+				"upvotes": 89,
+				"review": "友尽模拟器，这游戏唯一的作用就是检验你们的感情有多塑料。"
+			},
+			{
+				"user": "铲屎官",
+				"hours": 1.2,
+				"owned_products": 24,
+				"is_recommended": false,
+				"upvotes": 45,
+				"review": "判定太迷了，而且猫还会主动捣乱，玩得想砸手柄。"
+			}
+		]
+	},
+	{
+		"game_id": "sbeam_006",
+		"title": "月台尽头的纸飞机",
+		"genre": "短篇互动叙事",
+		"price": 52,
+		"publisher": "Quiet Train Studio",
+		"release_date": "2023-10-10",
+		"recent_reviews_summary": "好评如潮 (98%)",
+		"all_reviews_summary": "好评如潮 (97%)",
+		"quality_tier": "masterpiece",
+		"tone_tags": [
+			"克制",
+			"温柔",
+			"余韵",
+			"剧情丰富",
+			"步行模拟"
+		],
+		"player_count_hint": "单人",
+		"pitch": "你在不断错过的列车之间，替陌生人把来不及说出口的话折成纸飞机。",
+		"review_summary": "长度不长，但很多人玩完后都不太想立刻去做别的事。",
+		"hook_moment": "最后一个选择不大，却像把整段路轻轻照亮了一下。",
+		"reaction_bias": "aftertaste",
+		"event_seeds": [
+			"她在折纸飞机的时候突然停下来，好像想到了什么但没说",
+			"最后一个选择出现的时候她让你来选，然后一直看着你的屏幕",
+			"纸飞机飞出月台的那一刻她深吸了一口气",
+			"结束以后她很久没说话，然后说了句'再待一会儿吧'",
+			"她说这个游戏让她想起了一件事但又说算了不提了"
+		],
+		"user_reviews": [
+			{
+				"user": "文艺青年",
+				"hours": 2.5,
+				"owned_products": 118,
+				"is_recommended": true,
+				"upvotes": 560,
+				"review": "流程只有两小时，但比很多几百小时的大作都让我印象深刻。剧本绝佳。"
+			},
+			{
+				"user": "远行者",
+				"hours": 3.0,
+				"owned_products": 52,
+				"is_recommended": true,
+				"upvotes": 210,
+				"review": "看着纸飞机飞出月台那一刻，我好像也放下了什么。"
+			},
+			{
+				"user": "白金肝帝",
+				"hours": 0.8,
+				"owned_products": 305,
+				"is_recommended": false,
+				"upvotes": 5,
+				"review": "几乎没有游戏性，就是个视觉小说，不值这个价。"
+			}
+		]
+	}
+]

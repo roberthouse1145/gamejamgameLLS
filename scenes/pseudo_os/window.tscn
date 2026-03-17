@@ -1,0 +1,180 @@
+[gd_scene format=3 uid="uid://ctgijeh01rve8"]
+
+[ext_resource type="Script" uid="uid://b5c0dthosd0px" path="res://scripts/pseudo_os/pseudo_window.gd" id="1_pseudo_window"]
+[ext_resource type="Theme" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
+
+[node name="PseudoWindow" type="Control" unique_id=1779332036]
+theme = ExtResource("2_theme")
+layout_mode = 3
+anchors_preset = 0
+offset_right = 400.0
+offset_bottom = 300.0
+script = ExtResource("1_pseudo_window")
+
+[node name="Background" type="Panel" parent="." unique_id=1633623045]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleBar" type="Panel" parent="." unique_id=1073305943]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 52.0
+grow_horizontal = 2
+
+[node name="TitleLabel" type="Label" parent="TitleBar" unique_id=1618999155]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_right = -140.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Window"
+vertical_alignment = 1
+
+[node name="ButtonContainer" type="HBoxContainer" parent="TitleBar" unique_id=1004717585]
+layout_mode = 1
+anchors_preset = 11
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -180.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="MinimizeButton" type="Button" parent="TitleBar/ButtonContainer" unique_id=1327270836]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 32)
+layout_mode = 2
+size_flags_vertical = 4
+text = "_"
+
+[node name="MaximizeButton" type="Button" parent="TitleBar/ButtonContainer" unique_id=2023263893]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 32)
+layout_mode = 2
+size_flags_vertical = 4
+text = "□"
+
+[node name="CloseButton" type="Button" parent="TitleBar/ButtonContainer" unique_id=1496419555]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 32)
+layout_mode = 2
+size_flags_vertical = 4
+text = "×"
+
+[node name="ContentContainer" type="Control" parent="." unique_id=863144393]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 52.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ResizeHandles" type="Control" parent="." unique_id=1554468187]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TopLeft" type="Control" parent="ResizeHandles" unique_id=906544770]
+layout_mode = 1
+anchors_preset = 0
+offset_right = 8.0
+offset_bottom = 8.0
+mouse_default_cursor_shape = 10
+
+[node name="Top" type="Control" parent="ResizeHandles" unique_id=2143004503]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 8.0
+offset_right = -8.0
+offset_bottom = 4.0
+grow_horizontal = 2
+mouse_default_cursor_shape = 9
+
+[node name="TopRight" type="Control" parent="ResizeHandles" unique_id=2092266611]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -8.0
+offset_bottom = 8.0
+grow_horizontal = 0
+mouse_default_cursor_shape = 11
+
+[node name="Left" type="Control" parent="ResizeHandles" unique_id=77734892]
+layout_mode = 1
+anchor_top = 0.5
+anchor_bottom = 1.0
+offset_top = 8.0
+offset_right = 4.0
+offset_bottom = -8.0
+grow_vertical = 2
+mouse_default_cursor_shape = 8
+
+[node name="Right" type="Control" parent="ResizeHandles" unique_id=1716928882]
+layout_mode = 1
+anchor_left = 1.0
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -4.0
+offset_top = 8.0
+offset_bottom = -8.0
+grow_horizontal = 0
+grow_vertical = 2
+mouse_default_cursor_shape = 8
+
+[node name="BottomLeft" type="Control" parent="ResizeHandles" unique_id=1949680297]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_top = -8.0
+offset_right = 8.0
+grow_vertical = 0
+mouse_default_cursor_shape = 11
+
+[node name="Bottom" type="Control" parent="ResizeHandles" unique_id=1936569206]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -4.0
+offset_right = -8.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_default_cursor_shape = 9
+
+[node name="BottomRight" type="Control" parent="ResizeHandles" unique_id=788775731]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -8.0
+offset_top = -8.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_default_cursor_shape = 10

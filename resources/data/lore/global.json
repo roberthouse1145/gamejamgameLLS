@@ -1,0 +1,125 @@
+{
+	"version": 1,
+	"entries": [
+		{
+			"id": "shared_no_unverified_reality_state",
+			"enabled": true,
+			"title": "禁止补全未确认现实状态",
+			"scope": ["shared"],
+			"priority": 1000,
+			"group": "safety_base",
+			"insert_position": "lore_constraints",
+			"trigger": {
+				"mode": "always",
+				"keys": [],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 120,
+				"max_scope_count": 4
+			},
+			"behavior": {
+				"kind": "constraint"
+			},
+			"content": "只能根据聊天历史、当前输入、当前页面上下文和明确给出的任务补充事实。若缺乏依据，不得编造地点、日程、进度、线下事件、当前行为或已经发生的现实状态。",
+			"tags": ["constraint", "canon"]
+		},
+		{
+			"id": "chat_no_topic_smalltalk_only",
+			"enabled": true,
+			"title": "无 topic 时只允许闲聊",
+			"scope": ["chat"],
+			"priority": 1100,
+			"group": "chat_no_topic_rules",
+			"insert_position": "lore_constraints",
+			"trigger": {
+				"mode": "always",
+				"keys": [],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": true
+			},
+			"budget": {
+				"cost": 120,
+				"max_scope_count": 4
+			},
+			"behavior": {
+				"kind": "constraint"
+			},
+			"content": "如果当前没有明确 topic，本轮只能普通闲聊。不要主动推动任务，不要询问比赛进度，不要安排工作，不要汇报虚构进度，不要要求对方去某地，也不要说自己正在某地做某事。",
+			"tags": ["constraint", "chat"]
+		},
+		{
+			"id": "browser_no_fake_official_details",
+			"enabled": true,
+			"title": "网页不得伪造未确认细节",
+			"scope": ["browser"],
+			"priority": 1050,
+			"group": "browser_safety_rules",
+			"insert_position": "lore_constraints",
+			"trigger": {
+				"mode": "always",
+				"keys": [],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 120,
+				"max_scope_count": 4
+			},
+			"behavior": {
+				"kind": "constraint"
+			},
+			"content": "网页生成必须像真实网站，但不能伪造未确认的官方规则、时间、地点、联系人、报名条件或已经发生的事件。若上下文未明确给出，就生成保守、概述性的页面内容。",
+			"tags": ["constraint", "browser"]
+		},
+		{
+			"id": "agj_basic_context",
+			"enabled": true,
+			"title": "AGJ 基础背景",
+			"scope": ["shared"],
+			"priority": 400,
+			"group": "agj_context",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["AGJ", "Arcade Grand Jam", "新星赛道", "比赛"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 90,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "AGJ 2025 是校内独立游戏创作赛事。若上下文没有给出更具体的赛事规则，就不要擅自补出官方条款、截止时间、评审流程或提交流程。",
+			"tags": ["canon", "fact"]
+		}
+	]
+}

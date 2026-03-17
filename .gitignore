@@ -1,0 +1,21 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+
+# Local secrets
+ai_config.cfg
+
+# Editor / agent local state
+.claude.json
+.claude/settings.local.json
+.kiro/
+.qoder/
+.mcp.json
+.vscode/mcp.json
+
+# Local machine noise
+NVIDIA Corporation/
+nul
+*.log
+
+# 保留 web 导出文件用于部署

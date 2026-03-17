@@ -1,0 +1,54 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_001"
+character_name = "LinXia"
+display_name = "林夏"
+sprites = {
+"angry": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual13.png",
+"annoyed": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual12.png",
+"awkward": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual28.png",
+"beg": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual10.png",
+"cry": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual19.png",
+"default": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual01.png",
+"gloom": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual16.png",
+"happy": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual04.png",
+"laugh": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual05.png",
+"love": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual25.png",
+"sad": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual03.png",
+"serious": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual02.png",
+"sigh": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual18.png",
+"smirk": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual15.png",
+"soft_smile": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual08.png",
+"sparkle": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual09.png",
+"surprised": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual11.png",
+"teasing": "res://narrative_projects/main_story/Assets/girl_friend/mirai_casual06.png"
+}
+default_outfit = "casual"
+available_outfits = Array[String](["casual", "loungewear", "maid"])
+emotion_slots = {
+"angry": "13",
+"annoyed": "12",
+"awkward": "28",
+"beg": "10",
+"cry": "19",
+"default": "01",
+"gloom": "16",
+"happy": "04",
+"laugh": "05",
+"love": "25",
+"sad": "03",
+"serious": "02",
+"sigh": "18",
+"smirk": "15",
+"soft_smile": "08",
+"sparkle": "09",
+"surprised": "11",
+"teasing": "06"
+}
+sprite_prefix = "mirai"
+sprite_base_dir = "res://narrative_projects/main_story/Assets/girl_friend"
+profile = "Main story portrait set for 林夏. Use outfit + emotion slot naming: mirai_<outfit><slot>.png. Available outfits: casual, loungewear, maid."

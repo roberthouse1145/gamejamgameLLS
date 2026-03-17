@@ -1,0 +1,1580 @@
+{
+	"author": "system",
+	"description": "test_snapshot_iter_17",
+	"parent_snapshot_id": "ai_006",
+	"project_data": {
+		"_type": "AVGProject",
+		"characters": [
+			{
+				"_type": "AVGCharacter",
+				"character_id": "char_001",
+				"character_name": "Alice",
+				"display_name": "Alice",
+				"profile": "Tutorial character for testing AVG engine features.",
+				"sprites": {
+					"angry": "assets/images/character/Alice/heroine02_cos04.png",
+					"default": "assets/images/character/Alice/heroine02_cos01.png",
+					"happy": "assets/images/character/Alice/heroine02_cos02.png",
+					"sad": "assets/images/character/Alice/heroine02_cos03.png",
+					"surprised": "assets/images/character/Alice/heroine02_cos05.png"
+				}
+			}
+		],
+		"events": [
+			{
+				"_type": "AVGEvent",
+				"commands": [
+					{
+						"_type": "AVGCommand",
+						"command_type": "DIALOGUE",
+						"params": {
+							"speaker": "",
+							"text": "[Event Start] This is a reusable event!"
+						}
+					},
+					{
+						"_type": "AVGCommand",
+						"command_type": "SET_VARIABLE",
+						"params": {
+							"operation": "add",
+							"value": 5,
+							"variable_name": "score"
+						}
+					},
+					{
+						"_type": "AVGCommand",
+						"command_type": "DIALOGUE",
+						"params": {
+							"speaker": "",
+							"text": "[Event End] Score +5 from event. Returning..."
+						}
+					}
+				],
+				"event_id": "greeting",
+				"event_name": "Greeting Event"
+			}
+		],
+		"project_name": "Tutorial Project",
+		"resolution": [
+			1920,
+			1080
+		],
+		"scenes": [
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [
+							{
+								"_type": "AVGNode",
+								"children": [],
+								"clip_contents": false,
+								"command_tabs": [],
+								"font_color": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"font_size": 48,
+								"h_alignment": 1,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "title_text",
+								"node_name": "TitleText",
+								"norm_position": [
+									0.34375,
+									0.185185000300407
+								],
+								"norm_size": [
+									0.3125,
+									0.0925929993391037
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									660.0,
+									200.0
+								],
+								"size": [
+									600.0,
+									100.0
+								],
+								"stretch_mode": 0,
+								"style_box": null,
+								"text": "AVG Engine Tutorial",
+								"texture": null,
+								"v_alignment": 0,
+								"visible": true
+							},
+							{
+								"_type": "AVGNode",
+								"children": [],
+								"clip_contents": false,
+								"command_tabs": [
+									{
+										"commands": [
+											"(res://templates/tutorial_project/scenes/scene_00_title.tres::cmd_jump):<Resource#-9223371914129439004>"
+										],
+										"condition_type": 0,
+										"mode": 2
+									}
+								],
+								"font_color": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"font_size": 0,
+								"h_alignment": 0,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "start_button_ref",
+								"node_name": "StartButtonRef",
+								"norm_position": [
+									0.421875,
+									0.46296301484108
+								],
+								"norm_size": [
+									0.15625,
+									0.074074000120163
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									810.0,
+									500.0
+								],
+								"size": [
+									300.0,
+									80.0
+								],
+								"stretch_mode": 0,
+								"style_box": null,
+								"text": "",
+								"texture": null,
+								"v_alignment": 0,
+								"visible": true
+							}
+						],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [],
+								"condition_type": 0,
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_00_title",
+				"scene_name": "Title Screen"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_01_dialogue.tres::cmd_1):<Resource#-9223371913894557976>",
+									"(res://templates/tutorial_project/scenes/scene_01_dialogue.tres::cmd_2):<Resource#-9223371913877780759>",
+									"(res://templates/tutorial_project/scenes/scene_01_dialogue.tres::cmd_3):<Resource#-9223371913861003542>",
+									"(res://templates/tutorial_project/scenes/scene_01_dialogue.tres::cmd_4):<Resource#-9223371913844226325>",
+									"(res://templates/tutorial_project/scenes/scene_01_dialogue.tres::cmd_5):<Resource#-9223371913827449108>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_001",
+				"scene_name": "Basic Dialogue"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_02_choices.tres::cmd_1):<Resource#-9223371913609345296>",
+									"(res://templates/tutorial_project/scenes/scene_02_choices.tres::cmd_2):<Resource#-9223371913559013645>",
+									"(res://templates/tutorial_project/scenes/scene_02_choices.tres::cmd_9):<Resource#-9223371913542236428>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_02_choices",
+				"scene_name": "Choices and Branching"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_1):<Resource#-9223371913324132616>",
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_2):<Resource#-9223371913307355399>",
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_3):<Resource#-9223371913290578182>",
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_4):<Resource#-9223371913273800965>",
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_call_event):<Resource#-9223371913257023748>",
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_after_event):<Resource#-9223371913240246531>",
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_if):<Resource#-9223371913189914880>",
+									"(res://templates/tutorial_project/scenes/scene_03_variables.tres::cmd_end):<Resource#-9223371913173137663>"
+								],
+								"condition_type": 0,
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_03_variables",
+				"scene_name": "Variables & Events"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_01):<Resource#-9223371912955033851>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_02):<Resource#-9223371912938256634>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_03):<Resource#-9223371912921479417>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_04):<Resource#-9223371912904702200>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_05):<Resource#-9223371912887924983>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_06):<Resource#-9223371912871147766>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_07):<Resource#-9223371912854370549>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_08):<Resource#-9223371912837593332>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_09):<Resource#-9223371912820816115>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_10):<Resource#-9223371912804038898>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_11):<Resource#-9223371912787261681>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_12):<Resource#-9223371912770484464>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_13):<Resource#-9223371912753707247>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_14):<Resource#-9223371912736930030>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_15):<Resource#-9223371912720152813>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_16):<Resource#-9223371912703375596>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_17):<Resource#-9223371912686598379>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_18):<Resource#-9223371912669821162>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_19):<Resource#-9223371912653043945>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_20):<Resource#-9223371912636266728>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_21):<Resource#-9223371912619489511>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_22):<Resource#-9223371912602712294>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_23):<Resource#-9223371912585935077>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_24):<Resource#-9223371912569157860>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_25):<Resource#-9223371912552380643>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_26):<Resource#-9223371912535603426>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_27):<Resource#-9223371912518826209>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_28):<Resource#-9223371912502048992>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_29):<Resource#-9223371912485271775>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_30):<Resource#-9223371912468494558>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_31):<Resource#-9223371912451717341>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_32):<Resource#-9223371912434940124>",
+									"(res://templates/tutorial_project/scenes/scene_04_character_commands.tres::cmd_33):<Resource#-9223371912418162907>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_004",
+				"scene_name": "Character Commands Test"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [
+					{
+						"_type": "AVGVariable",
+						"default_value": 0,
+						"description": "Local counter for event loop test",
+						"variable_id": "lvar_001",
+						"variable_name": "counter",
+						"variable_type": "int"
+					},
+					{
+						"_type": "AVGVariable",
+						"default_value": 0,
+						"description": "Random luck value",
+						"variable_id": "lvar_002",
+						"variable_name": "luck",
+						"variable_type": "int"
+					}
+				],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [
+							{
+								"_type": "AVGNode",
+								"children": [],
+								"clip_contents": false,
+								"command_tabs": [
+									{
+										"commands": [
+											"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::loop_cmd_inc):<Resource#-9223371912149727444>"
+										],
+										"condition_commands": [],
+										"mode": 1
+									},
+									{
+										"commands": [
+											"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::loop_cmd_msg):<Resource#-9223371912116173010>"
+										],
+										"condition_commands": [
+											"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::loop_check):<Resource#-9223371912132950227>"
+										],
+										"mode": 0
+									}
+								],
+								"font_color": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"font_size": 0,
+								"h_alignment": 0,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "node_001",
+								"node_name": "EventLoopTest",
+								"norm_position": [
+									0.0,
+									0.0
+								],
+								"norm_size": [
+									0.0,
+									0.0
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									0.0,
+									0.0
+								],
+								"size": [
+									100.0,
+									100.0
+								],
+								"stretch_mode": 0,
+								"style_box": null,
+								"text": "",
+								"texture": null,
+								"v_alignment": 0,
+								"visible": false
+							}
+						],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_01):<Resource#-9223371912082618576>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_02):<Resource#-9223371912065841359>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_03):<Resource#-9223371912049064142>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_04):<Resource#-9223371912032286925>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_05):<Resource#-9223371912015509708>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_06):<Resource#-9223371911998732491>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_07):<Resource#-9223371911981955274>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_08):<Resource#-9223371911965178057>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_09):<Resource#-9223371911948400840>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_10):<Resource#-9223371911931623623>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_11):<Resource#-9223371911914846406>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_12):<Resource#-9223371911847737538>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_13):<Resource#-9223371911780628670>",
+									"(res://templates/tutorial_project/scenes/scene_05_variable_test.tres::cmd_end):<Resource#-9223371911763851453>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_05_variable_test",
+				"scene_name": "Variable System Test"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [
+					{
+						"_type": "AVGVariable",
+						"default_value": 0,
+						"description": "Timer counter",
+						"variable_id": "var_L01",
+						"variable_name": "timer",
+						"variable_type": "int"
+					},
+					{
+						"_type": "AVGVariable",
+						"default_value": 0,
+						"description": "Click score",
+						"variable_id": "var_L02",
+						"variable_name": "score",
+						"variable_type": "int"
+					}
+				],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [
+							{
+								"_type": "AVGNode",
+								"children": [],
+								"clip_contents": false,
+								"command_tabs": [
+									{
+										"commands": [
+											"(res://templates/tutorial_project/scenes/scene_06_parallel_test.tres::cmd_timer_wait):<Resource#-9223371911478638774>",
+											"(res://templates/tutorial_project/scenes/scene_06_parallel_test.tres::cmd_timer_inc):<Resource#-9223371911461861557>",
+											"(res://templates/tutorial_project/scenes/scene_06_parallel_test.tres::cmd_timer_notify):<Resource#-9223371911445084340>"
+										],
+										"condition_commands": [],
+										"mode": 1
+									}
+								],
+								"font_color": [
+									0.800000011920929,
+									0.800000011920929,
+									1.0,
+									1.0
+								],
+								"font_size": 28,
+								"h_alignment": 1,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "node_001",
+								"node_name": "TimerLabel",
+								"norm_position": [
+									0.0299999993294477,
+									0.0299999993294477
+								],
+								"norm_size": [
+									0.200000002980232,
+									0.0599999986588955
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									57.5999984741211,
+									32.4000015258789
+								],
+								"size": [
+									384.0,
+									64.8000030517578
+								],
+								"stretch_mode": 0,
+								"style_box": {
+									"_type": "AVGStyleBox",
+									"bg_color": [
+										0.100000001490116,
+										0.100000001490116,
+										0.300000011920929,
+										0.899999976158142
+									],
+									"border_color": [
+										0.400000005960464,
+										0.400000005960464,
+										0.800000011920929,
+										1.0
+									],
+									"border_width": 2,
+									"content_margins": [
+										16,
+										8,
+										16,
+										8
+									],
+									"corner_radius": 12,
+									"texture": null,
+									"texture_margins": [
+										16,
+										16,
+										16,
+										16
+									],
+									"texture_modulate": [
+										1.0,
+										1.0,
+										1.0,
+										1.0
+									]
+								},
+								"text": "Timer: 0",
+								"texture": null,
+								"v_alignment": 1,
+								"visible": true
+							},
+							{
+								"_type": "AVGNode",
+								"children": [],
+								"clip_contents": false,
+								"command_tabs": [
+									{
+										"commands": [
+											"(res://templates/tutorial_project/scenes/scene_06_parallel_test.tres::cmd_click_add):<Resource#-9223371911394752689>",
+											"(res://templates/tutorial_project/scenes/scene_06_parallel_test.tres::cmd_click_notify):<Resource#-9223371911377975472>"
+										],
+										"condition_commands": [],
+										"mode": 2
+									}
+								],
+								"font_color": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"font_size": 32,
+								"h_alignment": 1,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "node_002",
+								"node_name": "ClickButton",
+								"norm_position": [
+									0.379999995231628,
+									0.400000005960464
+								],
+								"norm_size": [
+									0.239999994635582,
+									0.100000001490116
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									729.599975585938,
+									432.0
+								],
+								"size": [
+									460.799987792969,
+									108.0
+								],
+								"stretch_mode": 0,
+								"style_box": {
+									"_type": "AVGStyleBox",
+									"bg_color": [
+										0.200000002980232,
+										0.5,
+										0.200000002980232,
+										0.899999976158142
+									],
+									"border_color": [
+										0.300000011920929,
+										0.699999988079071,
+										0.300000011920929,
+										1.0
+									],
+									"border_width": 2,
+									"content_margins": [
+										16,
+										8,
+										16,
+										8
+									],
+									"corner_radius": 10,
+									"texture": null,
+									"texture_margins": [
+										16,
+										16,
+										16,
+										16
+									],
+									"texture_modulate": [
+										1.0,
+										1.0,
+										1.0,
+										1.0
+									]
+								},
+								"text": "Click Me! (+1 Score)",
+								"texture": null,
+								"v_alignment": 1,
+								"visible": true
+							},
+							{
+								"_type": "AVGNode",
+								"children": [],
+								"clip_contents": false,
+								"command_tabs": [],
+								"font_color": [
+									1.0,
+									0.800000011920929,
+									0.800000011920929,
+									1.0
+								],
+								"font_size": 28,
+								"h_alignment": 1,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "node_003",
+								"node_name": "ScoreLabel",
+								"norm_position": [
+									0.75,
+									0.0299999993294477
+								],
+								"norm_size": [
+									0.200000002980232,
+									0.0599999986588955
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									1440.0,
+									32.4000015258789
+								],
+								"size": [
+									384.0,
+									64.8000030517578
+								],
+								"stretch_mode": 0,
+								"style_box": {
+									"_type": "AVGStyleBox",
+									"bg_color": [
+										0.300000011920929,
+										0.100000001490116,
+										0.100000001490116,
+										0.899999976158142
+									],
+									"border_color": [
+										0.800000011920929,
+										0.400000005960464,
+										0.400000005960464,
+										1.0
+									],
+									"border_width": 2,
+									"content_margins": [
+										16,
+										8,
+										16,
+										8
+									],
+									"corner_radius": 12,
+									"texture": null,
+									"texture_margins": [
+										16,
+										16,
+										16,
+										16
+									],
+									"texture_modulate": [
+										1.0,
+										1.0,
+										1.0,
+										1.0
+									]
+								},
+								"text": "Score: 0",
+								"texture": null,
+								"v_alignment": 1,
+								"visible": true
+							}
+						],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_06_parallel_test.tres::cmd_intro1):<Resource#-9223371911294089387>",
+									"(res://templates/tutorial_project/scenes/scene_06_parallel_test.tres::cmd_intro2):<Resource#-9223371911277312170>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_006",
+				"scene_name": "Parallel Test"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [
+							{
+								"_type": "AVGNode",
+								"children": [
+									{
+										"_type": "AVGNode",
+										"children": [],
+										"clip_contents": false,
+										"command_tabs": [],
+										"font_color": [
+											1.0,
+											1.0,
+											0.0,
+											1.0
+										],
+										"font_size": 28,
+										"h_alignment": 1,
+										"modulate": [
+											1.0,
+											1.0,
+											1.0,
+											1.0
+										],
+										"node_id": "node_002",
+										"node_name": "HUD Timer",
+										"norm_position": [
+											0.0199999995529652,
+											0.0199999995529652
+										],
+										"norm_size": [
+											0.200000002980232,
+											0.0500000007450581
+										],
+										"note": "",
+										"outline_color": [
+											0.0,
+											0.0,
+											0.0,
+											1.0
+										],
+										"outline_size": 0,
+										"position": [
+											38.0,
+											22.0
+										],
+										"size": [
+											384.0,
+											54.0
+										],
+										"stretch_mode": 0,
+										"style_box": null,
+										"text": "HUD: 00:00",
+										"texture": null,
+										"v_alignment": 1,
+										"visible": true
+									}
+								],
+								"clip_contents": false,
+								"command_tabs": [],
+								"font_color": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"font_size": 0,
+								"h_alignment": 0,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "node_001",
+								"node_name": "HUD Layer",
+								"norm_position": [
+									0.0,
+									0.0
+								],
+								"norm_size": [
+									1.0,
+									1.0
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									0.0,
+									0.0
+								],
+								"size": [
+									100.0,
+									100.0
+								],
+								"stretch_mode": 0,
+								"style_box": null,
+								"text": "",
+								"texture": null,
+								"v_alignment": 0,
+								"visible": true
+							},
+							{
+								"_type": "AVGNode",
+								"children": [],
+								"clip_contents": false,
+								"command_tabs": [],
+								"font_color": [
+									0.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"font_size": 28,
+								"h_alignment": 1,
+								"modulate": [
+									1.0,
+									1.0,
+									1.0,
+									1.0
+								],
+								"node_id": "node_003",
+								"node_name": "World Label",
+								"norm_position": [
+									0.0199999995529652,
+									0.0199999995529652
+								],
+								"norm_size": [
+									0.200000002980232,
+									0.0500000007450581
+								],
+								"note": "",
+								"outline_color": [
+									0.0,
+									0.0,
+									0.0,
+									1.0
+								],
+								"outline_size": 0,
+								"position": [
+									38.0,
+									22.0
+								],
+								"size": [
+									384.0,
+									54.0
+								],
+								"stretch_mode": 0,
+								"style_box": null,
+								"text": "WORLD: follows camera",
+								"texture": null,
+								"v_alignment": 1,
+								"visible": true
+							}
+						],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_show_char):<Resource#-9223371911042431143>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_intro):<Resource#-9223371911025653926>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_zoom_in):<Resource#-9223371911008876709>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_zoom_dialog):<Resource#-9223371910992099492>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_pan_left):<Resource#-9223371910975322275>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_pan_dialog):<Resource#-9223371910958545058>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_reset):<Resource#-9223371910941767841>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_reset_dialog):<Resource#-9223371910924990624>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_zoom_corner):<Resource#-9223371910908213407>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_corner_dialog):<Resource#-9223371910891436190>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_shake):<Resource#-9223371910874658973>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_wait_shake):<Resource#-9223371910857881756>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_final_reset):<Resource#-9223371910841104539>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_end):<Resource#-9223371910824327322>",
+									"(res://templates/tutorial_project/scenes/scene_07_camera_test.tres::cmd_hide_char):<Resource#-9223371910807550105>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_007",
+				"scene_name": "Camera Test"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_intro):<Resource#-9223371909532481672>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_fade_out_black):<Resource#-9223371909515704457>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_wait1):<Resource#-9223371909498927250>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_fade_in_black):<Resource#-9223371909482150023>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_after_fade):<Resource#-9223371909465372806>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_dissolve_out):<Resource#-9223371909448595589>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_wait2):<Resource#-9223371909431818372>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_dissolve_in):<Resource#-9223371909415041155>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_after_dissolve):<Resource#-9223371909398263938>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_fade):<Resource#-9223371909381486721>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_fade_dialog):<Resource#-9223371909364709504>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_dissolve):<Resource#-9223371909347932287>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_dissolve_dialog):<Resource#-9223371909331155070>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_wipe_left):<Resource#-9223371909314377853>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_wipe_dialog):<Resource#-9223371909297600636>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_wipe_down):<Resource#-9223371909280823419>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_bg_wipe_down_dialog):<Resource#-9223371909264046202>",
+									"(res://templates/tutorial_project/scenes/scene_08_transition_a.tres::cmd_jump_b):<Resource#-9223371909247268985>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_008",
+				"scene_name": "Transition Test A"
+			},
+			{
+				"_type": "AVGScene",
+				"folder": "",
+				"local_variables": [],
+				"nodes": [
+					{
+						"_type": "AVGNode",
+						"children": [],
+						"clip_contents": false,
+						"command_tabs": [
+							{
+								"commands": [
+									"(res://templates/tutorial_project/scenes/scene_09_transition_b.tres::cmd_arrived):<Resource#-9223371908811061388>",
+									"(res://templates/tutorial_project/scenes/scene_09_transition_b.tres::cmd_explain):<Resource#-9223371908794284149>",
+									"(res://templates/tutorial_project/scenes/scene_09_transition_b.tres::cmd_bg_wipe_right):<Resource#-9223371908777506932>",
+									"(res://templates/tutorial_project/scenes/scene_09_transition_b.tres::cmd_bg_wipe_right_dialog):<Resource#-9223371908760729715>",
+									"(res://templates/tutorial_project/scenes/scene_09_transition_b.tres::cmd_bg_wipe_up):<Resource#-9223371908743952498>",
+									"(res://templates/tutorial_project/scenes/scene_09_transition_b.tres::cmd_bg_wipe_up_dialog):<Resource#-9223371908727175281>",
+									"(res://templates/tutorial_project/scenes/scene_09_transition_b.tres::cmd_jump_a):<Resource#-9223371908710398064>"
+								],
+								"condition_commands": [],
+								"mode": 0
+							}
+						],
+						"font_color": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"font_size": 0,
+						"h_alignment": 0,
+						"modulate": [
+							1.0,
+							1.0,
+							1.0,
+							1.0
+						],
+						"node_id": "root",
+						"node_name": "Root",
+						"norm_position": [
+							0.0,
+							0.0
+						],
+						"norm_size": [
+							1.0,
+							1.0
+						],
+						"note": "",
+						"outline_color": [
+							0.0,
+							0.0,
+							0.0,
+							1.0
+						],
+						"outline_size": 0,
+						"position": [
+							0.0,
+							0.0
+						],
+						"size": [
+							1920.0,
+							1080.0
+						],
+						"stretch_mode": 0,
+						"style_box": null,
+						"text": "",
+						"texture": null,
+						"v_alignment": 0,
+						"visible": true
+					}
+				],
+				"scene_id": "scene_009",
+				"scene_name": "Transition Test B"
+			}
+		],
+		"shared_nodes": [
+			{
+				"_type": "AVGNode",
+				"children": [],
+				"clip_contents": false,
+				"command_tabs": [
+					{
+						"commands": [
+							"(res://templates/tutorial_project/project.tres::shared_btn_cmd_jump):<Resource#-9223371908207081576>"
+						],
+						"condition_commands": [],
+						"mode": 2
+					}
+				],
+				"font_color": [
+					1.0,
+					1.0,
+					1.0,
+					1.0
+				],
+				"font_size": 24,
+				"h_alignment": 0,
+				"modulate": [
+					1.0,
+					1.0,
+					1.0,
+					1.0
+				],
+				"node_id": "shared_start_button",
+				"node_name": "StartButton",
+				"norm_position": [
+					0.0,
+					0.0
+				],
+				"norm_size": [
+					0.15625,
+					0.074074000120163
+				],
+				"note": "",
+				"outline_color": [
+					0.0,
+					0.0,
+					0.0,
+					1.0
+				],
+				"outline_size": 0,
+				"position": [
+					0.0,
+					0.0
+				],
+				"size": [
+					300.0,
+					80.0
+				],
+				"stretch_mode": 0,
+				"style_box": null,
+				"text": "Start Game",
+				"texture": null,
+				"v_alignment": 0,
+				"visible": true
+			}
+		],
+		"variables": [
+			{
+				"_type": "AVGVariable",
+				"default_value": 0,
+				"description": "Player score",
+				"variable_id": "var_001",
+				"variable_name": "score",
+				"variable_type": "int"
+			}
+		]
+	},
+	"snapshot_id": "ai_007",
+	"timestamp": 1771334542,
+	"track_name": "ai"
+}

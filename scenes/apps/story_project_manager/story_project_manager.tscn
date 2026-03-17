@@ -1,0 +1,131 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/story_project_manager/story_project_manager.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/scene_list_panel.tscn" id="2_scene_list"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/character_list_panel.tscn" id="3_character_list"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/resource_library_panel.tscn" id="4_resource_library"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/dialog_settings_panel.tscn" id="5_dialog_settings"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/title_settings_panel.tscn" id="6_title_settings"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/screen_settings_panel.tscn" id="7_screen_settings"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/project_settings_panel.tscn" id="8_project_settings"]
+
+[node name="StoryProjectManager" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 170
+
+[node name="LeftPanel" type="VBoxContainer" parent="HSplitContainer"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="HSplitContainer/LeftPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "剧情工程管理器"
+horizontal_alignment = 1
+
+[node name="SaveButton" type="Button" parent="HSplitContainer/LeftPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "保存剧情工程"
+
+[node name="HSeparator" type="HSeparator" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+
+[node name="CategoryList" type="ItemList" parent="HSplitContainer/LeftPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ContentContainer" type="Control" parent="HSplitContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SceneListPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("2_scene_list")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="CharacterListPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("3_character_list")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ResourceLibraryPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("4_resource_library")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DialogSettingsPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("5_dialog_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TitleSettingsPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("6_title_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ScreenSettingsPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("7_screen_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ProjectSettingsPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("8_project_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="UnsavedChangesDialog" type="ConfirmationDialog" parent="."]
+unique_name_in_owner = true
+title = "未保存的更改"
+size = Vector2i(360, 120)
+dialog_text = "剧情工程有未保存更改，是否先保存？"
+ok_button_text = "保存"

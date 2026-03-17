@@ -1,0 +1,190 @@
+[gd_resource type="Resource" script_class="AVGScene" format=3 uid="uid://d4lm7kpfctecf"]
+
+[ext_resource type="Script" uid="uid://ddhjo3v5gpfwl" path="res://scripts/avg/resources/avg_node.gd" id="1_c7ws3"]
+[ext_resource type="Script" uid="uid://bp2jf8bgegffx" path="res://scripts/avg/resources/avg_scene.gd" id="1_scene"]
+[ext_resource type="Script" uid="uid://bqmt6mnvjwjtl" path="res://scripts/avg/resources/nodes/avg_root_node.gd" id="2_root"]
+[ext_resource type="Script" uid="uid://b1pve6xq8ouco" path="res://scripts/avg/resources/avg_command.gd" id="3_cmd"]
+[ext_resource type="Script" uid="uid://c4fi2exvtiees" path="res://scripts/avg/resources/nodes/avg_canvas_layer_node.gd" id="4_canvas"]
+
+[sub_resource type="Resource" id="hud_timer_label"]
+script = ExtResource("1_c7ws3")
+node_id = "node_002"
+node_name = "HUD Timer"
+norm_position = Vector2(0.02, 0.02)
+norm_size = Vector2(0.2, 0.05)
+position = Vector2(38, 22)
+size = Vector2(384, 54)
+text = "HUD: 00:00"
+font_size = 28
+font_color = Color(1, 1, 0, 1)
+h_alignment = 1
+v_alignment = 1
+
+[sub_resource type="Resource" id="hud_layer"]
+script = ExtResource("4_canvas")
+layer = 50
+node_id = "node_001"
+node_name = "HUD Layer"
+norm_size = Vector2(1, 1)
+children = Array[ExtResource("1_c7ws3")]([SubResource("hud_timer_label")])
+
+[sub_resource type="Resource" id="world_label"]
+script = ExtResource("1_c7ws3")
+node_id = "node_003"
+node_name = "World Label"
+norm_position = Vector2(0.02, 0.02)
+norm_size = Vector2(0.2, 0.05)
+position = Vector2(38, 22)
+size = Vector2(384, 54)
+text = "WORLD: follows camera"
+font_size = 28
+font_color = Color(0, 1, 1, 1)
+h_alignment = 1
+v_alignment = 1
+
+[sub_resource type="Resource" id="cmd_show_char"]
+script = ExtResource("3_cmd")
+command_type = "SHOW_CHARACTER"
+params = {
+"character_id": "char_001",
+"emotion": "default",
+"fade_duration": 0.3,
+"flip": false,
+"opacity": 1.0,
+"position": "center",
+"scale": 1.0
+}
+
+[sub_resource type="Resource" id="cmd_intro"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Camera Test: zoom, pan, reset."
+}
+
+[sub_resource type="Resource" id="cmd_zoom_in"]
+script = ExtResource("3_cmd")
+command_type = "CAMERA_ZOOM"
+params = {
+"duration": 1.0,
+"focus_x": 0.5,
+"focus_y": 0.35,
+"zoom": 2.0
+}
+
+[sub_resource type="Resource" id="cmd_zoom_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Zoomed in x2, focused on upper center."
+}
+
+[sub_resource type="Resource" id="cmd_pan_left"]
+script = ExtResource("3_cmd")
+command_type = "CAMERA_PAN"
+params = {
+"duration": 0.8,
+"norm_x": 0.2,
+"norm_y": 0.0
+}
+
+[sub_resource type="Resource" id="cmd_pan_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Panned to the right (offset +0.2)."
+}
+
+[sub_resource type="Resource" id="cmd_reset"]
+script = ExtResource("3_cmd")
+command_type = "CAMERA_RESET"
+params = {
+"duration": 1.0
+}
+
+[sub_resource type="Resource" id="cmd_reset_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Camera reset to default."
+}
+
+[sub_resource type="Resource" id="cmd_zoom_corner"]
+script = ExtResource("3_cmd")
+command_type = "CAMERA_ZOOM"
+params = {
+"duration": 0.6,
+"focus_x": 0.8,
+"focus_y": 0.7,
+"zoom": 1.8
+}
+
+[sub_resource type="Resource" id="cmd_corner_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Zoomed to bottom-right corner. Now shake!"
+}
+
+[sub_resource type="Resource" id="cmd_shake"]
+script = ExtResource("3_cmd")
+command_type = "SCREEN_SHAKE"
+params = {
+"duration": 0.5,
+"frequency": 20.0,
+"intensity": 15.0
+}
+
+[sub_resource type="Resource" id="cmd_wait_shake"]
+script = ExtResource("3_cmd")
+command_type = "WAIT_TIME"
+params = {
+"duration": 0.8
+}
+
+[sub_resource type="Resource" id="cmd_final_reset"]
+script = ExtResource("3_cmd")
+command_type = "CAMERA_RESET"
+params = {
+"duration": 0.8
+}
+
+[sub_resource type="Resource" id="cmd_end"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Camera test complete!"
+}
+
+[sub_resource type="Resource" id="cmd_hide_char"]
+script = ExtResource("3_cmd")
+command_type = "HIDE_CHARACTER"
+params = {
+"character_id": "char_001",
+"fade_duration": 0.3
+}
+
+[sub_resource type="Resource" id="root_node"]
+script = ExtResource("2_root")
+node_id = "root"
+node_name = "Root"
+norm_size = Vector2(1, 1)
+size = Vector2(2560, 1440)
+children = Array[ExtResource("1_c7ws3")]([SubResource("hud_layer"), SubResource("world_label")])
+command_tabs = [{
+"commands": [SubResource("cmd_show_char"), SubResource("cmd_intro"), SubResource("cmd_zoom_in"), SubResource("cmd_zoom_dialog"), SubResource("cmd_pan_left"), SubResource("cmd_pan_dialog"), SubResource("cmd_reset"), SubResource("cmd_reset_dialog"), SubResource("cmd_zoom_corner"), SubResource("cmd_corner_dialog"), SubResource("cmd_shake"), SubResource("cmd_wait_shake"), SubResource("cmd_final_reset"), SubResource("cmd_end"), SubResource("cmd_hide_char")],
+"condition_commands": [],
+"mode": 0
+}]
+
+[resource]
+script = ExtResource("1_scene")
+scene_id = "scene_007"
+scene_name = "Camera Test"
+nodes = [SubResource("root_node")]

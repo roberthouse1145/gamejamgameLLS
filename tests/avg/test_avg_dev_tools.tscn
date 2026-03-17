@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://camjrd75hqawp"]
+
+[ext_resource type="Script" uid="uid://bjqqdisn503nh" path="res://tests/avg/test_avg_dev_tools.gd" id="1_test"]
+
+[node name="TestAVGDevTools" type="Node" unique_id=468074834]
+script = ExtResource("1_test")

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="MagicalGirlData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/magical_girl_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+girl_id = "girl_001"
+display_name = "星野光"
+strength = 8
+agility = 7
+charisma = 5
+intelligence = 4
+willpower = 6
+base_move_speed = 120.0
+prompt = "性格开朗活泼的魔法少女，擅长近战格斗。战斗时充满激情，喜欢冲在最前线保护同伴。"

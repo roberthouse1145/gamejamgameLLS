@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://b1tut7gga1pqw"]
+
+[ext_resource type="Script" uid="uid://cr34wli7y3fdn" path="res://scripts/llm/AIService.gd" id="1_ai_service"]
+
+[node name="AIService" type="Node" unique_id=1680885778]
+script = ExtResource("1_ai_service")

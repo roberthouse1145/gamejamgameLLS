@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://scene-demo"
+title = "Browser Scene Demo"
+hint = "用于验证 BrowserApp 直接挂载预制场景页的能力。"
+content = ""
+scene_path = "res://scenes/apps/browser/pages/browser_scene_demo.tscn"
+design_prompt = ""
+searchable = true
+search_keywords = PackedStringArray("scene", "browser scene", "场景页", "demo")
+linked_urls = PackedStringArray()

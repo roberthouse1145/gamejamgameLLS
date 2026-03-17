@@ -1,0 +1,62 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/date_events/date_event_player.gd" id="1_player"]
+[ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_scene_runner.tscn" id="2_runner"]
+
+[node name="DateEventPlayer" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_player")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.0352941, 0.0470588, 0.0823529, 1)
+
+[node name="ContentContainer" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="ContentContainer"]
+unique_name_in_owner = true
+layout_mode = 0
+stretch = true
+
+[node name="PreviewViewport" type="SubViewport" parent="ContentContainer/PreviewContainer"]
+unique_name_in_owner = true
+handle_input_locally = true
+size = Vector2i(2560, 1440)
+render_target_update_mode = 4
+
+[node name="AVGSceneRunner" parent="ContentContainer/PreviewContainer/PreviewViewport" instance=ExtResource("2_runner")]
+unique_name_in_owner = true
+
+[node name="TopOverlay" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 18.0
+offset_top = 14.0
+offset_right = -18.0
+offset_bottom = 54.0
+grow_horizontal = 2
+
+[node name="TitleLabel" type="Label" parent="TopOverlay"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "重要约会"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.921569, 0.945098, 1, 0.72)

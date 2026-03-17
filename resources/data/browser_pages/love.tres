@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "baike.com/爱情"
+title = "爱情 - 百科"
+hint = "爱情是人与人之间的强烈的依恋、亲近、向往，以及无私并且无所不尽其心的情感。"
+content = "<hbox fill>
+  <vbox width=180 bg=#f5f5f5>
+    <margin 12>
+      <vbox>
+        <label size=18>目录</label>
+        <hr/>
+        <rich size=16>
+[color=#0066CC]定义解释[/color]
+[color=#0066CC]大脑反应[/color]
+[color=#0066CC]相关名言[/color]
+        </rich>
+      </vbox>
+    </margin>
+  </vbox>
+  <spacer 15/>
+  <vbox fill>
+    <label size=34>爱情</label>
+    <hr/>
+    <rich size=18>
+[b]爱情[/b]是人与人之间的强烈的依恋、亲近、向往，以及无私并且无所不尽其心的情感。
+
+在传统文化中，爱情指的是坠入爱河的人们之间心心相印、相互吸引的感觉。现代社会中，因不同的价值观和生活方式，爱情也被赋予了更多不同的形态。
+
+美国心理学家斯滕伯格提出了著名的[color=#0066CC]爱情三角理论[/color]，认为爱情由三个基本成分组成：激情、亲密和承诺。
+    </rich>
+    <spacer 15/>
+    <panel bg=#f8f8f8>
+      <margin 10>
+        <vbox>
+          <label size=22>大脑反应</label>
+          <hr/>
+          <rich size=17>
+当人们陷入爱情时，大脑会分泌多种神经化学物质：
+• 苯基乙胺：让人产生心跳加速、兴奋愉悦的感觉
+• 多巴胺：让人产生满足感和愉悦感
+• 催产素：增加亲密感和信任感
+• 内啡肽：让恋人在长期相处中产生温馨平静的幸福感
+          </rich>
+        </vbox>
+      </margin>
+    </panel>
+  </vbox>
+</hbox>"
+design_prompt = ""
+search_keywords = PackedStringArray("爱情", "love", "恋爱", "亲密关系")
+linked_urls = PackedStringArray()

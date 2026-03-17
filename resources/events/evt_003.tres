@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+event_id = "evt_003"
+event_name = "中央公园演出"
+event_type = 2
+difficulty = "B"
+zone_id = "park"
+required_slots = 2
+time_limit_minutes = 60.0
+description = "中央公园举办市民活动，邀请魔法少女进行表演，这是提升人气的好机会。"
+prompt = "中央公园的市民活动需要魔法少女进行魔法表演。观众约200人，媒体也会到场报道。需要展现魅力和团队配合。"
+failure_severity = 0
+media_exposure = 0
+rewards = { "money": 200, "popularity": 30 }

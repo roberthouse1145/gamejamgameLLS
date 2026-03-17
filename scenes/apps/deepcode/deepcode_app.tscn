@@ -1,0 +1,93 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/deepcode/deepcode_app.gd" id="1_deepcode_app"]
+[ext_resource type="Script" path="res://scripts/avg/dev_tools/avg_dev_agent.gd" id="2_chat_agent"]
+[ext_resource type="Script" path="res://scripts/llm/AIService.gd" id="3_ai_service"]
+[ext_resource type="PackedScene" path="res://scenes/apps/deepcode/components/session_sidebar.tscn" id="4_sidebar"]
+[ext_resource type="PackedScene" path="res://scenes/apps/deepcode/components/debug_panel.tscn" id="5_debug_panel"]
+[ext_resource type="Theme" path="res://resources/themes/deepcode_dark.tres" id="6_theme"]
+
+[node name="DeepCodeApp" type="Control"]
+layout_mode = 3
+theme = ExtResource("6_theme")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_deepcode_app")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.169, 0.169, 0.169, 1)
+
+[node name="HBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="SessionSidebar" parent="HBoxContainer" instance=ExtResource("4_sidebar")]
+unique_name_in_owner = true
+
+[node name="ChatArea" type="VBoxContainer" parent="HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="MessageScroll" type="ScrollContainer" parent="HBoxContainer/ChatArea"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="MessageList" type="VBoxContainer" parent="HBoxContainer/ChatArea/MessageScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="InputArea" type="MarginContainer" parent="HBoxContainer/ChatArea"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
+
+[node name="InputBar" type="HBoxContainer" parent="HBoxContainer/ChatArea/InputArea"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="InputField" type="LineEdit" parent="HBoxContainer/ChatArea/InputArea/InputBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "给 DeepCode 发送消息..."
+
+[node name="SendButton" type="Button" parent="HBoxContainer/ChatArea/InputArea/InputBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "➤"
+
+[node name="DebugPanel" parent="HBoxContainer" instance=ExtResource("5_debug_panel")]
+unique_name_in_owner = true
+
+[node name="ChatAgent" type="Node" parent="."]
+script = ExtResource("2_chat_agent")
+role = "avg_dev_main"
+prompt_key = "avg_dev_main"
+
+[node name="AIService" type="Node" parent="ChatAgent"]
+script = ExtResource("3_ai_service")
+auto_execute_tools = true
+max_tool_iterations = 10

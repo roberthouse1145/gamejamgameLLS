@@ -1,0 +1,115 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "gamejam://faq"
+title = "AGJ 2025 - 常见问题"
+hint = "Arcade Grand Jam 2025 新星赛道的常见问题解答。"
+content = "<vbox sep=0>
+
+  <panel bg=#080B12>
+    <margin 48>
+      <vbox sep=6>
+        <hbox sep=10>
+          <label size=24 color=#ECEEF8>AGJ</label>
+          <label size=13 color=#E8622A>2025</label>
+          <label size=15 color=#3D4460>|</label>
+          <link size=13 color=#7A82A0 action=open_url url=gamejam://signup>REGISTRATION</link>
+          <link size=13 color=#7A82A0 action=open_url url=gamejam://schedule>SCHEDULE</link>
+          <link size=13 color=#7A82A0 action=open_url url=gamejam://news>NEWS</link>
+          <label size=13 color=#5B8AFF>FAQ</label>
+        </hbox>
+      </vbox>
+    </margin>
+  </panel>
+
+  <panel bg=#0A0D18>
+    <margin 48>
+      <vbox sep=8>
+        <label size=40 color=#ECEEF8>FAQ</label>
+        <label size=18 color=#5B8AFF>常见问题</label>
+      </vbox>
+    </margin>
+  </panel>
+
+  <panel bg=#080B12>
+    <margin 48>
+      <vbox sep=20>
+
+        <panel bg=#0D1020 border=#1A1F35>
+          <margin 28>
+            <vbox sep=12>
+              <label size=16 color=#ECEEF8>Q: 谁可以参加新星赛道？</label>
+              <label size=15 color=#7A82A0>A: 所有在校大学生均可报名。参赛者需以 2 人小队形式参加，队员可以来自不同学校或不同专业。</label>
+            </vbox>
+          </margin>
+        </panel>
+
+        <panel bg=#0D1020 border=#1A1F35>
+          <margin 28>
+            <vbox sep=12>
+              <label size=16 color=#ECEEF8>Q: 为什么必须使用官方引擎和素材包？</label>
+              <label size=15 color=#7A82A0>A: 为了确保公平竞争。往届比赛中出现了大量预制工程和资源堆砌现象，本届赛事通过统一工具链，让所有队伍站在同一起跑线上，比拼的是创意组织能力而非技术积累。</label>
+            </vbox>
+          </margin>
+        </panel>
+
+        <panel bg=#0D1020 border=#1A1F35>
+          <margin 28>
+            <vbox sep=12>
+              <label size=16 color=#ECEEF8>Q: 可以使用 AI 生成内容吗？</label>
+              <label size=15 color=#7A82A0>A: 禁止使用 AI 生成图片素材。文本创作方面，允许使用 AI 辅助构思和润色，但最终作品的核心创意和叙事结构必须由参赛者本人完成。评审会对疑似 AI 批量生成的内容进行审查。</label>
+            </vbox>
+          </margin>
+        </panel>
+
+        <panel bg=#0D1020 border=#1A1F35>
+          <margin 28>
+            <vbox sep=12>
+              <label size=16 color=#ECEEF8>Q: 报名后可以修改信息吗？</label>
+              <label size=15 color=#7A82A0>A: 不可以。报名信息一经提交即锁定，包括选手名称、队伍名和所属学院。请在提交前仔细核对所有信息。</label>
+            </vbox>
+          </margin>
+        </panel>
+
+        <panel bg=#0D1020 border=#1A1F35>
+          <margin 28>
+            <vbox sep=12>
+              <label size=16 color=#ECEEF8>Q: 阶段性 Demo 提交是什么？</label>
+              <label size=15 color=#7A82A0>A: 在开发周期中，组委会会设置若干个 Demo 提交节点。参赛队伍需要在指定时间前提交当前版本的可运行 Demo。这既是进度检查，也是获取社区反馈的机会。未按时提交 Demo 的队伍将视为弃赛。</label>
+            </vbox>
+          </margin>
+        </panel>
+
+        <panel bg=#0D1020 border=#1A1F35>
+          <margin 28>
+            <vbox sep=12>
+              <label size=16 color=#ECEEF8>Q: 奖项设置有哪些？</label>
+              <label size=15 color=#7A82A0>A: 主要奖项包括：最佳作品奖、最佳叙事奖、最佳视觉表现奖、社区人气奖、最佳新人奖。总奖金池超过 50,000 元人民币。具体奖金分配将在赛事正式开始后公布。</label>
+            </vbox>
+          </margin>
+        </panel>
+
+        <panel bg=#0D1020 border=#1A1F35>
+          <margin 28>
+            <vbox sep=12>
+              <label size=16 color=#ECEEF8>Q: 遇到技术问题怎么办？</label>
+              <label size=15 color=#7A82A0>A: 可以通过官方论坛或邮件联系技术支持。赛事期间会有专门的技术答疑频道，组委会也会定期发布引擎使用教程和常见问题修复指南。</label>
+            </vbox>
+          </margin>
+        </panel>
+
+        <label size=13 color=#3D4460 align=center>ARCADE GRAND JAM 2025  |  support@arcadegrandjam.com</label>
+        <spacer 24/>
+
+      </vbox>
+    </margin>
+  </panel>
+
+</vbox>"
+design_prompt = ""
+searchable = false
+search_keywords = PackedStringArray("gamejam", "faq", "常见问题", "问答", "帮助")
+linked_urls = PackedStringArray("gamejam://signup", "gamejam://schedule", "gamejam://news")

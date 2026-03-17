@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=5 format=3 uid="uid://c3x7s1kb_app"]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
+[ext_resource type="PackedScene" uid="uid://kbase_main_kbase" path="res://scenes/apps/knowledge_base/knowledge_base_app.tscn" id="3_entry_scene"]
+[ext_resource type="Texture2D" uid="uid://cax2j4f2mbn5q" path="res://icon.svg" id="4_icon"]
+
+[sub_resource type="Resource" id="Resource_wc"]
+script = ExtResource("2_constraints")
+min_size = Vector2(800, 600)
+max_size = Vector2(0, 0)
+resizable = true
+default_size = Vector2(1024, 768)
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "knowledge_base"
+app_name = "设定集 (KB)"
+app_icon = ExtResource("4_icon")
+entry_scene = ExtResource("3_entry_scene")
+window_constraints = SubResource("Resource_wc")

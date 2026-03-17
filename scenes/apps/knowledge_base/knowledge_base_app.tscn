@@ -1,0 +1,178 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8b9a0d1_kba"]
+
+[ext_resource type="Script" path="res://scripts/apps/knowledge_base/knowledge_base_app.gd" id="1_1"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_1"]
+bg_color = Color(0.12, 0.12, 0.15, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2"]
+bg_color = Color(0.08, 0.08, 0.1, 1)
+
+[node name="KnowledgeBaseApp" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_1")
+
+[node name="Background" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_1")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Background"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Header" type="ColorRect" parent="Background/VBoxContainer"]
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+color = Color(0.15, 0.15, 0.18, 1)
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Background/VBoxContainer/Header"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_right = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="Background/VBoxContainer/Header/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "✨ 我们的灵感记事本"
+vertical_alignment = 1
+
+[node name="SaveButton" type="Button" parent="Background/VBoxContainer/Header/HBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+size_flags_vertical = 4
+text = "保存所有"
+
+[node name="CloseButton" type="Button" parent="Background/VBoxContainer/Header/HBoxContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(40, 32)
+layout_mode = 2
+size_flags_vertical = 4
+text = "×"
+
+[node name="MainLayout" type="HSplitContainer" parent="Background/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 3
+split_offset = 200
+
+[node name="Sidebar" type="Panel" parent="Background/VBoxContainer/MainLayout"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2")
+
+[node name="BookmarkList" type="VBoxContainer" parent="Background/VBoxContainer/MainLayout/Sidebar"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 8.0
+offset_right = 4.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="ContentContainer" type="MarginContainer" parent="Background/VBoxContainer/MainLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="WorldPanel" type="VBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/WorldPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "🌍 世界观设定"
+
+[node name="CharacterPanel" type="VBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/CharacterPanel"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/CharacterPanel/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "👤 角色灵感便签"
+
+[node name="AddCharacterBtn" type="Button" parent="Background/VBoxContainer/MainLayout/ContentContainer/CharacterPanel/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "+ 新增角色"
+
+[node name="CharacterScroll" type="ScrollContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/CharacterPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="CharacterCanvas" type="Control" parent="Background/VBoxContainer/MainLayout/ContentContainer/CharacterPanel/CharacterScroll"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(4000, 4000)
+layout_mode = 2
+
+[node name="BeatPanel" type="VBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/BeatPanel"]
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/BeatPanel/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 24
+text = "📖 剧情剧本卡"
+
+[node name="AddBeatBtn" type="Button" parent="Background/VBoxContainer/MainLayout/ContentContainer/BeatPanel/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "+ 新增剧情"
+
+[node name="BeatScroll" type="ScrollContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/BeatPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="BeatCanvas" type="Control" parent="Background/VBoxContainer/MainLayout/ContentContainer/BeatPanel/BeatScroll"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(4000, 4000)
+layout_mode = 2
+
+[node name="AssetPanel" type="VBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/AssetPanel"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "🎨 资产标签"

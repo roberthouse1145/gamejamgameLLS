@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
+[ext_resource type="PackedScene" path="res://scenes/apps/part_time/part_time_app.tscn" id="3_entry_scene"]
+
+[sub_resource type="Resource" id="Resource_wc"]
+script = ExtResource("2_constraints")
+min_size = Vector2(1080, 720)
+max_size = Vector2(0, 0)
+resizable = true
+default_size = Vector2(1560, 920)
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "part_time"
+app_name = "兼职直聘"
+entry_scene = ExtResource("3_entry_scene")
+window_constraints = SubResource("Resource_wc")

@@ -1,0 +1,165 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/project_manager/game_ui_panel.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/editor/property_editor.gd" id="2_property_editor"]
+[ext_resource type="PackedScene" path="res://scenes/avg_runtime/dialog_box.tscn" id="3_dialog_box"]
+
+[node name="GameUIPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = -320
+
+[node name="PreviewArea" type="Control" parent="HSplitContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 2.0
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="HSplitContainer/PreviewArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 0
+stretch = true
+
+[node name="SubViewport" type="SubViewport" parent="HSplitContainer/PreviewArea/ViewportContainer"]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(2560, 1440)
+render_target_update_mode = 4
+
+[node name="PreviewRoot" type="Control" parent="HSplitContainer/PreviewArea/ViewportContainer/SubViewport"]
+unique_name_in_owner = true
+anchors_preset = 0
+size = Vector2(2560, 1440)
+
+[node name="Background" type="Panel" parent="HSplitContainer/PreviewArea/ViewportContainer/SubViewport/PreviewRoot"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="BackgroundImage" type="TextureRect" parent="HSplitContainer/PreviewArea/ViewportContainer/SubViewport/PreviewRoot"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="DialogBoxPreview" parent="HSplitContainer/PreviewArea/ViewportContainer/SubViewport/PreviewRoot" instance=ExtResource("3_dialog_box")]
+unique_name_in_owner = true
+mouse_filter = 2
+
+[node name="ButtonsContainer" type="Control" parent="HSplitContainer/PreviewArea/ViewportContainer/SubViewport/PreviewRoot"]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RightPanel" type="VBoxContainer" parent="HSplitContainer"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PreviewOptionsLabel" type="Label" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+text = "预览选项"
+
+[node name="PreviewOptionsContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+
+[node name="ShowDialogCheck" type="CheckBox" parent="HSplitContainer/RightPanel/PreviewOptionsContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "显示对话框"
+
+[node name="BgSelectRow" type="HBoxContainer" parent="HSplitContainer/RightPanel/PreviewOptionsContainer"]
+layout_mode = 2
+
+[node name="BgLabel" type="Label" parent="HSplitContainer/RightPanel/PreviewOptionsContainer/BgSelectRow"]
+layout_mode = 2
+text = "背景图:"
+
+[node name="BgSelectButton" type="Button" parent="HSplitContainer/RightPanel/PreviewOptionsContainer/BgSelectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "选择..."
+
+[node name="BgClearButton" type="Button" parent="HSplitContainer/RightPanel/PreviewOptionsContainer/BgSelectRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "清除"
+
+[node name="HSeparator0" type="HSeparator" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+
+[node name="GlobalLabel" type="Label" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+text = "通用设置"
+
+[node name="GlobalScrollContainer" type="ScrollContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 100)
+
+[node name="GlobalPropertyEditor" type="VBoxContainer" parent="HSplitContainer/RightPanel/GlobalScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_property_editor")
+
+[node name="HSeparator" type="HSeparator" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+
+[node name="ButtonListLabel" type="Label" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+text = "按钮列表"
+
+[node name="ButtonListScroll" type="ScrollContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+custom_minimum_size = Vector2(0, 120)
+
+[node name="ButtonListContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/ButtonListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HSeparator2" type="HSeparator" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+
+[node name="PropertyLabel" type="Label" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+text = "按钮属性"
+
+[node name="PropertyScrollContainer" type="ScrollContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GameUIPropertyEditor" type="VBoxContainer" parent="HSplitContainer/RightPanel/PropertyScrollContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+script = ExtResource("2_property_editor")

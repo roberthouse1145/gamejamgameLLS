@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3 uid="uid://dr7w1raevru5"]
+
+[ext_resource type="Script" uid="uid://cbh1odqdxvm6s" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "day1_gamejam_announce"
+topic_type = "story_event"
+display_title = "GameJam报名通知"
+npc_id = "npc_lin_xia"
+channel_id = "dm_lin_xia"
+system_prompt = "【背景】AGJ（ARCADE GRAND JAM）2025 是你们学校规格最高的年度 GameJam。你和男友李沐之前就说好要一起报名新星赛道，做一部属于你们自己的作品。今天早上你刷手机时发现报名通道正式开放了，截止时间是本周五 23:59，需要填写队伍名、赛道和联系方式。\n\n【你的任务】主动告诉李沐报名开始了，语气自然、兴奋，但不要像公告。你可以和他聊比赛规则、奖励、时间安排，也可以顺势聊一下你对这次参赛的期待。\n\n【导演约束】你必须发送一张 `web_page` 卡片，url 必须是 `gamejam://signup`，用于引导玩家去报名页。你可以自由决定把卡片插在第几句，但不要漏掉，也不要重复发送。\n\n【对话方向】这是一段由你先开口的剧情对话。保持自然，不要把整段话写成指令说明。只有在玩家明确表示要去报名或已经去填了时，才可以在最后一句加 `[TOPIC_COMPLETE]`。"
+goal_description = "林夏告知 GameJam 报名开放，并引导玩家打开报名页"
+context_data = {
+"linkchat_open_mode": "force",
+"required_cards": [{
+"hint": "ARCADE GRAND JAM 2025 官方报名页面，截止本周五 23:59",
+"title": "AGJ 2025 · 新星赛道报名",
+"type": "web_page",
+"url": "gamejam://signup"
+}],
+"story_phase": "day1_opening",
+"suppress_system_notice": true
+}
+max_turns = 6
+timeout_seconds = 0

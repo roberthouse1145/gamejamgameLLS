@@ -1,0 +1,186 @@
+[gd_resource type="Resource" script_class="AVGScene" format=3 uid="uid://c7hocv61l4u2y"]
+
+[ext_resource type="Script" uid="uid://bp2jf8bgegffx" path="res://scripts/avg/resources/avg_scene.gd" id="1_scene"]
+[ext_resource type="Script" uid="uid://ddhjo3v5gpfwl" path="res://scripts/avg/resources/avg_node.gd" id="2_ihgc1"]
+[ext_resource type="Script" uid="uid://bqmt6mnvjwjtl" path="res://scripts/avg/resources/nodes/avg_root_node.gd" id="2_root"]
+[ext_resource type="Script" uid="uid://b1pve6xq8ouco" path="res://scripts/avg/resources/avg_command.gd" id="3_cmd"]
+[ext_resource type="Texture2D" uid="uid://25075amj6v7e" path="res://templates/tutorial_project/assets/images/background/Street.jpg" id="4_bg_street"]
+[ext_resource type="Texture2D" uid="uid://vv2ko5ybpx44" path="res://templates/tutorial_project/assets/images/background/HotelRoomInside.jpg" id="5_bg_hotel"]
+[ext_resource type="Texture2D" uid="uid://c3xdflt8mybeb" path="res://templates/tutorial_project/assets/images/background/TownOutside1.jpg" id="6_bg_town1"]
+[ext_resource type="Texture2D" uid="uid://cdf23gff38upq" path="res://templates/tutorial_project/assets/images/background/VillageRoad.jpg" id="7_bg_village"]
+[ext_resource type="Texture2D" uid="uid://bqu8khstadmkl" path="res://templates/tutorial_project/assets/images/background/WildGrass.png" id="8_bg_grass"]
+
+[sub_resource type="Resource" id="cmd_intro"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Transition Test A: SCREEN_FADE + CHANGE_BACKGROUND demo."
+}
+
+[sub_resource type="Resource" id="cmd_fade_out_black"]
+script = ExtResource("3_cmd")
+command_type = "SCREEN_FADE"
+params = {
+"color": "000000",
+"direction": "out",
+"duration": 1.0,
+"transition": "fade"
+}
+
+[sub_resource type="Resource" id="cmd_wait1"]
+script = ExtResource("3_cmd")
+command_type = "WAIT_TIME"
+params = {
+"duration": 0.5
+}
+
+[sub_resource type="Resource" id="cmd_fade_in_black"]
+script = ExtResource("3_cmd")
+command_type = "SCREEN_FADE"
+params = {
+"color": "000000",
+"direction": "in",
+"duration": 1.0,
+"transition": "fade"
+}
+
+[sub_resource type="Resource" id="cmd_after_fade"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Fade (black) complete. Next: dissolve."
+}
+
+[sub_resource type="Resource" id="cmd_dissolve_out"]
+script = ExtResource("3_cmd")
+command_type = "SCREEN_FADE"
+params = {
+"color": "ffffff",
+"direction": "out",
+"duration": 1.5,
+"transition": "dissolve"
+}
+
+[sub_resource type="Resource" id="cmd_wait2"]
+script = ExtResource("3_cmd")
+command_type = "WAIT_TIME"
+params = {
+"duration": 0.5
+}
+
+[sub_resource type="Resource" id="cmd_dissolve_in"]
+script = ExtResource("3_cmd")
+command_type = "SCREEN_FADE"
+params = {
+"color": "ffffff",
+"direction": "in",
+"duration": 1.5,
+"transition": "dissolve"
+}
+
+[sub_resource type="Resource" id="cmd_after_dissolve"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Dissolve (white) complete. Now testing CHANGE_BACKGROUND transitions."
+}
+
+[sub_resource type="Resource" id="cmd_bg_fade"]
+script = ExtResource("3_cmd")
+command_type = "CHANGE_BACKGROUND"
+params = {
+"fade_duration": 1.5,
+"texture": ExtResource("5_bg_hotel"),
+"transition": "fade"
+}
+
+[sub_resource type="Resource" id="cmd_bg_fade_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Background changed to Hotel (fade). Next: dissolve to Town."
+}
+
+[sub_resource type="Resource" id="cmd_bg_dissolve"]
+script = ExtResource("3_cmd")
+command_type = "CHANGE_BACKGROUND"
+params = {
+"fade_duration": 1.5,
+"texture": ExtResource("6_bg_town1"),
+"transition": "dissolve"
+}
+
+[sub_resource type="Resource" id="cmd_bg_dissolve_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Background changed to Town (dissolve). Next: wipe_left to Village."
+}
+
+[sub_resource type="Resource" id="cmd_bg_wipe_left"]
+script = ExtResource("3_cmd")
+command_type = "CHANGE_BACKGROUND"
+params = {
+"fade_duration": 1.0,
+"texture": ExtResource("7_bg_village"),
+"transition": "wipe_left"
+}
+
+[sub_resource type="Resource" id="cmd_bg_wipe_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Background changed to Village (wipe_left). Next: wipe_down to Grass."
+}
+
+[sub_resource type="Resource" id="cmd_bg_wipe_down"]
+script = ExtResource("3_cmd")
+command_type = "CHANGE_BACKGROUND"
+params = {
+"fade_duration": 1.0,
+"texture": ExtResource("8_bg_grass"),
+"transition": "wipe_down"
+}
+
+[sub_resource type="Resource" id="cmd_bg_wipe_down_dialog"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Background changed to Grass (wipe_down). Now jump to Scene B!"
+}
+
+[sub_resource type="Resource" id="cmd_jump_b"]
+script = ExtResource("3_cmd")
+command_type = "JUMP_SCENE"
+params = {
+"color": "000000",
+"duration": 1.5,
+"scene_id": "scene_009",
+"transition": "dissolve"
+}
+
+[sub_resource type="Resource" id="root_node"]
+script = ExtResource("2_root")
+background = ExtResource("4_bg_street")
+node_id = "root"
+node_name = "Root"
+norm_size = Vector2(1, 1)
+size = Vector2(2560, 1440)
+command_tabs = [{
+"commands": [SubResource("cmd_intro"), SubResource("cmd_fade_out_black"), SubResource("cmd_wait1"), SubResource("cmd_fade_in_black"), SubResource("cmd_after_fade"), SubResource("cmd_dissolve_out"), SubResource("cmd_wait2"), SubResource("cmd_dissolve_in"), SubResource("cmd_after_dissolve"), SubResource("cmd_bg_fade"), SubResource("cmd_bg_fade_dialog"), SubResource("cmd_bg_dissolve"), SubResource("cmd_bg_dissolve_dialog"), SubResource("cmd_bg_wipe_left"), SubResource("cmd_bg_wipe_dialog"), SubResource("cmd_bg_wipe_down"), SubResource("cmd_bg_wipe_down_dialog"), SubResource("cmd_jump_b")],
+"condition_commands": [],
+"mode": 0
+}]
+
+[resource]
+script = ExtResource("1_scene")
+scene_id = "scene_008"
+scene_name = "Transition Test A"
+nodes = [SubResource("root_node")]

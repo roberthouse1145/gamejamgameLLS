@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "gamejam://forum/theme"
+title = "AGJ 2025 · 主题讨论串"
+hint = "官方论坛主题讨论页。"
+content = "<vbox sep=16>
+  <panel bg=#232B3B>
+    <margin 18>
+      <vbox sep=6>
+        <label size=28 color=#FFFFFF>AGJ 2025 Forum</label>
+        <label size=16 color=#B6C1D9>本届 GameJam 主题讨论串</label>
+      </vbox>
+    </margin>
+  </panel>
+  <panel bg=#F5F7FB>
+    <margin 18>
+      <vbox sep=12>
+        <label size=22 color=#1A1D27>热门讨论</label>
+        <label size=15 color=#536079>主题已经公布，论坛里正在刷屏讨论创意方向、叙事切口和实现难度。</label>
+        <label size=16 color=#1A1D27>1. “这次题目明显更适合做强叙事短篇。”</label>
+        <label size=16 color=#1A1D27>2. “官方引擎限制很多，创意组织能力会比资源更重要。”</label>
+        <label size=16 color=#1A1D27>3. “有人已经开始押宝校园恋爱 + 创作共犯题材了。”</label>
+      </vbox>
+    </margin>
+  </panel>
+</vbox>"
+design_prompt = ""
+searchable = false
+search_keywords = PackedStringArray("gamejam", "forum", "theme", "discussion")
+linked_urls = PackedStringArray()

@@ -1,0 +1,144 @@
+[gd_scene format=3 uid="uid://c4f3pam8rjsxb"]
+
+[ext_resource type="Script" uid="uid://bfrokskgnd0lp" path="res://scripts/tests/date_scene_llm_preview.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_scene_runner.tscn" id="2_runner"]
+
+[node name="DateSceneLLMPreview" type="Control" unique_id=229583480]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="." unique_id=1528063893]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.054902, 0.0666667, 0.0980392, 1)
+
+[node name="RootMargin" type="MarginContainer" parent="." unique_id=1476027858]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 24.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="RootMargin" unique_id=2018617156]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="RootMargin/VBox" unique_id=1328815193]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="LocationSelect" type="OptionButton" parent="RootMargin/VBox/Header" unique_id=1403975144]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(260, 0)
+layout_mode = 2
+
+[node name="GenerateButton" type="Button" parent="RootMargin/VBox/Header" unique_id=1464846881]
+unique_name_in_owner = true
+layout_mode = 2
+text = "调用 LLM 生成"
+
+[node name="PlayButton" type="Button" parent="RootMargin/VBox/Header" unique_id=1197670608]
+unique_name_in_owner = true
+layout_mode = 2
+text = "播放 DSL"
+
+[node name="StatusLabel" type="Label" parent="RootMargin/VBox" unique_id=599770372]
+unique_name_in_owner = true
+layout_mode = 2
+text = "等待开始"
+autowrap_mode = 3
+
+[node name="Content" type="HSplitContainer" parent="RootMargin/VBox" unique_id=456279810]
+layout_mode = 2
+size_flags_vertical = 3
+split_offsets = PackedInt32Array(360)
+split_offset = 360
+
+[node name="LeftPanel" type="PanelContainer" parent="RootMargin/VBox/Content" unique_id=327618060]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="LeftMargin" type="MarginContainer" parent="RootMargin/VBox/Content/LeftPanel" unique_id=240871475]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="LeftVBox" type="VBoxContainer" parent="RootMargin/VBox/Content/LeftPanel/LeftMargin" unique_id=2005345121]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="PromptLabel" type="Label" parent="RootMargin/VBox/Content/LeftPanel/LeftMargin/LeftVBox" unique_id=1026823530]
+layout_mode = 2
+text = "最终 Prompt"
+
+[node name="PromptView" type="TextEdit" parent="RootMargin/VBox/Content/LeftPanel/LeftMargin/LeftVBox" unique_id=1483861194]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_vertical = 3
+editable = false
+
+[node name="RightPanel" type="PanelContainer" parent="RootMargin/VBox/Content" unique_id=357681267]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="RightMargin" type="MarginContainer" parent="RootMargin/VBox/Content/RightPanel" unique_id=257245013]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="RightVBox" type="VBoxContainer" parent="RootMargin/VBox/Content/RightPanel/RightMargin" unique_id=813677390]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ResponseLabel" type="Label" parent="RootMargin/VBox/Content/RightPanel/RightMargin/RightVBox" unique_id=1357233044]
+layout_mode = 2
+text = "LLM DSL 返回"
+
+[node name="ResponseView" type="TextEdit" parent="RootMargin/VBox/Content/RightPanel/RightMargin/RightVBox" unique_id=576309934]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 2
+size_flags_vertical = 3
+editable = false
+
+[node name="ValidationLabel" type="Label" parent="RootMargin/VBox/Content/RightPanel/RightMargin/RightVBox" unique_id=1787739474]
+layout_mode = 2
+text = "DSL 解析校验"
+
+[node name="ValidationView" type="TextEdit" parent="RootMargin/VBox/Content/RightPanel/RightMargin/RightVBox" unique_id=637517610]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+editable = false
+
+[node name="RunnerLabel" type="Label" parent="RootMargin/VBox/Content/RightPanel/RightMargin/RightVBox" unique_id=1803824235]
+layout_mode = 2
+text = "AVGRunner 预览"
+
+[node name="RunnerPanel" type="PanelContainer" parent="RootMargin/VBox/Content/RightPanel/RightMargin/RightVBox" unique_id=468301705]
+custom_minimum_size = Vector2(0, 260)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="AVGSceneRunner" parent="RootMargin/VBox/Content/RightPanel/RightMargin/RightVBox/RunnerPanel" unique_id=973406499 instance=ExtResource("2_runner")]
+unique_name_in_owner = true
+layout_mode = 2

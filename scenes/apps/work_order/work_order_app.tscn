@@ -1,0 +1,146 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/work_order/work_order_app.gd" id="1_app"]
+
+[node name="WorkOrderApp" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_app")
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 280
+
+[node name="LeftPanel" type="VBoxContainer" parent="HSplitContainer"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+
+[node name="ToolBar" type="HBoxContainer" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+
+[node name="NewButton" type="Button" parent="HSplitContainer/LeftPanel/ToolBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "新建工单"
+
+[node name="FilterDropdown" type="OptionButton" parent="HSplitContainer/LeftPanel/ToolBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="OrderList" type="ItemList" parent="HSplitContainer/LeftPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="RightPanel" type="VBoxContainer" parent="HSplitContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DetailPanel" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TitleSection" type="HBoxContainer" parent="HSplitContainer/RightPanel/DetailPanel"]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/TitleSection"]
+layout_mode = 2
+text = "标题："
+
+[node name="TitleEdit" type="LineEdit" parent="HSplitContainer/RightPanel/DetailPanel/TitleSection"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "输入工单标题..."
+
+[node name="StatusLabel" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/TitleSection"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "草稿"
+
+[node name="DescLabel" type="Label" parent="HSplitContainer/RightPanel/DetailPanel"]
+layout_mode = 2
+text = "需求描述："
+
+[node name="DescriptionEdit" type="TextEdit" parent="HSplitContainer/RightPanel/DetailPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+placeholder_text = "描述你想要完成的任务..."
+
+[node name="SpecContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/DetailPanel"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SpecHeader" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
+layout_mode = 2
+text = "Spec 规格说明"
+theme_override_font_sizes/font_size = 16
+
+[node name="RequirementsHeader" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
+layout_mode = 2
+text = "需求整理："
+
+[node name="RequirementsLabel" type="RichTextLabel" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+bbcode_enabled = true
+text = "(无需求说明)"
+scroll_active = true
+
+[node name="TasksHeader" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
+layout_mode = 2
+text = "任务列表："
+
+[node name="TasksContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="ActionBar" type="HBoxContainer" parent="HSplitContainer/RightPanel/DetailPanel"]
+layout_mode = 2
+
+[node name="GenerateSpecButton" type="Button" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "AI生成Spec"
+
+[node name="AssigneeDropdown" type="OptionButton" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="SendButton" type="Button" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "发送执行"
+
+[node name="DeleteButton" type="Button" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "删除"
+
+[node name="EmptyHint" type="Label" parent="HSplitContainer/RightPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+text = "选择或创建一个工单"
+horizontal_alignment = 1
+vertical_alignment = 1

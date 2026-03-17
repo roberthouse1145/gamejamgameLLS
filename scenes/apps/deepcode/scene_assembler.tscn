@@ -1,0 +1,14 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/deepcode/scene_assembler.gd" id="1_scene_assembler"]
+[ext_resource type="Script" path="res://scripts/llm/AIService.gd" id="2_ai_service"]
+
+[node name="SceneAssembler" type="Node"]
+script = ExtResource("1_scene_assembler")
+role = "scene_assembler"
+prompt_key = "scene_assembler"
+
+[node name="AIService" type="Node" parent="."]
+script = ExtResource("2_ai_service")
+auto_execute_tools = true
+max_tool_iterations = 10

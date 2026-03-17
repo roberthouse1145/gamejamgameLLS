@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="MagicalGirlData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/magical_girl_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+girl_id = "girl_002"
+display_name = "月宫真白"
+strength = 3
+agility = 4
+charisma = 8
+intelligence = 8
+willpower = 5
+base_move_speed = 90.0
+prompt = "温柔聪慧的魔法少女，擅长辅助和治疗魔法。善于沟通协调，是团队的智囊和后勤担当。"

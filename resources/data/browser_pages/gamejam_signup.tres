@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "gamejam://signup"
+title = "AGJ 2025 - 新星赛道报名"
+hint = "官方报名页。玩家会在这里锁定名字、学院和队伍名，作为 Day1 的初始化设定。"
+content = ""
+design_prompt = ""
+searchable = false
+search_keywords = PackedStringArray("报名", "gamejam", "signup", "agj")
+linked_urls = PackedStringArray()
+scene_path = "res://scenes/apps/browser/pages/gamejam_signup_page.tscn"

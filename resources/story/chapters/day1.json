@@ -1,0 +1,93 @@
+{
+  "chapter_id": "day1",
+  "chapter_name": "第一天 - GameJam报名",
+  "description": "游戏开始，林夏告知GameJam报名，玩家完成报名后约会",
+  "next_chapter": "",
+  "steps": [
+	{
+	  "step_id": "day1_01_init",
+	  "description": "初始化第一天：锁定APP，只开放LinkChat",
+	  "actions": [
+		{ "type": "set_phase", "day": 1, "phase": "MORNING" },
+		{ "type": "set_app_access", "mode": "whitelist", "apps": ["linkchat"] }
+	  ],
+	  "wait_for": { "type": "immediate" },
+	  "next": "day1_02_gamejam_announce"
+	},
+	{
+	  "step_id": "day1_02_gamejam_announce",
+	  "description": "林夏发消息告知GameJam报名开始，引导玩家点击链接",
+	  "actions": [
+		{
+		  "type": "activate_topic",
+		  "topic_path": "res://resources/story/topics/day1_gamejam_announce.tres",
+		  "npc_speaks_first": true
+		}
+	  ],
+	  "wait_for": { "type": "url_opened", "url": "gamejam://signup" },
+	  "next": "day1_03_signup"
+	},
+	{
+	  "step_id": "day1_03_signup",
+	  "description": "玩家在浏览器填写报名表",
+	  "actions": [
+		{ "type": "set_app_access", "mode": "whitelist", "apps": ["linkchat", "browser"] }
+	  ],
+	  "wait_for": { "type": "variable_equals", "key": "signup_completed", "value": "true" },
+	  "capture": {
+		"team_name": "$.form_data.team_name",
+		"player_name": "$.form_data.player_name",
+		"player_university": "$.form_data.player_university",
+		"player_college": "$.form_data.player_college"
+	  },
+	  "next": "day1_04_react_and_date"
+	},
+	{
+	  "step_id": "day1_04_react_and_date",
+	  "description": "林夏对队名反应，提出约会",
+	  "actions": [
+		{
+		  "type": "activate_topic",
+		  "topic_path": "res://resources/story/topics/day1_team_react.tres",
+		  "npc_speaks_first": true
+		}
+	  ],
+	  "wait_for": { "type": "topic_completed", "topic_id": "day1_team_react" },
+	  "next": "day1_05_choose_date_location"
+	},
+	{
+	  "step_id": "day1_05_choose_date_location",
+	  "description": "解锁地图APP，等待玩家选择约会地点",
+	  "actions": [
+		{ "type": "set_app_access", "mode": "whitelist", "apps": ["linkchat", "map"] },
+		{ "type": "launch_app", "app_id": "map", "force": true }
+	  ],
+	  "wait_for": { "type": "date_started" },
+	  "next": "day1_06_date_avg"
+	},
+	{
+	  "step_id": "day1_06_date_avg",
+	  "description": "约会AVG场景",
+	  "actions": [
+		{ "type": "play_avg", "project_path": "", "scene_id": "day1_first_date" }
+	  ],
+	  "wait_for": { "type": "date_completed" },
+	  "next": "day1_07_afternoon_theme"
+	},
+	{
+	  "step_id": "day1_07_afternoon_theme",
+	  "description": "进入下午，林夏发链接告知GameJam主题公布",
+	  "actions": [
+		{ "type": "set_phase", "phase": "AFTERNOON" },
+		{ "type": "set_app_access", "mode": "whitelist", "apps": ["linkchat", "browser"] },
+		{
+		  "type": "activate_topic",
+		  "topic_path": "res://resources/story/topics/day1_theme_announce.tres",
+		  "npc_speaks_first": true
+		}
+	  ],
+	  "wait_for": { "type": "url_opened", "url": "gamejam://forum/theme" },
+	  "next": ""
+	}
+  ]
+}

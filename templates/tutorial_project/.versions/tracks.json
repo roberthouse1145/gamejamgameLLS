@@ -1,0 +1,21 @@
+{
+	"initial_snapshot_id": "trunk_001",
+	"tracks": {
+		"ai": {
+			"created_at": 1771334542,
+			"head": "ai_011"
+		},
+		"player": {
+			"created_at": 1771334542,
+			"head": "player_004"
+		},
+		"release": {
+			"created_at": 1771334542,
+			"head": "release_004"
+		},
+		"trunk": {
+			"created_at": 1771334542,
+			"head": "trunk_012"
+		}
+	}
+}

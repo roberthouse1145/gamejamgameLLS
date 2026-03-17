@@ -1,0 +1,140 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://home"
+title = "GameJam导航 - 你的参赛信息门户"
+hint = "浏览器主页，查看可用的网络行动。"
+content = "<vbox sep=0>
+
+  <panel bg=#2B3245>
+    <vbox sep=0>
+      <margin 14>
+        <hbox sep=12>
+          <label size=24 color=#FFFFFF>GameJam导航</label>
+          <label size=16 color=#5A6580>|</label>
+          <label size=16 color=#8892A8>社区</label>
+          <label size=16 color=#8892A8>赛事</label>
+          <label size=16 color=#8892A8>资讯</label>
+          <label size=16 color=#8892A8>工具</label>
+        </hbox>
+      </margin>
+      <panel bg=#1E2536>
+        <margin 14>
+          <label size=15 color=#6B7A94>滚动播报: 第三届 PixelJam 火热进行中 / 提交截止倒计时 / 已有 200+ 队伍参赛 / 评审规则更新公告</label>
+        </margin>
+      </panel>
+    </vbox>
+  </panel>
+
+  <panel bg=#F2F3F7>
+    <margin 16>
+      <vbox sep=14>
+
+        <label size=15 color=#8892A8>常用站点</label>
+        <hbox sep=8>
+          <panel bg=#FFFFFF>
+            <vbox sep=4>
+              <margin 12>
+                <vbox sep=2>
+                  <label size=17 color=#2B3245>校园论坛</label>
+                  <label size=14 color=#8892A8>Campus BBS</label>
+                </vbox>
+              </margin>
+            </vbox>
+          </panel>
+          <panel bg=#FFFFFF>
+            <vbox sep=4>
+              <margin 12>
+                <vbox sep=2>
+                  <label size=17 color=#2B3245>比赛广场</label>
+                  <label size=14 color=#8892A8>JamSquare</label>
+                </vbox>
+              </margin>
+            </vbox>
+          </panel>
+          <panel bg=#FFFFFF>
+            <vbox sep=4>
+              <margin 12>
+                <vbox sep=2>
+                  <label size=17 color=#2B3245>独立游戏圈</label>
+                  <label size=14 color=#8892A8>IndieHub</label>
+                </vbox>
+              </margin>
+            </vbox>
+          </panel>
+          <panel bg=#FFFFFF>
+            <vbox sep=4>
+              <margin 12>
+                <vbox sep=2>
+                  <label size=17 color=#2B3245>像素快讯</label>
+                  <label size=14 color=#8892A8>PixelPost</label>
+                </vbox>
+              </margin>
+            </vbox>
+          </panel>
+        </hbox>
+
+        <hr/>
+
+        <label size=15 color=#8892A8>今日推荐</label>
+
+        <panel bg=#FFFFFF>
+          <margin 14>
+            <vbox sep=8>
+              <label size=20 color=#2B3245>社区热议</label>
+              <label size=15 color=#5A6580>看看论坛上大家在聊什么，了解最新的舆论风向、创作灵感和潜在争议。浏览不同社区的帖子和讨论串。</label>
+              <spacer 2/>
+              <button size=16 color=#FFFFFF bg_color=#3D5AFE action=perform_action action_id=browse_forum>进入论坛</button>
+            </vbox>
+          </margin>
+        </panel>
+
+        <hbox sep=8>
+          <panel bg=#FFFFFF fill>
+            <margin 14>
+              <vbox sep=8>
+                <label size=20 color=#2B3245>发布动态</label>
+                <label size=15 color=#5A6580>在社区发帖宣传你的项目进展，提升曝光度。</label>
+                <spacer 2/>
+                <button size=16 color=#FFFFFF bg_color=#FF6D3F action=perform_action action_id=post_promo>去发帖</button>
+              </vbox>
+            </margin>
+          </panel>
+          <panel bg=#FFFFFF fill>
+            <margin 14>
+              <vbox sep=8>
+                <label size=20 color=#2B3245>赛事动态</label>
+                <label size=15 color=#5A6580>查看比赛官方公告、排名变动和社区讨论。</label>
+                <spacer 2/>
+                <button size=16 color=#FFFFFF bg_color=#00B27A action=perform_action action_id=watch_event>查看赛事</button>
+              </vbox>
+            </margin>
+          </panel>
+        </hbox>
+
+        <hr/>
+
+        <panel bg=#FFFFFF>
+          <margin 12>
+            <hbox sep=8>
+              <label size=15 color=#5A6580>浏览记录</label>
+              <label size=15 color=#8892A8>|</label>
+              <link size=15 color=#3D5AFE action=open_history_page>查看历史</link>
+            </hbox>
+          </margin>
+        </panel>
+
+        <label size=14 color=#A0A8B8 align=center>GameJam导航 v3.1 - 本页内容均为游戏内虚构</label>
+
+      </vbox>
+    </margin>
+  </panel>
+
+</vbox>"
+design_prompt = ""
+searchable = false
+search_keywords = PackedStringArray()
+linked_urls = PackedStringArray()

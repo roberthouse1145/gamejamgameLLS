@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3]
+
+[ext_resource type="Script" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "day1_team_react"
+topic_type = "story_event"
+display_title = "队名反应与约会邀请"
+npc_id = "npc_lin_xia"
+channel_id = "dm_lin_xia"
+system_prompt = "玩家刚完成 GameJam 报名，队伍名叫“{team_name}”。请你先对这个队名做出自然反应，可以吐槽、夸奖、打趣，也可以顺势聊到你们两个人的默契。然后自然地提出想出去约会庆祝一下，并明确引导玩家去地图里选一个地点。\n\n【导演约束】这一步是一个短剧情节点，你只需要回复一轮即可，不要把对话拖长，也不要继续追问。回复里不要写系统说明，不要解释规则。"
+goal_description = "对队名做出反应，然后邀请玩家去地图选择约会地点"
+context_data = {
+"complete_after_first_reply": true,
+"linkchat_open_mode": "force",
+"story_phase": "day1_post_signup",
+"suppress_system_notice": true
+}
+max_turns = 6
+timeout_seconds = 0
+on_complete_callback = ""
+result_variables = {}

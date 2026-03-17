@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EventDefinition" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/event_definition.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+event_id = "evt_002"
+event_name = "学校区迷路儿童"
+event_type = 1
+difficulty = "D"
+zone_id = "school"
+required_slots = 1
+time_limit_minutes = 45.0
+description = "学校附近有几名儿童迷路，家长焦急万分，需要魔法少女帮忙寻找并安全送回。"
+prompt = "几名小学生在放学后迷路了，需要魔法少女在学校区域搜索并安全护送回家。注意安抚孩子们的情绪。"
+failure_severity = 1
+media_exposure = 1
+rewards = { "money": 50, "popularity": 15 }

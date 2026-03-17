@@ -1,0 +1,112 @@
+[
+	{
+		"task_id": "write_script",
+		"title": "写剧本",
+		"description": "打磨对话和剧情走向，提升作品的叙事质量。",
+		"category": "quality",
+		"stat_changes": { "quality": 8, "completion": 3 },
+		"stress_cost": 3,
+		"tags": ["script", "narrative"],
+		"weight": 10,
+		"min_day": 1
+	},
+	{
+		"task_id": "direct_scene",
+		"title": "调演出",
+		"description": "调整场景节奏、镜头和表现力，让画面更有感染力。",
+		"category": "quality",
+		"stat_changes": { "quality": 5, "completion": 5 },
+		"stress_cost": 2,
+		"tags": ["direction", "scene"],
+		"weight": 9,
+		"min_day": 1
+	},
+	{
+		"task_id": "fix_bugs",
+		"title": "修 Bug",
+		"description": "排查和修复已知问题，让作品运行更稳定。",
+		"category": "stability",
+		"stat_changes": { "stability": 8, "completion": 3 },
+		"stress_cost": 4,
+		"tags": ["debug", "fix"],
+		"weight": 10,
+		"min_day": 1
+	},
+	{
+		"task_id": "integration_test",
+		"title": "整合测试",
+		"description": "把各部分拼在一起跑一遍，确保整体流程通畅。",
+		"category": "stability",
+		"stat_changes": { "stability": 5, "completion": 5 },
+		"stress_cost": 3,
+		"tags": ["test", "integration"],
+		"weight": 9,
+		"min_day": 3
+	},
+	{
+		"task_id": "rush_progress",
+		"title": "赶进度",
+		"description": "不管质量先把内容堆上去，完成度涨得快但质量和稳定几乎不动。",
+		"category": "completion",
+		"stat_changes": { "completion": 10, "quality": 1, "stability": 1 },
+		"stress_cost": 5,
+		"tags": ["rush", "progress"],
+		"weight": 8,
+		"min_day": 1
+	},
+	{
+		"task_id": "polish_ui",
+		"title": "打磨界面",
+		"description": "优化 UI 细节和交互体验，让作品看起来更精致。",
+		"category": "quality",
+		"stat_changes": { "quality": 6, "completion": 4 },
+		"stress_cost": 2,
+		"tags": ["ui", "polish"],
+		"weight": 7,
+		"min_day": 5
+	},
+	{
+		"task_id": "optimize_performance",
+		"title": "性能优化",
+		"description": "减少卡顿和加载时间，提升运行流畅度。",
+		"category": "stability",
+		"stat_changes": { "stability": 7, "completion": 3 },
+		"stress_cost": 4,
+		"tags": ["performance", "optimize"],
+		"weight": 7,
+		"min_day": 8
+	},
+	{
+		"task_id": "write_branch",
+		"title": "写分支剧情",
+		"description": "为关键选择点补充分支内容，增加作品深度。",
+		"category": "quality",
+		"stat_changes": { "quality": 7, "completion": 4 },
+		"stress_cost": 4,
+		"tags": ["branch", "narrative"],
+		"weight": 8,
+		"min_day": 10
+	},
+	{
+		"task_id": "add_sound",
+		"title": "配音效和BGM",
+		"description": "给场景加上合适的音效和背景音乐，提升氛围感。",
+		"category": "quality",
+		"stat_changes": { "quality": 5, "stability": 2, "completion": 4 },
+		"stress_cost": 2,
+		"tags": ["audio", "bgm"],
+		"weight": 6,
+		"min_day": 5
+	},
+	{
+		"task_id": "stress_test",
+		"title": "压力测试",
+		"description": "模拟极端操作和边界情况，找出隐藏的崩溃点。",
+		"category": "stability",
+		"stat_changes": { "stability": 9, "completion": 2 },
+		"stress_cost": 5,
+		"tags": ["stress_test", "edge_case"],
+		"weight": 6,
+		"min_day": 15
+	}
+]

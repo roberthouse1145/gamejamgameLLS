@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="AVGCharacter" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_001"
+character_name = "Alice"
+display_name = "Alice"
+sprites = {
+"default": "assets/images/character/Alice/heroine02_cos01.png",
+"happy": "assets/images/character/Alice/heroine02_cos02.png",
+"sad": "assets/images/character/Alice/heroine02_cos03.png",
+"angry": "assets/images/character/Alice/heroine02_cos04.png",
+"surprised": "assets/images/character/Alice/heroine02_cos05.png"
+}
+profile = "Tutorial character for testing AVG engine features."

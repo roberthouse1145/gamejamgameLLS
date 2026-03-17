@@ -1,0 +1,327 @@
+[gd_resource type="Resource" script_class="AVGScene" format=3 uid="uid://dryccyxaj0e7d"]
+
+[ext_resource type="Script" uid="uid://ddhjo3v5gpfwl" path="res://scripts/avg/resources/avg_node.gd" id="1_pgl3q"]
+[ext_resource type="Script" uid="uid://bp2jf8bgegffx" path="res://scripts/avg/resources/avg_scene.gd" id="1_scene"]
+[ext_resource type="Script" uid="uid://bqmt6mnvjwjtl" path="res://scripts/avg/resources/nodes/avg_root_node.gd" id="2_root"]
+[ext_resource type="Script" uid="uid://b1pve6xq8ouco" path="res://scripts/avg/resources/avg_command.gd" id="3_cmd"]
+
+[sub_resource type="Resource" id="cmd_01"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "-- Character Commands Test Scene --"
+}
+
+[sub_resource type="Resource" id="cmd_02"]
+script = ExtResource("3_cmd")
+command_type = "SHOW_CHARACTER"
+params = {
+"character_id": "char_001",
+"emotion": "default",
+"fade_duration": 0.5,
+"flip": false,
+"opacity": 1.0,
+"position": "center",
+"scale": 1.0
+}
+
+[sub_resource type="Resource" id="cmd_03"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Alice appears at center with fade-in."
+}
+
+[sub_resource type="Resource" id="cmd_04"]
+script = ExtResource("3_cmd")
+command_type = "CHANGE_EXPRESSION"
+params = {
+"character_id": "char_001",
+"duration": 0.3,
+"expression": "happy",
+"transition": "crossfade"
+}
+
+[sub_resource type="Resource" id="cmd_05"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"emotion": "happy",
+"speaker": "char_001",
+"text": "Expression changed to happy (crossfade)."
+}
+
+[sub_resource type="Resource" id="cmd_06"]
+script = ExtResource("3_cmd")
+command_type = "MOVE_CHARACTER"
+params = {
+"character_id": "char_001",
+"duration": 0.5,
+"easing": "ease_in_out",
+"target": "left"
+}
+
+[sub_resource type="Resource" id="cmd_07"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Moved to left position."
+}
+
+[sub_resource type="Resource" id="cmd_08"]
+script = ExtResource("3_cmd")
+command_type = "MOVE_CHARACTER"
+params = {
+"character_id": "char_001",
+"duration": 0.5,
+"easing": "ease_in_out",
+"target": "right"
+}
+
+[sub_resource type="Resource" id="cmd_09"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Moved to right position."
+}
+
+[sub_resource type="Resource" id="cmd_10"]
+script = ExtResource("3_cmd")
+command_type = "MOVE_CHARACTER_BY"
+params = {
+"character_id": "char_001",
+"duration": 0.3,
+"offset_x": -0.1,
+"offset_y": 0.0
+}
+
+[sub_resource type="Resource" id="cmd_11"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Moved left by 10% of screen width (relative move)."
+}
+
+[sub_resource type="Resource" id="cmd_12"]
+script = ExtResource("3_cmd")
+command_type = "FLIP_CHARACTER"
+params = {
+"character_id": "char_001",
+"duration": 0.0,
+"flip": "on"
+}
+
+[sub_resource type="Resource" id="cmd_13"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Flipped horizontally!"
+}
+
+[sub_resource type="Resource" id="cmd_14"]
+script = ExtResource("3_cmd")
+command_type = "FLIP_CHARACTER"
+params = {
+"character_id": "char_001",
+"duration": 0.0,
+"flip": "off"
+}
+
+[sub_resource type="Resource" id="cmd_15"]
+script = ExtResource("3_cmd")
+command_type = "CHARACTER_EFFECT"
+params = {
+"character_id": "char_001",
+"duration": -1.0,
+"effect": "jump",
+"intensity": "medium"
+}
+
+[sub_resource type="Resource" id="cmd_16"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"emotion": "surprised",
+"speaker": "char_001",
+"text": "Jump effect! (surprise)"
+}
+
+[sub_resource type="Resource" id="cmd_17"]
+script = ExtResource("3_cmd")
+command_type = "CHARACTER_EFFECT"
+params = {
+"character_id": "char_001",
+"duration": -1.0,
+"effect": "shake",
+"intensity": "medium"
+}
+
+[sub_resource type="Resource" id="cmd_18"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"emotion": "angry",
+"speaker": "char_001",
+"text": "Shake effect! (anger/fear)"
+}
+
+[sub_resource type="Resource" id="cmd_19"]
+script = ExtResource("3_cmd")
+command_type = "CHARACTER_EFFECT"
+params = {
+"character_id": "char_001",
+"duration": -1.0,
+"effect": "nod",
+"intensity": "small"
+}
+
+[sub_resource type="Resource" id="cmd_20"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Nod effect. (agreement)"
+}
+
+[sub_resource type="Resource" id="cmd_21"]
+script = ExtResource("3_cmd")
+command_type = "CHARACTER_EFFECT"
+params = {
+"character_id": "char_001",
+"duration": -1.0,
+"effect": "bounce",
+"intensity": "large"
+}
+
+[sub_resource type="Resource" id="cmd_22"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"emotion": "happy",
+"speaker": "char_001",
+"text": "Bounce effect! (excitement)"
+}
+
+[sub_resource type="Resource" id="cmd_23"]
+script = ExtResource("3_cmd")
+command_type = "SET_CHARACTER_PROPERTY"
+params = {
+"character_id": "char_001",
+"duration": 0.5,
+"property": "opacity",
+"value": "0.5"
+}
+
+[sub_resource type="Resource" id="cmd_24"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Opacity set to 50% (ghost mode)."
+}
+
+[sub_resource type="Resource" id="cmd_25"]
+script = ExtResource("3_cmd")
+command_type = "SET_CHARACTER_PROPERTY"
+params = {
+"character_id": "char_001",
+"duration": 0.3,
+"property": "opacity",
+"value": "1.0"
+}
+
+[sub_resource type="Resource" id="cmd_26"]
+script = ExtResource("3_cmd")
+command_type = "SET_CHARACTER_PROPERTY"
+params = {
+"character_id": "char_001",
+"duration": 0.4,
+"property": "scale",
+"value": "1.3"
+}
+
+[sub_resource type="Resource" id="cmd_27"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Scale up to 130%."
+}
+
+[sub_resource type="Resource" id="cmd_28"]
+script = ExtResource("3_cmd")
+command_type = "SET_CHARACTER_PROPERTY"
+params = {
+"character_id": "char_001",
+"duration": 0.3,
+"property": "scale",
+"value": "1.0"
+}
+
+[sub_resource type="Resource" id="cmd_29"]
+script = ExtResource("3_cmd")
+command_type = "MOVE_CHARACTER"
+params = {
+"character_id": "char_001",
+"duration": 0.3,
+"easing": "ease_in_out",
+"target": "center"
+}
+
+[sub_resource type="Resource" id="cmd_30"]
+script = ExtResource("3_cmd")
+command_type = "CHANGE_EXPRESSION"
+params = {
+"character_id": "char_001",
+"duration": 0.3,
+"expression": "default",
+"transition": "crossfade"
+}
+
+[sub_resource type="Resource" id="cmd_31"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "char_001",
+"text": "Back to center, default expression. All character commands tested!"
+}
+
+[sub_resource type="Resource" id="cmd_32"]
+script = ExtResource("3_cmd")
+command_type = "HIDE_CHARACTER"
+params = {
+"character_id": "char_001",
+"fade_duration": 0.5
+}
+
+[sub_resource type="Resource" id="cmd_33"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "-- Test Complete --"
+}
+
+[sub_resource type="Resource" id="root_node"]
+script = ExtResource("2_root")
+node_id = "root"
+node_name = "Root"
+norm_size = Vector2(1, 1)
+size = Vector2(2560, 1440)
+command_tabs = [{
+"commands": [SubResource("cmd_01"), SubResource("cmd_02"), SubResource("cmd_03"), SubResource("cmd_04"), SubResource("cmd_05"), SubResource("cmd_06"), SubResource("cmd_07"), SubResource("cmd_08"), SubResource("cmd_09"), SubResource("cmd_10"), SubResource("cmd_11"), SubResource("cmd_12"), SubResource("cmd_13"), SubResource("cmd_14"), SubResource("cmd_15"), SubResource("cmd_16"), SubResource("cmd_17"), SubResource("cmd_18"), SubResource("cmd_19"), SubResource("cmd_20"), SubResource("cmd_21"), SubResource("cmd_22"), SubResource("cmd_23"), SubResource("cmd_24"), SubResource("cmd_25"), SubResource("cmd_26"), SubResource("cmd_27"), SubResource("cmd_28"), SubResource("cmd_29"), SubResource("cmd_30"), SubResource("cmd_31"), SubResource("cmd_32"), SubResource("cmd_33")],
+"condition_commands": [],
+"mode": 0
+}]
+
+[resource]
+script = ExtResource("1_scene")
+scene_id = "scene_004"
+scene_name = "Character Commands Test"
+nodes = [SubResource("root_node")]

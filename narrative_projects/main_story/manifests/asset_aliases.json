@@ -1,0 +1,12 @@
+{
+  "backgrounds": {
+	"bg_park_grass": "res://templates/tutorial_project/assets/images/background/WildGrass.png",
+	"bg_village_road": "res://templates/tutorial_project/assets/images/background/VillageRoad.jpg",
+	"bg_town_outside_1": "res://templates/tutorial_project/assets/images/background/TownOutside1.jpg",
+	"bg_town_outside_2": "res://templates/tutorial_project/assets/images/background/TownOutside2.jpg",
+	"bg_street_day": "res://templates/tutorial_project/assets/images/background/Street.jpg",
+	"bg_hotel_room": "res://templates/tutorial_project/assets/images/background/HotelRoomInside.jpg"
+  },
+  "bgm": {},
+  "sfx": {}
+}

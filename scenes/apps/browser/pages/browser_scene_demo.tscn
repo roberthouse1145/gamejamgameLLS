@@ -1,0 +1,55 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/pages/browser_scene_demo.gd" id="1_script"]
+
+[node name="BrowserSceneDemo" type="MarginContainer"]
+offset_right = 40.0
+offset_bottom = 40.0
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+script = ExtResource("1_script")
+
+[node name="Root" type="VBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="Root" unique_name_in_owner=true]
+layout_mode = 2
+text = "Browser Scene Demo"
+theme_override_font_sizes/font_size = 26
+
+[node name="DescLabel" type="Label" parent="Root"]
+layout_mode = 2
+text = "这个页面绕过 DSL 渲染，直接实例化预制场景。适合小游戏、复杂交互和局部特效页。"
+autowrap_mode = 3
+theme_override_font_sizes/font_size = 16
+
+[node name="UrlLabel" type="Label" parent="Root" unique_name_in_owner=true]
+layout_mode = 2
+text = "browser://scene-demo"
+theme_override_colors/font_color = Color(0.376471, 0.513726, 0.847059, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="Actions" type="HBoxContainer" parent="Root"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PingButton" type="Button" parent="Root/Actions"]
+layout_mode = 2
+text = "触发场景逻辑"
+
+[node name="HomeButton" type="Button" parent="Root/Actions"]
+layout_mode = 2
+text = "回到首页"
+
+[node name="StatusLabel" type="Label" parent="Root" unique_name_in_owner=true]
+layout_mode = 2
+text = "等待操作"
+autowrap_mode = 3
+theme_override_colors/font_color = Color(0.266667, 0.352941, 0.501961, 1)
+theme_override_font_sizes/font_size = 15
+
+[connection signal="pressed" from="Root/Actions/PingButton" to="." method="_on_ping_button_pressed"]
+[connection signal="pressed" from="Root/Actions/HomeButton" to="." method="_on_home_button_pressed"]

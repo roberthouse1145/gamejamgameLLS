@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=4 format=3 uid="uid://work_order_app_def"]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
+[ext_resource type="PackedScene" path="res://scenes/apps/work_order/work_order_app.tscn" id="3_entry_scene"]
+
+[sub_resource type="Resource" id="Resource_wc"]
+script = ExtResource("2_constraints")
+min_size = Vector2(600, 400)
+max_size = Vector2(0, 0)
+resizable = true
+default_size = Vector2(900, 600)
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "work_order"
+app_name = "工单管理"
+entry_scene = ExtResource("3_entry_scene")
+window_constraints = SubResource("Resource_wc")

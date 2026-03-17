@@ -1,0 +1,273 @@
+[gd_resource type="Resource" script_class="AVGScene" format=3 uid="uid://wfvjfhdhq3cq"]
+
+[ext_resource type="Script" uid="uid://bp2jf8bgegffx" path="res://scripts/avg/resources/avg_scene.gd" id="1_scene"]
+[ext_resource type="Script" uid="uid://bqmt6mnvjwjtl" path="res://scripts/avg/resources/nodes/avg_root_node.gd" id="2_root"]
+[ext_resource type="Script" uid="uid://b1pve6xq8ouco" path="res://scripts/avg/resources/avg_command.gd" id="3_cmd"]
+[ext_resource type="Script" uid="uid://brnj8wud76qq3" path="res://scripts/avg/resources/avg_variable.gd" id="4_var"]
+[ext_resource type="Script" uid="uid://ddhjo3v5gpfwl" path="res://scripts/avg/resources/avg_node.gd" id="5_node"]
+
+[sub_resource type="Resource" id="local_var_counter"]
+script = ExtResource("4_var")
+variable_id = "lvar_001"
+variable_name = "counter"
+description = "Local counter for event loop test"
+
+[sub_resource type="Resource" id="local_var_luck"]
+script = ExtResource("4_var")
+variable_id = "lvar_002"
+variable_name = "luck"
+description = "Random luck value"
+
+[sub_resource type="Resource" id="loop_cmd_inc"]
+script = ExtResource("3_cmd")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "add",
+"scope": "local",
+"value": 1,
+"value_source": "constant",
+"variable_id": "lvar_001"
+}
+
+[sub_resource type="Resource" id="loop_cmd_msg"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "[Event Loop] Counter exceeded 50! Tab switched."
+}
+
+[sub_resource type="Resource" id="loop_check"]
+script = ExtResource("3_cmd")
+command_type = "CHECK_VAR"
+params = {
+"operator": ">",
+"scope": "local",
+"value": "50",
+"value_source": "constant",
+"variable_id": "lvar_001"
+}
+
+[sub_resource type="Resource" id="event_loop_node"]
+script = ExtResource("5_node")
+node_id = "node_001"
+node_name = "EventLoopTest"
+norm_size = Vector2(0, 0)
+visible = false
+command_tabs = [{
+"commands": [SubResource("loop_cmd_inc")],
+"condition_commands": [],
+"mode": 1
+}, {
+"commands": [SubResource("loop_cmd_msg")],
+"condition_commands": [SubResource("loop_check")],
+"mode": 0
+}]
+
+[sub_resource type="Resource" id="cmd_01"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "=== Test 1: Local Variable (constant) ==="
+}
+
+[sub_resource type="Resource" id="cmd_02"]
+script = ExtResource("3_cmd")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "set",
+"scope": "local",
+"value": 10,
+"value_source": "constant",
+"variable_id": "lvar_001"
+}
+
+[sub_resource type="Resource" id="cmd_03"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Set local counter = 10"
+}
+
+[sub_resource type="Resource" id="cmd_04"]
+script = ExtResource("3_cmd")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "add",
+"scope": "local",
+"value": 5,
+"value_source": "constant",
+"variable_id": "lvar_001"
+}
+
+[sub_resource type="Resource" id="cmd_05"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Added 5 to counter. Should be 15 now."
+}
+
+[sub_resource type="Resource" id="cmd_06"]
+script = ExtResource("3_cmd")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "set",
+"scope": "auto",
+"source_scope": "local",
+"source_variable_id": "lvar_001",
+"value_source": "variable",
+"variable_id": "var_001"
+}
+
+[sub_resource type="Resource" id="cmd_07"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Copied local counter to global score. Score should be 15."
+}
+
+[sub_resource type="Resource" id="cmd_08"]
+script = ExtResource("3_cmd")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "set",
+"random_max": 100,
+"random_min": 1,
+"scope": "local",
+"value_source": "random",
+"variable_id": "lvar_002"
+}
+
+[sub_resource type="Resource" id="cmd_09"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Set luck to random 1-100. Check debug for value."
+}
+
+[sub_resource type="Resource" id="cmd_10"]
+script = ExtResource("3_cmd")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "modulo",
+"scope": "local",
+"value": 4,
+"value_source": "constant",
+"variable_id": "lvar_001"
+}
+
+[sub_resource type="Resource" id="cmd_11"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "counter modulo 4. 15 %% 4 = 3. Counter should be 3."
+}
+
+[sub_resource type="Resource" id="check_counter_ge3"]
+script = ExtResource("3_cmd")
+command_type = "CHECK_VAR"
+params = {
+"operator": ">=",
+"scope": "local",
+"value": "3",
+"value_source": "constant",
+"variable_id": "lvar_001"
+}
+
+[sub_resource type="Resource" id="cmd_if_false"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "CHECK_VAR failed: local counter < 3 (unexpected!)"
+}
+
+[sub_resource type="Resource" id="cmd_if_true"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "CHECK_VAR passed: local counter >= 3"
+}
+
+[sub_resource type="Resource" id="cmd_12"]
+script = ExtResource("3_cmd")
+command_type = "IF"
+params = {
+"condition_commands": [SubResource("check_counter_ge3")],
+"else_commands": [SubResource("cmd_if_false")],
+"has_else": true,
+"if_commands": [SubResource("cmd_if_true")]
+}
+
+[sub_resource type="Resource" id="check_score_gt_counter"]
+script = ExtResource("3_cmd")
+command_type = "CHECK_VAR"
+params = {
+"operator": ">",
+"scope": "auto",
+"source_scope": "local",
+"source_variable_id": "lvar_001",
+"value_source": "variable",
+"variable_id": "var_001"
+}
+
+[sub_resource type="Resource" id="cmd_cmp_false"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Score <= counter (unexpected!)"
+}
+
+[sub_resource type="Resource" id="cmd_cmp_true"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "Score (15) > counter (3): correct!"
+}
+
+[sub_resource type="Resource" id="cmd_13"]
+script = ExtResource("3_cmd")
+command_type = "IF"
+params = {
+"condition_commands": [SubResource("check_score_gt_counter")],
+"else_commands": [SubResource("cmd_cmp_false")],
+"has_else": true,
+"if_commands": [SubResource("cmd_cmp_true")]
+}
+
+[sub_resource type="Resource" id="cmd_end"]
+script = ExtResource("3_cmd")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "=== All variable tests complete ==="
+}
+
+[sub_resource type="Resource" id="root_node"]
+script = ExtResource("2_root")
+node_id = "root"
+node_name = "Root"
+norm_size = Vector2(1, 1)
+size = Vector2(2560, 1440)
+children = Array[ExtResource("5_node")]([SubResource("event_loop_node")])
+command_tabs = [{
+"commands": [SubResource("cmd_01"), SubResource("cmd_02"), SubResource("cmd_03"), SubResource("cmd_04"), SubResource("cmd_05"), SubResource("cmd_06"), SubResource("cmd_07"), SubResource("cmd_08"), SubResource("cmd_09"), SubResource("cmd_10"), SubResource("cmd_11"), SubResource("cmd_12"), SubResource("cmd_13"), SubResource("cmd_end")],
+"condition_commands": [],
+"mode": 0
+}]
+
+[resource]
+script = ExtResource("1_scene")
+scene_id = "scene_05_variable_test"
+scene_name = "Variable System Test"
+nodes = [SubResource("root_node")]
+local_variables = [SubResource("local_var_counter"), SubResource("local_var_luck")]

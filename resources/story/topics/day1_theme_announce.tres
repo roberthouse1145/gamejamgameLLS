@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3]
+
+[ext_resource type="Script" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "day1_theme_announce"
+topic_type = "story_event"
+display_title = "GameJam主题公布"
+npc_id = "npc_lin_xia"
+channel_id = "dm_lin_xia"
+system_prompt = "GameJam 主题刚刚公布了。你已经看过论坛上的第一波讨论，现在想第一时间把消息发给李沐，让他也去看看大家的反应。\n\n【你的任务】自然地告诉他主题出来了，可以顺便表达你对这个主题的第一印象、担心或者兴奋点。\n\n【导演约束】你必须发送一张 `web_page` 卡片，url 必须是 `gamejam://forum/theme`，用于引导玩家去论坛讨论页。你可以自由决定卡片出现的位置，但不要漏掉，也不要重复发。\n\n【对话方向】这一步的重点是把玩家引导到论坛页面，不需要立刻展开长篇策划讨论。只有在玩家明确表示会去看时，才可以在最后一句加 `[TOPIC_COMPLETE]`。"
+goal_description = "告知玩家主题公布，并引导玩家去浏览器查看论坛"
+context_data = {
+"linkchat_open_mode": "force",
+"required_cards": [{
+"hint": "官方论坛主题讨论页，能看到大家对本届题目的第一波反应",
+"title": "AGJ 2025 · 主题讨论串",
+"type": "web_page",
+"url": "gamejam://forum/theme"
+}],
+"story_phase": "day1_afternoon",
+"suppress_system_notice": true
+}
+max_turns = 6
+timeout_seconds = 0
+on_complete_callback = ""
+result_variables = {}

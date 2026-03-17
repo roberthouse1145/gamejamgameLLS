@@ -1,0 +1,61 @@
+[gd_scene format=3 uid="uid://b3lxv6taqbb6a"]
+
+[ext_resource type="Script" uid="uid://djmswiwtuvins" path="res://scripts/pseudo_os/desktop.gd" id="1_desktop"]
+[ext_resource type="PackedScene" path="res://scenes/pseudo_os/taskbar.tscn" id="2_taskbar"]
+[ext_resource type="PackedScene" path="res://scenes/ui/time_status_bar.tscn" id="3_time_status"]
+
+[node name="Desktop" type="Control" unique_id=1384137066]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_desktop")
+
+[node name="Background" type="ColorRect" parent="." unique_id=792729528]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.3, 0.5, 1)
+
+[node name="IconGrid" type="Control" parent="." unique_id=901524449]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="WindowContainer" type="Control" parent="." unique_id=1465719959]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_bottom = -56.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TimeStatusBar" parent="WindowContainer" unique_id=1218636686 instance=ExtResource("3_time_status")]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -440.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 560.0
+grow_horizontal = 0
+
+[node name="Taskbar" parent="." unique_id=1220207645 instance=ExtResource("2_taskbar")]
+unique_name_in_owner = true
+layout_mode = 1
