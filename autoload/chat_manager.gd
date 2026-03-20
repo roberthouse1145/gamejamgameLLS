@@ -23,6 +23,8 @@ signal npc_messages_received(channel_id: String, messages: Array[Dictionary], re
 signal topic_activated(topic: ChatTopic)
 signal topic_completed(topic: ChatTopic, result: Dictionary)
 signal topic_timeout(topic: ChatTopic)
+signal chat_event_emitted(topic: ChatTopic, event_id: String, payload: Dictionary)
+signal chat_action_requested(topic: ChatTopic, action: Dictionary)
 ## 批处理状态
 signal batch_state_changed(is_batching: bool)
 ## AI 等待状态
@@ -60,6 +62,7 @@ var _pending_complete_topic_after_response: bool = false
 var _active_npc_message_presentations: Dictionary = {}
 ## channel_id -> {topic: ChatTopic, result: Dictionary}
 var _pending_topic_completions: Dictionary = {}
+var _pending_protocol_effects: Dictionary = {}
 ## 朋友圈动态列表
 var _moments: Array[Dictionary] = []
 ## 朋友圈未读数
@@ -459,6 +462,7 @@ func finish_npc_message_presentation(channel_id: String) -> void:
 	var active_count := int(_active_npc_message_presentations.get(normalized_channel_id, 0))
 	if active_count <= 1:
 		_active_npc_message_presentations.erase(normalized_channel_id)
+		_flush_pending_protocol_effects(normalized_channel_id)
 		_flush_pending_topic_completion(normalized_channel_id)
 		return
 
@@ -700,6 +704,16 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 
 	# 解析推荐回复
 	var recommended_replies: Array[String] = parsed_response.get("recommended_replies", [])
+	var topic_complete_from_protocol: bool = bool(parsed_response.get("topic_complete", false))
+	var topic_summary_from_protocol := str(parsed_response.get("topic_summary", "")).strip_edges()
+	var parsed_events: Array[Dictionary] = []
+	var raw_events: Variant = parsed_response.get("events", [])
+	if raw_events is Array:
+		parsed_events.assign(raw_events)
+	var parsed_actions: Array[Dictionary] = []
+	var raw_actions: Variant = parsed_response.get("actions", [])
+	if raw_actions is Array:
+		parsed_actions.assign(raw_actions)
 
 	# 发信号给 UI 做打字机动画
 	var auto_store: bool = _pending_auto_store_response
@@ -716,6 +730,29 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 	if not auto_store:
 		npc_messages_received.emit(channel_id, parsed_messages, recommended_replies)
 
+	if topic:
+		var immediate_effects := _split_protocol_effects_by_timing(parsed_events, parsed_actions, "immediate")
+		var immediate_events: Array[Dictionary] = []
+		var raw_immediate_events: Variant = immediate_effects.get("events", [])
+		if raw_immediate_events is Array:
+			immediate_events.assign(raw_immediate_events)
+		var immediate_actions: Array[Dictionary] = []
+		var raw_immediate_actions: Variant = immediate_effects.get("actions", [])
+		if raw_immediate_actions is Array:
+			immediate_actions.assign(raw_immediate_actions)
+		_execute_protocol_effects(topic, immediate_events, immediate_actions)
+
+		var deferred_effects := _split_protocol_effects_by_timing(parsed_events, parsed_actions, "after_messages")
+		var deferred_events: Array[Dictionary] = []
+		var raw_deferred_events: Variant = deferred_effects.get("events", [])
+		if raw_deferred_events is Array:
+			deferred_events.assign(raw_deferred_events)
+		var deferred_actions: Array[Dictionary] = []
+		var raw_deferred_actions: Variant = deferred_effects.get("actions", [])
+		if raw_deferred_actions is Array:
+			deferred_actions.assign(raw_deferred_actions)
+		_request_protocol_effects(channel_id, topic, deferred_events, deferred_actions)
+
 	# 结束等待
 	_waiting_for_ai = false
 	_waiting_channel_id = ""
@@ -725,15 +762,19 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 
 	# 检查 Topic 完成
 	if topic and complete_after_response:
-		var summary := _extract_topic_summary_from_messages(parsed_messages)
+		var summary := topic_summary_from_protocol
+		if summary.is_empty():
+			summary = _extract_topic_summary_from_messages(parsed_messages)
 		var topic_result := {"messages": parsed_messages, "summary": summary}
 		_request_topic_completion(channel_id, topic, topic_result)
 		return
 
 	if topic and not debug_mode:
-		var has_complete_marker := _messages_have_complete_marker(parsed_messages)
+		var has_complete_marker := topic_complete_from_protocol or _messages_have_complete_marker(parsed_messages)
 		if has_complete_marker:
 			var topic_result := {"messages": parsed_messages}
+			if not topic_summary_from_protocol.is_empty():
+				topic_result["summary"] = topic_summary_from_protocol
 			_request_topic_completion(channel_id, topic, topic_result)
 
 	# 检查轮数超限
@@ -775,6 +816,237 @@ func _flush_pending_topic_completion(channel_id: String) -> void:
 
 	var result: Dictionary = pending.get("result", {})
 	topic_manager.complete_topic(topic, result)
+
+
+func _request_protocol_effects(
+	channel_id: String,
+	topic: ChatTopic,
+	events: Array[Dictionary],
+	actions: Array[Dictionary]
+) -> void:
+	if topic == null or (events.is_empty() and actions.is_empty()):
+		return
+
+	var normalized_channel_id := channel_id.strip_edges()
+	if _is_npc_message_presentation_active(normalized_channel_id):
+		_pending_protocol_effects[normalized_channel_id] = {
+			"topic": topic,
+			"events": events.duplicate(true),
+			"actions": actions.duplicate(true),
+		}
+		return
+
+	_execute_protocol_effects(topic, events, actions)
+
+
+func _flush_pending_protocol_effects(channel_id: String) -> void:
+	if not _pending_protocol_effects.has(channel_id):
+		return
+
+	var pending: Variant = _pending_protocol_effects.get(channel_id, {})
+	_pending_protocol_effects.erase(channel_id)
+	if not pending is Dictionary:
+		return
+
+	var topic: ChatTopic = pending.get("topic", null)
+	if topic == null or not topic.is_active:
+		return
+
+	var events: Array[Dictionary] = []
+	var raw_events: Variant = pending.get("events", [])
+	if raw_events is Array:
+		events.assign(raw_events)
+
+	var actions: Array[Dictionary] = []
+	var raw_actions: Variant = pending.get("actions", [])
+	if raw_actions is Array:
+		actions.assign(raw_actions)
+
+	_execute_protocol_effects(topic, events, actions)
+
+
+func _execute_protocol_effects(topic: ChatTopic, events: Array[Dictionary], actions: Array[Dictionary]) -> void:
+	if topic == null:
+		return
+
+	for event_data in events:
+		var event_id := str(event_data.get("id", "")).strip_edges()
+		if event_id.is_empty():
+			continue
+
+		var payload: Dictionary = event_data.get("payload", {})
+		chat_event_emitted.emit(topic, event_id, payload)
+
+		var story_director: Node = get_node_or_null("/root/StoryDirector")
+		if story_director != null and story_director.has_method("notify_condition_met"):
+			story_director.notify_condition_met(event_id, payload)
+
+	for action in actions:
+		var action_type := str(action.get("type", "")).strip_edges().to_lower()
+		if action_type.is_empty():
+			continue
+
+		chat_action_requested.emit(topic, action)
+		_execute_protocol_action(topic, action)
+
+
+func _split_protocol_effects_by_timing(
+	events: Array[Dictionary],
+	actions: Array[Dictionary],
+	timing: String
+) -> Dictionary:
+	var normalized_timing := _normalize_protocol_timing(timing)
+	var filtered_events: Array[Dictionary] = []
+	for event_data in events:
+		if _normalize_protocol_timing(str(event_data.get("timing", "after_messages"))) != normalized_timing:
+			continue
+		filtered_events.append(event_data.duplicate(true))
+
+	var filtered_actions: Array[Dictionary] = []
+	for action in actions:
+		if _normalize_protocol_timing(str(action.get("timing", "after_messages"))) != normalized_timing:
+			continue
+		filtered_actions.append(action.duplicate(true))
+
+	return {
+		"events": filtered_events,
+		"actions": filtered_actions,
+	}
+
+
+func _normalize_protocol_timing(value: String) -> String:
+	var normalized := value.strip_edges().to_lower()
+	match normalized:
+		"immediate":
+			return "immediate"
+		_:
+			return "after_messages"
+
+
+func _execute_protocol_action(topic: ChatTopic, action: Dictionary) -> void:
+	var action_type := str(action.get("type", "")).strip_edges().to_lower()
+	match action_type:
+		"open_browser":
+			_execute_protocol_open_browser(action)
+		"focus_app":
+			_execute_protocol_focus_app(action)
+		"launch_app":
+			_execute_protocol_launch_app(action)
+		"post_moment":
+			_execute_protocol_post_moment(topic, action)
+		"lock_app_window":
+			_execute_protocol_lock_app_window(action)
+		"unlock_app_window":
+			_execute_protocol_unlock_app_window(action)
+		_:
+			push_warning("[ChatManager] Unsupported protocol action: %s" % action_type)
+
+
+func _execute_protocol_open_browser(action: Dictionary) -> void:
+	var browser: Node = get_node_or_null("/root/BrowserManager")
+	if browser == null or not browser.has_method("request_open_url"):
+		return
+
+	var url := str(action.get("url", "")).strip_edges()
+	if url.is_empty():
+		return
+
+	browser.request_open_url(
+		url,
+		str(action.get("design_prompt", "")),
+		str(action.get("page_context", ""))
+	)
+
+
+func _execute_protocol_focus_app(action: Dictionary) -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null:
+		return
+
+	var app_id := str(action.get("app_id", "")).strip_edges()
+	if app_id.is_empty():
+		return
+
+	var force_launch: bool = bool(action.get("force_launch", true))
+	var window: Control = null
+	if app_mgr.has_method("focus_app"):
+		window = app_mgr.focus_app(app_id, force_launch)
+	elif force_launch and app_mgr.has_method("launch_app"):
+		window = app_mgr.launch_app(app_id, true)
+
+	_focus_protocol_window_channel(window, app_id, str(action.get("channel_id", "")))
+
+
+func _execute_protocol_launch_app(action: Dictionary) -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("launch_app"):
+		return
+
+	var app_id := str(action.get("app_id", "")).strip_edges()
+	if app_id.is_empty():
+		return
+
+	var window: Control = app_mgr.launch_app(app_id, bool(action.get("force", false)))
+	_focus_protocol_window_channel(window, app_id, str(action.get("channel_id", "")))
+
+
+func _execute_protocol_post_moment(topic: ChatTopic, action: Dictionary) -> void:
+	var npc_id := str(action.get("npc_id", topic.npc_id)).strip_edges()
+	var content := str(action.get("content", "")).strip_edges()
+	if npc_id.is_empty() or content.is_empty():
+		return
+
+	post_moment(npc_id, content, str(action.get("image_hint", "")), int(action.get("likes", 0)))
+
+
+func _execute_protocol_lock_app_window(action: Dictionary) -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("lock_app_window"):
+		return
+
+	var app_id := str(action.get("app_id", "")).strip_edges()
+	if app_id.is_empty():
+		return
+
+	app_mgr.lock_app_window(
+		app_id,
+		bool(action.get("close_locked", true)),
+		bool(action.get("minimize_locked", true))
+	)
+	if bool(action.get("focus", true)) and app_mgr.has_method("focus_app"):
+		app_mgr.focus_app(app_id, false)
+
+
+func _execute_protocol_unlock_app_window(action: Dictionary) -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("unlock_app_window"):
+		return
+
+	var app_id := str(action.get("app_id", "")).strip_edges()
+	if app_id.is_empty():
+		return
+
+	app_mgr.unlock_app_window(app_id)
+
+
+func _focus_protocol_window_channel(window: Control, app_id: String, channel_id: String) -> void:
+	var normalized_channel_id := channel_id.strip_edges()
+	if app_id != "linkchat" or normalized_channel_id.is_empty():
+		return
+	if window == null or not is_instance_valid(window):
+		return
+	if not ("content" in window):
+		return
+
+	var content: Variant = window.content
+	if not (content is Node):
+		return
+
+	var app: Node = content as Node
+	if app.has_method("open_topic_channel"):
+		app.call_deferred("open_topic_channel", normalized_channel_id)
+	elif app.has_method("select_channel"):
+		app.call_deferred("select_channel", normalized_channel_id)
 
 
 func _append_required_topic_cards(parsed_messages: Array[Dictionary], topic: ChatTopic, fallback_npc_id: String) -> void:
@@ -867,6 +1139,7 @@ func _on_topic_activated(topic: ChatTopic) -> void:
 
 func _on_topic_completed(topic: ChatTopic, result: Dictionary) -> void:
 	_pending_topic_completions.erase(topic.channel_id)
+	_pending_protocol_effects.erase(topic.channel_id)
 	var suppress_notice: bool = bool(topic.context_data.get("suppress_system_notice", false))
 	if not suppress_notice:
 		add_system_message(topic.channel_id, "[话题结束] %s" % topic.display_title)
@@ -883,6 +1156,7 @@ func _on_topic_completed(topic: ChatTopic, result: Dictionary) -> void:
 
 func _on_topic_timeout(topic: ChatTopic) -> void:
 	_pending_topic_completions.erase(topic.channel_id)
+	_pending_protocol_effects.erase(topic.channel_id)
 	var suppress_notice: bool = bool(topic.context_data.get("suppress_system_notice", false))
 	if not suppress_notice:
 		add_system_message(topic.channel_id, "[话题超时] %s" % topic.display_title)
@@ -1011,6 +1285,7 @@ func _reset_runtime_transients() -> void:
 	_pending_complete_topic_after_response = false
 	_active_npc_message_presentations.clear()
 	_pending_topic_completions.clear()
+	_pending_protocol_effects.clear()
 
 
 func _emit_chat_state_changed() -> void:
@@ -1038,12 +1313,22 @@ func _find_active_input_channel() -> String:
 ## 剥离 <thinking>...</thinking> 标签，返回 {thinking: String, body: String}
 func _strip_thinking_tags(text: String) -> Dictionary:
 	var regex := RegEx.new()
-	regex.compile("<thinking>([\\s\\S]*?)</thinking>")
+	regex.compile("<(thinking|think)>([\\s\\S]*?)</(thinking|think)>")
 	var match := regex.search(text)
 	if match:
-		var thinking := match.get_string(1).strip_edges()
-		var body := text.substr(match.get_end()).strip_edges()
-		return {"thinking": thinking, "body": body}
+		var opening_tag := match.get_string(1).strip_edges().to_lower()
+		var closing_tag := match.get_string(3).strip_edges().to_lower()
+		if opening_tag == closing_tag or (opening_tag == "thinking" and closing_tag == "think"):
+			var thinking := match.get_string(2).strip_edges()
+			var body := text.substr(match.get_end()).strip_edges()
+			return {"thinking": thinking, "body": body}
+	var fallback_regex := RegEx.new()
+	fallback_regex.compile("<thinking>([\\s\\S]*?)</think>")
+	var fallback_match := fallback_regex.search(text)
+	if fallback_match:
+		var fallback_thinking := fallback_match.get_string(1).strip_edges()
+		var fallback_body := text.substr(fallback_match.get_end()).strip_edges()
+		return {"thinking": fallback_thinking, "body": fallback_body}
 	return {"thinking": "", "body": text}
 
 ## 从带有 markdown 包裹或前后附加说明的文本中提取真正的 JSON 字符串
@@ -1075,7 +1360,14 @@ func _extract_json_from_text(text: String) -> String:
 func _parse_ai_response_text(text: String, fallback_npc_id: String) -> Dictionary:
 	var clean_text := _strip_response_code_fence(text.strip_edges())
 	if clean_text.is_empty():
-		return {"messages": [], "recommended_replies": []}
+		return {
+			"messages": [],
+			"recommended_replies": [],
+			"topic_complete": false,
+			"topic_summary": "",
+			"events": [],
+			"actions": [],
+		}
 
 	var line_protocol_result := _parse_line_protocol_response(clean_text, fallback_npc_id)
 	if bool(line_protocol_result.get("valid", false)):
@@ -1095,12 +1387,18 @@ func _parse_ai_response_text(text: String, fallback_npc_id: String) -> Dictionar
 			"content": _build_fallback_ai_message(clean_text),
 		}],
 		"recommended_replies": [],
+		"topic_complete": false,
+		"topic_summary": "",
+		"events": [],
+		"actions": [],
 	}
 
 
 func _parse_json_response_dict(response_json: Dictionary, fallback_npc_id: String, has_complete_marker: bool) -> Dictionary:
 	var parsed_messages := _parse_response_messages_array(response_json.get("messages", []), fallback_npc_id)
-	if has_complete_marker:
+	var topic_complete: bool = has_complete_marker or bool(response_json.get("topic_complete", false))
+	var topic_summary: String = str(response_json.get("topic_summary", response_json.get("summary", ""))).strip_edges()
+	if topic_complete:
 		_attach_complete_marker_to_messages(parsed_messages)
 
 	var recommended_replies: Array[String] = []
@@ -1110,9 +1408,16 @@ func _parse_json_response_dict(response_json: Dictionary, fallback_npc_id: Strin
 			if reply is String and not reply.is_empty():
 				recommended_replies.append(str(reply))
 
+	var parsed_events := _parse_response_events_array(response_json.get("events", []))
+	var parsed_actions := _parse_response_actions_array(response_json.get("actions", []))
+
 	return {
 		"messages": parsed_messages,
 		"recommended_replies": recommended_replies,
+		"topic_complete": topic_complete,
+		"topic_summary": topic_summary,
+		"events": parsed_events,
+		"actions": parsed_actions,
 	}
 
 
@@ -1140,10 +1445,46 @@ func _parse_response_messages_array(raw_messages: Variant, fallback_npc_id: Stri
 	return parsed_messages
 
 
+func _parse_response_events_array(raw_events: Variant) -> Array[Dictionary]:
+	var parsed_events: Array[Dictionary] = []
+	if not (raw_events is Array):
+		return parsed_events
+
+	for raw_event in raw_events:
+		if not (raw_event is Dictionary):
+			continue
+		var event_data := _parse_protocol_event(raw_event as Dictionary)
+		if event_data.is_empty():
+			continue
+		parsed_events.append(event_data)
+
+	return parsed_events
+
+
+func _parse_response_actions_array(raw_actions: Variant) -> Array[Dictionary]:
+	var parsed_actions: Array[Dictionary] = []
+	if not (raw_actions is Array):
+		return parsed_actions
+
+	for raw_action in raw_actions:
+		if not (raw_action is Dictionary):
+			continue
+		var action_data := _parse_protocol_action(raw_action as Dictionary)
+		if action_data.is_empty():
+			continue
+		parsed_actions.append(action_data)
+
+	return parsed_actions
+
+
 func _parse_line_protocol_response(text: String, fallback_npc_id: String) -> Dictionary:
 	var parsed_messages: Array[Dictionary] = []
 	var recommended_replies: Array[String] = []
 	var has_complete_marker: bool = false
+	var has_explicit_complete_command: bool = false
+	var complete_summary: String = ""
+	var parsed_events: Array[Dictionary] = []
+	var parsed_actions: Array[Dictionary] = []
 	var saw_protocol_line: bool = false
 	var saw_message_line: bool = false
 
@@ -1154,6 +1495,27 @@ func _parse_line_protocol_response(text: String, fallback_npc_id: String) -> Dic
 		if line == "[TOPIC_COMPLETE]":
 			has_complete_marker = true
 			saw_protocol_line = true
+			continue
+		if line.begins_with("!"):
+			var command := _parse_line_protocol_command(line)
+			var command_name := str(command.get("name", ""))
+			var command_params: Dictionary = command.get("params", {})
+			match command_name:
+				"complete":
+					has_complete_marker = true
+					has_explicit_complete_command = true
+					complete_summary = str(command_params.get("summary", command_params.get("text", ""))).strip_edges()
+					saw_protocol_line = true
+				"event":
+					var parsed_event := _parse_protocol_event(command_params)
+					if not parsed_event.is_empty():
+						parsed_events.append(parsed_event)
+						saw_protocol_line = true
+				"action":
+					var parsed_action := _parse_protocol_action(command_params)
+					if not parsed_action.is_empty():
+						parsed_actions.append(parsed_action)
+						saw_protocol_line = true
 			continue
 		if line.begins_with(">"):
 			var reply := line.trim_prefix("> ").trim_prefix(">\t").trim_prefix(">")
@@ -1170,6 +1532,9 @@ func _parse_line_protocol_response(text: String, fallback_npc_id: String) -> Dic
 			saw_protocol_line = true
 			saw_message_line = true
 			continue
+		if saw_message_line and _attach_standalone_card_line(parsed_messages, line):
+			saw_protocol_line = true
+			continue
 		if saw_message_line and not parsed_messages.is_empty():
 			var last_message := parsed_messages[parsed_messages.size() - 1]
 			var last_content := str(last_message.get("content", ""))
@@ -1180,10 +1545,70 @@ func _parse_line_protocol_response(text: String, fallback_npc_id: String) -> Dic
 		_attach_complete_marker_to_messages(parsed_messages)
 
 	return {
-		"valid": saw_protocol_line and (saw_message_line or not recommended_replies.is_empty()),
+		"valid": saw_protocol_line and (
+			saw_message_line
+			or not recommended_replies.is_empty()
+			or has_explicit_complete_command
+			or not parsed_events.is_empty()
+			or not parsed_actions.is_empty()
+		),
 		"messages": parsed_messages,
 		"recommended_replies": recommended_replies,
+		"topic_complete": has_complete_marker,
+		"topic_summary": complete_summary,
+		"events": parsed_events,
+		"actions": parsed_actions,
 	}
+
+
+func _parse_line_protocol_command(line: String) -> Dictionary:
+	if not line.begins_with("!"):
+		return {}
+
+	var content := line.substr(1).strip_edges()
+	if content.is_empty():
+		return {}
+
+	var first_space := content.find(" ")
+	var command_name := content
+	var params_text := ""
+	if first_space != -1:
+		command_name = content.substr(0, first_space).strip_edges()
+		params_text = content.substr(first_space + 1).strip_edges()
+
+	return {
+		"name": command_name.to_lower(),
+		"params": _parse_protocol_key_values(params_text),
+	}
+
+
+func _parse_protocol_event(raw_data: Dictionary) -> Dictionary:
+	var event_id := str(raw_data.get("id", raw_data.get("event_id", ""))).strip_edges()
+	if event_id.is_empty():
+		return {}
+
+	var payload := raw_data.duplicate(true)
+	payload.erase("id")
+	payload.erase("event_id")
+	var timing := _normalize_protocol_timing(str(payload.get("timing", "after_messages")))
+	payload.erase("timing")
+
+	return {
+		"id": event_id,
+		"timing": timing,
+		"payload": payload,
+	}
+
+
+func _parse_protocol_action(raw_data: Dictionary) -> Dictionary:
+	var action_type := str(raw_data.get("type", "")).strip_edges().to_lower()
+	if action_type.is_empty():
+		return {}
+
+	var action := raw_data.duplicate(true)
+	action["type"] = action_type
+	action["timing"] = _normalize_protocol_timing(str(action.get("timing", "after_messages")))
+	return action
 
 
 func _parse_line_protocol_message(line: String, fallback_npc_id: String) -> Dictionary:
@@ -1209,6 +1634,28 @@ func _parse_line_protocol_message(line: String, fallback_npc_id: String) -> Dict
 	if not card.is_empty():
 		parsed_message["card"] = card
 	return parsed_message
+
+
+func _attach_standalone_card_line(parsed_messages: Array[Dictionary], line: String) -> bool:
+	if parsed_messages.is_empty():
+		return false
+
+	var card_payload := _extract_inline_card_from_text(line)
+	var card: Dictionary = card_payload.get("card", {})
+	if card.is_empty():
+		return false
+
+	var last_message := parsed_messages[parsed_messages.size() - 1]
+	if last_message.has("card") and last_message["card"] is Dictionary and not (last_message["card"] as Dictionary).is_empty():
+		return false
+
+	var content := str(card_payload.get("content", "")).strip_edges()
+	var last_content := str(last_message.get("content", "")).strip_edges()
+	if not content.is_empty():
+		last_message["content"] = content if last_content.is_empty() else "%s\n%s" % [last_content, content]
+	last_message["card"] = card
+	parsed_messages[parsed_messages.size() - 1] = last_message
+	return true
 
 
 func _extract_inline_card_from_text(text: String) -> Dictionary:
@@ -1285,9 +1732,20 @@ func _strip_response_code_fence(text: String) -> String:
 
 func _build_fallback_ai_message(text: String) -> String:
 	var cleaned_text := _strip_response_code_fence(text.strip_edges())
-	cleaned_text = cleaned_text.replace("[TOPIC_COMPLETE]", "").strip_edges()
+	cleaned_text = _strip_protocol_control_lines(cleaned_text)
 
 	return cleaned_text
+
+
+func _strip_protocol_control_lines(text: String) -> String:
+	var kept_lines: Array[String] = []
+	for raw_line in text.split("\n"):
+		var line := str(raw_line)
+		var stripped := line.strip_edges()
+		if stripped == "[TOPIC_COMPLETE]" or stripped.begins_with("!"):
+			continue
+		kept_lines.append(line)
+	return "\n".join(kept_lines).strip_edges()
 
 
 func _attach_complete_marker_to_messages(messages: Array[Dictionary]) -> void:

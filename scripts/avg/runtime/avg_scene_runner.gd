@@ -92,6 +92,7 @@ signal game_ui_action_requested(action: String)
 @onready var character_display: Control = %CharacterDisplay
 ## UI 层容器 — 不受 Camera2D 影响
 @onready var ui_container: Control = %UIContainer
+@onready var dialog_overlay_container: Control = %DialogOverlayContainer
 @onready var dialog_box: Control = %DialogBox
 @onready var choice_display: Control = %ChoiceDisplay
 ## 效果层容器 — 不受 Camera2D 影响
@@ -388,6 +389,8 @@ func _update_container_scale() -> void:
 	# UI 层和效果层也需要同样的缩放
 	if ui_container:
 		ui_container.scale = base_scale
+	if dialog_overlay_container:
+		dialog_overlay_container.scale = base_scale
 	if effects_container:
 		effects_container.scale = base_scale
 
@@ -453,6 +456,8 @@ func load_project(project: Resource) -> void:
 		_time_of_day_layer.size = _project_resolution
 	if _screen_effects_layer:
 		_screen_effects_layer.size = _project_resolution
+	if dialog_overlay_container:
+		dialog_overlay_container.size = _project_resolution
 	_update_container_scale()
 
 	# 传递设计分辨率给 character_display（立绘直接用设计坐标，不需要缩放）
@@ -2032,7 +2037,7 @@ func play_transition_out(t_type: int, duration: float, color: Color) -> void:
 	mat.set_shader_parameter("fade_color", color)
 	mat.set_shader_parameter("transition_type", t_type)
 	mat.set_shader_parameter("progress", 0.0)
-	_screen_effects_layer.mouse_filter = Control.MOUSE_FILTER_STOP
+	_screen_effects_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	if duration <= 0:
 		mat.set_shader_parameter("progress", 1.0)
@@ -2042,6 +2047,7 @@ func play_transition_out(t_type: int, duration: float, color: Color) -> void:
 	_transition_tween = tween_out
 	tween_out.tween_method(func(p: float): mat.set_shader_parameter("progress", p), 0.0, 1.0, duration)
 	await tween_out.finished
+	_screen_effects_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 ## 播放转场入场（progress 1→0，画面显示出来）

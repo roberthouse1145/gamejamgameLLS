@@ -188,6 +188,7 @@ func _build_topic_prompt(session: Dictionary, stage: String) -> String:
 		title = "兼职"
 	var company_name := str(job.get("company_name", job.get("title", ""))).strip_edges()
 	var detail_prompt := str(session.get("detail_prompt", "")).strip_edges()
+	var include_scene_context: bool = stage != "departure"
 	var scene_outline := str(session.get("scene_outline", "")).strip_edges()
 	var scene_result: Dictionary = session.get("scene_result", {})
 	var parts: Array[String] = [
@@ -199,9 +200,9 @@ func _build_topic_prompt(session: Dictionary, stage: String) -> String:
 		parts.append("店铺 / 公司: %s" % company_name)
 	if not detail_prompt.is_empty():
 		parts.append("工作设定: %s" % detail_prompt)
-	if not scene_result.is_empty():
+	if include_scene_context and not scene_result.is_empty():
 		parts.append("刚才场景里的玩家选择: %s" % str(scene_result.get("choice_text", "")))
-	if not scene_outline.is_empty():
+	if include_scene_context and not scene_outline.is_empty():
 		parts.append("刚才 AVG 场景的文本摘要:\n%s" % scene_outline)
 	parts.append("请根据兼职信息和 AVG 文本自然续写，不要套预设模板。")
 	if stage == "departure":

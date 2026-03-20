@@ -83,20 +83,33 @@ static func resolve_texture_from_character(character: Variant, emotion: String, 
 	var path: String = resolve_outfit_sprite_path(character, emotion, outfit)
 	if path.is_empty():
 		return null
-	var has_resource_loader: bool = ResourceLoader.exists(path)
-	var has_raw_file: bool = FileAccess.file_exists(path)
-	if not has_resource_loader and not has_raw_file:
-		return null
-	var extension: String = path.get_extension().to_lower()
-	var raw_image_extensions: Array[String] = ["png", "jpg", "jpeg", "webp", "bmp", "tga"]
-	if has_raw_file and raw_image_extensions.has(extension):
-		var image := Image.new()
-		if image.load(path) == OK:
-			return ImageTexture.create_from_image(image)
-	if has_resource_loader:
+
+	# res:// 资源必须优先走导入后的 Texture2D，避免直接读取源图片导致导出不可用。
+	if path.begins_with("res://"):
+		if not ResourceLoader.exists(path):
+			return null
 		var resource: Resource = ResourceLoader.load(path)
 		if resource is Texture2D:
 			return resource as Texture2D
+		return null
+
+	var global_path: String = path
+	if path.begins_with("user://"):
+		global_path = ProjectSettings.globalize_path(path)
+	if not FileAccess.file_exists(global_path):
+		return null
+
+	var extension: String = path.get_extension().to_lower()
+	var raw_image_extensions: Array[String] = ["png", "jpg", "jpeg", "webp", "bmp", "tga"]
+	if raw_image_extensions.has(extension):
+		var image := Image.new()
+		if image.load(global_path) == OK:
+			return ImageTexture.create_from_image(image)
+
+	if ResourceLoader.exists(path):
+		var fallback_resource: Resource = ResourceLoader.load(path)
+		if fallback_resource is Texture2D:
+			return fallback_resource as Texture2D
 	return null
 
 

@@ -112,6 +112,10 @@ func advance_to_next_day() -> void:
 
 	print("[GameLoopManager] ==== Enter Day %d ====" % current_day)
 
+	var gm: Node = get_node_or_null("/root/GameManager")
+	if gm != null and gm.has_method("on_new_day"):
+		gm.on_new_day()
+
 	day_changed.emit(current_day)
 	ap_changed.emit(current_ap, max_ap_per_day)
 	phase_changed.emit(time_phase)

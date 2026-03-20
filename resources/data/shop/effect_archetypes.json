@@ -1,0 +1,83 @@
+{
+  "sleep_recovery_small": {
+    "use_mode": "equip",
+    "modifier_slot": "sleep",
+    "instant_stats": {"stress": -2},
+    "persistent_modifiers": [
+      {"key": "sleep_stress_recovery_mult", "label": "睡眠时压力恢复 +12%", "type": "multiplier", "value": 0.12}
+    ],
+    "summary": "睡眠恢复会更好一点。"
+  },
+  "sleep_recovery_medium": {
+    "use_mode": "equip",
+    "modifier_slot": "sleep",
+    "instant_stats": {"stress": -3},
+    "persistent_modifiers": [
+      {"key": "sleep_stress_recovery_mult", "label": "睡眠时压力恢复 +20%", "type": "multiplier", "value": 0.20}
+    ],
+    "summary": "明显改善睡眠恢复效果。"
+  },
+  "creative_focus_small": {
+    "use_mode": "equip",
+    "modifier_slot": "desk",
+    "instant_stats": {"passion": 2},
+    "persistent_modifiers": [
+      {"key": "creative_focus_mult", "label": "创作专注效率 +12%", "type": "multiplier", "value": 0.12}
+    ],
+    "summary": "更容易进入创作状态。"
+  },
+  "creative_focus_with_stress": {
+    "use_mode": "equip",
+    "modifier_slot": "desk",
+    "instant_stats": {"stress": 2},
+    "persistent_modifiers": [
+      {"key": "creative_focus_mult", "label": "夜间创作效率 +15%", "type": "multiplier", "value": 0.15},
+      {"key": "chat_interrupt_mult", "label": "随手闲聊触发率下降", "type": "multiplier", "value": -0.15}
+    ],
+    "summary": "会更专注，但也更像把自己锁进桌面里。"
+  },
+  "mood_up_small": {
+    "use_mode": "consume",
+    "modifier_slot": "",
+    "instant_stats": {"stress": -5, "passion": 2},
+    "persistent_modifiers": [],
+    "summary": "立即让心情好一些。"
+  },
+  "gift_affection_small": {
+    "use_mode": "gift",
+    "modifier_slot": "",
+    "instant_stats": {"affection": 6},
+    "persistent_modifiers": [],
+    "summary": "适合送给她，主要提升好感。"
+  },
+  "gift_trust_small": {
+    "use_mode": "gift",
+    "modifier_slot": "",
+    "instant_stats": {"affection": 4, "passion": 2},
+    "persistent_modifiers": [],
+    "summary": "更像是\u2018你有在认真记得她\u2019的那种礼物。"
+  },
+  "late_night_efficiency_small": {
+    "use_mode": "consume",
+    "modifier_slot": "",
+    "instant_stats": {"completion": 2, "stress": 3},
+    "persistent_modifiers": [],
+    "summary": "短期推进效率更高，但也更伤神。"
+  },
+  "room_ambience_small": {
+    "use_mode": "equip",
+    "modifier_slot": "ambience",
+    "instant_stats": {"stress": -1},
+    "persistent_modifiers": [
+      {"key": "ambient_stress_recovery_bonus", "label": "日常减压恢复 +1", "type": "flat", "value": 1}
+    ],
+    "summary": "房间会更有\u2018待在这里也行\u2019的感觉。"
+  },
+  "flavor_no_effect": {
+    "use_mode": "flavor",
+    "modifier_slot": "",
+    "instant_stats": {},
+    "persistent_modifiers": [],
+    "summary": "主要提供生活气息，没有直接数值收益。"
+  }
+}

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://djmswiwtuvins" path="res://scripts/pseudo_os/desktop.gd" id="1_desktop"]
 [ext_resource type="PackedScene" path="res://scenes/pseudo_os/taskbar.tscn" id="2_taskbar"]
-[ext_resource type="PackedScene" path="res://scenes/ui/time_status_bar.tscn" id="3_time_status"]
+[ext_resource type="PackedScene" uid="uid://bnhje7eetrdyn" path="res://scenes/ui/time_status_bar.tscn" id="3_time_status"]
 
 [node name="Desktop" type="Control" unique_id=1384137066]
 layout_mode = 3

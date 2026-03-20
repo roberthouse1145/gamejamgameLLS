@@ -26,6 +26,10 @@ char_001.expression = "sad"
 char_001.hide()
 bg.show("bg_park_grass")  # Prefer alias when available; never write full res:// paths
 bg.show("HotelRoomInside")  # 只用资源名，不用完整路径
+image.show("promo_poster", position="left")  # 普通图片/插图，默认按舞台图尺寸显示
+image.show("phone_photo_001", position="center", size="medium")
+cg.show("cg_rain_confession")  # CG 是全屏图片语义，默认铺满画面
+cg.hide()
 
 # Audio (Object Methods) — 只用资源名，不用完整路径
 bgm.play("bgm_school_day")
@@ -62,11 +66,15 @@ event.call("event_id")
 ## Writing Style
 - Start scenes with atmosphere: `bg.show(...)`, `bgm.play(...)`, then show characters
 - Show characters with `char_xxx.show(position="center", emotion="smile")` before they speak
+- Use `image.show("asset_name", position="left"/"center"/"right")` for non-fullscreen inserted images
+- Use `cg.show("asset_name")` for fullscreen event CGs; `cg.hide()` removes the active CG layer image
+- Prefer shortcut motion params when it helps staging: `enter_effect="slide_from_right"` / `exit_effect="slide_to_left"` on character show/hide commands
 - Use `# => TextBlock(speaker="char_xxx", expression="smile")` before `>` dialogue lines
 - Add sound effects for dramatic moments with listed aliases or asset names: `sfx.play("ui_click")`
 - Use `camera.shake()` or `camera.zoom(zoom_level=1.2)` for emphasis
 - Keep scenes focused on one location/event
 - If `list_assets` returns alias lists such as `background_aliases`, `bgm_aliases`, or `sfx_aliases`, prefer those aliases in DSL
+- `image.show(...)` and `cg.show(...)` should also use alias names or raw asset names only; never write full `res://` paths
 - Never write full resource paths like `"res://..."` in DSL
 ## Core Output Rules for Story Beats (Knowledge Base)
 When asked to write a plot outline or story beat, you will save it directly to the Knowledge Base using `kb_write(category="beats", ...)`.

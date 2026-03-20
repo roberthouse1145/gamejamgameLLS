@@ -380,8 +380,7 @@ func _on_scene_generated(session_id: String, package: Dictionary) -> void:
 		"entry_id": str(session.get("entry_id", "")),
 	})
 	print("[%s] Scene generated: %s" % [name, session_id])
-	if _elastic.is_active() and _elastic.get_active_session_id() == session_id:
-		_elastic.mark_scene_ready()
+	_sync_progress_state_from_session(session_id)
 
 
 func _on_scene_failed(session_id: String, error: String) -> void:
@@ -394,8 +393,7 @@ func _on_scene_failed(session_id: String, error: String) -> void:
 	session["scene_outline"] = ""
 	_pending_sessions[session_id] = session
 	print("[%s] Scene failed: %s | %s" % [name, session_id, error])
-	if _elastic.is_active() and _elastic.get_active_session_id() == session_id:
-		_elastic.mark_scene_failed()
+	_sync_progress_state_from_session(session_id)
 
 
 # =============================================================================
@@ -454,12 +452,10 @@ func _emit_progress_started(session_id: String) -> void:
 	if not _pending_sessions.has(session_id):
 		return
 	var session: Dictionary = _pending_sessions[session_id]
-	var use_fallback: bool = bool(session.get("use_local_fallback", false))
 	var duration: float = float(session.get("progress_duration", DEFAULT_PROGRESS_DURATION))
 
-	if use_fallback or not _should_generate_scene_check(session_id):
-		_elastic.mark_can_finish()
 	_elastic.start(session_id, duration)
+	_sync_progress_state_from_session(session_id)
 
 	progress_phase_started.emit(session_id, {
 		"session_id": session_id,
@@ -469,6 +465,39 @@ func _emit_progress_started(session_id: String) -> void:
 
 func _on_progress_updated(session_id: String, progress: float, scene_ready: bool) -> void:
 	progress_updated.emit(session_id, progress, scene_ready)
+
+
+func _sync_progress_state_from_session(session_id: String) -> void:
+	if not _pending_sessions.has(session_id):
+		return
+	if _elastic == null or not _elastic.is_active():
+		return
+	if _elastic.get_active_session_id() != session_id:
+		return
+
+	var session: Dictionary = _pending_sessions[session_id]
+	if bool(session.get("scene_ready", false)):
+		_elastic.mark_scene_ready()
+		return
+	if bool(session.get("scene_failed", false)):
+		_elastic.mark_scene_failed()
+		return
+	if _can_finish_progress_without_scene(session_id, session):
+		_elastic.mark_can_finish()
+
+
+func _can_finish_progress_without_scene(session_id: String, session: Dictionary = {}) -> bool:
+	var effective_session: Dictionary = session
+	if effective_session.is_empty():
+		if not _pending_sessions.has(session_id):
+			return false
+		effective_session = _pending_sessions[session_id]
+
+	if bool(effective_session.get("use_local_fallback", false)):
+		return true
+	if bool(effective_session.get("scene_failed", false)):
+		return true
+	return not _should_start_scene(session_id)
 
 
 func _on_progress_completed(session_id: String, scene_ready: bool) -> void:

@@ -776,6 +776,10 @@ func _setup_wait(wait: Dictionary) -> void:
 			_wait_on_signal("/root/DateManager", "date_started", _on_wait_date_started)
 		"date_completed":
 			_wait_on_signal("/root/DateManager", "date_completed", _on_wait_date_completed)
+		"home_activity_started":
+			_wait_on_signal("/root/HomeActivityManager", "activity_started", _on_wait_home_activity_started)
+		"home_activity_completed":
+			_wait_on_signal("/root/HomeActivityManager", "activity_completed", _on_wait_home_activity_completed)
 		"avg_scene_ended":
 			_wait_on_signal_dynamic("scene_ended", _on_wait_avg_scene_ended)
 		"phase_reached":
@@ -891,6 +895,24 @@ func _on_wait_date_completed(session_id: String, payload: Dictionary) -> void:
 	if current_step == null:
 		return
 	_on_wait_satisfied({"session_id": session_id, "payload": payload})
+
+
+func _on_wait_home_activity_started(activity_id: String, payload: Dictionary) -> void:
+	if current_step == null:
+		return
+	var expected_activity: String = str(current_step.wait_for.get("activity_id", "")).strip_edges()
+	if not expected_activity.is_empty() and activity_id != expected_activity:
+		return
+	_on_wait_satisfied({"activity_id": activity_id, "payload": payload})
+
+
+func _on_wait_home_activity_completed(activity_id: String, payload: Dictionary) -> void:
+	if current_step == null:
+		return
+	var expected_activity: String = str(current_step.wait_for.get("activity_id", "")).strip_edges()
+	if not expected_activity.is_empty() and activity_id != expected_activity:
+		return
+	_on_wait_satisfied({"activity_id": activity_id, "payload": payload})
 
 
 func _complete_story_topic_for_current_step_url(url: String) -> void:

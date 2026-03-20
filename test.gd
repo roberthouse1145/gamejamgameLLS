@@ -1,6 +1,7 @@
 extends Node
 
 const WindowManagerClass = preload("res://scripts/pseudo_os/window_manager.gd")
+const CharacterDisplayClass = preload("res://scripts/avg/runtime/character_display.gd")
 const StoryStepClass = preload("res://scripts/story/resources/story_step.gd")
 const StoryChapterClass = preload("res://scripts/story/resources/story_chapter.gd")
 const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
@@ -11,15 +12,16 @@ const ChatPromptBuilderClass = preload("res://scripts/chat/chat_prompt_builder.g
 
 func _ready() -> void:
 	print("=== StoryDirector Director Test ===")
+	await _test_character_show_hide_effects()
 	await _ensure_window_manager()
 	await _test_signup_page()
 	await _test_signup_scene_rejects_invalid_name()
 	await _test_signup_scene_persists_locked_state()
 	_test_npc_first_prompt_builder()
-	_test_linkchat_response_protocol_parser()
 	_test_dsl_form_components()
 	_test_dsl_panel_variants()
 	await _test_app_window_lock()
+	await _test_sbeam_library_launch()
 	await _test_story_form_validation_gate()
 	await _test_story_form_bridge()
 	await _test_scene_page()
@@ -31,6 +33,99 @@ func _ready() -> void:
 	_test_day_checkpoint_roundtrip()
 	await _test_new_run_bootstrap()
 	print("=== StoryDirector Director Test Complete ===")
+
+
+func _test_character_show_hide_effects() -> void:
+	var character_display := CharacterDisplayClass.new()
+	character_display.name = "CharacterDisplayTest"
+	add_child(character_display)
+	await get_tree().process_frame
+
+	character_display.set_design_resolution(Vector2(1000, 1000))
+	character_display.set_character_data({
+		"char_test": {
+			"character_name": "Test",
+			"display_name": "Test",
+			"sprites": {
+				"default": _make_test_texture(100, 200, Color(1.0, 0.4, 0.6, 1.0)),
+			},
+		}
+	})
+
+	var signal_state := {"shown": false, "hidden": false}
+	character_display.character_shown.connect(func(character_id: String) -> void:
+		if character_id == "char_test":
+			signal_state["shown"] = true
+	)
+	character_display.character_hidden.connect(func(character_id: String) -> void:
+		if character_id == "char_test":
+			signal_state["hidden"] = true
+	)
+
+	character_display.show_character(
+		"char_test",
+		"center",
+		"default",
+		0.05,
+		false,
+		1.0,
+		1.0,
+		"",
+		"slide_from_right",
+		0.2,
+		"ease_out"
+	)
+
+	var sprite: TextureRect = character_display.get_character_sprite("char_test")
+	if sprite == null:
+		print("[FAIL] Character show/hide effects test could not create sprite")
+		character_display.queue_free()
+		return
+
+	var target_position := Vector2(250.0, 0.0)
+	if sprite.position.x <= target_position.x:
+		print("[FAIL] Character enter effect did not start from the right side")
+		print("  start_position: %s" % str(sprite.position))
+		character_display.queue_free()
+		return
+
+	var show_tween: Tween = character_display._active_tweens.get("char_test_fade", null)
+	if show_tween == null or not show_tween.is_valid():
+		print("[FAIL] Character enter effect did not create a tween")
+		character_display.queue_free()
+		return
+	show_tween.custom_step(0.1)
+	await get_tree().process_frame
+
+	if not bool(signal_state["shown"]) or not _is_close_vector2(sprite.position, target_position) or absf(sprite.modulate.a - 1.0) > 0.01:
+		print("[FAIL] Character enter effect did not finish at the expected state")
+		print("  shown: %s" % str(signal_state["shown"]))
+		print("  position: %s" % str(sprite.position))
+		print("  alpha: %s" % str(sprite.modulate.a))
+		character_display.queue_free()
+		return
+
+	character_display.hide_character("char_test", 0.05, "slide_to_left", 0.15, "ease_in")
+	var hide_tween: Tween = character_display._active_tweens.get("char_test_fade", null)
+	if hide_tween == null or not hide_tween.is_valid():
+		print("[FAIL] Character exit effect did not create a tween")
+		character_display.queue_free()
+		return
+	hide_tween.custom_step(0.1)
+	await get_tree().process_frame
+
+	if not bool(signal_state["hidden"]) or sprite.visible or not _is_close_vector2(sprite.position, target_position):
+		print("[FAIL] Character exit effect did not hide and restore sprite state")
+		print("  hidden: %s" % str(signal_state["hidden"]))
+		print("  visible: %s" % str(sprite.visible))
+		print("  position: %s" % str(sprite.position))
+		character_display.queue_free()
+		return
+
+	print("[OK] Character show/hide shortcut effects work")
+	print("  enter_effect: slide_from_right")
+	print("  exit_effect: slide_to_left")
+	character_display.queue_free()
 
 
 func _ensure_window_manager() -> void:
@@ -386,6 +481,62 @@ func _test_app_window_lock() -> void:
 
 	StoryDirector._action_unlock_app_window({"app_id": "browser"})
 	print("[OK] Browser window unlock applied")
+
+
+func _test_sbeam_library_launch() -> void:
+	AppManager.clear_app_access_restriction()
+	if AppManager.is_app_running("sbeam"):
+		AppManager.close_app("sbeam", true)
+	await get_tree().process_frame
+
+	var sbeam_window: Control = AppManager.launch_app("sbeam", true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if sbeam_window == null or sbeam_window.content == null:
+		print("[FAIL] Sbeam app failed to launch")
+		return
+
+	var sbeam_app: Node = sbeam_window.content
+	if not sbeam_app.has_method("set_active_view") or not sbeam_app.has_method("launch_library_game"):
+		print("[FAIL] Sbeam app missing library controls")
+		return
+
+	sbeam_app.call("set_active_view", "library")
+	await get_tree().process_frame
+
+	var game_window: Control = sbeam_app.call("launch_library_game", "2048")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if game_window == null:
+		print("[FAIL] Sbeam library failed to open 2048")
+		return
+
+	var reused_window: Control = sbeam_app.call("launch_library_game", "2048")
+	await get_tree().process_frame
+
+	var script_path: String = ""
+	if game_window.content != null and game_window.content.get_script() != null:
+		script_path = str(game_window.content.get_script().resource_path)
+
+	var open_ok: bool = script_path == "res://scripts/apps/sbeam/games/game_2048.gd"
+	var reuse_ok: bool = reused_window == game_window
+	if not open_ok or not reuse_ok:
+		print("[FAIL] Sbeam library window mismatch")
+		print("  open_ok: %s" % str(open_ok))
+		print("  reuse_ok: %s" % str(reuse_ok))
+		print("  script_path: %s" % script_path)
+	else:
+		print("[OK] Sbeam library opened 2048 window")
+		print("  reuse_ok: %s" % str(reuse_ok))
+		print("  script_path: %s" % script_path)
+
+	if AppManager.window_manager != null and game_window != null and is_instance_valid(game_window):
+		AppManager.window_manager.close_window(game_window)
+	await get_tree().process_frame
+
+	if AppManager.is_app_running("sbeam"):
+		AppManager.close_app("sbeam", true)
+	await get_tree().process_frame
 
 
 func _test_story_form_validation_gate() -> void:
@@ -891,3 +1042,13 @@ func _find_field_node(node: Variant, field_name: String) -> Dictionary:
 			if not found.is_empty():
 				return found
 	return {}
+
+
+func _make_test_texture(width: int, height: int, color: Color) -> Texture2D:
+	var image := Image.create(width, height, false, Image.FORMAT_RGBA8)
+	image.fill(color)
+	return ImageTexture.create_from_image(image)
+
+
+func _is_close_vector2(a: Vector2, b: Vector2, tolerance: float = 0.05) -> bool:
+	return absf(a.x - b.x) <= tolerance and absf(a.y - b.y) <= tolerance

@@ -70,15 +70,17 @@
 ## 测试策略
 
 1. 编写代码后查看输出检查语法错误。gdscript非python
-2. 测试必须使用 `test.tscn` + `test.gd` 配套进行，禁止单脚本运行
+2. 测试必须以“场景 + 脚本”成对存在，禁止单脚本运行
+   - 每个 `test_xxx.gd` 都必须有对应的 `test_xxx.tscn`
+   - 测试文件统一放在 `tests/` 目录下，避免继续把所有测试堆进单一根目录入口
    - Godot 的 autoload 单例只有在运行场景时才会被引擎实例化
    - 单脚本运行时 autoload 不存在，访问任何 autoload 节点必定报错
-   - 因此所有测试都必须通过场景运行（`mcp_godot_mcp_run_project` 指定 `test.tscn`）
-3. 使用 mcp 运行 `test.tscn` 测试场景检查启动错误
+   - 因此所有测试都必须通过对应测试场景运行，例如 `mcp_godot_mcp_run_project` 指定 `tests/test_xxx.tscn`
+3. 使用 mcp 运行对应的 `tests/test_xxx.tscn` 测试场景检查启动错误
 4. 使用 mcp 获取运行时错误
 5. 需要交互测试时，提示用户手动测试并反馈
 6. **严禁**使用单脚本无场景测试（即使是 `@tool` + `EditorScript` 也不推荐，因为无法测试依赖 autoload 的逻辑）
-7. **严禁在 test.gd 中添加自动退出逻辑**（如 `get_tree().quit()`、定时器退出等）
+7. **严禁在测试脚本中添加自动退出逻辑**（如 `get_tree().quit()`、定时器退出等）
    - 自动退出会导致进程在 MCP 调用 `get_debug_output` 之前就已终止，无法获取任何输出
    - 测试场景必须保持运行状态，由用户手动关闭或通过 `mcp_godot_mcp_stop_project` 停止
    - 正确流程：运行测试 → 调用 `get_debug_output` 获取输出 → 调用 `stop_project` 停止

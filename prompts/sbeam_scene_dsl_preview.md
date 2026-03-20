@@ -10,6 +10,8 @@
 
 你必须使用的 DSL V2 语法：
 - 背景：`bg.show("bg_park_grass", fade_duration=0.4)`
+- 普通图片（可选）：`image.show("photo_001", position="center", size="medium")`
+- 全屏 CG（可选）：`cg.show("cg_event_001")` / `cg.hide()`
 - 角色出场：`char_001.show(position="center", outfit="casual", emotion="happy")`
 - 表情变化：`char_001.expression = "surprised"`
 - 换装：
@@ -57,3 +59,4 @@
 - 这是一起玩的日常互动，不是媒体评测，也不是情绪独白散文。
 - 角色表现、表情、服装变化和停顿要和语气一致。
 - 不要编造不存在的角色、背景、音频、服装名或情绪名。
+- 若使用 `image.show(...)` 或 `cg.show(...)`，图片名也必须来自上面的资产清单，且不要把角色立绘当作普通图片/CG 使用。

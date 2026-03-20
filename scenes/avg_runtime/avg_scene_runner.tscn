@@ -49,11 +49,21 @@ anchors_preset = 0
 size = Vector2(2560, 1440)
 mouse_filter = 2
 
-[node name="DialogBox" parent="UICanvasLayer/UIContainer" instance=ExtResource("3_dialog")]
+[node name="DialogCanvasLayer" type="CanvasLayer" parent="."]
+unique_name_in_owner = true
+layer = 300
+
+[node name="DialogOverlayContainer" type="Control" parent="DialogCanvasLayer"]
+unique_name_in_owner = true
+anchors_preset = 0
+size = Vector2(2560, 1440)
+mouse_filter = 2
+
+[node name="DialogBox" parent="DialogCanvasLayer/DialogOverlayContainer" instance=ExtResource("3_dialog")]
 unique_name_in_owner = true
 layout_mode = 0
 
-[node name="ChoiceDisplay" parent="UICanvasLayer/UIContainer" instance=ExtResource("4_choice")]
+[node name="ChoiceDisplay" parent="DialogCanvasLayer/DialogOverlayContainer" instance=ExtResource("4_choice")]
 unique_name_in_owner = true
 layout_mode = 0
 

@@ -11,6 +11,24 @@ const DEFAULT_ALLOWED_POSITIONS: Array[String] = [
 	"far_right",
 	"custom",
 ]
+const DEFAULT_ALLOWED_ENTER_EFFECTS: Array[String] = [
+	"fade",
+	"slide_from_left",
+	"slide_from_right",
+	"slide_from_top",
+	"slide_from_bottom",
+	"pop_in",
+	"none",
+]
+const DEFAULT_ALLOWED_EXIT_EFFECTS: Array[String] = [
+	"fade",
+	"slide_to_left",
+	"slide_to_right",
+	"slide_to_top",
+	"slide_to_bottom",
+	"pop_out",
+	"none",
+]
 
 
 func validate_commands(commands: Array, project: Resource, project_root_path: String, options: Dictionary = {}) -> Dictionary:
@@ -45,13 +63,17 @@ func validate_commands(commands: Array, project: Resource, project_root_path: St
 			"SHOW_CHARACTER":
 				_validate_show_character(index, params, character_map, allowed_positions, errors)
 			"HIDE_CHARACTER":
-				_validate_character_reference(index, params, character_map, "character_id", "HIDE_CHARACTER", errors)
+				_validate_hide_character(index, params, character_map, errors)
 			"CHANGE_EXPRESSION":
 				_validate_change_expression(index, params, character_map, errors)
 			"CHANGE_OUTFIT":
 				_validate_change_outfit(index, params, character_map, errors)
 			"CHANGE_BACKGROUND":
 				_validate_asset_ref(index, params, "texture_path", "background", project_root, ["backgrounds", "images", "textures"], errors)
+			"SHOW_IMAGE":
+				_validate_show_image(index, params, project_root, errors)
+			"HIDE_IMAGE":
+				_validate_hide_image(index, params, errors)
 			"PLAY_BGM":
 				_validate_asset_ref(index, params, "audio_path", "bgm", project_root, ["bgm", "audio"], errors)
 			"PLAY_SFX":
@@ -88,6 +110,12 @@ func _validate_show_character(index: int, params: Dictionary, character_map: Dic
 	if not allowed_positions.is_empty() and not allowed_positions.has(position):
 		errors.append("SHOW_CHARACTER %d uses disallowed position: %s" % [index + 1, position])
 
+	var enter_effect: String = _normalize_token(params.get("enter_effect", "fade")).to_lower()
+	if enter_effect.is_empty():
+		enter_effect = "fade"
+	if not DEFAULT_ALLOWED_ENTER_EFFECTS.has(enter_effect):
+		errors.append("SHOW_CHARACTER %d uses unsupported enter_effect: %s" % [index + 1, enter_effect])
+
 	var character_id: String = _normalize_token(params.get("character_id", ""))
 	if not character_map.has(character_id):
 		return
@@ -104,6 +132,16 @@ func _validate_show_character(index: int, params: Dictionary, character_map: Dic
 		return
 
 	_validate_dynamic_sprite(index, character_map.get(character_id, {}), emotion, outfit, "SHOW_CHARACTER", errors)
+
+
+func _validate_hide_character(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
+	_validate_character_reference(index, params, character_map, "character_id", "HIDE_CHARACTER", errors)
+
+	var exit_effect: String = _normalize_token(params.get("exit_effect", "fade")).to_lower()
+	if exit_effect.is_empty():
+		exit_effect = "fade"
+	if not DEFAULT_ALLOWED_EXIT_EFFECTS.has(exit_effect):
+		errors.append("HIDE_CHARACTER %d uses unsupported exit_effect: %s" % [index + 1, exit_effect])
 
 
 func _validate_change_expression(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
@@ -168,6 +206,19 @@ func _validate_choice(index: int, params: Dictionary, min_choices: int, max_choi
 			warnings.append("CHOICE %d option %d has no follow-up commands" % [index + 1, choice_index + 1])
 
 
+func _validate_show_image(index: int, params: Dictionary, project_root: String, errors: Array[String]) -> void:
+	var image_id: String = _normalize_token(params.get("image_id", ""))
+	if image_id.is_empty():
+		errors.append("SHOW_IMAGE %d missing image_id" % (index + 1))
+	_validate_asset_ref(index, params, "image_path", "image", project_root, ["images", "textures", "backgrounds"], errors)
+
+
+func _validate_hide_image(index: int, params: Dictionary, errors: Array[String]) -> void:
+	var image_id: String = _normalize_token(params.get("image_id", ""))
+	if image_id.is_empty():
+		errors.append("HIDE_IMAGE %d missing image_id" % (index + 1))
+
+
 func _validate_character_reference(index: int, params: Dictionary, character_map: Dictionary, param_name: String, command_type: String, errors: Array[String]) -> void:
 	var character_id: String = _normalize_token(params.get(param_name, ""))
 	if character_id.is_empty():
@@ -198,6 +249,15 @@ func _asset_ref_exists(asset_ref: String, project_root_path: String, buckets: Ar
 	if trimmed_ref.begins_with("res://") or trimmed_ref.begins_with("user://"):
 		return _resource_ref_exists(trimmed_ref)
 
+	if _is_texture_bucket_request(buckets):
+		var resolved_texture: String = AVGAssetManifestClass.resolve_texture_path(trimmed_ref, project_root_path)
+		if _resource_ref_exists(resolved_texture):
+			return true
+	if _is_audio_bucket_request(buckets):
+		var resolved_audio: String = AVGAssetManifestClass.resolve_audio_path(trimmed_ref, project_root_path)
+		if _resource_ref_exists(resolved_audio):
+			return true
+
 	var manifest: Dictionary = AVGAssetManifestClass.load_manifest(project_root_path)
 	for bucket_name in buckets:
 		var bucket: Dictionary = manifest.get(bucket_name, {})
@@ -205,6 +265,20 @@ func _asset_ref_exists(asset_ref: String, project_root_path: String, buckets: Ar
 			var resolved: String = _resolve_manifest_value(str(bucket.get(trimmed_ref, "")), project_root_path)
 			return _resource_ref_exists(resolved)
 
+	return false
+
+
+func _is_texture_bucket_request(buckets: Array[String]) -> bool:
+	for bucket in buckets:
+		if bucket in ["backgrounds", "images", "textures", "cg"]:
+			return true
+	return false
+
+
+func _is_audio_bucket_request(buckets: Array[String]) -> bool:
+	for bucket in buckets:
+		if bucket in ["bgm", "sfx", "audio"]:
+			return true
 	return false
 
 

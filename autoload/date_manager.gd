@@ -299,6 +299,7 @@ func _build_topic_prompt(session: Dictionary, stage: String) -> String:
 	var location: Dictionary = session.get("location", {})
 	var title := str(location.get("title", "未命名地点")).strip_edges()
 	var detail_prompt := str(session.get("detail_prompt", "")).strip_edges()
+	var include_scene_context: bool = stage != "departure"
 	var important_result: Dictionary = session.get("important_event_result", {})
 	var important_event_outline := str(session.get("important_event_outline", "")).strip_edges()
 	var normal_scene_result: Dictionary = session.get("scene_result", {})
@@ -309,14 +310,14 @@ func _build_topic_prompt(session: Dictionary, stage: String) -> String:
 	]
 	if not detail_prompt.is_empty():
 		parts.append("地点设定: %s" % detail_prompt)
-	if not important_result.is_empty():
+	if include_scene_context and not important_result.is_empty():
 		parts.append("重要约会里的玩家选择: %s" % str(important_result.get("choice_text", "")))
 		parts.append("重要约会结果摘要: %s" % str(important_result.get("summary", "")))
-	if not normal_scene_result.is_empty():
+	if include_scene_context and not normal_scene_result.is_empty():
 		parts.append("这次约会场景里的玩家选择: %s" % str(normal_scene_result.get("choice_text", "")))
-	if not important_event_outline.is_empty():
+	if include_scene_context and not important_event_outline.is_empty():
 		parts.append("重要约会 AVG 文本摘要:\n%s" % important_event_outline)
-	if not normal_scene_outline.is_empty():
+	if include_scene_context and not normal_scene_outline.is_empty():
 		parts.append("这次约会 AVG 文本摘要:\n%s" % normal_scene_outline)
 	parts.append("请根据地点信息、人物状态和 AVG 文本自然续写，不要套预设模板。")
 	match stage:

@@ -17,6 +17,14 @@ const MAGIC_MAPPINGS: Dictionary = {
 	"bg": {
 		"show": ["CHANGE_BACKGROUND", ["texture_path"]]
 	},
+	"image": {
+		"show": ["SHOW_IMAGE", ["image_path"]],
+		"hide": ["HIDE_IMAGE", ["image_id"]]
+	},
+	"cg": {
+		"show": ["SHOW_IMAGE", ["image_path"]],
+		"hide": ["HIDE_IMAGE", []]
+	},
 	"screen": {
 		"fade": ["SCREEN_FADE", []],
 		"time_of_day": ["SET_TIME_OF_DAY", ["preset"]],
@@ -68,6 +76,21 @@ const OPERATION_MAP: Dictionary = {
 	"*=": "multiply",
 	"/=": "divide",
 	"%=": "modulo"
+}
+
+const IMAGE_POSITION_PRESETS: Dictionary = {
+	"left": Vector2(0.05, 0.08),
+	"center": Vector2(0.275, 0.08),
+	"right": Vector2(0.60, 0.08),
+}
+
+const IMAGE_SIZE_PRESETS: Dictionary = {
+	"small": Vector2(0.24, 0.48),
+	"medium": Vector2(0.32, 0.64),
+	"large": Vector2(0.40, 0.78),
+	"stage": Vector2(0.40, 0.78),
+	"full": Vector2(1.0, 1.0),
+	"fullscreen": Vector2(1.0, 1.0),
 }
 
 # ==============================================================================
@@ -535,6 +558,8 @@ func _build_method_command(obj: String, method: String, kwargs_str: String, line
 			cmd.command_type = cmd_type
 			_apply_positional_args(cmd, expected_pos, pos_args, line_num, errors)
 			cmd.params.merge(kw)
+			if obj == "image" or obj == "cg":
+				_finalize_image_command(obj, method, cmd)
 			return cmd
 			
 	# 作为通用对象/节点的方法处理
@@ -587,6 +612,83 @@ func _apply_positional_args(cmd: AVGCommand, expected: Array, provided: Array, l
 	
 	for i in range(min(expected.size(), provided.size())):
 		cmd.params[expected[i]] = provided[i]
+
+
+func _finalize_image_command(obj: String, method: String, cmd: AVGCommand) -> void:
+	if method == "hide":
+		if obj == "cg" and str(cmd.params.get("image_id", "")).strip_edges().is_empty():
+			cmd.params["image_id"] = "cg"
+		return
+
+	var image_path: String = str(cmd.params.get("image_path", "")).strip_edges()
+	if image_path.is_empty():
+		return
+
+	if str(cmd.params.get("image_id", "")).strip_edges().is_empty():
+		cmd.params["image_id"] = "cg" if obj == "cg" else _build_default_image_id(image_path)
+
+	var default_position: Vector2 = Vector2.ZERO if obj == "cg" else IMAGE_POSITION_PRESETS["center"]
+	var default_size: Vector2 = Vector2.ONE if obj == "cg" else IMAGE_SIZE_PRESETS["stage"]
+
+	cmd.params["position"] = _resolve_image_position(cmd.params, default_position)
+	cmd.params["size"] = _resolve_image_size(cmd.params, default_size)
+
+	if not cmd.params.has("z_order"):
+		cmd.params["z_order"] = 10 if obj == "cg" else 0
+
+	_cleanup_image_layout_keys(cmd.params)
+
+
+func _resolve_image_position(params: Dictionary, default_position: Vector2) -> Vector2:
+	if params.has("position"):
+		var raw_position: Variant = params.get("position")
+		if raw_position is Vector2:
+			return raw_position
+		var position_name: String = str(raw_position).strip_edges().to_lower()
+		if IMAGE_POSITION_PRESETS.has(position_name):
+			return IMAGE_POSITION_PRESETS[position_name]
+
+	var resolved_x: float = float(params.get("x", default_position.x))
+	var resolved_y: float = float(params.get("y", default_position.y))
+	return Vector2(resolved_x, resolved_y)
+
+
+func _resolve_image_size(params: Dictionary, default_size: Vector2) -> Vector2:
+	if params.has("size"):
+		var raw_size: Variant = params.get("size")
+		if raw_size is Vector2:
+			return raw_size
+		var size_name: String = str(raw_size).strip_edges().to_lower()
+		if IMAGE_SIZE_PRESETS.has(size_name):
+			return IMAGE_SIZE_PRESETS[size_name]
+
+	var resolved_width: float = float(params.get("width", default_size.x))
+	var resolved_height: float = float(params.get("height", default_size.y))
+	return Vector2(resolved_width, resolved_height)
+
+
+func _cleanup_image_layout_keys(params: Dictionary) -> void:
+	params.erase("x")
+	params.erase("y")
+	params.erase("width")
+	params.erase("height")
+
+
+func _build_default_image_id(image_path: String) -> String:
+	var normalized: String = image_path.strip_edges().to_lower()
+	normalized = normalized.replace("res://", "")
+	normalized = normalized.replace("user://", "")
+	var rx: RegEx = RegEx.new()
+	rx.compile("[^a-z0-9_]+")
+	normalized = rx.sub(normalized, "_", true)
+	normalized = normalized.strip_edges()
+	while normalized.contains("__"):
+		normalized = normalized.replace("__", "_")
+	normalized = normalized.trim_prefix("_")
+	normalized = normalized.trim_suffix("_")
+	if normalized.is_empty():
+		return "image"
+	return normalized
 
 func _safe_convert_value(val_str: String) -> Variant:
 	if val_str.to_lower() == "true": return true

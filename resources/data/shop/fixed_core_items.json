@@ -1,0 +1,90 @@
+[
+  {
+    "item_id": "core_pillow",
+    "source_type": "fixed_core",
+    "category": "life",
+    "sub_category": "sleep_aid",
+    "effect_archetype": "sleep_recovery_medium",
+    "title": "松软记忆枕",
+    "subtitle": "把今天的疲惫先放下",
+    "short_desc": "不是黑科技，只是终于肯让脖子休息一下。",
+    "detail_desc": "回弹慢，支撑感也刚好，属于一看就很适合在截稿周抱着躺平的那种日用品。",
+    "price": 128,
+    "price_band": "mid",
+    "shipping_days": 1,
+    "giftable": true,
+    "tags": ["助眠", "居家", "柔软"],
+    "seller_style": "认真过头型文案",
+    "user_comments": [
+      "买来第一晚没什么感觉，第三晚开始不想离开床。",
+      "谈不上改变人生，但至少先把肩颈哄好了。"
+    ],
+    "heroine_reaction_hint": "她会先吐槽你终于舍得换枕头。"
+  },
+  {
+    "item_id": "core_headphones",
+    "source_type": "fixed_core",
+    "category": "creative",
+    "sub_category": "desk_focus",
+    "effect_archetype": "creative_focus_with_stress",
+    "title": "夜色降噪耳机",
+    "subtitle": "深夜赶稿专用",
+    "short_desc": "把杂音隔开一点，也把自己和世界隔开一点。",
+    "detail_desc": "并不是录音棚级别的设备，但夜里写东西、改分镜、调情绪时会让桌面安静很多。",
+    "price": 229,
+    "price_band": "high",
+    "shipping_days": 2,
+    "giftable": true,
+    "tags": ["创作", "专注", "夜间"],
+    "seller_style": "效率党硬核测评",
+    "user_comments": [
+      "戴上以后世界总算愿意闭嘴一会儿。",
+      "专注是专注了，就是别人喊我吃饭经常听不见。"
+    ],
+    "heroine_reaction_hint": "她会说这东西看起来很适合你半夜和 bug 冷战。"
+  },
+  {
+    "item_id": "core_cake",
+    "source_type": "fixed_core",
+    "category": "gift",
+    "sub_category": "dessert",
+    "effect_archetype": "gift_affection_small",
+    "title": "晚安小蛋糕",
+    "subtitle": "情绪低的时候比道理更有用",
+    "short_desc": "奶油不算惊艳，但它长得就像一句软一点的话。",
+    "detail_desc": "小小一盒，适合夜里顺手带回去。不是重大礼物，却很容易让某个时刻变得温柔一点。",
+    "price": 36,
+    "price_band": "low",
+    "shipping_days": 1,
+    "giftable": true,
+    "tags": ["礼物", "甜点", "安慰"],
+    "seller_style": "深夜治愈风",
+    "user_comments": [
+      "工作做不完的时候，先把这口甜的吃掉也不错。",
+      "送人成功率比自己熬过去高。"
+    ],
+    "heroine_reaction_hint": "她会嘴上说你在拿甜品糊弄人，但还是会认真吃完。"
+  },
+  {
+    "item_id": "core_coffee_box",
+    "source_type": "fixed_core",
+    "category": "creative",
+    "sub_category": "late_night_supply",
+    "effect_archetype": "late_night_efficiency_small",
+    "title": "截稿周咖啡箱",
+    "subtitle": "看起来很专业，喝起来很拼命",
+    "short_desc": "适合写下“今天一定收尾”，也适合明天继续熬。",
+    "detail_desc": "一整箱速溶咖啡，摆在桌上就很像进入了真正的赶工状态，但代价通常也写在第二天的脸上。",
+    "price": 49,
+    "price_band": "low",
+    "shipping_days": 1,
+    "giftable": false,
+    "tags": ["熬夜", "效率", "咖啡"],
+    "seller_style": "办公室生存指北",
+    "user_comments": [
+      "推进是真的推进了，代价也是真的代价。",
+      "不是好喝，是有用。"
+    ],
+    "heroine_reaction_hint": "她会怀疑你是不是准备和凌晨三点签长期合作协议。"
+  }
+]

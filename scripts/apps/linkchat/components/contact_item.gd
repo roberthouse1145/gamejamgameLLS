@@ -3,6 +3,19 @@
 ## 显示头像、名称、最后一条消息预览、未读红点
 
 const LCTheme := preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
+const ITEM_MIN_HEIGHT := 92.0
+const ITEM_PADDING_X := 14
+const ITEM_PADDING_Y := 12
+const ITEM_SPACING := 16
+const INFO_SPACING := 4
+const AVATAR_SIZE := 60.0
+const NAME_FONT_SIZE := 20
+const PREVIEW_FONT_SIZE := 16
+const TIME_FONT_SIZE := 13
+const UNREAD_BADGE_SIZE := Vector2(28, 28)
+const UNREAD_FONT_SIZE := 13
+const AVATAR_INITIAL_FONT_SIZE := 22
+const PREVIEW_MAX_CHARS := 52
 
 signal selected(channel_id: String)
 
@@ -28,7 +41,7 @@ static func create(channel: Resource, _npc: Resource = null) -> ChatContactItem:
 
 
 func _build(channel: Resource) -> void:
-	custom_minimum_size = Vector2(0, 72)
+	custom_minimum_size = Vector2(0, ITEM_MIN_HEIGHT)
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -45,15 +58,15 @@ func _build(channel: Resource) -> void:
 	add_child(_bg_rect)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 10)
-	margin.add_theme_constant_override("margin_right", 10)
-	margin.add_theme_constant_override("margin_top", 8)
-	margin.add_theme_constant_override("margin_bottom", 8)
+	margin.add_theme_constant_override("margin_left", ITEM_PADDING_X)
+	margin.add_theme_constant_override("margin_right", ITEM_PADDING_X)
+	margin.add_theme_constant_override("margin_top", ITEM_PADDING_Y)
+	margin.add_theme_constant_override("margin_bottom", ITEM_PADDING_Y)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(margin)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 12)
+	hbox.add_theme_constant_override("separation", ITEM_SPACING)
 	hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.add_child(hbox)
 
@@ -65,21 +78,27 @@ func _build(channel: Resource) -> void:
 	# 中间：名称 + 预览
 	var info_vbox := VBoxContainer.new()
 	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info_vbox.add_theme_constant_override("separation", 2)
+	info_vbox.add_theme_constant_override("separation", INFO_SPACING)
 	info_vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hbox.add_child(info_vbox)
 
 	_name_label = Label.new()
 	_name_label.text = display_name
 	_name_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	_name_label.add_theme_font_size_override("font_size", 16)
+	_name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
+	_name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info_vbox.add_child(_name_label)
 
 	_preview_label = Label.new()
 	_preview_label.text = ""
 	_preview_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
-	_preview_label.add_theme_font_size_override("font_size", 14)
+	_preview_label.add_theme_font_size_override("font_size", PREVIEW_FONT_SIZE)
+	_preview_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_preview_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	_preview_label.max_lines_visible = 1
+	_preview_label.clip_text = true
 	_preview_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_preview_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	info_vbox.add_child(_preview_label)
@@ -93,14 +112,14 @@ func _build(channel: Resource) -> void:
 	_time_label = Label.new()
 	_time_label.text = ""
 	_time_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-	_time_label.add_theme_font_size_override("font_size", 12)
+	_time_label.add_theme_font_size_override("font_size", TIME_FONT_SIZE)
 	_time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_time_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right_vbox.add_child(_time_label)
 
 	# 未读红点
 	_unread_badge = PanelContainer.new()
-	_unread_badge.custom_minimum_size = Vector2(24, 24)
+	_unread_badge.custom_minimum_size = UNREAD_BADGE_SIZE
 	_unread_badge.add_theme_stylebox_override("panel", LCTheme.get_unread_badge_style())
 	_unread_badge.visible = false
 	_unread_badge.size_flags_horizontal = Control.SIZE_SHRINK_END
@@ -109,7 +128,7 @@ func _build(channel: Resource) -> void:
 
 	_unread_count_label = Label.new()
 	_unread_count_label.add_theme_color_override("font_color", Color.WHITE)
-	_unread_count_label.add_theme_font_size_override("font_size", 12)
+	_unread_count_label.add_theme_font_size_override("font_size", UNREAD_FONT_SIZE)
 	_unread_count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_unread_count_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_unread_count_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -142,13 +161,19 @@ func update_from_channel(channel: Resource) -> void:
 		_unread_badge.visible = false
 
 
+func update_from_message(msg: Dictionary, unread_count: int) -> void:
+	_apply_preview_from_message(msg)
+	if unread_count > 0:
+		_unread_badge.visible = true
+		_unread_count_label.text = str(unread_count) if unread_count < 100 else "99+"
+	else:
+		_unread_badge.visible = false
+
+
 func _update_preview(channel: Resource) -> void:
 	if channel.messages.size() > 0:
 		var last_msg: Dictionary = channel.messages[-1]
-		var sender: String = last_msg.get("sender_name", "")
-		var content: String = last_msg.get("content", "")
-		_preview_label.text = "%s: %s" % [sender, content] if not sender.is_empty() else content
-		_time_label.text = last_msg.get("time", "")
+		_apply_preview_from_message(last_msg)
 	else:
 		_preview_label.text = ""
 		_time_label.text = ""
@@ -156,7 +181,7 @@ func _update_preview(channel: Resource) -> void:
 
 func _create_avatar(display_name: String, channel_type: int) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(48, 48)
+	panel.custom_minimum_size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var avatar_color: Color
@@ -178,7 +203,7 @@ func _create_avatar(display_name: String, channel_type: int) -> PanelContainer:
 		first_char = "#"
 	initial.text = first_char
 	initial.add_theme_color_override("font_color", Color.WHITE)
-	initial.add_theme_font_size_override("font_size", 18)
+	initial.add_theme_font_size_override("font_size", AVATAR_INITIAL_FONT_SIZE)
 	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	initial.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -187,3 +212,34 @@ func _create_avatar(display_name: String, channel_type: int) -> PanelContainer:
 	panel.add_child(initial)
 
 	return panel
+
+
+func _format_preview_text(sender: String, content: String) -> String:
+	var normalized := content.replace("\r", " ").replace("\n", " ").replace("\t", " ").strip_edges()
+	var preview := "%s: %s" % [sender, normalized] if not sender.is_empty() else normalized
+	if preview.length() <= PREVIEW_MAX_CHARS:
+		return preview
+	return "%s..." % preview.substr(0, PREVIEW_MAX_CHARS)
+
+
+func _apply_preview_from_message(msg: Dictionary) -> void:
+	var sender: String = str(msg.get("sender_name", ""))
+	var content: String = str(msg.get("content", "")).strip_edges()
+	if content.is_empty() and msg.has("card") and msg["card"] is Dictionary:
+		content = _build_card_preview(msg["card"] as Dictionary)
+	_preview_label.text = _format_preview_text(sender, content)
+	_time_label.text = str(msg.get("time", ""))
+
+
+func _build_card_preview(card: Dictionary) -> String:
+	var card_type := str(card.get("type", "")).strip_edges().to_lower()
+	match card_type:
+		"image":
+			var caption := str(card.get("caption", "")).strip_edges()
+			return "[图片] %s" % caption if not caption.is_empty() else "[图片]"
+		"link":
+			var title := str(card.get("title", "")).strip_edges()
+			return "[链接] %s" % title if not title.is_empty() else "[链接]"
+		_:
+			var title := str(card.get("title", "")).strip_edges()
+			return "[卡片] %s" % title if not title.is_empty() else "[卡片消息]"

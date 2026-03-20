@@ -21,7 +21,7 @@ const POSITIONAL_PARAMS: Dictionary = {
 	"PLAY_BGM": ["audio_path"],
 	"PLAY_SFX": ["audio_path"],
 	"CHANGE_BACKGROUND": ["texture_path"],
-	"SHOW_IMAGE": ["image_id", "texture_path"],
+	"SHOW_IMAGE": ["image_id", "image_path"],
 	"HIDE_IMAGE": ["image_id"],
 	"SCREEN_FADE": ["direction"],
 	"SET_TIME_OF_DAY": ["preset"],

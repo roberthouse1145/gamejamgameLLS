@@ -113,13 +113,14 @@ func focus_window(window: Control) -> void:
 	# Implementation will be completed in Task 3.7
 	if not window or not is_instance_valid(window):
 		return
-	
+
+	if window == focused_window and _is_window_frontmost(window):
+		return
+
+	_bring_window_to_front(window)
+
 	if window == focused_window:
 		return
-	
-	# Update z-index to bring to front
-	window.z_index = next_z_index
-	next_z_index += 1
 	
 	# Update focused window reference
 	focused_window = window
@@ -225,6 +226,28 @@ func _focus_topmost_window() -> void:
 	
 	if topmost:
 		focus_window(topmost)
+
+
+func _bring_window_to_front(window: Control) -> void:
+	# Keep visual stacking and mouse hit order in sync.
+	# Relying on z_index alone can still leave older siblings receiving input first.
+	window.z_index = next_z_index
+	next_z_index += 1
+
+	var parent := window.get_parent()
+	if parent == null:
+		return
+
+	var top_index := parent.get_child_count() - 1
+	if window.get_index() != top_index:
+		parent.move_child(window, top_index)
+
+
+func _is_window_frontmost(window: Control) -> bool:
+	var parent := window.get_parent()
+	if parent == null:
+		return true
+	return window.get_index() == parent.get_child_count() - 1
 
 
 # Signal handlers

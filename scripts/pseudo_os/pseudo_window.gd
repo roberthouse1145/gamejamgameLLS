@@ -238,6 +238,47 @@ func _on_window_gui_input(event: InputEvent) -> void:
 			focus_requested.emit()
 
 
+func _input(event: InputEvent) -> void:
+	if not visible or is_minimized:
+		return
+	if not event is InputEventMouseButton:
+		return
+
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+
+	if not get_global_rect().has_point(mouse_event.global_position):
+		return
+
+	if not _is_topmost_window_at_point(mouse_event.global_position):
+		return
+
+	focus_requested.emit()
+
+
+func _is_topmost_window_at_point(point: Vector2) -> bool:
+	var parent := get_parent()
+	if parent == null:
+		return true
+
+	var my_index := get_index()
+	for i in range(my_index + 1, parent.get_child_count()):
+		var sibling := parent.get_child(i)
+		if not sibling is Control:
+			continue
+
+		var sibling_control := sibling as Control
+		if not sibling_control.visible:
+			continue
+		if "is_minimized" in sibling_control and sibling_control.is_minimized:
+			continue
+		if sibling_control.get_global_rect().has_point(point):
+			return false
+
+	return true
+
+
 ## Button handlers
 func _on_minimize_pressed() -> void:
 	if minimize_locked:

@@ -37,10 +37,12 @@ KnowledgeBaseManager="*res://autoload/knowledge_base_manager.gd"
 LLMKnowledgeBaseManager="*res://autoload/llm_knowledge_base_manager.gd"
 CampaignRunManager="*res://autoload/campaign_run_manager.gd"
 BrowserManager="*res://scenes/autoload/browser_manager.tscn"
+ShopManager="*res://autoload/shop_manager.gd"
 GameManager="*res://autoload/game_manager.gd"
 DateManager="*res://autoload/date_manager.gd"
 PartTimeJobManager="*res://autoload/part_time_job_manager.gd"
 SbeamManager="*res://autoload/sbeam_manager.gd"
+HomeActivityManager="*res://scenes/home/home_activity_manager.tscn"
 StoryDirector="*res://autoload/story_director.gd"
 
 [display]

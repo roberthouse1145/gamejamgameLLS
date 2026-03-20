@@ -18,6 +18,18 @@ static func register_all(ai_service: Node) -> void:
 		"properties": {},
 	}, func(args: Dictionary) -> Variant: return _project_save(args))
 
+	ai_service.register_tool("import_project_asset", "导入外部资源到当前项目，并自动写入 asset_aliases.json。适用于 LLM 将图片/BGM/SFX 等素材纳入玩家工程。", {
+		"type": "object",
+		"properties": {
+			"source_path": {"type": "string", "description": "外部文件路径。可以是系统绝对路径，也可以是 res:// 或 user:// 路径"},
+			"asset_type": {"type": "string", "enum": ["background", "image", "cg", "bgm", "sfx"], "description": "资源类型，决定导入目录和 alias bucket"},
+			"alias": {"type": "string", "description": "可选。希望写入的 alias；若省略则自动生成"},
+			"target_subdir": {"type": "string", "description": "可选。导入到默认目录下的子目录，例如 generated/day3"},
+			"overwrite": {"type": "boolean", "description": "若为 true，则允许覆盖同名目标文件或同名 alias"},
+		},
+		"required": ["source_path", "asset_type"]
+	}, func(args: Dictionary) -> Variant: return _import_project_asset(args))
+
 	ai_service.register_tool("preview_scene", "触发游戏内预览模式，让玩家试玩指定场景", {
 		"type": "object",
 		"properties": {
@@ -47,6 +59,18 @@ static func register_save_only(ai_service: Node) -> void:
 		"properties": {},
 	}, func(args: Dictionary) -> Variant: return _project_save(args))
 
+	ai_service.register_tool("import_project_asset", "Import an external asset into the current project and auto-update asset_aliases.json.", {
+		"type": "object",
+		"properties": {
+			"source_path": {"type": "string", "description": "Absolute path, res:// path, or user:// path to the source file"},
+			"asset_type": {"type": "string", "enum": ["background", "image", "cg", "bgm", "sfx"], "description": "Asset type that controls target directory and manifest bucket"},
+			"alias": {"type": "string", "description": "Optional requested alias; auto-generated if omitted"},
+			"target_subdir": {"type": "string", "description": "Optional subdirectory inside the default import folder"},
+			"overwrite": {"type": "boolean", "description": "Whether to allow overwriting an existing target file or alias"},
+		},
+		"required": ["source_path", "asset_type"]
+	}, func(args: Dictionary) -> Variant: return _import_project_asset(args))
+
 	ai_service.register_tool("finish", "End your task and return summary to parent agent. You MUST call this when done.", {
 		"type": "object",
 		"properties": {
@@ -55,10 +79,10 @@ static func register_save_only(ai_service: Node) -> void:
 		"required": ["summary"]
 	}, func(args: Dictionary) -> Variant: return _finish(args))
 
-	ai_service.register_tool("list_assets", "列出当前项目的可用资源文件与 alias（背景图、BGM、SFX、角色立绘）。在编写 DSL 脚本前必须先调用此工具查询可用资源，禁止编造不存在的资源名！", {
+	ai_service.register_tool("list_assets", "列出当前项目的可用资源文件与 alias（背景图、非角色图片、CG、BGM、SFX、角色表情/服装信息）。在编写 DSL 脚本前必须先调用此工具查询可用资源，禁止编造不存在的资源名！", {
 		"type": "object",
 		"properties": {
-			"category": {"type": "string", "enum": ["all", "backgrounds", "bgm", "sfx", "characters"], "description": "要查询的资源类别，默认 all"}
+			"category": {"type": "string", "enum": ["all", "backgrounds", "images", "cg", "bgm", "sfx", "characters"], "description": "要查询的资源类别，默认 all"}
 		},
 	}, func(args: Dictionary) -> Variant: return _list_assets(args))
 
@@ -77,6 +101,18 @@ static func register_preview_and_finish(ai_service: Node) -> void:
 		"type": "object",
 		"properties": {},
 	}, func(args: Dictionary) -> Variant: return _project_info(args))
+
+	ai_service.register_tool("import_project_asset", "Import an external asset into the current project and auto-update asset_aliases.json.", {
+		"type": "object",
+		"properties": {
+			"source_path": {"type": "string", "description": "Absolute path, res:// path, or user:// path to the source file"},
+			"asset_type": {"type": "string", "enum": ["background", "image", "cg", "bgm", "sfx"], "description": "Asset type that controls target directory and manifest bucket"},
+			"alias": {"type": "string", "description": "Optional requested alias; auto-generated if omitted"},
+			"target_subdir": {"type": "string", "description": "Optional subdirectory inside the default import folder"},
+			"overwrite": {"type": "boolean", "description": "Whether to allow overwriting an existing target file or alias"},
+		},
+		"required": ["source_path", "asset_type"]
+	}, func(args: Dictionary) -> Variant: return _import_project_asset(args))
 
 
 # =============================================================================
@@ -136,6 +172,32 @@ static func _project_save(_args: Dictionary) -> Dictionary:
 
 
 # =============================================================================
+# import_project_asset
+# =============================================================================
+
+static func _import_project_asset(args: Dictionary) -> Dictionary:
+	var sm: Node = AVGDevDBTools.get_autoload("StorageManager")
+	if sm == null:
+		return {"success": false, "error": "StorageManager 未找到"}
+
+	if not sm.has_method("import_project_asset"):
+		return {"success": false, "error": "当前 StorageManager 不支持资源导入"}
+
+	var source_path: String = str(args.get("source_path", "")).strip_edges()
+	var asset_type: String = str(args.get("asset_type", "")).strip_edges()
+	var alias: String = str(args.get("alias", "")).strip_edges()
+	var target_subdir: String = str(args.get("target_subdir", "")).strip_edges()
+	var overwrite: bool = bool(args.get("overwrite", false))
+
+	var result: Dictionary = sm.import_project_asset(source_path, asset_type, alias, target_subdir, overwrite)
+	if not bool(result.get("success", false)):
+		return result
+
+	result["message"] = "资源已导入，可优先使用 alias=%s" % str(result.get("alias", ""))
+	return result
+
+
+# =============================================================================
 # preview_scene
 # =============================================================================
 
@@ -191,7 +253,7 @@ static func _list_assets(args: Dictionary) -> Dictionary:
 	var manifest: Dictionary = {}
 	if sm.has_method("get_asset_manifest"):
 		manifest = sm.get_asset_manifest(project, base_path)
-	result.data["alias_usage"] = "如果返回了 background_aliases/bgm_aliases/sfx_aliases，优先在 DSL 中使用 alias；如果没有 alias，再使用原始资源名。禁止写 res:// 完整路径。"
+	result.data["alias_usage"] = "如果返回了 background_aliases/image_aliases/cg_aliases/bgm_aliases/sfx_aliases，优先在 DSL 中使用 alias；如果没有 alias，再使用原始资源名。禁止写 res:// 完整路径。"
 	
 	# 背景图、BGM、SFX：扫描项目文件夹
 	# current_project_path 在开发者模式下指向 res://templates/...（可扫描）
@@ -199,6 +261,14 @@ static func _list_assets(args: Dictionary) -> Dictionary:
 	if category == "all" or category == "backgrounds":
 		result.data["backgrounds"] = _scan_files(base_path + "assets/images/background/")
 		result.data["background_aliases"] = _extract_aliases(manifest, "backgrounds")
+
+	if category == "all" or category == "images":
+		result.data["images"] = _scan_visual_files(base_path + "assets/images/", false)
+		result.data["image_aliases"] = _extract_filtered_aliases(manifest, "images", false)
+
+	if category == "all" or category == "cg":
+		result.data["cg"] = _scan_visual_files(base_path + "assets/images/", true)
+		result.data["cg_aliases"] = _extract_filtered_aliases(manifest, "images", true)
 	
 	if category == "all" or category == "bgm":
 		result.data["bgm"] = _scan_files(base_path + "assets/audio/bgm/")
@@ -266,3 +336,74 @@ static func _extract_aliases(manifest: Dictionary, bucket_name: String) -> Array
 		aliases.append(str(key))
 	aliases.sort()
 	return aliases
+
+
+static func _extract_filtered_aliases(manifest: Dictionary, bucket_name: String, cg_only: bool) -> Array:
+	var aliases: Array = []
+	var bucket: Dictionary = manifest.get(bucket_name, {})
+	for key in bucket.keys():
+		var alias_name: String = str(key).strip_edges()
+		var value: String = str(bucket.get(key, "")).strip_edges().to_lower()
+		var is_cg_alias: bool = _looks_like_cg(alias_name) or "/cg/" in value or "/cgs/" in value
+		if is_cg_alias != cg_only:
+			continue
+		aliases.append(alias_name)
+	aliases.sort()
+	return aliases
+
+
+static func _scan_visual_files(root_dir_path: String, cg_only: bool) -> Array:
+	var files: Array = []
+	var seen: Dictionary = {}
+	_scan_visual_dir_recursive(root_dir_path, "", cg_only, seen, files)
+	files.sort()
+	return files
+
+
+static func _scan_visual_dir_recursive(abs_dir: String, relative_dir: String, cg_only: bool, seen: Dictionary, out_files: Array) -> void:
+	var dir: DirAccess = DirAccess.open(abs_dir)
+	if dir == null:
+		return
+	dir.list_dir_begin()
+	var child_name: String = dir.get_next()
+	while child_name != "":
+		if child_name == "." or child_name == ".." or child_name.begins_with("."):
+			child_name = dir.get_next()
+			continue
+		var child_relative: String = child_name if relative_dir.is_empty() else relative_dir + "/" + child_name
+		if dir.current_is_dir():
+			if _should_skip_visual_dir(child_relative, cg_only):
+				child_name = dir.get_next()
+				continue
+			_scan_visual_dir_recursive(abs_dir + "/" + child_name, child_relative, cg_only, seen, out_files)
+		else:
+			if child_name.ends_with(".import") or child_name.begins_with("."):
+				child_name = dir.get_next()
+				continue
+			var base_name: String = child_name.get_basename()
+			var belongs_to_cg: bool = _looks_like_cg(child_relative)
+			if belongs_to_cg != cg_only:
+				child_name = dir.get_next()
+				continue
+			if seen.has(base_name):
+				child_name = dir.get_next()
+				continue
+			seen[base_name] = true
+			out_files.append(base_name)
+		child_name = dir.get_next()
+	dir.list_dir_end()
+
+
+static func _should_skip_visual_dir(relative_dir: String, cg_only: bool) -> bool:
+	var normalized: String = relative_dir.to_lower()
+	if normalized.begins_with("background") or normalized.begins_with("character"):
+		return true
+	var is_cg_dir: bool = normalized == "cg" or normalized.begins_with("cg/") or normalized == "cgs" or normalized.begins_with("cgs/")
+	if cg_only:
+		return not is_cg_dir
+	return is_cg_dir
+
+
+static func _looks_like_cg(path_or_name: String) -> bool:
+	var normalized: String = path_or_name.to_lower()
+	return normalized == "cg" or normalized.begins_with("cg_") or "/cg/" in normalized or normalized == "cgs" or "/cgs/" in normalized

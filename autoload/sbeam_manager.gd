@@ -156,6 +156,7 @@ func _build_topic_prompt(session: Dictionary, stage: String) -> String:
 	var pitch := str(game.get("pitch", "")).strip_edges()
 	var hook_moment := str(game.get("hook_moment", "")).strip_edges()
 	var reaction_summary := str(session.get("reaction_summary", "")).strip_edges()
+	var include_scene_context: bool = stage != "departure"
 	var scene_outline := str(session.get("scene_outline", "")).strip_edges()
 	var scene_result: Dictionary = session.get("scene_result", {})
 	var parts: Array[String] = [
@@ -169,9 +170,9 @@ func _build_topic_prompt(session: Dictionary, stage: String) -> String:
 		parts.append("最容易触发情绪的片段: %s" % hook_moment)
 	if not reaction_summary.is_empty():
 		parts.append("整体体验基调: %s" % reaction_summary)
-	if not scene_result.is_empty():
+	if include_scene_context and not scene_result.is_empty():
 		parts.append("刚才场景里玩家的接话选择: %s" % str(scene_result.get("choice_text", "")))
-	if not scene_outline.is_empty():
+	if include_scene_context and not scene_outline.is_empty():
 		parts.append("刚才 AVG 场景的文本摘要:\n%s" % scene_outline)
 	match stage:
 		"departure":

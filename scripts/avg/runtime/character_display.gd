@@ -29,6 +29,23 @@ const TRANSITION_CROSSFADE: int = 0
 const TRANSITION_INSTANT: int = 1
 const TRANSITION_FADE_THROUGH_BLACK: int = 2
 
+const VISIBILITY_EFFECT_FADE: String = "fade"
+const VISIBILITY_EFFECT_NONE: String = "none"
+const SHOW_EFFECT_POP_IN: String = "pop_in"
+const HIDE_EFFECT_POP_OUT: String = "pop_out"
+const SHOW_EFFECTS_WITH_SLIDE: Array[String] = [
+	"slide_from_left",
+	"slide_from_right",
+	"slide_from_top",
+	"slide_from_bottom",
+]
+const HIDE_EFFECTS_WITH_SLIDE: Array[String] = [
+	"slide_to_left",
+	"slide_to_right",
+	"slide_to_top",
+	"slide_to_bottom",
+]
+
 ## Container for character sprites
 @onready var sprite_container: Control = self
 
@@ -75,7 +92,7 @@ func set_character_data(characters: Dictionary) -> void:
 # =============================================================================
 
 ## Show a character on screen
-func show_character(character_id: String, pos_name: String = "center", emotion: String = "", fade_duration: float = 0.3, flip: bool = false, char_scale: float = 1.0, opacity: float = 1.0, outfit: String = "") -> void:
+func show_character(character_id: String, pos_name: String = "center", emotion: String = "", fade_duration: float = 0.3, flip: bool = false, char_scale: float = 1.0, opacity: float = 1.0, outfit: String = "", enter_effect: String = "fade", enter_distance: float = 0.08, enter_easing: String = "ease_out") -> void:
 	var sprite: TextureRect = _get_or_create_sprite(character_id)
 	_cancel_crossfade(character_id)
 	
@@ -87,6 +104,7 @@ func show_character(character_id: String, pos_name: String = "center", emotion: 
 
 	var pos_ratio: Vector2 = _parse_position(pos_name)
 	_position_sprite(sprite, pos_ratio, character_id)
+	var target_pos: Vector2 = sprite.position
 
 	# Init state
 	_character_state[character_id] = {
@@ -101,54 +119,18 @@ func show_character(character_id: String, pos_name: String = "center", emotion: 
 	# Apply flip and scale (this is character scale, not viewport scale)
 	var sx: float = - char_scale if flip else char_scale
 	sprite.pivot_offset = sprite.size / 2.0
-	sprite.scale = Vector2(sx, char_scale)
-
-	var fade_key: String = character_id + "_fade"
-	_cancel_tween(fade_key)
-
-	if fade_duration > 0.0:
-		sprite.modulate.a = 0.0
-		sprite.visible = true
-		var tween := create_tween()
-		_active_tweens[fade_key] = tween
-		tween.tween_property(sprite, "modulate:a", opacity, fade_duration)
-		tween.finished.connect(func():
-			if not is_instance_valid(self ):
-				return
-			_active_tweens.erase(fade_key)
-			character_shown.emit(character_id)
-		)
-	else:
-		sprite.modulate.a = opacity
-		sprite.visible = true
-		character_shown.emit(character_id)
+	var target_scale: Vector2 = Vector2(sx, char_scale)
+	sprite.scale = target_scale
+	_play_show_effect(character_id, sprite, target_pos, target_scale, opacity, fade_duration, enter_effect, enter_distance, enter_easing)
 
 
 ## Hide a character from screen
-func hide_character(character_id: String, fade_duration: float = 0.3) -> void:
+func hide_character(character_id: String, fade_duration: float = 0.3, exit_effect: String = "fade", exit_distance: float = 0.08, exit_easing: String = "ease_in") -> void:
 	if not _active_characters.has(character_id):
 		return
 	var sprite: TextureRect = _active_characters[character_id]
-	var fade_key: String = character_id + "_fade"
-	_cancel_tween(fade_key)
 	_cancel_crossfade(character_id)
-
-	if fade_duration > 0.0:
-		var tween := create_tween()
-		_active_tweens[fade_key] = tween
-		tween.tween_property(sprite, "modulate:a", 0.0, fade_duration)
-		tween.finished.connect(func():
-			if not is_instance_valid(self ):
-				return
-			_active_tweens.erase(fade_key)
-			if is_instance_valid(sprite):
-				sprite.visible = false
-			character_hidden.emit(character_id)
-		)
-	else:
-		sprite.modulate.a = 0.0
-		sprite.visible = false
-		character_hidden.emit(character_id)
+	_play_hide_effect(character_id, sprite, fade_duration, exit_effect, exit_distance, exit_easing)
 
 
 ## Hide all characters
@@ -225,6 +207,15 @@ func _do_crossfade(character_id: String, sprite: TextureRect, new_texture: Textu
 		_apply_texture_preserve_center(sprite, new_texture, character_id)
 		return
 
+	# If the show/hide visibility tween is still running, a crossfade would
+	# conflict with it (both tweening modulate). Fall back to instant swap.
+	var visibility_key: String = _get_visibility_tween_key(character_id)
+	if _active_tweens.has(visibility_key):
+		var vis_tween: Tween = _active_tweens[visibility_key]
+		if vis_tween != null and vis_tween.is_valid() and vis_tween.is_running():
+			_apply_texture_preserve_center(sprite, new_texture, character_id)
+			return
+
 	var original_modulate: Color = sprite.modulate
 	var overlay: TextureRect = _create_crossfade_overlay(character_id, sprite, old_texture)
 	_apply_texture_preserve_center(sprite, new_texture, character_id)
@@ -238,10 +229,8 @@ func _do_crossfade(character_id: String, sprite: TextureRect, new_texture: Textu
 	tween.set_ease(Tween.EASE_OUT)
 	tween.tween_property(overlay, "modulate:a", 0.0, duration)
 	tween.finished.connect(func():
-		if not is_instance_valid(self ):
+		if not is_instance_valid(self):
 			return
-		if is_instance_valid(sprite):
-			sprite.modulate = original_modulate
 		if is_instance_valid(overlay):
 			overlay.queue_free()
 		_active_tweens.erase(crossfade_key)
@@ -254,6 +243,14 @@ func _do_fade_through(character_id: String, sprite: TextureRect, new_texture: Te
 	if duration <= 0.0:
 		sprite.texture = new_texture
 		return
+
+	# If the show/hide visibility tween is still running, fall back to instant.
+	var visibility_key: String = _get_visibility_tween_key(character_id)
+	if _active_tweens.has(visibility_key):
+		var vis_tween: Tween = _active_tweens[visibility_key]
+		if vis_tween != null and vis_tween.is_valid() and vis_tween.is_running():
+			_apply_texture_preserve_center(sprite, new_texture, character_id)
+			return
 
 	var half: float = duration / 2.0
 	var original_alpha: float = sprite.modulate.a
@@ -309,8 +306,7 @@ func move_character(character_id: String, target: String, duration: float = 0.3,
 	if duration > 0.0:
 		var tween := create_tween()
 		_active_tweens[move_key] = tween
-		tween.set_trans(_resolve_easing(easing))
-		tween.tween_property(sprite, "position", target_pos, duration)
+		_configure_tweener(tween.tween_property(sprite, "position", target_pos, duration), easing)
 		tween.finished.connect(func():
 			if not is_instance_valid(self ):
 				return
@@ -595,6 +591,111 @@ func resolve_visible_character_id(reference: String) -> String:
 # Internal Helpers
 # =============================================================================
 
+func _play_show_effect(character_id: String, sprite: TextureRect, target_pos: Vector2, target_scale: Vector2, target_alpha: float, duration: float, enter_effect: String, enter_distance: float, enter_easing: String) -> void:
+	var visibility_key: String = _get_visibility_tween_key(character_id)
+	_cancel_tween(visibility_key)
+
+	var normalized_effect: String = _normalize_visibility_effect(enter_effect)
+	if duration <= 0.0 or normalized_effect == VISIBILITY_EFFECT_NONE:
+		sprite.position = target_pos
+		sprite.scale = target_scale
+		sprite.modulate.a = target_alpha
+		sprite.visible = true
+		character_shown.emit(character_id)
+		return
+
+	var start_pos: Vector2 = target_pos
+	var start_scale: Vector2 = target_scale
+	var start_alpha: float = target_alpha
+
+	match normalized_effect:
+		VISIBILITY_EFFECT_FADE:
+			start_alpha = 0.0
+		SHOW_EFFECT_POP_IN:
+			start_alpha = 0.0
+			start_scale = target_scale * 0.92
+		_:
+			if SHOW_EFFECTS_WITH_SLIDE.has(normalized_effect):
+				start_alpha = 0.0
+				start_pos = target_pos + _get_visibility_effect_offset(normalized_effect, enter_distance)
+			else:
+				start_alpha = 0.0
+
+	sprite.position = start_pos
+	sprite.scale = start_scale
+	sprite.modulate.a = start_alpha
+	sprite.visible = true
+
+	var tween := create_tween()
+	_active_tweens[visibility_key] = tween
+	tween.set_parallel(true)
+	_configure_tweener(tween.tween_property(sprite, "modulate:a", target_alpha, duration), enter_easing)
+	if start_pos != target_pos:
+		_configure_tweener(tween.tween_property(sprite, "position", target_pos, duration), enter_easing)
+	if start_scale != target_scale:
+		var scale_transition: Variant = null
+		if normalized_effect == SHOW_EFFECT_POP_IN:
+			scale_transition = Tween.TRANS_BACK
+		_configure_tweener(tween.tween_property(sprite, "scale", target_scale, duration), enter_easing, scale_transition)
+	tween.finished.connect(func():
+		if not is_instance_valid(self ):
+			return
+		_active_tweens.erase(visibility_key)
+		if is_instance_valid(sprite):
+			sprite.position = target_pos
+			sprite.scale = target_scale
+			sprite.modulate.a = target_alpha
+		character_shown.emit(character_id)
+	)
+
+
+func _play_hide_effect(character_id: String, sprite: TextureRect, duration: float, exit_effect: String, exit_distance: float, exit_easing: String) -> void:
+	var visibility_key: String = _get_visibility_tween_key(character_id)
+	_cancel_tween(visibility_key)
+
+	var original_pos: Vector2 = sprite.position
+	var original_scale: Vector2 = sprite.scale
+	var normalized_effect: String = _normalize_visibility_effect(exit_effect)
+
+	if duration <= 0.0 or normalized_effect == VISIBILITY_EFFECT_NONE:
+		sprite.modulate.a = 0.0
+		sprite.visible = false
+		character_hidden.emit(character_id)
+		return
+
+	var target_pos: Vector2 = original_pos
+	var target_scale: Vector2 = original_scale
+
+	match normalized_effect:
+		VISIBILITY_EFFECT_FADE:
+			pass
+		HIDE_EFFECT_POP_OUT:
+			target_scale = original_scale * 0.92
+		_:
+			if HIDE_EFFECTS_WITH_SLIDE.has(normalized_effect):
+				target_pos = original_pos + _get_visibility_effect_offset(normalized_effect, exit_distance)
+
+	var tween := create_tween()
+	_active_tweens[visibility_key] = tween
+	tween.set_parallel(true)
+	_configure_tweener(tween.tween_property(sprite, "modulate:a", 0.0, duration), exit_easing)
+	if target_pos != original_pos:
+		_configure_tweener(tween.tween_property(sprite, "position", target_pos, duration), exit_easing)
+	if target_scale != original_scale:
+		_configure_tweener(tween.tween_property(sprite, "scale", target_scale, duration), exit_easing)
+	tween.finished.connect(func():
+		if not is_instance_valid(self ):
+			return
+		_active_tweens.erase(visibility_key)
+		if is_instance_valid(sprite):
+			sprite.position = original_pos
+			sprite.scale = original_scale
+			sprite.modulate.a = 0.0
+			sprite.visible = false
+		character_hidden.emit(character_id)
+	)
+
+
 func _get_or_create_sprite(character_id: String) -> TextureRect:
 	if _active_characters.has(character_id):
 		return _active_characters[character_id]
@@ -636,7 +737,9 @@ func _create_crossfade_overlay(character_id: String, source_sprite: TextureRect,
 	overlay.rotation = source_sprite.rotation
 	overlay.pivot_offset = source_sprite.pivot_offset
 	overlay.modulate = source_sprite.modulate
-	overlay.z_index = source_sprite.z_index + 1
+	# Keep the overlay in the same local z bucket as the source sprite so it
+	# stays under full-screen grading layers like time_of_day.
+	overlay.z_index = source_sprite.z_index
 	sprite_container.add_child(overlay)
 	_crossfade_overlays[character_id] = overlay
 	return overlay
@@ -773,6 +876,10 @@ func _get_crossfade_tween_key(character_id: String) -> String:
 	return character_id + "_crossfade"
 
 
+func _get_visibility_tween_key(character_id: String) -> String:
+	return character_id + "_fade"
+
+
 func _resolve_transition_mode(transition_str: String) -> int:
 	match transition_str:
 		"crossfade":
@@ -793,12 +900,57 @@ func _get_default_expression_duration() -> float:
 	return 0.2
 
 
-func _resolve_easing(easing_str: String) -> Tween.TransitionType:
+func _configure_tweener(tweener: PropertyTweener, easing_str: String, transition_override: Variant = null) -> PropertyTweener:
+	var transition_type: Tween.TransitionType = _resolve_transition_type(easing_str)
+	if transition_override != null:
+		transition_type = int(transition_override) as Tween.TransitionType
+	tweener.set_trans(transition_type)
+	tweener.set_ease(_resolve_ease_type(easing_str))
+	return tweener
+
+
+func _resolve_transition_type(easing_str: String) -> Tween.TransitionType:
 	match easing_str:
 		"linear":
 			return Tween.TRANS_LINEAR
 		_:
 			return Tween.TRANS_QUAD
+
+
+func _resolve_ease_type(easing_str: String) -> Tween.EaseType:
+	match easing_str:
+		"ease_in":
+			return Tween.EASE_IN
+		"ease_out":
+			return Tween.EASE_OUT
+		"linear":
+			return Tween.EASE_IN_OUT
+		_:
+			return Tween.EASE_IN_OUT
+
+
+func _normalize_visibility_effect(effect_name: String) -> String:
+	var normalized: String = effect_name.strip_edges().to_lower()
+	if normalized.is_empty():
+		return VISIBILITY_EFFECT_FADE
+	if normalized == "instant":
+		return VISIBILITY_EFFECT_NONE
+	return normalized
+
+
+func _get_visibility_effect_offset(effect_name: String, distance: float) -> Vector2:
+	var clamped_distance: float = maxf(distance, 0.0)
+	match effect_name:
+		"slide_from_left", "slide_to_left":
+			return Vector2(-_design_resolution.x * clamped_distance, 0.0)
+		"slide_from_right", "slide_to_right":
+			return Vector2(_design_resolution.x * clamped_distance, 0.0)
+		"slide_from_top", "slide_to_top":
+			return Vector2(0.0, -_design_resolution.y * clamped_distance)
+		"slide_from_bottom", "slide_to_bottom":
+			return Vector2(0.0, _design_resolution.y * clamped_distance)
+		_:
+			return Vector2.ZERO
 
 
 func _get_intensity_multiplier(intensity: String) -> float:

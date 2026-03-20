@@ -32,6 +32,8 @@ class_name StoryStep extends Resource
 ##   avg_scene_ended — 等待 AVG 场景结束
 ##   date_started    — 等待约会开始
 ##   date_completed  — 等待约会结束
+##   home_activity_started   — 等待在家活动开始
+##   home_activity_completed — 等待在家活动结束
 ##   app_opened      — 等待玩家打开指定 APP
 ##   variable_equals — 等待剧情变量达到指定值
 ##   phase_reached   — 等待到达指定时段

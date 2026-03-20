@@ -7,6 +7,7 @@
     "bg_street_day": "assets/images/background/Street.jpg",
     "bg_hotel_room": "assets/images/background/HotelRoomInside.jpg"
   },
+  "images": {},
   "bgm": {},
   "sfx": {}
 }

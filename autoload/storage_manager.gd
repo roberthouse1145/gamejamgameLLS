@@ -15,6 +15,39 @@ const RES_TEMPLATES_PATH: String = "res://templates/"
 const RES_PROJECTS_PATH: String = "res://projects/" # 开发者模式
 const RUNTIME_RUN_ROOT_PATH: String = "user://run/"
 const RUNTIME_PLAYER_PROJECT_PATH: String = RUNTIME_RUN_ROOT_PATH + "player_project/"
+const ASSET_MANIFEST_RELATIVE_PATH: String = "manifests/asset_aliases.json"
+const IMPORTABLE_ASSET_TYPES: Dictionary = {
+	"background": {
+		"bucket": "backgrounds",
+		"base_dir": "assets/images/background",
+		"prefix": "bg",
+		"category": "image",
+	},
+	"image": {
+		"bucket": "images",
+		"base_dir": "assets/images/illustrations",
+		"prefix": "img",
+		"category": "image",
+	},
+	"cg": {
+		"bucket": "images",
+		"base_dir": "assets/images/cg",
+		"prefix": "cg",
+		"category": "image",
+	},
+	"bgm": {
+		"bucket": "bgm",
+		"base_dir": "assets/audio/bgm",
+		"prefix": "bgm",
+		"category": "audio",
+	},
+	"sfx": {
+		"bucket": "sfx",
+		"base_dir": "assets/audio/sfx",
+		"prefix": "sfx",
+		"category": "audio",
+	},
+}
 
 # 当前项目路径
 var current_project_path: String = ""
@@ -602,6 +635,89 @@ func import_asset(source_path: String, target_relative_path: String) -> Error:
 ## relative_path: 相对于项目根的路径
 ## res:// 路径使用 ResourceLoader（支持 .import 导入的资源）
 ## user:// 路径使用 Image.load_from_file()
+func import_project_asset(source_path: String, asset_type: String, alias: String = "", target_subdir: String = "", overwrite: bool = false) -> Dictionary:
+	if current_project_path.is_empty():
+		return {"success": false, "error": "未打开项目"}
+
+	var normalized_type: String = asset_type.strip_edges().to_lower()
+	if not IMPORTABLE_ASSET_TYPES.has(normalized_type):
+		return {
+			"success": false,
+			"error": "不支持的 asset_type: %s" % asset_type,
+			"supported_types": IMPORTABLE_ASSET_TYPES.keys(),
+		}
+
+	var normalized_source_path: String = source_path.strip_edges()
+	if normalized_source_path.is_empty():
+		return {"success": false, "error": "source_path 不能为空"}
+
+	var source_file_name: String = normalized_source_path.get_file()
+	if source_file_name.is_empty():
+		return {"success": false, "error": "无法从 source_path 推断文件名"}
+
+	var ext: String = source_file_name.get_extension().to_lower()
+	var detected_category: String = get_file_category(ext)
+	if detected_category == "unknown":
+		return {"success": false, "error": "不支持的文件扩展名: %s" % ext}
+
+	var config: Dictionary = IMPORTABLE_ASSET_TYPES[normalized_type]
+	var expected_category: String = str(config.get("category", "")).strip_edges()
+	if expected_category != detected_category:
+		return {
+			"success": false,
+			"error": "asset_type=%s 与文件扩展名 .%s 不匹配" % [normalized_type, ext],
+		}
+
+	var normalized_subdir: String = _normalize_asset_subdir(target_subdir)
+	var base_dir: String = str(config.get("base_dir", "")).strip_edges()
+	var target_dir_parts: Array[String] = [base_dir]
+	if not normalized_subdir.is_empty():
+		target_dir_parts.append(normalized_subdir)
+	var target_relative_dir: String = "/".join(target_dir_parts)
+	var target_relative_path: String = target_relative_dir + "/" + source_file_name
+	var abs_target_path: String = current_project_path + target_relative_path
+	if FileAccess.file_exists(abs_target_path) and not overwrite:
+		return {
+			"success": false,
+			"error": "目标文件已存在: %s" % target_relative_path,
+		}
+
+	var bucket_name: String = str(config.get("bucket", "")).strip_edges()
+	var alias_prefix: String = str(config.get("prefix", "")).strip_edges()
+	var manifest_prepare: Dictionary = _prepare_asset_manifest_entry(bucket_name, alias, target_relative_path, alias_prefix, overwrite)
+	if not bool(manifest_prepare.get("success", false)):
+		return manifest_prepare
+
+	var import_err: Error = import_asset(normalized_source_path, target_relative_path)
+	if import_err != OK:
+		return {
+			"success": false,
+			"error": "资源导入失败",
+			"error_code": import_err,
+		}
+
+	var save_manifest_err: Error = _save_asset_manifest_to_disk(manifest_prepare.get("manifest", {}))
+	if save_manifest_err != OK:
+		DirAccess.remove_absolute(abs_target_path)
+		return {
+			"success": false,
+			"error": "写入 asset_aliases.json 失败",
+			"error_code": save_manifest_err,
+		}
+
+	AVGAssetManifestClass.clear_cache()
+	notify_content_changed()
+
+	return {
+		"success": true,
+		"asset_type": normalized_type,
+		"bucket": bucket_name,
+		"alias": str(manifest_prepare.get("alias", "")).strip_edges(),
+		"relative_path": target_relative_path,
+		"absolute_path": abs_target_path,
+	}
+
+
 func load_texture_from_path(relative_path: String, project: Resource = null, project_root_override: String = "") -> Texture2D:
 	if relative_path.is_empty():
 		return null
@@ -685,6 +801,10 @@ func get_asset_manifest(project: Resource = null, project_root_override: String 
 	return AVGAssetManifestClass.load_manifest(project_root)
 
 
+func clear_asset_manifest_cache() -> void:
+	AVGAssetManifestClass.clear_cache()
+
+
 func build_asset_prompt(project: Resource = null, project_root_override: String = "") -> String:
 	var project_root: String = _resolve_project_root(project, project_root_override)
 	var target_project: Resource = project if project != null else current_project
@@ -713,6 +833,117 @@ func _resolve_audio_path(asset_ref: String, project_root: String) -> String:
 	if resolved.begins_with("res://") or resolved.begins_with("user://"):
 		return resolved
 	return project_root + resolved
+
+
+func _prepare_asset_manifest_entry(bucket_name: String, requested_alias: String, relative_path: String, alias_prefix: String, overwrite: bool) -> Dictionary:
+	AVGAssetManifestClass.clear_cache()
+	var manifest: Dictionary = get_asset_manifest(current_project, current_project_path)
+	var bucket_variant: Variant = manifest.get(bucket_name, {})
+	var bucket: Dictionary = bucket_variant.duplicate(true) if bucket_variant is Dictionary else {}
+	var alias_explicitly_requested: bool = not requested_alias.strip_edges().is_empty()
+	var final_alias: String = ""
+
+	if alias_explicitly_requested:
+		final_alias = _normalize_asset_alias(requested_alias, alias_prefix)
+		if final_alias.is_empty():
+			return {"success": false, "error": "alias 为空或格式非法"}
+		if bucket.has(final_alias):
+			var existing_path: String = str(bucket.get(final_alias, "")).strip_edges()
+			if existing_path != relative_path and not overwrite:
+				return {
+					"success": false,
+					"error": "alias 已存在且指向其他资源: %s -> %s" % [final_alias, existing_path],
+				}
+	else:
+		var base_name: String = relative_path.get_file().get_basename()
+		final_alias = _generate_unique_asset_alias(base_name, alias_prefix, bucket, relative_path)
+
+	bucket[final_alias] = relative_path
+	manifest[bucket_name] = bucket
+	return {"success": true, "alias": final_alias, "manifest": manifest}
+
+
+func _save_asset_manifest_to_disk(manifest: Dictionary) -> Error:
+	var manifest_dir: String = current_project_path + "manifests"
+	if not DirAccess.dir_exists_absolute(manifest_dir):
+		var mkdir_err: Error = DirAccess.make_dir_recursive_absolute(manifest_dir)
+		if mkdir_err != OK:
+			return mkdir_err
+
+	var manifest_path: String = current_project_path + ASSET_MANIFEST_RELATIVE_PATH
+	var file: FileAccess = FileAccess.open(manifest_path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+
+	file.store_string(JSON.stringify(manifest, "\t"))
+	file.close()
+	return OK
+
+
+func _generate_unique_asset_alias(base_name: String, alias_prefix: String, bucket: Dictionary, target_relative_path: String) -> String:
+	var normalized_base: String = _normalize_asset_alias(base_name, alias_prefix)
+	if normalized_base.is_empty():
+		normalized_base = alias_prefix
+
+	var candidate: String = normalized_base
+	var suffix: int = 2
+	while bucket.has(candidate) and str(bucket.get(candidate, "")).strip_edges() != target_relative_path:
+		candidate = "%s_%d" % [normalized_base, suffix]
+		suffix += 1
+	return candidate
+
+
+func _normalize_asset_alias(raw_alias: String, alias_prefix: String) -> String:
+	var normalized: String = _sanitize_ascii_identifier(raw_alias)
+	var trimmed_prefix: String = alias_prefix.strip_edges().to_lower()
+	if normalized.is_empty():
+		return trimmed_prefix
+	if not trimmed_prefix.is_empty() and not normalized.begins_with(trimmed_prefix + "_") and normalized != trimmed_prefix:
+		normalized = "%s_%s" % [trimmed_prefix, normalized]
+	if _starts_with_digit(normalized):
+		normalized = "%s_%s" % [trimmed_prefix if not trimmed_prefix.is_empty() else "asset", normalized]
+	return normalized
+
+
+func _normalize_asset_subdir(raw_subdir: String) -> String:
+	var normalized_input: String = raw_subdir.strip_edges().replace("\\", "/")
+	if normalized_input.is_empty():
+		return ""
+	var parts: PackedStringArray = normalized_input.split("/", false)
+	var cleaned_parts: Array[String] = []
+	for part in parts:
+		var cleaned_part: String = _sanitize_ascii_identifier(part)
+		if cleaned_part.is_empty():
+			continue
+		cleaned_parts.append(cleaned_part)
+	return "/".join(cleaned_parts)
+
+
+func _sanitize_ascii_identifier(raw_value: String) -> String:
+	var lower_value: String = raw_value.strip_edges().to_lower()
+	var result: String = ""
+	var previous_was_separator: bool = false
+	for i in lower_value.length():
+		var codepoint: int = lower_value.unicode_at(i)
+		var is_letter: bool = codepoint >= 97 and codepoint <= 122
+		var is_digit: bool = codepoint >= 48 and codepoint <= 57
+		var is_underscore: bool = codepoint == 95
+		var is_separator: bool = codepoint == 45 or codepoint == 32 or codepoint == 46 or codepoint == 47 or codepoint == 92
+		if is_letter or is_digit:
+			result += char(codepoint)
+			previous_was_separator = false
+		elif is_underscore or is_separator:
+			if not result.is_empty() and not previous_was_separator:
+				result += "_"
+				previous_was_separator = true
+	return result.strip_edges().trim_suffix("_")
+
+
+func _starts_with_digit(value: String) -> bool:
+	if value.is_empty():
+		return false
+	var first_codepoint: int = value.unicode_at(0)
+	return first_codepoint >= 48 and first_codepoint <= 57
 
 
 func _save_external_project_resources(project: Resource, project_root: String) -> Error:

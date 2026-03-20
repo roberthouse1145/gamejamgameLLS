@@ -342,6 +342,11 @@ func _connect_state_sources() -> void:
 		_connect_signal(browser, "browser_action_completed", Callable(self, "_on_state_changed"))
 		_connect_signal(browser, "browser_action_failed", Callable(self, "_on_state_changed"))
 
+	var shop: Node = _get_autoload("ShopManager")
+	if shop != null:
+		_connect_signal(shop, "shop_state_changed", Callable(self, "_on_state_changed"))
+		_connect_signal(shop, "catalog_generation_failed", Callable(self, "_on_state_changed"))
+
 	var chat: Node = _get_autoload("ChatManager")
 	if chat != null:
 		_connect_signal(chat, "chat_state_changed", Callable(self, "_on_state_changed"))
@@ -354,6 +359,7 @@ func _connect_state_sources() -> void:
 	_connect_activity_manager("DateManager")
 	_connect_activity_manager("PartTimeJobManager")
 	_connect_activity_manager("SbeamManager")
+	_connect_activity_manager("HomeActivityManager")
 
 
 func _attempt_startup_restore() -> void:
@@ -444,9 +450,11 @@ func _build_run_state() -> Dictionary:
 	var story_state: Dictionary = _collect_manager_state("StoryDirector")
 	var chat_state: Dictionary = _collect_manager_state("ChatManager")
 	var browser_state: Dictionary = _collect_manager_state("BrowserManager")
+	var shop_state: Dictionary = _collect_manager_state("ShopManager")
 	var date_state: Dictionary = _collect_manager_state("DateManager")
 	var part_time_state: Dictionary = _collect_manager_state("PartTimeJobManager")
 	var sbeam_state: Dictionary = _collect_manager_state("SbeamManager")
+	var home_activity_state: Dictionary = _collect_manager_state("HomeActivityManager")
 	var player_project_path: String = PLAYER_PROJECT_DIR_PATH
 	var storage: Node = _get_autoload("StorageManager")
 	if storage != null:
@@ -454,7 +462,7 @@ func _build_run_state() -> Dictionary:
 		if not runtime_project_path.is_empty():
 			player_project_path = runtime_project_path
 
-	if game_loop_state.is_empty() and game_state.is_empty() and story_state.is_empty() and chat_state.is_empty() and browser_state.is_empty() and date_state.is_empty() and part_time_state.is_empty() and sbeam_state.is_empty() and _generated_registry.is_empty():
+	if game_loop_state.is_empty() and game_state.is_empty() and story_state.is_empty() and chat_state.is_empty() and browser_state.is_empty() and shop_state.is_empty() and date_state.is_empty() and part_time_state.is_empty() and sbeam_state.is_empty() and home_activity_state.is_empty() and _generated_registry.is_empty():
 		return {}
 
 	return {
@@ -471,9 +479,11 @@ func _build_run_state() -> Dictionary:
 		"story_state": story_state,
 		"chat_state": chat_state,
 		"browser_state": browser_state,
+		"shop_state": shop_state,
 		"date_state": date_state,
 		"part_time_state": part_time_state,
 		"sbeam_state": sbeam_state,
+		"home_activity_state": home_activity_state,
 		"generated_registry": _generated_registry.duplicate(true),
 	}
 
@@ -485,9 +495,11 @@ func _apply_run_state(state: Dictionary) -> bool:
 	ok = _apply_manager_state("StoryDirector", state.get("story_state", {})) and ok
 	ok = _apply_manager_state("ChatManager", state.get("chat_state", {})) and ok
 	ok = _apply_manager_state("BrowserManager", state.get("browser_state", {})) and ok
+	ok = _apply_manager_state("ShopManager", state.get("shop_state", {})) and ok
 	ok = _apply_manager_state("DateManager", state.get("date_state", {})) and ok
 	ok = _apply_manager_state("PartTimeJobManager", state.get("part_time_state", {})) and ok
 	ok = _apply_manager_state("SbeamManager", state.get("sbeam_state", {})) and ok
+	ok = _apply_manager_state("HomeActivityManager", state.get("home_activity_state", {})) and ok
 	var registry_state: Variant = state.get("generated_registry", {})
 	if registry_state is Dictionary:
 		_generated_registry = (registry_state as Dictionary).duplicate(true)
@@ -542,7 +554,7 @@ func _get_current_day() -> int:
 
 
 func _can_write_checkpoint() -> bool:
-	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests()
+	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests() and not _has_pending_shop_requests()
 
 
 func _can_reset_run() -> bool:
@@ -550,7 +562,7 @@ func _can_reset_run() -> bool:
 
 
 func _has_pending_activity_sessions() -> bool:
-	var activity_managers: Array[String] = ["DateManager", "PartTimeJobManager", "SbeamManager"]
+	var activity_managers: Array[String] = ["DateManager", "PartTimeJobManager", "SbeamManager", "HomeActivityManager"]
 	for node_name in activity_managers:
 		var node: Node = _get_autoload(node_name)
 		if node == null or not node.has_method("has_any_pending_sessions"):
@@ -572,6 +584,13 @@ func _has_pending_browser_requests() -> bool:
 	if browser == null or not browser.has_method("has_pending_requests"):
 		return false
 	return bool(browser.call("has_pending_requests"))
+
+
+func _has_pending_shop_requests() -> bool:
+	var shop: Node = _get_autoload("ShopManager")
+	if shop == null or not shop.has_method("has_pending_requests"):
+		return false
+	return bool(shop.call("has_pending_requests"))
 
 
 func _get_seed_version() -> String:
@@ -642,9 +661,11 @@ func _reset_all_runtime_state() -> void:
 	_reset_manager_state("StoryDirector")
 	_reset_manager_state("ChatManager", [true])
 	_reset_manager_state("BrowserManager", [true])
+	_reset_manager_state("ShopManager")
 	_reset_manager_state("DateManager")
 	_reset_manager_state("PartTimeJobManager")
 	_reset_manager_state("SbeamManager")
+	_reset_manager_state("HomeActivityManager")
 
 
 func _reset_manager_state(node_name: String, args: Array = []) -> void:

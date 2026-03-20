@@ -57,14 +57,19 @@ var _moments_panel: Control = null
 var _channel_replies: Dictionary = {}
 ## 当前频道里已存储但等待 UI 动画显示的 NPC 消息 { channel_id: Array[Dictionary] }
 var _deferred_npc_messages: Dictionary = {}
+var _offscreen_npc_message_queues: Dictionary = {}
+var _offscreen_delivery_tokens: Dictionary = {}
+var _active_offscreen_deliveries: Dictionary = {}
 ## 过渡动画时长
 const TRANSITION_DURATION: float = 0.18
 ## 侧边栏目标宽度
-const SIDEBAR_WIDTH: float = 300.0
+const SIDEBAR_WIDTH: float = 360.0
 const NAV_STRIP_WIDTH: float = 76.0
 const NAV_AVATAR_SIZE: float = 52.0
 const NAV_BUTTON_SIZE: float = 60.0
 const SEND_BUTTON_MIN_WIDTH: float = 88.0
+const OFFSCREEN_MESSAGE_PAUSE_MIN: float = 0.5
+const OFFSCREEN_MESSAGE_PAUSE_MAX: float = 1.5
 ## 页面切换动画 tween
 var _page_tween: Tween = null
 
@@ -400,6 +405,7 @@ func select_channel(channel_id: String) -> void:
 		return
 	if _playing_typing_animation and _active_typing_channel_id != channel_id:
 		_cancel_typing_animation()
+	_cancel_offscreen_delivery(channel_id)
 
 	# 如果在非聊天页，切回聊天
 	if _current_page != NavPage.CHAT:
@@ -536,6 +542,9 @@ func _on_contact_selected(channel_id: String) -> void:
 func _on_message_added(channel_id: String, msg: Dictionary) -> void:
 	if _should_defer_npc_message(channel_id, msg):
 		_enqueue_deferred_npc_message(channel_id, msg)
+	elif _should_queue_offscreen_npc_message(channel_id, msg):
+		_enqueue_offscreen_npc_message(channel_id, msg)
+		return
 	elif channel_id == current_channel_id and _current_page == NavPage.CHAT:
 		var bubble := MessageBubbleClass.create(msg)
 		message_list.add_child(bubble)
@@ -647,6 +656,8 @@ func _on_waiting_for_ai_changed(_is_waiting: bool) -> void:
 
 
 func _on_channel_added_to_data(channel_id: String) -> void:
+	if _contact_items.has(channel_id):
+		return
 	_add_contact_item(channel_id)
 
 
@@ -698,6 +709,13 @@ func _should_defer_npc_message(channel_id: String, msg: Dictionary) -> bool:
 	return sender_id != "player" and sender_id != "system"
 
 
+func _should_queue_offscreen_npc_message(channel_id: String, msg: Dictionary) -> bool:
+	if _is_current_chat_channel(channel_id):
+		return false
+	var sender_id := str(msg.get("sender_id", "")).strip_edges()
+	return sender_id != "player" and sender_id != "system"
+
+
 func _is_current_chat_channel(channel_id: String) -> bool:
 	return _current_page == NavPage.CHAT and channel_id == current_channel_id
 
@@ -706,6 +724,20 @@ func _enqueue_deferred_npc_message(channel_id: String, msg: Dictionary) -> void:
 	var queue: Array = _deferred_npc_messages.get(channel_id, [])
 	queue.append(msg.duplicate(true))
 	_deferred_npc_messages[channel_id] = queue
+
+
+func _enqueue_offscreen_npc_message(channel_id: String, msg: Dictionary) -> void:
+	var queue: Array = _offscreen_npc_message_queues.get(channel_id, [])
+	queue.append(msg.duplicate(true))
+	_offscreen_npc_message_queues[channel_id] = queue
+
+	if bool(_active_offscreen_deliveries.get(channel_id, false)):
+		return
+
+	var token := int(_offscreen_delivery_tokens.get(channel_id, 0)) + 1
+	_offscreen_delivery_tokens[channel_id] = token
+	_active_offscreen_deliveries[channel_id] = true
+	_deliver_offscreen_npc_messages(channel_id, token)
 
 
 func _consume_deferred_npc_messages(channel_id: String, count: int) -> Array[Dictionary]:
@@ -758,6 +790,71 @@ func _flush_deferred_messages(channel_id: String) -> void:
 			var bubble := MessageBubbleClass.create(msg)
 			message_list.add_child(bubble)
 	_scroll_to_bottom()
+
+
+func _deliver_offscreen_npc_messages(channel_id: String, token: int) -> void:
+	while true:
+		if token != int(_offscreen_delivery_tokens.get(channel_id, 0)):
+			return
+		if _is_current_chat_channel(channel_id):
+			_cancel_offscreen_delivery(channel_id, false)
+			return
+
+		var queue: Array = _offscreen_npc_message_queues.get(channel_id, [])
+		if queue.is_empty():
+			break
+
+		var raw_message: Variant = queue[0]
+		queue.remove_at(0)
+		if queue.is_empty():
+			_offscreen_npc_message_queues.erase(channel_id)
+		else:
+			_offscreen_npc_message_queues[channel_id] = queue
+
+		if not raw_message is Dictionary:
+			continue
+
+		var msg: Dictionary = (raw_message as Dictionary).duplicate(true)
+		var content := NPCResponseHandler.clean_message(_build_typing_delay_source(msg))
+		var delay := NPCResponseHandler.calculate_typing_delay(content)
+		if delay > 0.0:
+			await get_tree().create_timer(delay).timeout
+
+		if token != int(_offscreen_delivery_tokens.get(channel_id, 0)):
+			return
+		if _is_current_chat_channel(channel_id):
+			_cancel_offscreen_delivery(channel_id, false)
+			return
+
+		var channel: Resource = ChatManager.get_channel(channel_id)
+		if channel != null:
+			channel.unread_count += 1
+			var item = _contact_items.get(channel_id)
+			if item and item.has_method("update_from_message"):
+				item.update_from_message(msg, channel.unread_count)
+			elif item:
+				item.update_from_channel(channel)
+
+		if _offscreen_npc_message_queues.has(channel_id):
+			var pause := randf_range(OFFSCREEN_MESSAGE_PAUSE_MIN, OFFSCREEN_MESSAGE_PAUSE_MAX)
+			await get_tree().create_timer(pause).timeout
+
+	if token == int(_offscreen_delivery_tokens.get(channel_id, 0)):
+		_active_offscreen_deliveries.erase(channel_id)
+
+
+func _cancel_offscreen_delivery(channel_id: String, bump_token: bool = true) -> void:
+	_offscreen_npc_message_queues.erase(channel_id)
+	_active_offscreen_deliveries.erase(channel_id)
+	if bump_token:
+		_offscreen_delivery_tokens[channel_id] = int(_offscreen_delivery_tokens.get(channel_id, 0)) + 1
+
+
+func _build_typing_delay_source(msg: Dictionary) -> String:
+	var content := str(msg.get("content", "")).strip_edges()
+	if content.is_empty() and msg.has("card") and msg["card"] is Dictionary:
+		content = _build_card_typing_preview(msg["card"] as Dictionary)
+	return content
 
 
 func _cancel_typing_animation(clear_deferred: bool = true) -> void:
