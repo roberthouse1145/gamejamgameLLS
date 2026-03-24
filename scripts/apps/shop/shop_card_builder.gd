@@ -65,8 +65,10 @@ static func build_product_card(item: Dictionary, selected: bool, on_click: Calla
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(title)
 
+	var full_desc: String = str(item.get("desc", ""))
+	var first_line: String = full_desc.split("\n", false)[0] if not full_desc.is_empty() else ""
 	var desc := Label.new()
-	desc.text = str(item.get("short_desc", ""))
+	desc.text = first_line
 	desc.add_theme_font_size_override("font_size", 12)
 	desc.add_theme_color_override("font_color", C_TEXT_SEC)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -294,7 +296,7 @@ static func build_review_card(comment: String, item: Dictionary, index: int) -> 
 	vbox.add_child(header)
 
 	var fake_rng := RandomNumberGenerator.new()
-	fake_rng.seed = abs(hash("%s_review_%d" % [str(item.get("instance_id", "")), index]))
+	fake_rng.seed = abs(hash("%s_review_%d" % [str(item.get("instance_id", item.get("item_id", ""))), index]))
 	var usernames: PackedStringArray = ["小*花", "用***3", "匿名买家", "t***8", "爱*的猫", "夜***r", "买*狂", "懒*虫", "深*客", "咸*党"]
 	var uname := usernames[fake_rng.randi_range(0, usernames.size() - 1)]
 
@@ -407,52 +409,15 @@ static func _btn_style_flat(color: Color) -> StyleBoxFlat:
 # ══════════════════════════════════════════════════════
 
 static func category_text(category: String) -> String:
-	match category:
-		"gift":
-			return "礼物"
-		"life":
-			return "生活"
-		"creative":
-			return "创作"
-		"weird":
-			return "奇趣"
-	return "商品"
+	return ShopCatalogStaticData.get_category_display(category)
 
 
 static func effect_summary(effect_id: String) -> String:
-	match effect_id:
-		"sleep_recovery_small":
-			return "改善睡眠"
-		"sleep_recovery_medium":
-			return "大幅改善睡眠"
-		"creative_focus_small":
-			return "提升专注"
-		"creative_focus_with_stress":
-			return "专注↑ 压力↑"
-		"mood_up_small":
-			return "改善心情"
-		"gift_affection_small":
-			return "好感↑"
-		"gift_trust_small":
-			return "信任↑"
-		"late_night_efficiency_small":
-			return "短期效率↑"
-		"room_ambience_small":
-			return "氛围加成"
-	return "纯风味"
+	return ShopCatalogStaticData.get_effect_display(effect_id)
 
 
 static func state_text(state: String) -> String:
-	match state:
-		"ready":
-			return "可使用"
-		"equipped":
-			return "生效中"
-		"consumed":
-			return "已消耗"
-		"gifted":
-			return "已赠送"
-	return state
+	return ShopCatalogStaticData.get_state_label(state)
 
 
 static func inventory_action_label(item: Dictionary) -> String:
@@ -494,17 +459,4 @@ static func format_stats_change(result: Dictionary) -> String:
 
 
 static func stat_label(key: String) -> String:
-	match key:
-		"stress":
-			return "压力"
-		"passion":
-			return "激情"
-		"affection":
-			return "好感"
-		"completion":
-			return "完成度"
-		"quality":
-			return "质量"
-		"money":
-			return "金钱"
-	return key
+	return ShopCatalogStaticData.get_stat_label(key)

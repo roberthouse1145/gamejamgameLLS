@@ -8,7 +8,8 @@
 		"stress_cost": 3,
 		"tags": ["script", "narrative"],
 		"weight": 10,
-		"min_day": 1
+		"min_day": 1,
+		"minigame_type": "fill_dialogue"
 	},
 	{
 		"task_id": "direct_scene",
@@ -19,7 +20,8 @@
 		"stress_cost": 2,
 		"tags": ["direction", "scene"],
 		"weight": 9,
-		"min_day": 1
+		"min_day": 1,
+		"minigame_type": "arrange_scene"
 	},
 	{
 		"task_id": "fix_bugs",
@@ -30,7 +32,8 @@
 		"stress_cost": 4,
 		"tags": ["debug", "fix"],
 		"weight": 10,
-		"min_day": 1
+		"min_day": 1,
+		"minigame_type": "find_bugs"
 	},
 	{
 		"task_id": "integration_test",
@@ -41,7 +44,8 @@
 		"stress_cost": 3,
 		"tags": ["test", "integration"],
 		"weight": 9,
-		"min_day": 3
+		"min_day": 3,
+		"minigame_type": "whack_bugs"
 	},
 	{
 		"task_id": "rush_progress",
@@ -52,7 +56,8 @@
 		"stress_cost": 5,
 		"tags": ["rush", "progress"],
 		"weight": 8,
-		"min_day": 1
+		"min_day": 1,
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "polish_ui",
@@ -63,7 +68,8 @@
 		"stress_cost": 2,
 		"tags": ["ui", "polish"],
 		"weight": 7,
-		"min_day": 5
+		"min_day": 5,
+		"minigame_type": "arrange_scene"
 	},
 	{
 		"task_id": "optimize_performance",
@@ -74,7 +80,8 @@
 		"stress_cost": 4,
 		"tags": ["performance", "optimize"],
 		"weight": 7,
-		"min_day": 8
+		"min_day": 8,
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "write_branch",
@@ -85,7 +92,8 @@
 		"stress_cost": 4,
 		"tags": ["branch", "narrative"],
 		"weight": 8,
-		"min_day": 10
+		"min_day": 10,
+		"minigame_type": "fill_dialogue"
 	},
 	{
 		"task_id": "add_sound",
@@ -96,7 +104,8 @@
 		"stress_cost": 2,
 		"tags": ["audio", "bgm"],
 		"weight": 6,
-		"min_day": 5
+		"min_day": 5,
+		"minigame_type": "match_bgm"
 	},
 	{
 		"task_id": "stress_test",
@@ -107,6 +116,7 @@
 		"stress_cost": 5,
 		"tags": ["stress_test", "edge_case"],
 		"weight": 6,
-		"min_day": 15
+		"min_day": 15,
+		"minigame_type": "whack_bugs"
 	}
 ]

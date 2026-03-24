@@ -1,68 +1,98 @@
 class_name SceneWindow
 extends RefCounted
 
+const APP_ID: String = "avg_player"
 const PLAYER_SCENE_PATH: String = "res://scenes/date_events/date_event_player.tscn"
 
 
 static func open(title: String, scene_package: Dictionary, playback_callback: Callable) -> Dictionary:
-	var player_scene: PackedScene = load(PLAYER_SCENE_PATH)
-	if player_scene == null:
-		return {}
-	var player: Control = player_scene.instantiate() as Control
-	if player == null:
-		return {}
+	return _open_player_window(title, playback_callback, "play_scene_package", [
+		str(scene_package.get("session_id", "")),
+		scene_package,
+	])
+
+
+static func open_event(title: String, session_id: String, event_request: Dictionary, playback_callback: Callable) -> Dictionary:
+	return _open_player_window(title, playback_callback, "play_event", [
+		session_id,
+		event_request,
+	])
+
+
+static func _open_player_window(title: String, playback_callback: Callable, playback_method: String, playback_args: Array) -> Dictionary:
 
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
-		player.queue_free()
 		return {}
 	var app_manager: Node = tree.root.get_node_or_null("/root/AppManager")
 	if app_manager == null:
-		player.queue_free()
 		return {}
-	var window_manager: Node = app_manager.get("window_manager")
-	if window_manager == null or not window_manager.has_method("create_window"):
-		player.queue_free()
+	if not app_manager.has_method("launch_app"):
 		return {}
 
-	var window: Control = window_manager.create_window(title, player)
+	var window: Control = app_manager.launch_app(APP_ID, true)
 	if window == null:
-		player.queue_free()
+		return {}
+	var player: Control = _find_player(window)
+	if player == null:
+		if app_manager.has_method("close_app"):
+			app_manager.close_app(APP_ID, true)
 		return {}
 
-	window.custom_minimum_size = Vector2(1024, 768)
-	window.size = window_manager.get_viewport().get_visible_rect().size * 0.9
-	if window.has_method("center_in_screen"):
-		window.center_in_screen()
+	_configure_window(window, title)
+	if app_manager.has_method("lock_app_window"):
+		app_manager.lock_app_window(APP_ID)
 
-	var close_button := window.get_node_or_null("TitleBar/ButtonContainer/CloseButton") as Button
-	if close_button != null:
-		close_button.visible = false
-	var minimize_button := window.get_node_or_null("TitleBar/ButtonContainer/MinimizeButton") as Button
-	if minimize_button != null:
-		minimize_button.visible = false
-	var maximize_button := window.get_node_or_null("TitleBar/ButtonContainer/MaximizeButton") as Button
-	if maximize_button != null:
-		maximize_button.visible = false
-	window.set("resizable", false)
+	# 启用截图捕获（首次播放）
+	if player.has_method("enable_thumbnail_capture"):
+		player.enable_thumbnail_capture()
 
 	if player.has_signal("playback_finished"):
-		player.connect("playback_finished", playback_callback)
-	if player.has_method("play_scene_package"):
-		player.call("play_scene_package", scene_package.get("session_id", ""), scene_package)
+		player.playback_finished.connect(playback_callback, CONNECT_ONE_SHOT)
+	if player.has_method(playback_method):
+		player.call_deferred(playback_method, playback_args[0], playback_args[1])
 
 	return {"window": window, "player": player}
 
 
-static func close(window: Variant) -> void:
-	if not (window is Control) or not is_instance_valid(window):
-		return
+static func _configure_window(window: Control, title: String) -> void:
+	window.custom_minimum_size = Vector2(1024, 768)
+	if "window_title" in window:
+		window.window_title = title
+	var viewport := window.get_viewport()
+	if viewport != null:
+		window.size = viewport.get_visible_rect().size * 0.9
+	if window.has_method("center_in_screen"):
+		window.center_in_screen()
+
+
+static func _find_player(window: Control) -> Control:
+	if window == null or not is_instance_valid(window):
+		return null
+	var content_container := window.get_node_or_null("ContentContainer") as Control
+	if content_container != null:
+		for child in content_container.get_children():
+			if child is Control and (child as Control).has_method("play_scene_package"):
+				return child as Control
+	for child in window.get_children():
+		if child is Control and (child as Control).has_method("play_scene_package"):
+			return child as Control
+	return null
+
+
+static func close(_window: Variant) -> void:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:
 		return
 	var app_manager: Node = tree.root.get_node_or_null("/root/AppManager")
-	var window_manager: Node = app_manager.get("window_manager") if app_manager != null else null
-	if window_manager != null and window_manager.has_method("close_window"):
-		window_manager.close_window(window)
-	else:
-		(window as Control).queue_free()
+	if app_manager != null and app_manager.has_method("unlock_app_window"):
+		app_manager.unlock_app_window(APP_ID)
+
+
+static func force_close() -> void:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+	var app_manager: Node = tree.root.get_node_or_null("/root/AppManager")
+	if app_manager != null and app_manager.has_method("close_app"):
+		app_manager.close_app(APP_ID, true)

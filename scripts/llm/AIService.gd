@@ -665,42 +665,31 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		_handle_error(request_id, "Failed to parse JSON response", parse_result, original_request)
 		return
 	
-	var response = json.data
-	
-	# 获取原始请求ID（用于工具调用循环）
+	var response = _normalize_response_reasoning(json.data)
 	var original_id = _original_request_ids.get(request_id, request_id)
 	
-	# 处理对话历史更新
 	_update_conversation_from_response(request_id, response)
 	
-	# 检查是否有tool calls
 	if _has_tool_calls(response):
 		var tool_calls = _extract_tool_calls(response)
-		
-		# 提取 content（可能与 tool_calls 同时存在）
 		var tc_content: String = ""
 		if response.has("choices") and response["choices"].size() > 0:
 			var msg = response["choices"][0].get("message", {})
-			if msg.get("content") != null:
-				tc_content = str(msg["content"])
-				# 补救：如果有附带的解释内容，在此处向外层先报一次完成，让 UI 可以显示 AI 对调用工具前的陈述
-				if not tc_content.is_empty():
-					request_completed.emit(original_id, response)
+			tc_content = _get_message_content_text(msg)
+			if not tc_content.is_empty():
+				request_completed.emit(original_id, response)
 		
-		# 发出信号（用于监听）
 		tool_calls_requested.emit(original_id, tool_calls, tc_content)
 		if tool_calls.size() == 1:
 			var tc = tool_calls[0]
 			var args = _parse_tool_arguments(tc.function.arguments)
 			function_call_requested.emit(original_id, tc.function.name, args)
 		
-		# 检查是否自动执行工具
 		if auto_execute_tools and original_request.get("auto_tools", false):
 			_auto_execute_tool_calls(request_id, original_id, tool_calls, original_request, tc_content)
 		else:
 			_cleanup_request(request_id)
 	else:
-		# 没有工具调用，返回最终结果
 		var tool_history = _tool_call_history.get(original_id, [])
 		if tool_history.size() > 0:
 			tool_calls_completed.emit(original_id, tool_history)
@@ -710,7 +699,6 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		request_completed.emit(original_id, response)
 	
 	_check_queue_empty()
-
 func _on_stream_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray, request_id: String, original_request: Dictionary) -> void:
 	if result != HTTPRequest.RESULT_SUCCESS:
 		_handle_http_error(result, request_id, original_request)
@@ -744,6 +732,11 @@ func _on_stream_completed(result: int, response_code: int, _headers: PackedStrin
 	
 	if tool_calls.size() > 0:
 		final_response.choices[0].message["tool_calls"] = tool_calls
+
+	final_response = _normalize_response_reasoning(final_response)
+	var final_message: Dictionary = final_response.choices[0].get("message", {})
+	var normalized_content: Variant = final_message.get("content", "")
+	full_content = str(normalized_content) if normalized_content != null else ""
 	
 	# 更新对话历史
 	_update_conversation_from_response(request_id, final_response)
@@ -832,16 +825,137 @@ func _process_stream_tool_calls(buffer_data: Dictionary, tool_calls_delta: Array
 			if func_delta.has("arguments"):
 				tc.function.arguments += func_delta.arguments
 
+func _get_message_tool_calls(message: Dictionary) -> Array:
+	var tool_calls_value: Variant = message.get("tool_calls", null)
+	if tool_calls_value is Array:
+		return tool_calls_value
+	return []
+
+func _get_message_content_text(message: Dictionary) -> String:
+	var content_text: String = _content_value_to_text(message.get("content", null))
+	if message.has("reasoning_content"):
+		return content_text.strip_edges()
+	if not content_text.is_empty():
+		return _split_reasoning_from_text(content_text).get("content", "")
+	var refusal_value: Variant = message.get("refusal", null)
+	if refusal_value is String:
+		return refusal_value
+	return ""
+
+
+func _normalize_response_reasoning(response: Dictionary) -> Dictionary:
+	var raw_choices: Variant = response.get("choices", [])
+	if not response.has("choices") or not (raw_choices is Array) or raw_choices.is_empty():
+		return response
+
+	var normalized: Dictionary = response.duplicate(true)
+	var first_choice: Variant = normalized.choices[0]
+	if not (first_choice is Dictionary):
+		return normalized
+
+	var message: Dictionary = first_choice.get("message", {})
+	if message.is_empty():
+		return normalized
+
+	var normalized_message: Dictionary = message.duplicate(true)
+	var content_text: String = _content_value_to_text(normalized_message.get("content", null))
+	if content_text.is_empty():
+		return normalized
+
+	var split := _split_reasoning_from_text(content_text)
+	var reasoning_text: String = str(split.get("reasoning_content", "")).strip_edges()
+	var body_text: String = str(split.get("content", "")).strip_edges()
+	if reasoning_text.is_empty():
+		return normalized
+
+	normalized_message["reasoning_content"] = reasoning_text
+	if body_text.is_empty():
+		normalized_message["content"] = null
+	else:
+		normalized_message["content"] = body_text
+	normalized.choices[0]["message"] = normalized_message
+	return normalized
+
+
+static func _content_value_to_text(content_value: Variant) -> String:
+	if content_value is String:
+		return content_value
+	if content_value is Array:
+		var parts: Array[String] = []
+		for part in content_value:
+			if part is String:
+				parts.append(part)
+			elif part is Dictionary:
+				var part_type: String = str(part.get("type", ""))
+				if part_type == "text":
+					var text_value: Variant = part.get("text", "")
+					if text_value is String and not text_value.is_empty():
+						parts.append(text_value)
+				elif part.has("content"):
+					var nested_content: Variant = part.get("content", "")
+					if nested_content is String and not nested_content.is_empty():
+						parts.append(nested_content)
+		return "".join(parts)
+	return ""
+
+
+static func _strip_leading_thinking_block_text(text: String) -> String:
+	return str(_split_reasoning_from_text(text).get("content", ""))
+
+
+static func _split_reasoning_from_text(text: String) -> Dictionary:
+	var cleaned := text.strip_edges()
+	if cleaned.is_empty():
+		return {"reasoning_content": "", "content": cleaned}
+
+	var regex := RegEx.new()
+	regex.compile("^\\s*<(thinking|think)>([\\s\\S]*?)</(thinking|think)>\\s*([\\s\\S]*)$")
+	var match := regex.search(cleaned)
+	if match:
+		var opening_tag := match.get_string(1).strip_edges().to_lower()
+		var closing_tag := match.get_string(3).strip_edges().to_lower()
+		if opening_tag == closing_tag or (opening_tag == "thinking" and closing_tag == "think"):
+			return {
+				"reasoning_content": match.get_string(2).strip_edges(),
+				"content": match.get_string(4).strip_edges(),
+			}
+
+	var fallback_regex := RegEx.new()
+	fallback_regex.compile("^\\s*<thinking>([\\s\\S]*?)</think>\\s*([\\s\\S]*)$")
+	var fallback_match := fallback_regex.search(cleaned)
+	if fallback_match:
+		return {
+			"reasoning_content": fallback_match.get_string(1).strip_edges(),
+			"content": fallback_match.get_string(2).strip_edges(),
+		}
+
+	var unclosed_regex := RegEx.new()
+	unclosed_regex.compile("^\\s*<(thinking|think)>([\\s\\S]*)$")
+	var unclosed_match := unclosed_regex.search(cleaned)
+	if unclosed_match:
+		var trailing_text := unclosed_match.get_string(2).strip_edges()
+		var separator_index := trailing_text.find("\n\n")
+		if separator_index >= 0:
+			return {
+				"reasoning_content": trailing_text.substr(0, separator_index).strip_edges(),
+				"content": trailing_text.substr(separator_index + 2).strip_edges(),
+			}
+		return {"reasoning_content": trailing_text, "content": ""}
+
+	return {"reasoning_content": "", "content": cleaned}
+
 func _has_tool_calls(response: Dictionary) -> bool:
 	if not response.has("choices") or response.choices.size() == 0:
 		return false
 	var message = response.choices[0].get("message", {})
-	return message.has("tool_calls") and message.tool_calls.size() > 0
+	var tool_calls: Array = _get_message_tool_calls(message)
+	return tool_calls.size() > 0
 
 func _extract_tool_calls(response: Dictionary) -> Array:
 	if not _has_tool_calls(response):
 		return []
-	return response.choices[0].message.tool_calls
+	var message = response.choices[0].get("message", {})
+	return _get_message_tool_calls(message)
 
 func _parse_tool_arguments(args_str: String) -> Dictionary:
 	var json = JSON.new()
@@ -979,13 +1093,16 @@ func _update_conversation_from_response(request_id: String, response: Dictionary
 	# 添加assistant消息到历史
 	var assistant_msg: Dictionary = {"role": "assistant"}
 	
-	if message.has("content") and message.content != null:
-		assistant_msg["content"] = message.content
+	var message_content: String = _get_message_content_text(message)
+	if not message_content.is_empty():
+		assistant_msg["content"] = message_content
 	else:
 		assistant_msg["content"] = null
 	
 	if message.has("tool_calls"):
-		assistant_msg["tool_calls"] = message.tool_calls
+		var tool_calls: Array = _get_message_tool_calls(message)
+		if tool_calls.size() > 0:
+			assistant_msg["tool_calls"] = tool_calls
 	
 	_conversations[conversation_id].append(assistant_msg)
 	_trim_history(conversation_id)
@@ -1119,7 +1236,26 @@ static func extract_content(response: Dictionary) -> String:
 	if not response.has("choices") or response.choices.size() == 0:
 		return ""
 	var message = response.choices[0].get("message", {})
-	return message.get("content", "") if message.get("content") != null else ""
+	var content_value: Variant = message.get("content", null)
+	var content_text: String = _content_value_to_text(content_value)
+	if message.has("reasoning_content"):
+		return content_text.strip_edges()
+	if not content_text.is_empty():
+		return str(_split_reasoning_from_text(content_text).get("content", ""))
+	var refusal_value: Variant = message.get("refusal", null)
+	return refusal_value if refusal_value is String else ""
+
+
+static func extract_reasoning_content(response: Dictionary) -> String:
+	if not response.has("choices") or response.choices.size() == 0:
+		return ""
+	var message = response.choices[0].get("message", {})
+	if message.has("reasoning_content"):
+		return str(message.get("reasoning_content", "")).strip_edges()
+	var content_text: String = _content_value_to_text(message.get("content", null))
+	if content_text.is_empty():
+		return ""
+	return str(_split_reasoning_from_text(content_text).get("reasoning_content", "")).strip_edges()
 
 ## 从响应中提取token使用信息
 static func extract_usage(response: Dictionary) -> Dictionary:

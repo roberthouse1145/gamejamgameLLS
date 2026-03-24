@@ -63,21 +63,26 @@ var _active_offscreen_deliveries: Dictionary = {}
 ## 过渡动画时长
 const TRANSITION_DURATION: float = 0.18
 ## 侧边栏目标宽度
-const SIDEBAR_WIDTH: float = 360.0
-const NAV_STRIP_WIDTH: float = 76.0
-const NAV_AVATAR_SIZE: float = 52.0
-const NAV_BUTTON_SIZE: float = 60.0
-const SEND_BUTTON_MIN_WIDTH: float = 88.0
+const SIDEBAR_WIDTH: float = 420.0
+const NAV_STRIP_WIDTH: float = 90.0
+const NAV_AVATAR_SIZE: float = 62.0
+const NAV_BUTTON_SIZE: float = 72.0
+const SEND_BUTTON_MIN_WIDTH: float = 110.0
 const OFFSCREEN_MESSAGE_PAUSE_MIN: float = 0.5
 const OFFSCREEN_MESSAGE_PAUSE_MAX: float = 1.5
 ## 页面切换动画 tween
 var _page_tween: Tween = null
+## 输入区内嵌提示条
+var _toast_wrapper: Control = null
+var _toast_label: Label = null
+var _toast_tween: Tween = null
 
 
 func _ready() -> void:
 	response_handler = NPCResponseHandler.new()
 	add_child(response_handler)
 
+	_create_toast_label()
 	_apply_theme()
 	_setup_ui_connections()
 	_setup_data_connections()
@@ -114,22 +119,22 @@ func _apply_theme() -> void:
 	var avatar_label: Label = nav_avatar.get_child(0)
 	if avatar_label:
 		avatar_label.add_theme_color_override("font_color", Color.WHITE)
-		avatar_label.add_theme_font_size_override("font_size", 20)
+		avatar_label.add_theme_font_size_override("font_size", 24)
 
 	# 侧边栏
 	sidebar.custom_minimum_size.x = SIDEBAR_WIDTH
 	sidebar.add_theme_stylebox_override("panel", LCTheme.get_sidebar_bg_style())
 	app_title.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	app_title.add_theme_font_size_override("font_size", 24)
+	app_title.add_theme_font_size_override("font_size", 28)
 
 	# 聊天头部
 	chat_header.add_theme_stylebox_override("panel", LCTheme.rounded_flat(LCTheme.COLOR_BG_HEADER, 0))
 	channel_title.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	channel_title.add_theme_font_size_override("font_size", 20)
+	channel_title.add_theme_font_size_override("font_size", 24)
 	channel_subtitle.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
-	channel_subtitle.add_theme_font_size_override("font_size", 14)
+	channel_subtitle.add_theme_font_size_override("font_size", 17)
 	topic_info.add_theme_color_override("font_color", LCTheme.COLOR_ACCENT)
-	topic_info.add_theme_font_size_override("font_size", 14)
+	topic_info.add_theme_font_size_override("font_size", 17)
 
 	# 输入区域
 	input_area.add_theme_stylebox_override("panel", LCTheme.rounded_flat(LCTheme.COLOR_BG_INPUT_AREA, 0))
@@ -139,7 +144,7 @@ func _apply_theme() -> void:
 	input_field.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
 	input_field.add_theme_color_override("font_placeholder_color", LCTheme.COLOR_TEXT_MUTED)
 	input_field.add_theme_color_override("caret_color", LCTheme.COLOR_ACCENT)
-	input_field.add_theme_font_size_override("font_size", 16)
+	input_field.add_theme_font_size_override("font_size", 20)
 
 	send_button.add_theme_stylebox_override("normal", LCTheme.get_send_button_style())
 	send_button.add_theme_stylebox_override("hover", LCTheme.get_send_button_hover_style())
@@ -149,16 +154,16 @@ func _apply_theme() -> void:
 	send_button.add_theme_color_override("font_hover_color", Color.WHITE)
 	send_button.add_theme_color_override("font_pressed_color", Color.WHITE)
 	send_button.add_theme_color_override("font_disabled_color", LCTheme.COLOR_TEXT_MUTED)
-	send_button.add_theme_font_size_override("font_size", 14)
+	send_button.add_theme_font_size_override("font_size", 18)
 	send_button.custom_minimum_size.x = SEND_BUTTON_MIN_WIDTH
 
 	# 提示文字
 	hint_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-	hint_label.add_theme_font_size_override("font_size", 14)
+	hint_label.add_theme_font_size_override("font_size", 17)
 	typing_indicator.add_theme_color_override("font_color", LCTheme.COLOR_ACCENT)
-	typing_indicator.add_theme_font_size_override("font_size", 14)
+	typing_indicator.add_theme_font_size_override("font_size", 17)
 	batch_indicator.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
-	batch_indicator.add_theme_font_size_override("font_size", 14)
+	batch_indicator.add_theme_font_size_override("font_size", 17)
 
 	# 初始导航高亮
 	_update_nav_highlight()
@@ -180,7 +185,7 @@ func _apply_nav_button_theme(btn: Button) -> void:
 	btn.add_theme_stylebox_override("hover", hover)
 	btn.add_theme_stylebox_override("pressed", hover)
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	btn.add_theme_font_size_override("font_size", 13)
+	btn.add_theme_font_size_override("font_size", 16)
 	btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
 	btn.add_theme_color_override("font_hover_color", LCTheme.COLOR_TEXT_PRIMARY)
 
@@ -239,6 +244,7 @@ func _setup_data_connections() -> void:
 	ChatManager.waiting_for_ai_changed.connect(_on_waiting_for_ai_changed)
 	ChatManager.channel_added.connect(_on_channel_added_to_data)
 	ChatManager.moment_posted.connect(_on_moment_posted)
+	ChatManager.message_blocked.connect(_on_message_blocked)
 
 
 # --- 导航 ---
@@ -520,21 +526,92 @@ func _update_topic_info() -> void:
 func _on_text_submitted(text: String) -> void:
 	if text.strip_edges().is_empty():
 		return
-	ChatManager.add_player_message(current_channel_id, text)
+	# 先清空输入框，给玩家即时反馈
 	input_field.text = ""
-	# 发送后清空该频道的推荐回复缓存
-	_channel_replies.erase(current_channel_id)
-	_render_recommended_replies([])
+	var passed: bool = await ChatManager.add_player_message(current_channel_id, text)
+	if passed:
+		_channel_replies.erase(current_channel_id)
+		_render_recommended_replies([])
+	else:
+		# 审核未通过，把文本还回输入框方便编辑
+		input_field.text = text
+		input_field.caret_column = text.length()
 
 
 func _on_send_pressed() -> void:
 	if not input_field.text.strip_edges().is_empty():
 		_on_text_submitted(input_field.text)
-	ChatManager.force_send_batch()
+	else:
+		ChatManager.force_send_batch()
 
 
 func _on_contact_selected(channel_id: String) -> void:
 	select_channel(channel_id)
+
+
+func _on_message_blocked(_channel_id: String, _text: String) -> void:
+	_show_toast("消息发送失败，请检查内容")
+
+
+# --- Toast 提示 ---
+
+func _create_toast_label() -> void:
+	# 外层 wrapper 用 clip_contents 裁剪，高度动画实现滑入滑出
+	_toast_wrapper = Control.new()
+	_toast_wrapper.clip_contents = true
+	_toast_wrapper.custom_minimum_size.y = 0
+	_toast_wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_toast_wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 内部 label
+	_toast_label = Label.new()
+	_toast_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_toast_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_toast_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_toast_label.add_theme_font_size_override("font_size", 17)
+	_toast_label.add_theme_color_override("font_color", Color("#B85450"))
+	var bg := StyleBoxFlat.new()
+	bg.bg_color = Color("#FDF2F2")
+	bg.corner_radius_top_left = LCTheme.RADIUS_SM
+	bg.corner_radius_top_right = LCTheme.RADIUS_SM
+	bg.corner_radius_bottom_left = LCTheme.RADIUS_SM
+	bg.corner_radius_bottom_right = LCTheme.RADIUS_SM
+	bg.content_margin_left = 16
+	bg.content_margin_right = 16
+	bg.content_margin_top = 9
+	bg.content_margin_bottom = 9
+	_toast_label.add_theme_stylebox_override("normal", bg)
+	_toast_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_toast_wrapper.add_child(_toast_label)
+	# 插入到 InputVBox 中，在 RecommendRepliesContainer 之后、InputHBox 之前
+	var input_vbox: VBoxContainer = input_field.get_parent().get_parent()
+	var input_hbox: HBoxContainer = input_field.get_parent()
+	var idx := input_hbox.get_index()
+	input_vbox.add_child(_toast_wrapper)
+	input_vbox.move_child(_toast_wrapper, idx)
+
+
+func _show_toast(text: String, duration: float = 2.5) -> void:
+	if _toast_label == null or _toast_wrapper == null:
+		return
+	_toast_label.text = text
+	# 先测量 label 自然高度
+	await get_tree().process_frame
+	var target_h: float = _toast_label.get_combined_minimum_size().y
+	# 取消之前的动画
+	if _toast_tween and _toast_tween.is_valid():
+		_toast_tween.kill()
+	# 初始状态：高度 0，透明
+	_toast_wrapper.custom_minimum_size.y = 0
+	_toast_wrapper.modulate.a = 0.0
+	_toast_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	# 滑入：高度展开 + 淡入
+	_toast_tween.tween_property(_toast_wrapper, "custom_minimum_size:y", target_h, 0.25)
+	_toast_tween.parallel().tween_property(_toast_wrapper, "modulate:a", 1.0, 0.2)
+	# 停留
+	_toast_tween.tween_interval(duration)
+	# 滑出：淡出 + 高度收缩
+	_toast_tween.tween_property(_toast_wrapper, "modulate:a", 0.0, 0.2)
+	_toast_tween.tween_property(_toast_wrapper, "custom_minimum_size:y", 0.0, 0.2)
 
 
 # --- ChatManager 信号回调 ---
@@ -614,7 +691,7 @@ func _render_recommended_replies(replies: Array[String]) -> void:
 	for reply in replies:
 		var btn := Button.new()
 		btn.text = reply
-		btn.add_theme_font_size_override("font_size", 14)
+		btn.add_theme_font_size_override("font_size", 17)
 		btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
 		btn.add_theme_color_override("font_hover_color", LCTheme.COLOR_ACCENT_HOVER)
 		btn.add_theme_stylebox_override("normal", LCTheme.get_chip_style())

@@ -33,6 +33,8 @@ func _build() -> void:
 			_build_game_card()
 		"web_page":
 			_build_web_page_card()
+		"product":
+			_build_product_card()
 		_:
 			_build_unknown_card()
 
@@ -276,6 +278,66 @@ func _build_web_page_card() -> void:
 	var url := str(_card_data.get("url", "")).strip_edges()
 	if not url.is_empty():
 		body.add_child(_create_footer_label(url, LCTheme.COLOR_TEXT_SECONDARY))
+
+
+func _build_product_card() -> void:
+	var shell_info := _create_shell(false)
+	var body: VBoxContainer = shell_info["body"]
+
+	# 电商风格：橙色顶部条
+	var accent_bar := PanelContainer.new()
+	accent_bar.custom_minimum_size = Vector2(0, 3)
+	accent_bar.add_theme_stylebox_override("panel", LCTheme.rounded_flat(Color("#FF6A00"), 0))
+	body.add_child(accent_bar)
+
+	# 分类标签 + 购物袋图标
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 6)
+	body.add_child(header)
+
+	var icon := Label.new()
+	icon.text = "🛍"
+	icon.add_theme_font_size_override("font_size", 14)
+	header.add_child(icon)
+
+	var badge_text := str(_card_data.get("badge", "商品"))
+	var badge := _create_badge_label(badge_text)
+	badge.add_theme_color_override("font_color", Color("#FF6A00"))
+	header.add_child(badge)
+
+	# 商品标题
+	var title_text := str(_card_data.get("title", "未命名商品")).strip_edges()
+	var title_lbl := _create_title_label(title_text, Color("#1D1D1F"))
+	title_lbl.add_theme_font_size_override("font_size", 18)
+	body.add_child(title_lbl)
+
+	# 简介
+	var subtitle := str(_card_data.get("subtitle", "")).strip_edges()
+	if not subtitle.is_empty():
+		body.add_child(_create_body_label(subtitle, Color("#666666")))
+
+	# 底部：价格 + 标签
+	var footer_hbox := HBoxContainer.new()
+	footer_hbox.add_theme_constant_override("separation", 8)
+	body.add_child(footer_hbox)
+
+	var price_text := str(_card_data.get("price", "")).strip_edges()
+	if not price_text.is_empty():
+		var price_lbl := Label.new()
+		price_lbl.text = price_text
+		price_lbl.add_theme_font_size_override("font_size", 18)
+		price_lbl.add_theme_color_override("font_color", Color("#FF4400"))
+		footer_hbox.add_child(price_lbl)
+
+	var tags_text := str(_card_data.get("footer", "")).strip_edges()
+	if not tags_text.is_empty():
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		footer_hbox.add_child(spacer)
+		var tags_lbl := _create_footer_label(tags_text, Color("#999999"))
+		tags_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		tags_lbl.size_flags_horizontal = Control.SIZE_SHRINK_END
+		footer_hbox.add_child(tags_lbl)
 
 
 func _build_unknown_card() -> void:

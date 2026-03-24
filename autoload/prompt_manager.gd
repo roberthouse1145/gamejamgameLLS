@@ -3,15 +3,21 @@ extends Node
 ## 集中管理所有 prompt 模板，支持 {{key}} 递归替换。
 ## 启动时自动扫描 res://prompts/ 加载所有 .md 文件。
 ## 内置环形引用检测。
+## 支持 <注释>...</注释> 标签，resolve 时自动剥离，方便调试。
 
 const PROMPTS_DIR: String = "res://prompts/"
 const MAX_RESOLVE_DEPTH: int = 10
+
+## 用于剥离 <注释>...</注释> 块的正则（支持多行、嵌套内容）
+var _comment_regex: RegEx
 
 ## prompt_key -> template_text
 var _prompts: Dictionary = {}
 
 
 func _ready() -> void:
+	_comment_regex = RegEx.new()
+	_comment_regex.compile("(?s)<注释>.*?</注释>")
 	_load_prompts_from_dir(PROMPTS_DIR)
 
 
@@ -21,12 +27,25 @@ func resolve(key: String) -> String:
 	if not _prompts.has(key):
 		push_warning("PromptManager: prompt key '%s' not found" % key)
 		return ""
-	return _resolve_recursive(_prompts[key], {}, 0)
+	return _resolve_recursive(_prompts[key], {}, 0, {})
 
 
 ## 对任意文本做 {{xxx}} 替换。
 func resolve_template(text: String) -> String:
-	return _resolve_recursive(text, {}, 0)
+	return _resolve_recursive(text, {}, 0, {})
+
+
+## 按 key 查找 prompt，并用 vars 注入动态变量。
+func resolve_with_vars(key: String, vars: Dictionary) -> String:
+	if not _prompts.has(key):
+		push_warning("PromptManager: prompt key '%s' not found" % key)
+		return ""
+	return _resolve_recursive(_prompts[key], {}, 0, vars)
+
+
+## 对任意文本做 {{xxx}} 替换，并注入动态变量。
+func resolve_template_with_vars(text: String, vars: Dictionary) -> String:
+	return _resolve_recursive(text, {}, 0, vars)
 
 
 ## 手动注册一个 prompt（代码中动态添加）。
@@ -71,15 +90,20 @@ func _load_prompts_from_dir(dir_path: String, prefix: String = "") -> void:
 	dir.list_dir_end()
 
 
+## 剥离文本中所有 <注释>...</注释> 块。
+func _strip_comments(text: String) -> String:
+	return _comment_regex.sub(text, "", true)
+
+
 ## 递归替换 {{key}} 模板变量。
 ## visited: 已访问的 key 集合，用于环形引用检测。
 ## depth: 当前递归深度。
-func _resolve_recursive(text: String, visited: Dictionary, depth: int) -> String:
+func _resolve_recursive(text: String, visited: Dictionary, depth: int, vars: Dictionary) -> String:
 	if depth > MAX_RESOLVE_DEPTH:
 		push_warning("PromptManager: max resolve depth exceeded, possible circular reference")
 		return text
 	
-	var result: String = text
+	var result: String = _strip_comments(text)
 	var regex: RegEx = RegEx.new()
 	regex.compile("\\{\\{([\\w/]+)\\}\\}")
 	
@@ -91,6 +115,11 @@ func _resolve_recursive(text: String, visited: Dictionary, depth: int) -> String
 	matches.reverse()
 	for m in matches:
 		var key: String = m.get_string(1)
+
+		if vars.has(key):
+			var replacement_var: String = str(vars.get(key, ""))
+			result = result.substr(0, m.get_start()) + replacement_var + result.substr(m.get_end())
+			continue
 		
 		if visited.has(key):
 			push_warning("PromptManager: circular reference detected for key '%s'" % key)
@@ -102,7 +131,7 @@ func _resolve_recursive(text: String, visited: Dictionary, depth: int) -> String
 		
 		var new_visited: Dictionary = visited.duplicate()
 		new_visited[key] = true
-		var replacement: String = _resolve_recursive(_prompts[key], new_visited, depth + 1)
+		var replacement: String = _resolve_recursive(_prompts[key], new_visited, depth + 1, vars)
 		result = result.substr(0, m.get_start()) + replacement + result.substr(m.get_end())
 	
 	return result

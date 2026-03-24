@@ -130,7 +130,7 @@ func _run_property1_role_config_round_trip() -> void:
 					role, expected["model"], config["model"]]
 
 			# Also verify that querying a non-existent role returns empty
-			var fake_role: String = "nonexistent_" + AVGResourceGenerators.random_string(rng, 3, 10)
+			var fake_role: String = "nonexistent_%d" % rng.randi_range(100000, 999999)
 			var empty_config: Dictionary = config_mgr.get_config_for_role(fake_role)
 			if not empty_config.is_empty():
 				return "get_config_for_role('%s') should return empty dict, got: %s" % [

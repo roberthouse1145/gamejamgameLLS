@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="NPCCharacter" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/chat/resources/npc_character.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/images/stamps/stamp02_03.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+character_id = "npc_lin_xia"
+display_name = "林夏"
+avatar = ExtResource("2")
+prompt = "{{npc/lin_xia}}"
+initial_affection = 75

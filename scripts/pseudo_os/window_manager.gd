@@ -12,6 +12,11 @@ signal window_focused(window: Control)
 
 # Window scene reference
 const WINDOW_SCENE_PATH := "res://scenes/pseudo_os/window.tscn"
+const OPEN_ANIM_DURATION: float = 0.18
+const MINIMIZE_ANIM_DURATION: float = 0.14
+const CLOSE_ANIM_DURATION: float = 0.12
+const OPEN_ANIM_OFFSET_Y: float = 14.0
+const OPEN_ANIM_START_SCALE: Vector2 = Vector2(0.97, 0.97)
 var _window_scene: PackedScene
 
 # Window management
@@ -21,6 +26,7 @@ var next_z_index: int = 0
 
 # Container for windows (set by Desktop)
 var window_container: Control = null
+var taskbar: Control = null
 
 
 func _ready() -> void:
@@ -73,6 +79,9 @@ func create_window(title: String, content: Control, constraints = null) -> Contr
 	# Track window
 	windows.append(window)
 	
+	# 开窗过渡：避免“瞬间弹出”的生硬感
+	_animate_window_open(window)
+
 	# Focus the new window
 	focus_window(window)
 	
@@ -82,12 +91,139 @@ func create_window(title: String, content: Control, constraints = null) -> Contr
 	return window
 
 
+func _animate_window_open(window: Control) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+	_kill_window_tween(window)
+
+	# 先设置初始状态，再 tween 到目标状态。
+	var target_position: Vector2 = window.position
+	window.pivot_offset = window.size * 0.5
+	window.position = target_position + Vector2(0.0, OPEN_ANIM_OFFSET_Y)
+	window.scale = OPEN_ANIM_START_SCALE
+	window.modulate.a = 0.0
+
+	var tween := window.create_tween()
+	window.set_meta("motion_tween", tween)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(window, "position", target_position, OPEN_ANIM_DURATION)
+	tween.parallel().tween_property(window, "scale", Vector2.ONE, OPEN_ANIM_DURATION)
+	tween.parallel().tween_property(window, "modulate:a", 1.0, OPEN_ANIM_DURATION)
+	tween.finished.connect(func() -> void:
+		if is_instance_valid(window):
+			window.remove_meta("motion_tween")
+	)
+
+
+func _animate_window_minimize(window: Control) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+	if window.has_meta("minimizing") and bool(window.get_meta("minimizing")):
+		return
+
+	window.set_meta("minimizing", true)
+	_kill_window_tween(window)
+
+	var origin_position: Vector2 = window.position
+	var target_position: Vector2 = _get_minimize_target_position(window, origin_position)
+	window.pivot_offset = window.size * 0.5
+	var tween := window.create_tween()
+	window.set_meta("motion_tween", tween)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(window, "position", target_position, MINIMIZE_ANIM_DURATION)
+	tween.parallel().tween_property(window, "scale", Vector2(0.18, 0.18), MINIMIZE_ANIM_DURATION)
+	tween.parallel().tween_property(window, "modulate:a", 0.12, MINIMIZE_ANIM_DURATION)
+	tween.finished.connect(func() -> void:
+		if not is_instance_valid(window):
+			return
+		window.position = origin_position
+		window.scale = Vector2.ONE
+		window.modulate.a = 1.0
+		window.minimize()
+		if taskbar != null and is_instance_valid(taskbar):
+			if taskbar.has_method("set_window_button_minimized"):
+				taskbar.set_window_button_minimized(window, true)
+			if taskbar.has_method("pulse_window_button"):
+				taskbar.pulse_window_button(window)
+		window.remove_meta("motion_tween")
+		window.remove_meta("minimizing")
+		_focus_topmost_window()
+	)
+
+
+func _get_minimize_target_position(window: Control, fallback_position: Vector2) -> Vector2:
+	var fallback := fallback_position + Vector2(0.0, OPEN_ANIM_OFFSET_Y)
+	if taskbar == null or not is_instance_valid(taskbar):
+		return fallback
+	if not taskbar.has_method("get_window_button"):
+		return fallback
+
+	var button_variant: Variant = taskbar.get_window_button(window)
+	if not (button_variant is Control):
+		return fallback
+
+	var button := button_variant as Control
+	if not is_instance_valid(button) or window.get_parent() == null:
+		return fallback
+
+	var parent := window.get_parent() as Control
+	if parent == null:
+		return fallback
+
+	var target_center: Vector2 = button.get_global_rect().get_center() - parent.get_global_rect().position
+	# pivot_offset 设为窗口中心，视觉中心始终在 position + size * 0.5，与 scale 无关
+	# 因此要让视觉中心对齐任务栏按钮中心，position = target_center - size * 0.5
+	return target_center - window.size * 0.5
+
+
+func _animate_window_close(window: Control) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+	_kill_window_tween(window)
+
+	window.pivot_offset = window.size * 0.5
+	var tween := window.create_tween()
+	window.set_meta("motion_tween", tween)
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(window, "scale", Vector2(0.94, 0.94), CLOSE_ANIM_DURATION)
+	tween.parallel().tween_property(window, "modulate:a", 0.0, CLOSE_ANIM_DURATION)
+	tween.finished.connect(func() -> void:
+		if not is_instance_valid(window):
+			return
+		window.hide()
+		window_closed.emit(window)
+		_focus_topmost_window()
+		window.queue_free()
+	)
+
+
+func _kill_window_tween(window: Control) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+	if not window.has_meta("motion_tween"):
+		return
+	var tween_meta: Variant = window.get_meta("motion_tween")
+	if tween_meta is Tween:
+		var tween := tween_meta as Tween
+		if is_instance_valid(tween):
+			tween.kill()
+	if window.has_meta("motion_tween"):
+		window.remove_meta("motion_tween")
+
+
 ## Close and destroy a window
 ## @param window: The window to close
 func close_window(window: Control) -> void:
 	# Implementation will be completed in Task 3.6
 	if not window or not is_instance_valid(window):
 		return
+	if window.has_meta("closing") and bool(window.get_meta("closing")):
+		return
+
+	window.set_meta("closing", true)
 	
 	# Remove from tracking
 	var index := windows.find(window)
@@ -97,14 +233,8 @@ func close_window(window: Control) -> void:
 	# Clear focus if this was the focused window
 	if focused_window == window:
 		focused_window = null
-		# Focus the next topmost window
-		_focus_topmost_window()
-	
-	# Emit signal before destruction
-	window_closed.emit(window)
-	
-	# Destroy the window
-	window.queue_free()
+
+	_animate_window_close(window)
 
 
 ## Focus a window, bringing it to the front
@@ -134,13 +264,13 @@ func focus_window(window: Control) -> void:
 func minimize_window(window: Control) -> void:
 	if not window or not is_instance_valid(window):
 		return
-	
-	window.minimize()
-	
-	# If this was the focused window, focus another
+	if window.is_minimized:
+		return
+
 	if focused_window == window:
 		focused_window = null
-		_focus_topmost_window()
+
+	_animate_window_minimize(window)
 
 
 ## Maximize a window to fill the desktop area
@@ -160,6 +290,9 @@ func restore_window(window: Control) -> void:
 	
 	if window.is_minimized:
 		window.restore()
+		if taskbar != null and is_instance_valid(taskbar) and taskbar.has_method("set_window_button_minimized"):
+			taskbar.set_window_button_minimized(window, false)
+		_animate_window_open(window)
 		focus_window(window)
 	elif window.is_maximized:
 		window.unmaximize()
@@ -188,6 +321,10 @@ func is_window_open(window: Control) -> bool:
 ## @param container: The Control node to use as window container
 func set_window_container(container: Control) -> void:
 	window_container = container
+
+
+func set_taskbar(taskbar_control: Control) -> void:
+	taskbar = taskbar_control
 
 
 # Private methods

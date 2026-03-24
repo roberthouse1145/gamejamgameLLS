@@ -14,5 +14,8 @@ class_name AppDefinition extends Resource
 ## 应用入口场景
 @export var entry_scene: PackedScene
 
+## 是否在桌面创建图标
+@export var show_on_desktop: bool = true
+
 ## 窗口约束配置
 @export var window_constraints: Resource  # WindowConstraints

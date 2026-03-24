@@ -7,8 +7,19 @@ extends Node
 const NPCManagerClass = preload("res://scripts/chat/npc_manager.gd")
 const ChatChannelClass = preload("res://scripts/chat/resources/chat_channel.gd")
 const NPCCharacterClass = preload("res://scripts/chat/resources/npc_character.gd")
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
+const DailyMemorySummarizerClass = preload("res://scripts/chat/daily_memory_summarizer.gd")
+const InputGuardClass = preload("res://scripts/chat/input_guard.gd")
 
 const LINKCHAT_IMAGE_CARD_REGISTRY_PATH: String = "res://resources/data/linkchat_image_cards.json"
+const NPC_RESOURCE_PATHS: Array[String] = [
+	"res://resources/characters/npc_lin_xia.tres",
+]
+const CHANNEL_RESOURCE_PATHS: Array[String] = [
+	"res://resources/channels/dm_lin_xia.tres",
+	"res://resources/channels/agj_official.tres",
+	"res://resources/channels/class_group.tres",
+]
 
 #region 信号
 ## 频道新增
@@ -35,6 +46,8 @@ signal ai_request_failed(channel_id: String, error: String)
 signal moment_posted(moment: Dictionary)
 ## 持久化相关的稳定状态发生变化
 signal chat_state_changed()
+## 玩家消息被审核拦截
+signal message_blocked(channel_id: String, text: String)
 #endregion
 
 #region 子系统
@@ -43,6 +56,8 @@ var batch_handler: MessageBatchHandler
 var memory_manager: MemoryManager
 var ai_service: AIService
 var npc_manager: NPCManager
+var input_guard: Node
+var daily_memory_summarizer: Node
 #endregion
 
 #region 数据
@@ -83,6 +98,16 @@ func _ready() -> void:
 	_setup_npcs()
 	_setup_default_channels()
 	_setup_default_moments()
+	ActivityLockUtilsClass.register_busy_source(
+		name,
+		self,
+		"has_any_active_topics",
+		ActivityLockUtilsClass.DEFAULT_CHAT_BLOCK_REASON
+	)
+
+
+func _exit_tree() -> void:
+	ActivityLockUtilsClass.unregister_busy_source(name)
 
 
 func _setup_subsystems() -> void:
@@ -100,11 +125,21 @@ func _setup_subsystems() -> void:
 
 	npc_manager = NPCManagerClass.new()
 
+	input_guard = InputGuardClass.new()
+	add_child(input_guard)
+
+	daily_memory_summarizer = DailyMemorySummarizerClass.new()
+	daily_memory_summarizer.setup(memory_manager)
+	add_child(daily_memory_summarizer)
+
 	# 加载 AI 配置
 	var config_mgr := AIConfigManager.new()
 	if config_mgr.load_config():
 		config_mgr.apply_to_service(ai_service, "linkchat")
-		print("[ChatManager] AI config loaded")
+		# 读取审核开关
+		var raw_enabled: String = str(config_mgr._roles.get("input_guard_enabled", "true")).strip_edges().to_lower()
+		input_guard.enabled = (raw_enabled != "false" and raw_enabled != "0")
+		print("[ChatManager] AI config loaded, input_guard enabled=%s" % input_guard.enabled)
 	else:
 		push_warning("[ChatManager] Failed to load AI config")
 
@@ -127,45 +162,45 @@ func _setup_connections() -> void:
 
 
 func _setup_npcs() -> void:
-	# 1. 注册核心角色 林夏
-	var lin_xia := NPCCharacterClass.new()
-	lin_xia.character_id = "npc_lin_xia"
-	lin_xia.display_name = "林夏"
-	lin_xia.initial_affection = 75
-	
-	# 利用 PromptManager 获取人设文本
-	var pm: Node = Engine.get_main_loop().root.get_node_or_null("PromptManager")
-	if pm and pm.has_prompt("npc/lin_xia"):
-		lin_xia.prompt = pm.resolve("npc/lin_xia")
-	else:
-		push_warning("[ChatManager] Lin Xia prompt not found in PromptManager")
-		
-	npc_manager.register_npc(lin_xia)
+	for resource_path in NPC_RESOURCE_PATHS:
+		_register_npc_from_resource(load(resource_path) as NPCCharacter)
 	print("[ChatManager] Registered %d NPCs" % npc_manager.get_all_npc_ids().size())
 
 
+func _register_npc_from_resource(template: NPCCharacter) -> void:
+	if template == null:
+		push_error("[ChatManager] NPC resource template is null")
+		return
+	var npc := template.duplicate() as NPCCharacter
+	# 资源内的 prompt 允许写 {{prompt_key}}，启动时统一展开。
+	var pm: Node = Engine.get_main_loop().root.get_node_or_null("PromptManager")
+	if pm and not npc.prompt.strip_edges().is_empty():
+		npc.prompt = pm.resolve_template(npc.prompt)
+	elif npc.prompt.is_empty():
+		push_warning("[ChatManager] NPC prompt is empty: %s" % npc.character_id)
+	npc_manager.register_npc(npc)
+
+
 func _setup_default_channels() -> void:
-	add_channel("dm_lin_xia", "林夏", ChatChannelClass.ChannelType.DM,
-		["player", "npc_lin_xia"])
-	add_channel("agj_official", "AGJ2025线上官方交流群", ChatChannelClass.ChannelType.SYSTEM,
-		["player"])
-	add_channel("class_group", "22软工吃喝拉撒群", ChatChannelClass.ChannelType.SOCIAL,
-		["player"])
-		
-	# 读取频道背景设定并赋值
-	var file := FileAccess.open("res://resources/data/channel_contexts.json", FileAccess.READ)
-	if file:
-		var json_str := file.get_as_text()
-		var json_data: Variant = JSON.parse_string(json_str)
-		if json_data is Array:
-			for item in json_data:
-				var cid: String = item.get("channel_id", "")
-				var channel = _channels.get(cid)
-				if channel:
-					channel.channel_prompt = item.get("channel_prompt", "")
-		else:
-			push_error("[ChatManager] Error parsing channel_contexts.json")
-		file.close()
+	for resource_path in CHANNEL_RESOURCE_PATHS:
+		_load_channel_from_resource(load(resource_path) as ChatChannel)
+
+
+func _load_channel_from_resource(template: ChatChannel) -> void:
+	if template == null:
+		push_error("[ChatManager] Channel resource template is null")
+		return
+	var channel := template.duplicate() as ChatChannel
+	var pm: Node = Engine.get_main_loop().root.get_node_or_null("PromptManager")
+	if pm and not channel.channel_prompt.strip_edges().is_empty():
+		channel.channel_prompt = pm.resolve_template(channel.channel_prompt)
+	# 重置运行时状态
+	channel.unread_count = 0
+	channel.messages = []
+	_channels[channel.channel_id] = channel
+	_channel_order.append(channel.channel_id)
+	channel_added.emit(channel.channel_id)
+	_emit_chat_state_changed()
 
 
 #region 频道 API
@@ -201,14 +236,24 @@ func get_channels() -> Dictionary:
 
 ## 玩家发送消息（进入批处理队列 + 立即存储到频道）
 ## debug_mode 下跳过批处理，直接触发 AI
-func add_player_message(channel_id: String, text: String) -> void:
+## 返回 true 表示消息已发送，false 表示被审核拦截
+func add_player_message(channel_id: String, text: String) -> bool:
 	if text.strip_edges().is_empty():
-		return
+		return false
+
+	# 审核玩家输入
+	var passed: bool = await input_guard.check(text)
+	if not passed:
+		print("[ChatManager] Message blocked by InputGuard: %s" % text)
+		message_blocked.emit(channel_id, text)
+		return false
+
 	_store_message(channel_id, "player", text)
 	if debug_mode:
 		_on_batch_ready_for_channel([text], channel_id)
 	else:
 		batch_handler.add_message(text)
+	return true
 
 
 func store_player_message_data(channel_id: String, message_data: Dictionary) -> void:
@@ -346,7 +391,7 @@ func _sanitize_message_card(card: Dictionary) -> Dictionary:
 	var allowed_keys := [
 		"title", "subtitle", "hint", "body", "footer", "badge", "image_id", "image_path",
 		"texture_path", "url", "theme", "design_prompt", "caption", "alt",
-		"site_name", "accent_color", "preview_width", "preview_height"
+		"site_name", "accent_color", "preview_width", "preview_height", "price"
 	]
 	for key in allowed_keys:
 		if card.has(key):
@@ -443,6 +488,10 @@ func get_active_topic(channel_id: String) -> ChatTopic:
 
 func has_active_topic(channel_id: String) -> bool:
 	return topic_manager.has_active_topic(channel_id)
+
+
+func has_any_active_topics() -> bool:
+	return not topic_manager.active_topics.is_empty()
 
 
 func begin_npc_message_presentation(channel_id: String) -> void:
@@ -661,11 +710,10 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 
 	# 提取 content
 	var content_text: String = ""
+	var reasoning_text: String = ""
 	if response.has("choices") and response.choices is Array and response.choices.size() > 0:
-		var message_data: Dictionary = response.choices[0].get("message", {})
-		var raw_content: Variant = message_data.get("content", null)
-		if raw_content != null:
-			content_text = str(raw_content)
+		content_text = AIService.extract_content(response)
+		reasoning_text = AIService.extract_reasoning_content(response)
 
 	if content_text.is_empty():
 		push_warning("[ChatManager] Empty AI response")
@@ -678,10 +726,12 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 
 	print("[ChatManager] AI response: %s" % content_text)
 
-	# 剥离 <thinking> 标签并记录思考内容
+	# 优先读取结构化 reasoning_content；兼容旧链路时再回退剥离正文
 	var stripped := _strip_thinking_tags(content_text)
-	if stripped.thinking != "":
-		print("[ChatManager] LLM thinking: %s" % stripped.thinking)
+	if reasoning_text == "":
+		reasoning_text = str(stripped.get("thinking", "")).strip_edges()
+	if reasoning_text != "":
+		print("[ChatManager] LLM thinking: %s" % reasoning_text)
 
 	var topic := topic_manager.get_active_topic(channel_id)
 
@@ -1144,11 +1194,7 @@ func _on_topic_completed(topic: ChatTopic, result: Dictionary) -> void:
 	if not suppress_notice:
 		add_system_message(topic.channel_id, "[话题结束] %s" % topic.display_title)
 
-	# 存储记忆
-	var summary: String = result.get("summary", "")
-	if summary.is_empty():
-		summary = "对话完成：%s" % topic.display_title
-	memory_manager.store_topic_memory(topic.topic_id, topic.npc_id, summary)
+	# 记忆整合已移至每日结束时的 DailyMemorySummarizer，不再在 topic 完成时即时存储
 
 	_emit_chat_state_changed()
 	topic_completed.emit(topic, result)
@@ -1183,6 +1229,9 @@ func load_run_state(data: Dictionary) -> bool:
 	if data.is_empty():
 		return true
 	_reset_runtime_transients()
+	# 清空 memory 内存缓存，确保从当前存档的磁盘状态重新懒加载
+	if memory_manager != null and memory_manager.has_method("reset_runtime_state"):
+		memory_manager.reset_runtime_state(false)
 	_restore_channels(data.get("channels", []))
 	_restore_moments(data.get("moments", []))
 	_moments_unread = max(0, int(data.get("moments_unread", 0)))
@@ -1329,6 +1378,24 @@ func _strip_thinking_tags(text: String) -> Dictionary:
 		var fallback_thinking := fallback_match.get_string(1).strip_edges()
 		var fallback_body := text.substr(fallback_match.get_end()).strip_edges()
 		return {"thinking": fallback_thinking, "body": fallback_body}
+	var truncated_regex := RegEx.new()
+	truncated_regex.compile("^\\s*<(thinking|think)>([\\s\\S]*)$")
+	var truncated_match := truncated_regex.search(text)
+	if truncated_match:
+		var content_after_tag := truncated_match.get_string(2)
+		var body_start := content_after_tag.find("\n@")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n{")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n#")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n[")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n>")
+		if body_start >= 0:
+			var truncated_thinking := content_after_tag.substr(0, body_start).strip_edges()
+			var truncated_body := content_after_tag.substr(body_start).strip_edges()
+			return {"thinking": truncated_thinking, "body": truncated_body}
 	return {"thinking": "", "body": text}
 
 ## 从带有 markdown 包裹或前后附加说明的文本中提取真正的 JSON 字符串

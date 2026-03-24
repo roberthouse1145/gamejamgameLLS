@@ -1,7 +1,28 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/date_events/date_event_player.gd" id="1_player"]
+[ext_resource type="Theme" uid="uid://c7c4qoevl14xp" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_scene_runner.tscn" id="2_runner"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar"]
+content_margin_left = 4.0
+content_margin_top = 4.0
+content_margin_right = 4.0
+content_margin_bottom = 4.0
+bg_color = Color(0.96, 0.97, 0.98, 1)
+border_width_right = 1
+border_color = Color(0.9, 0.92, 0.95, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav_active"]
+content_margin_left = 8.0
+content_margin_top = 6.0
+content_margin_right = 8.0
+content_margin_bottom = 6.0
+bg_color = Color(0.9, 0.93, 0.98, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [node name="DateEventPlayer" type="Control"]
 layout_mode = 3
@@ -10,6 +31,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("2_theme")
 script = ExtResource("1_player")
 
 [node name="Background" type="ColorRect" parent="."]
@@ -19,9 +41,74 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.0352941, 0.0470588, 0.0823529, 1)
+color = Color(0.98, 0.985, 0.99, 1)
 
-[node name="ContentContainer" type="Control" parent="."]
+[node name="MainLayout" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Sidebar" type="PanelContainer" parent="MainLayout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar")
+
+[node name="SidebarVBox" type="VBoxContainer" parent="MainLayout/Sidebar"]
+layout_mode = 2
+theme_override_constants/separation = 2
+
+[node name="Header" type="MarginContainer" parent="MainLayout/Sidebar/SidebarVBox"]
+layout_mode = 2
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_bottom = 10
+
+[node name="Logo" type="Label" parent="MainLayout/Sidebar/SidebarVBox/Header"]
+layout_mode = 2
+text = "▶"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0.3, 0.5, 0.9, 0.9)
+
+[node name="NavHomeBtn" type="Button" parent="MainLayout/Sidebar/SidebarVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.2, 0.25, 0.3, 1)
+theme_override_colors/font_hover_color = Color(0.3, 0.5, 0.9, 1)
+theme_override_colors/font_focus_color = Color(0.2, 0.25, 0.3, 1)
+text = "首页"
+flat = true
+
+[node name="NavHistoryBtn" type="Button" parent="MainLayout/Sidebar/SidebarVBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 44)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(0.2, 0.25, 0.3, 1)
+theme_override_colors/font_hover_color = Color(0.3, 0.5, 0.9, 1)
+theme_override_colors/font_focus_color = Color(0.2, 0.25, 0.3, 1)
+text = "记录"
+flat = true
+
+[node name="Spacer" type="Control" parent="MainLayout/Sidebar/SidebarVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SidebarBorder" type="VSeparator" parent="MainLayout"]
+layout_mode = 2
+
+[node name="ContentArea" type="Control" parent="MainLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="HomePage" type="ScrollContainer" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -30,21 +117,78 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="PreviewContainer" type="SubViewportContainer" parent="ContentContainer"]
+[node name="HomeContent" type="VBoxContainer" parent="MainLayout/ContentArea/HomePage"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="HistoryPage" type="VBoxContainer" parent="MainLayout/ContentArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="HistoryHeader" type="MarginContainer" parent="MainLayout/ContentArea/HistoryPage"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_bottom = 8
+
+[node name="Label" type="Label" parent="MainLayout/ContentArea/HistoryPage/HistoryHeader"]
+layout_mode = 2
+text = "播放记录"
+theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(0.15, 0.2, 0.25, 1)
+
+[node name="HistoryScroll" type="ScrollContainer" parent="MainLayout/ContentArea/HistoryPage"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HistoryList" type="VBoxContainer" parent="MainLayout/ContentArea/HistoryPage/HistoryScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 8
+
+[node name="PlaybackPage" type="Control" parent="MainLayout/ContentArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ContentContainer" type="Control" parent="MainLayout/ContentArea/PlaybackPage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="MainLayout/ContentArea/PlaybackPage/ContentContainer"]
 unique_name_in_owner = true
 layout_mode = 0
 stretch = true
 
-[node name="PreviewViewport" type="SubViewport" parent="ContentContainer/PreviewContainer"]
+[node name="PreviewViewport" type="SubViewport" parent="MainLayout/ContentArea/PlaybackPage/ContentContainer/PreviewContainer"]
 unique_name_in_owner = true
 handle_input_locally = true
 size = Vector2i(2560, 1440)
 render_target_update_mode = 4
 
-[node name="AVGSceneRunner" parent="ContentContainer/PreviewContainer/PreviewViewport" instance=ExtResource("2_runner")]
+[node name="AVGSceneRunner" parent="MainLayout/ContentArea/PlaybackPage/ContentContainer/PreviewContainer/PreviewViewport" instance=ExtResource("2_runner")]
 unique_name_in_owner = true
 
-[node name="TopOverlay" type="MarginContainer" parent="."]
+[node name="TopOverlay" type="MarginContainer" parent="MainLayout/ContentArea/PlaybackPage"]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -54,7 +198,7 @@ offset_right = -18.0
 offset_bottom = 54.0
 grow_horizontal = 2
 
-[node name="TitleLabel" type="Label" parent="TopOverlay"]
+[node name="TitleLabel" type="Label" parent="MainLayout/ContentArea/PlaybackPage/TopOverlay"]
 unique_name_in_owner = true
 layout_mode = 2
 text = "重要约会"

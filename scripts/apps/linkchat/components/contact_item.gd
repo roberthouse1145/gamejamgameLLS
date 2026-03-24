@@ -3,18 +3,18 @@
 ## 显示头像、名称、最后一条消息预览、未读红点
 
 const LCTheme := preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
-const ITEM_MIN_HEIGHT := 92.0
-const ITEM_PADDING_X := 14
-const ITEM_PADDING_Y := 12
-const ITEM_SPACING := 16
-const INFO_SPACING := 4
-const AVATAR_SIZE := 60.0
-const NAME_FONT_SIZE := 20
-const PREVIEW_FONT_SIZE := 16
-const TIME_FONT_SIZE := 13
-const UNREAD_BADGE_SIZE := Vector2(28, 28)
-const UNREAD_FONT_SIZE := 13
-const AVATAR_INITIAL_FONT_SIZE := 22
+const ITEM_MIN_HEIGHT := 108.0
+const ITEM_PADDING_X := 18
+const ITEM_PADDING_Y := 14
+const ITEM_SPACING := 18
+const INFO_SPACING := 5
+const AVATAR_SIZE := 72.0
+const NAME_FONT_SIZE := 24
+const PREVIEW_FONT_SIZE := 19
+const TIME_FONT_SIZE := 16
+const UNREAD_BADGE_SIZE := Vector2(32, 32)
+const UNREAD_FONT_SIZE := 16
+const AVATAR_INITIAL_FONT_SIZE := 26
 const PREVIEW_MAX_CHARS := 52
 
 signal selected(channel_id: String)
@@ -36,11 +36,11 @@ var _select_tween: Tween
 static func create(channel: Resource, _npc: Resource = null) -> ChatContactItem:
 	var item := ChatContactItem.new()
 	item.channel_id = channel.channel_id
-	item._build(channel)
+	item._build(channel, _npc)
 	return item
 
 
-func _build(channel: Resource) -> void:
+func _build(channel: Resource, npc: Resource = null) -> void:
 	custom_minimum_size = Vector2(0, ITEM_MIN_HEIGHT)
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mouse_filter = Control.MOUSE_FILTER_STOP
@@ -72,7 +72,8 @@ func _build(channel: Resource) -> void:
 
 	# 头像
 	var display_name: String = channel.display_name
-	_avatar_panel = _create_avatar(display_name, channel.channel_type)
+	var avatar_tex: Texture2D = npc.avatar if npc and npc.avatar else null
+	_avatar_panel = _create_avatar(display_name, channel.channel_type, avatar_tex)
 	hbox.add_child(_avatar_panel)
 
 	# 中间：名称 + 预览
@@ -179,9 +180,10 @@ func _update_preview(channel: Resource) -> void:
 		_time_label.text = ""
 
 
-func _create_avatar(display_name: String, channel_type: int) -> PanelContainer:
+func _create_avatar(display_name: String, channel_type: int, texture: Texture2D = null) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var avatar_color: Color
@@ -190,26 +192,35 @@ func _create_avatar(display_name: String, channel_type: int) -> PanelContainer:
 		1: avatar_color = Color("#40C057") # SOCIAL: Green (Bright)
 		2: # DM
 			var hue := float(display_name.hash() & 0xFFFF) / 65535.0
-			# S:0.5-0.6, V:0.9-0.95 (Pastel/Bright)
 			avatar_color = Color.from_hsv(hue, 0.55, 0.95)
 		3: avatar_color = Color("#ADB5BD") # SYSTEM: Light Gray
 		_: avatar_color = Color("#868E96")
 
 	panel.add_theme_stylebox_override("panel", LCTheme.get_avatar_style(avatar_color))
 
-	var initial := Label.new()
-	var first_char := display_name.substr(0, 1) if not display_name.is_empty() else "?"
-	if channel_type == 0 or channel_type == 1:
-		first_char = "#"
-	initial.text = first_char
-	initial.add_theme_color_override("font_color", Color.WHITE)
-	initial.add_theme_font_size_override("font_size", AVATAR_INITIAL_FONT_SIZE)
-	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	initial.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	initial.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	initial.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_child(initial)
+	if texture:
+		var tex_rect := TextureRect.new()
+		tex_rect.texture = texture
+		tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(tex_rect)
+	else:
+		var initial := Label.new()
+		var first_char := display_name.substr(0, 1) if not display_name.is_empty() else "?"
+		if channel_type == 0 or channel_type == 1:
+			first_char = "#"
+		initial.text = first_char
+		initial.add_theme_color_override("font_color", Color.WHITE)
+		initial.add_theme_font_size_override("font_size", AVATAR_INITIAL_FONT_SIZE)
+		initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		initial.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		initial.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		initial.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(initial)
 
 	return panel
 

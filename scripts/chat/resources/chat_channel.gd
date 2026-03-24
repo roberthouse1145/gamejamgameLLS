@@ -63,6 +63,7 @@ func add_message(sender_id: String, sender_name: String, content: String, extras
 		"content": content,
 		"timestamp": ts,
 		"time": time_str,
+		"game_day": _get_current_game_day(),
 	}
 	for key in extras:
 		msg[key] = extras[key]
@@ -80,3 +81,12 @@ func get_recent_messages(count: int = 20) -> Array[Dictionary]:
 func _format_time_fallback() -> String:
 	var dt := Time.get_datetime_dict_from_system()
 	return "%02d:%02d" % [dt.hour, dt.minute]
+
+
+static func _get_current_game_day() -> int:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var glm: Node = tree.root.get_node_or_null("GameLoopManager")
+		if glm != null:
+			return int(glm.get("current_day"))
+	return 0

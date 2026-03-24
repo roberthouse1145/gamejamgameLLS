@@ -14,6 +14,7 @@ signal session_completed(session_id: String, payload: Dictionary)
 signal session_failed(error_message: String)
 
 const AVGSceneGeneratorClass = preload("res://scripts/activity/avg_scene_generator.gd")
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
 const ActivityUtilsClass = preload("res://scripts/activity/activity_utils.gd")
 const ElasticProgressClass = preload("res://scripts/activity/elastic_progress.gd")
 const ActivityChatClass = preload("res://scripts/activity/activity_chat.gd")
@@ -35,6 +36,11 @@ func _ready() -> void:
 	_setup_scene_generator()
 	_setup_components()
 	_on_manager_ready()
+	ActivityLockUtilsClass.register_busy_source(name, self)
+
+
+func _exit_tree() -> void:
+	ActivityLockUtilsClass.unregister_busy_source(name)
 
 
 # =============================================================================
@@ -176,6 +182,12 @@ func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS
 		session_failed.emit(err)
 		return {"success": false, "error": err}
 
+	var blocking_reason := ActivityLockUtilsClass.get_blocking_reason(self)
+	if not blocking_reason.is_empty():
+		ActivityLockUtilsClass.notify_blocked(self, blocking_reason)
+		session_failed.emit(blocking_reason)
+		return {"success": false, "error": blocking_reason}
+
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm == null:
 		var err := "GameLoopManager 不可用"
@@ -228,11 +240,7 @@ func has_any_pending_sessions() -> bool:
 
 
 func reset_runtime_state() -> void:
-	for session_data in _pending_sessions.values():
-		if not (session_data is Dictionary):
-			continue
-		var session: Dictionary = session_data
-		SceneWindowClass.close(session.get("scene_window", null))
+	SceneWindowClass.force_close()
 	_pending_sessions.clear()
 	_session_counter = 0
 	if _elastic != null and _elastic.has_method("stop"):

@@ -41,6 +41,9 @@ enum MemoryType {
 ## 最后访问时间
 @export var last_access_time: int = 0
 
+## 来源频道ID
+@export var source_channel_id: String = ""
+
 ## 来源Topic ID
 @export var source_topic_id: String = ""
 

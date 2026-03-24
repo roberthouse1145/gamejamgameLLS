@@ -27,6 +27,7 @@ var is_selected: bool = false
 # Internal state
 var _is_hovered: bool = false
 var _is_accessible: bool = true
+var _launch_tween: Tween = null
 
 
 func _ready() -> void:
@@ -93,11 +94,13 @@ func _gui_input(event: InputEvent) -> void:
 		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
 			if mouse_event.double_click:
 				# Double-click to launch
+				play_launch_feedback()
 				double_clicked.emit(app_id)
 				accept_event()
 			elif mouse_event.pressed:
 				# Single click to select
 				set_selected(true)
+				_play_press_feedback()
 				accept_event()
 
 
@@ -180,3 +183,24 @@ func set_accessible(value: bool) -> void:
 	else:
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	_update_visual_state()
+
+
+func play_launch_feedback() -> void:
+	if not _is_accessible:
+		return
+	_play_scale_feedback(Vector2(0.94, 0.94), 0.08, 0.12)
+
+
+func _play_press_feedback() -> void:
+	_play_scale_feedback(Vector2(0.97, 0.97), 0.05, 0.09)
+
+
+func _play_scale_feedback(target_scale: Vector2, shrink_duration: float, restore_duration: float) -> void:
+	if _launch_tween != null and is_instance_valid(_launch_tween):
+		_launch_tween.kill()
+	pivot_offset = size * 0.5
+	_launch_tween = create_tween()
+	_launch_tween.set_trans(Tween.TRANS_CUBIC)
+	_launch_tween.set_ease(Tween.EASE_OUT)
+	_launch_tween.tween_property(self, "scale", target_scale, shrink_duration)
+	_launch_tween.tween_property(self, "scale", Vector2.ONE, restore_duration)

@@ -161,6 +161,7 @@ func _setup_window_manager() -> void:
 	
 	# Set the window container for WindowManager
 	window_manager.set_window_container(window_container)
+	window_manager.set_taskbar(taskbar)
 	_bind_embedded_window_focus()
 	
 	# Connect window signals for taskbar integration
@@ -268,6 +269,8 @@ func _create_desktop_icons() -> void:
 func add_desktop_icon(app_definition: Resource) -> void:
 	if not app_definition:
 		return
+	if "show_on_desktop" in app_definition and not bool(app_definition.show_on_desktop):
+		return
 	
 	var app_id: String = app_definition.app_id
 	
@@ -305,6 +308,9 @@ func _create_icon_placeholder(app_definition: Resource) -> Control:
 
 ## Handle desktop icon double-click
 func _on_desktop_icon_double_clicked(app_id: String) -> void:
+	var icon: Node = desktop_icons.get(app_id, null)
+	if icon != null and is_instance_valid(icon) and icon.has_method("play_launch_feedback"):
+		icon.play_launch_feedback()
 	icon_double_clicked.emit(app_id)
 	_launch_app(app_id)
 
@@ -825,3 +831,104 @@ func _remove_notification(notification_id: String) -> void:
 	_desktop_notifications.erase(notification_id)
 	if toast != null and is_instance_valid(toast):
 		toast.queue_free()
+
+
+## 显示桌面右下角系统通知（Windows 风格提醒）
+func show_system_notification(title: String, body: String, icon_text: String = "⚠", duration: float = 5.0) -> void:
+	if _notification_stack == null:
+		return
+
+	var notification_id := "system:%d" % (title + body).hash()
+	_remove_notification(notification_id)
+
+	var toast := PanelContainer.new()
+	toast.custom_minimum_size = Vector2(0, 0)
+	toast.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toast.mouse_filter = Control.MOUSE_FILTER_STOP
+	toast.modulate.a = 0.0
+
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color("#1A1A2E")
+	panel_style.corner_radius_top_left = 12
+	panel_style.corner_radius_top_right = 12
+	panel_style.corner_radius_bottom_left = 12
+	panel_style.corner_radius_bottom_right = 12
+	panel_style.border_width_left = 1
+	panel_style.border_width_top = 1
+	panel_style.border_width_right = 1
+	panel_style.border_width_bottom = 1
+	panel_style.border_color = Color("#3A3A5C")
+	panel_style.shadow_size = 10
+	panel_style.shadow_color = Color(0, 0, 0, 0.25)
+	panel_style.shadow_offset = Vector2(0, 3)
+	toast.add_theme_stylebox_override("panel", panel_style)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 18)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 18)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	toast.add_child(margin)
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 14)
+	margin.add_child(hbox)
+
+	# 左侧图标（深蓝圆底 + emoji）
+	var icon_panel := PanelContainer.new()
+	icon_panel.custom_minimum_size = Vector2(44, 44)
+	icon_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var icon_style := StyleBoxFlat.new()
+	icon_style.bg_color = Color("#2D2D4A")
+	icon_style.corner_radius_top_left = 22
+	icon_style.corner_radius_top_right = 22
+	icon_style.corner_radius_bottom_left = 22
+	icon_style.corner_radius_bottom_right = 22
+	icon_panel.add_theme_stylebox_override("panel", icon_style)
+	var icon_label := Label.new()
+	icon_label.text = icon_text
+	icon_label.add_theme_font_size_override("font_size", 20)
+	icon_label.add_theme_color_override("font_color", Color("#FFD93D"))
+	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	icon_panel.add_child(icon_label)
+	hbox.add_child(icon_panel)
+
+	# 右侧文字
+	var text_vbox := VBoxContainer.new()
+	text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_vbox.add_theme_constant_override("separation", 4)
+	hbox.add_child(text_vbox)
+
+	var title_label := Label.new()
+	title_label.text = title
+	title_label.add_theme_font_size_override("font_size", 15)
+	title_label.add_theme_color_override("font_color", Color("#E0E0E0"))
+	text_vbox.add_child(title_label)
+
+	var body_label := Label.new()
+	body_label.text = body
+	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body_label.add_theme_font_size_override("font_size", 14)
+	body_label.add_theme_color_override("font_color", Color("#A0A0B8"))
+	text_vbox.add_child(body_label)
+
+	# 点击关闭
+	toast.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
+			_remove_notification(notification_id)
+	)
+
+	_notification_stack.add_child(toast)
+	_notification_stack.move_child(toast, 0)
+	_desktop_notifications[notification_id] = toast
+
+	var fade_in := create_tween()
+	fade_in.tween_property(toast, "modulate:a", 1.0, 0.18)
+
+	var timer := Timer.new()
+	timer.one_shot = true
+	timer.wait_time = duration
+	timer.timeout.connect(_expire_notification.bind(notification_id))
+	toast.add_child(timer)
+	timer.start()

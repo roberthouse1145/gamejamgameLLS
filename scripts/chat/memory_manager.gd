@@ -291,6 +291,7 @@ func _serialize_memory(entry: MemoryEntry) -> Dictionary:
 		"emotional_valence": entry.emotional_valence,
 		"access_count": entry.access_count,
 		"last_access_time": entry.last_access_time,
+		"source_channel_id": entry.source_channel_id,
 		"source_topic_id": entry.source_topic_id,
 		"source_type": entry.source_type,
 	}
@@ -311,6 +312,7 @@ func _deserialize_memory(json_text: String) -> MemoryEntry:
 	entry.emotional_valence = data.get("emotional_valence", 0.0)
 	entry.access_count = data.get("access_count", 0)
 	entry.last_access_time = data.get("last_access_time", 0)
+	entry.source_channel_id = data.get("source_channel_id", "")
 	entry.source_topic_id = data.get("source_topic_id", "")
 	entry.source_type = data.get("source_type", "")
 

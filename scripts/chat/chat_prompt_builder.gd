@@ -71,7 +71,21 @@ static func _build_game_time() -> String:
 	if glm:
 		var day: int = glm.get("current_day")
 		var max_days: int = glm.get("MAX_DAYS")
-		return "当前时间：ARCADE GRAND JAM 2025 比赛第 %d 天（总计 %d 天）。" % [day, max_days]
+		var phase_enum: int = int(glm.get("time_phase"))
+		var phase_name: String = ""
+		if glm.has_method("get_phase_display_name"):
+			phase_name = glm.get_phase_display_name(glm.get("time_phase"))
+		var daylight_hint: String = ""
+		match phase_enum:
+			0: daylight_hint = "现在是上午，天是亮的，不是晚上。"
+			1: daylight_hint = "现在是下午，天还亮着，不是晚上。"
+			2: daylight_hint = "现在是夜晚。"
+		return "当前时间：ARCADE GRAND JAM 2025 比赛第 %d 天%s（总计 %d 天）。%s" % [
+			day,
+			"・%s" % phase_name if not phase_name.is_empty() else "",
+			max_days,
+			daylight_hint,
+		]
 	return "（时间线不明）"
 
 
@@ -141,6 +155,17 @@ static func _summarize_card(card: Dictionary) -> String:
 				title if not title.is_empty() else "未命名网页",
 				str(card.get("url", "")).strip_edges()
 			]
+		"product":
+			var price := str(card.get("price", "")).strip_edges()
+			var badge := str(card.get("badge", "")).strip_edges()
+			var parts: Array[String] = []
+			if not title.is_empty():
+				parts.append(title)
+			if not badge.is_empty():
+				parts.append(badge)
+			if not price.is_empty():
+				parts.append(price)
+			return "[赠送了商品：%s]" % "，".join(parts)
 		_:
 			return "[分享了一张卡片]"
 

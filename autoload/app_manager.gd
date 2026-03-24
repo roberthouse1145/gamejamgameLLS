@@ -55,6 +55,7 @@ func _register_all_apps() -> void:
 		"res://resources/apps/browser_app.tres",
 		"res://resources/apps/home_app.tres",
 		"res://resources/apps/map_app.tres",
+		"res://resources/apps/avg_player_app.tres",
 		"res://resources/apps/part_time_app.tres",
 		"res://resources/apps/sbeam_app.tres",
 		"res://resources/apps/work_order_app.tres",

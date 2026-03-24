@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
+[ext_resource type="PackedScene" path="res://scenes/date_events/date_event_player.tscn" id="3_entry_scene"]
+
+[sub_resource type="Resource" id="Resource_wc"]
+script = ExtResource("2_constraints")
+min_size = Vector2(1024, 768)
+max_size = Vector2(0, 0)
+resizable = true
+default_size = Vector2(1600, 900)
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "avg_player"
+app_name = "剧情播放器"
+entry_scene = ExtResource("3_entry_scene")
+show_on_desktop = true
+window_constraints = SubResource("Resource_wc")

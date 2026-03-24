@@ -173,6 +173,9 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 	_request_context_by_id.erase(request_id)
 
 	var raw_text: String = AIService.extract_content(response).strip_edges()
+	var reasoning_text: String = AIService.extract_reasoning_content(response).strip_edges()
+	if not reasoning_text.is_empty():
+		print("[AVGSceneGenerator] Writer reasoning: %s" % reasoning_text)
 	var validation: Dictionary = _validate_dsl(raw_text)
 	print("[AVGSceneGenerator] Writer response: %s | ok=%s | %s" % [
 		str(context.get("session_id", "")),

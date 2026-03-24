@@ -11,6 +11,7 @@ signal initiative_presented(initiative: Dictionary)  # P2: 林夏主动发起
 signal initiative_responded(initiative_id: String, accepted: bool)
 
 const ActivityChatClass = preload("res://scripts/activity/activity_chat.gd")
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
 const ActivityUtilsClass = preload("res://scripts/activity/activity_utils.gd")
 const MomentGeneratorClass = preload("res://scripts/activity/moment_generator.gd")
 
@@ -56,6 +57,12 @@ func _ready() -> void:
 	if glm != null and glm.has_signal("day_changed") and not glm.day_changed.is_connected(_on_day_changed):
 		glm.day_changed.connect(_on_day_changed)
 
+	ActivityLockUtilsClass.register_busy_source(name, self)
+
+
+func _exit_tree() -> void:
+	ActivityLockUtilsClass.unregister_busy_source(name)
+
 
 func _connect_chat_deferred() -> void:
 	if _chat != null and _chat.has_method("connect_signals"):
@@ -99,6 +106,10 @@ func begin_activity(activity_id: String, context: Dictionary = {}) -> Dictionary
 		return _fail("未找到对应的在家活动")
 	if not _pending_sessions.is_empty():
 		return _fail("当前已有在家活动进行中")
+	var blocking_reason := ActivityLockUtilsClass.get_blocking_reason(self)
+	if not blocking_reason.is_empty():
+		ActivityLockUtilsClass.notify_blocked(self, blocking_reason)
+		return _fail(blocking_reason)
 
 	var activity: Dictionary = _as_dictionary(_activities_by_id.get(normalized_id, {})).duplicate(true)
 	var availability: Dictionary = _evaluate_activity_availability(activity)

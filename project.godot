@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="AI GAME MAKE"
-run/main_scene="res://scenes/pseudo_os/desktop.tscn"
+run/main_scene="res://scenes/pseudo_os/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -44,6 +44,7 @@ PartTimeJobManager="*res://autoload/part_time_job_manager.gd"
 SbeamManager="*res://autoload/sbeam_manager.gd"
 HomeActivityManager="*res://scenes/home/home_activity_manager.tscn"
 StoryDirector="*res://autoload/story_director.gd"
+MinigameManager="*res://autoload/minigame_manager.gd"
 
 [display]
 

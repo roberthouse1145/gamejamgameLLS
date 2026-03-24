@@ -303,10 +303,12 @@ func _on_request_completed(_request_id: String, response: Dictionary) -> void:
 	var has_tool_calls: bool = false
 	if response.has("choices") and response.choices.size() > 0:
 		var message: Dictionary = response.choices[0].get("message", {})
-		var msg_content: Variant = message.get("content", null)
-		has_tool_calls = message.has("tool_calls") and message.tool_calls.size() > 0
+		var tool_calls_value: Variant = message.get("tool_calls", null)
+		var tool_calls: Array = tool_calls_value if tool_calls_value is Array else []
+		has_tool_calls = tool_calls.size() > 0
+		var msg_content: String = AIService.extract_content(response)
 		print("[ChatAgent] msg_content type=%s is_null=%s" % [type_string(typeof(msg_content)), str(msg_content == null)])
-		if msg_content != null and msg_content is String:
+		if not msg_content.is_empty():
 			content = msg_content
 	else:
 		print("[ChatAgent] no choices in response, keys=%s" % str(response.keys()))
@@ -323,7 +325,9 @@ func _on_request_completed(_request_id: String, response: Dictionary) -> void:
 		# 如果是工具调用响应，必须存入 tool_calls 才能保证下一轮对话不中断
 		if has_tool_calls:
 			var message_node: Dictionary = response.choices[0].get("message", {})
-			assistant_msg["tool_calls"] = message_node.get("tool_calls", [])
+			var message_tool_calls_value: Variant = message_node.get("tool_calls", null)
+			var message_tool_calls: Array = message_tool_calls_value if message_tool_calls_value is Array else []
+			assistant_msg["tool_calls"] = message_tool_calls
 			
 		_messages.append(assistant_msg)
 		_trim_history()
@@ -435,9 +439,30 @@ func _rebuild_system_prompt() -> void:
 
 ## 剥离 <thinking>...</thinking> 标签及其内容
 func _strip_thinking(text: String) -> String:
-	var regex: RegEx = RegEx.new()
-	regex.compile("<thinking>[\\s\\S]*?</thinking>")
-	return regex.sub(text, "", true).strip_edges()
+	var paired_regex: RegEx = RegEx.new()
+	paired_regex.compile("^\\s*<(thinking|think)>([\\s\\S]*?)</(thinking|think)>\\s*")
+	var paired_match := paired_regex.search(text)
+	if paired_match:
+		return text.substr(paired_match.get_end()).strip_edges()
+
+	var truncated_regex: RegEx = RegEx.new()
+	truncated_regex.compile("^\\s*<(thinking|think)>([\\s\\S]*)$")
+	var truncated_match := truncated_regex.search(text)
+	if truncated_match:
+		var content_after_tag := truncated_match.get_string(2)
+		var body_start := content_after_tag.find("\n@")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n{")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n#")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n[")
+		if body_start == -1:
+			body_start = content_after_tag.find("\n>")
+		if body_start >= 0:
+			return content_after_tag.substr(body_start).strip_edges()
+
+	return text.strip_edges()
 
 
 ## 裁剪历史消息数量

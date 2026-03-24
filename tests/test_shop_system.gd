@@ -79,16 +79,20 @@ func _ready() -> void:
 			if not gift2_inv.is_empty():
 				var use_gift2: Dictionary = shop.use_inventory_item(str(gift2_inv.get("inventory_id", "")), "heroine")
 				_assert(not bool(use_gift2.get("success", false)), "gift daily limit blocks second gift")
-				_assert("今天" in str(use_gift2.get("error", "")), "gift limit error mentions today")
+				var use_gift2_error := str(use_gift2.get("error", ""))
+				_assert(
+					("今天" in use_gift2_error) or ("等待反馈" in use_gift2_error),
+					"gift second action error is explicit"
+				)
 			else:
 				_assert(true, "gift daily limit blocks second gift (no second gift in inv)")
-				_assert(true, "gift limit error mentions today (skipped)")
+				_assert(true, "gift second action error is explicit (skipped)")
 		else:
 			_assert(true, "gift daily limit blocks second gift (buy failed)")
-			_assert(true, "gift limit error mentions today (skipped)")
+			_assert(true, "gift second action error is explicit (skipped)")
 	else:
 		_assert(true, "gift daily limit blocks second gift (no gift in catalog)")
-		_assert(true, "gift limit error mentions today (skipped)")
+		_assert(true, "gift second action error is explicit (skipped)")
 
 	_wm = WindowManager.new()
 	_wm.name = "WindowManager"
@@ -119,8 +123,9 @@ func _find_catalog_item(catalog: Array, item_id: String) -> Dictionary:
 	for raw_item in catalog:
 		if not raw_item is Dictionary:
 			continue
-		if str((raw_item as Dictionary).get("item_id", "")) == item_id:
-			return (raw_item as Dictionary).duplicate(true)
+		var item: Dictionary = raw_item as Dictionary
+		if str(item.get("item_id", "")) == item_id or str(item.get("instance_id", "")) == item_id:
+			return item.duplicate(true)
 	return {}
 
 
@@ -128,8 +133,9 @@ func _find_inventory_item(inventory: Array, item_id: String) -> Dictionary:
 	for raw_item in inventory:
 		if not raw_item is Dictionary:
 			continue
-		if str((raw_item as Dictionary).get("item_id", "")) == item_id:
-			return (raw_item as Dictionary).duplicate(true)
+		var item: Dictionary = raw_item as Dictionary
+		if str(item.get("item_id", "")) == item_id or str(item.get("instance_id", "")) == item_id:
+			return item.duplicate(true)
 	return {}
 
 

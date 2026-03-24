@@ -15,7 +15,6 @@ signal important_event_started(session_id: String, payload: Dictionary)
 signal date_completed(session_id: String, payload: Dictionary)
 
 const DateEventBuilderClass = preload("res://scripts/date_events/date_event_builder.gd")
-const DATE_EVENT_PLAYER_SCENE: PackedScene = preload("res://scenes/date_events/date_event_player.tscn")
 
 const DATE_LOCATIONS_PATH: String = "res://resources/data/date_locations.json"
 const DEFAULT_TRANSIT_DURATION: float = 8.0
@@ -25,6 +24,7 @@ var _locations_by_id: Dictionary = {}
 var _location_list: Array[Dictionary] = []
 var _date_event_builder: RefCounted = null
 var _played_important_events: Dictionary = {}
+var _avg_history: Array = []
 
 
 # =============================================================================
@@ -135,6 +135,7 @@ func is_important_event_active(session_id: String) -> bool:
 func get_run_state() -> Dictionary:
 	return {
 		"played_important_events": _played_important_events.duplicate(true),
+		"avg_history": _avg_history.duplicate(true),
 	}
 
 
@@ -143,11 +144,27 @@ func load_run_state(data: Dictionary) -> bool:
 	var events_state: Variant = data.get("played_important_events", {})
 	if events_state is Dictionary:
 		_played_important_events = (events_state as Dictionary).duplicate(true)
+	var history_state: Variant = data.get("avg_history", [])
+	if history_state is Array:
+		_avg_history = (history_state as Array).duplicate(true)
+	else:
+		_avg_history = []
 	return true
+
+
+func get_avg_history() -> Array:
+	return _avg_history
+
+
+func add_avg_history_entry(entry: Dictionary) -> void:
+	_avg_history.insert(0, entry)
+	if _avg_history.size() > 50:
+		_avg_history.resize(50)
 
 
 func _on_reset_runtime_state() -> void:
 	_played_important_events.clear()
+	_avg_history.clear()
 
 
 # =============================================================================
@@ -204,49 +221,16 @@ func _start_important_event(session_id: String) -> bool:
 	var request: Dictionary = _date_event_builder.build_event_request(session, _played_important_events)
 	if not bool(request.get("success", false)):
 		return false
-
-	var player: Control = DATE_EVENT_PLAYER_SCENE.instantiate() as Control
-	if player == null:
+	var window_title := str(request.get("window_title", "重要约会"))
+	var result: Dictionary = SceneWindowClass.open_event(window_title, session_id, request, Callable(self, "_on_important_event_finished"))
+	if result.is_empty():
 		return false
-
-	var app_manager: Node = get_node_or_null("/root/AppManager")
-	if app_manager == null:
-		player.queue_free()
-		return false
-	var window_manager: Node = app_manager.get("window_manager")
-	if window_manager == null or not window_manager.has_method("create_window"):
-		player.queue_free()
-		return false
-
-	var window: Control = window_manager.create_window(str(request.get("window_title", "重要约会")), player)
-	if window == null:
-		player.queue_free()
-		return false
-
-	window.size = Vector2(1280, 720)
-	call_deferred("_center_event_window", window)
-
-	var close_button := window.get_node_or_null("TitleBar/ButtonContainer/CloseButton") as Button
-	if close_button != null:
-		close_button.visible = false
-	var minimize_button := window.get_node_or_null("TitleBar/ButtonContainer/MinimizeButton") as Button
-	if minimize_button != null:
-		minimize_button.visible = false
-	var maximize_button := window.get_node_or_null("TitleBar/ButtonContainer/MaximizeButton") as Button
-	if maximize_button != null:
-		maximize_button.visible = false
-	window.set("resizable", false)
 
 	session["important_event_active"] = true
 	session["important_event_id"] = str(request.get("event_id", ""))
 	session["important_event_outline"] = AVGSceneGeneratorClass.build_narrative_outline_from_scene(request.get("scene", null))
-	session["important_event_window"] = window
+	session["important_event_window"] = result.get("window")
 	_pending_sessions[session_id] = session
-
-	if player.has_signal("playback_finished"):
-		player.connect("playback_finished", Callable(self, "_on_important_event_finished"))
-	if player.has_method("play_event"):
-		player.call("play_event", session_id, request)
 
 	important_event_started.emit(session_id, {
 		"session_id": session_id,
@@ -254,15 +238,6 @@ func _start_important_event(session_id: String) -> bool:
 		"title": str(request.get("title", "重要约会")),
 	})
 	return true
-
-
-func _center_event_window(window: Control) -> void:
-	if window == null or not is_instance_valid(window):
-		return
-	await get_tree().process_frame
-	var parent := window.get_parent_control()
-	if parent != null:
-		window.position = (parent.size - window.size) / 2.0
 
 
 func _on_important_event_finished(session_id: String, outcome: Dictionary) -> void:

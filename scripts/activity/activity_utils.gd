@@ -66,10 +66,25 @@ static func extract_ai_text(response: Dictionary) -> String:
 
 static func sanitize_generated_text(text: String) -> String:
 	var cleaned := text.strip_edges()
-	if cleaned.begins_with("<thinking>"):
-		var end_tag := cleaned.find("</thinking>")
-		if end_tag >= 0:
-			cleaned = cleaned.substr(end_tag + "</thinking>".length()).strip_edges()
+	if cleaned.begins_with("<thinking>") or cleaned.begins_with("<think>"):
+		var paired_regex := RegEx.new()
+		paired_regex.compile("^\\s*<(thinking|think)>([\\s\\S]*?)</(thinking|think)>\\s*")
+		var paired_match := paired_regex.search(cleaned)
+		if paired_match:
+			cleaned = cleaned.substr(paired_match.get_end()).strip_edges()
+		else:
+			var content_after_tag := cleaned.substr(cleaned.find(">") + 1)
+			var body_start := content_after_tag.find("\n@")
+			if body_start == -1:
+				body_start = content_after_tag.find("\n{")
+			if body_start == -1:
+				body_start = content_after_tag.find("\n#")
+			if body_start == -1:
+				body_start = content_after_tag.find("\n[")
+			if body_start == -1:
+				body_start = content_after_tag.find("\n>")
+			if body_start >= 0:
+				cleaned = content_after_tag.substr(body_start).strip_edges()
 	if cleaned.begins_with("```"):
 		var lines: PackedStringArray = cleaned.split("\n")
 		if lines.size() >= 3:

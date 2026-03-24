@@ -7,6 +7,7 @@ const WindowManagerClass = preload("res://scripts/pseudo_os/window_manager.gd")
 func _ready() -> void:
 	print("[Test] LinkChat protocol tests start")
 	_test_strip_thinking_tag_variants()
+	_test_ai_service_extract_content_strips_think()
 	_test_linkchat_response_protocol_parser()
 	_test_linkchat_standalone_card_line_parser()
 	_test_linkchat_extended_protocol_parser()
@@ -51,7 +52,38 @@ func _test_strip_thinking_tag_variants() -> void:
 		print("  short_result: %s" % str(short_result))
 		return
 
+	var truncated := "<think>\ninternal analysis\nstill thinking\n@npc_lin_xia: visible line\n> quick reply"
+	var truncated_result: Dictionary = ChatManager.call("_strip_thinking_tags", truncated)
+	var truncated_ok: bool = str(truncated_result.get("thinking", "")).contains("internal analysis") \
+		and str(truncated_result.get("body", "")).begins_with("@npc_lin_xia: visible line")
+	if not truncated_ok:
+		print("[FAIL] Thinking tag stripper truncated tag regression")
+		print("  truncated_result: %s" % str(truncated_result))
+		return
+
 	print("[OK] Thinking tag stripper supports think/thinking variants")
+
+
+func _test_ai_service_extract_content_strips_think() -> void:
+	var response := {
+		"choices": [{
+			"message": {
+				"content": "<think>\ninternal analysis\n</think>\n\nscreen.fade(direction=\"in\", duration=0.35)"
+			}
+		}]
+	}
+	var content := AIService.extract_content(response)
+	var reasoning := AIService.extract_reasoning_content(response)
+	var ok: bool = content.begins_with("screen.fade(") \
+		and not content.begins_with("<think>") \
+		and reasoning == "internal analysis"
+	if not ok:
+		print("[FAIL] AIService should split content and reasoning_content")
+		print("  content: %s" % content)
+		print("  reasoning: %s" % reasoning)
+		return
+
+	print("[OK] AIService splits content and reasoning_content")
 
 
 func _test_linkchat_response_protocol_parser() -> void:

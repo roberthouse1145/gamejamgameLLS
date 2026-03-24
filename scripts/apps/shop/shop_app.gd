@@ -1,4 +1,4 @@
-﻿class_name ShopApp
+class_name ShopApp
 extends Control
 ## 好买 —— 仿电商平台 UI（主框架）
 ## 卡片构建委托给 ShopCardBuilder
@@ -276,7 +276,7 @@ func _build_detail_panel() -> PanelContainer:
 	close_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	close_row.add_child(close_spacer)
 	_detail_close_btn = Button.new()
-	_detail_close_btn.text = "?"
+	_detail_close_btn.text = "✕"
 	_detail_close_btn.flat = true
 	_detail_close_btn.add_theme_font_size_override("font_size", 18)
 	_detail_close_btn.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
@@ -460,10 +460,7 @@ func _refresh_detail() -> void:
 		ShopCardBuilder.effect_summary(str(item.get("effect_archetype", ""))),
 	]
 
-	_detail_desc.text = "%s\n\n%s" % [
-		str(item.get("short_desc", "")),
-		str(item.get("detail_desc", "")),
-	]
+	_detail_desc.text = str(item.get("desc", ""))
 
 	_clear_children(_detail_tags)
 	for raw_tag in item.get("tags", []):
@@ -504,7 +501,7 @@ func _refresh_detail() -> void:
 		_detail_comments_box.add_child(ShopCardBuilder.build_review_card(str(comments_arr[ci]), item, ci))
 
 	var can_buy: bool = _gm != null and int(_gm.get("money")) >= int(item.get("price", 0))
-	var already_bought: bool = _shop != null and _shop.has_purchased_item(str(item.get("item_id", "")))
+	var already_bought: bool = _shop != null and _shop.has_purchased_item(str(item.get("instance_id", "")))
 	if already_bought:
 		_detail_buy_btn.disabled = true
 		_detail_buy_btn.text = "已购买"
@@ -555,7 +552,7 @@ func _on_buy_pressed() -> void:
 		return
 	var result: Dictionary = _shop.purchase_item(_selected_item_id)
 	if bool(result.get("success", false)):
-		_detail_buy_btn.text = "? 已下单"
+		_detail_buy_btn.text = "✔ 已下单"
 		_detail_buy_btn.disabled = true
 		ShopCardBuilder.style_primary_btn(_detail_buy_btn)
 		var item_title: String = str(result.get("order", {}).get("item_snapshot", {}).get("title", ""))
@@ -668,4 +665,3 @@ func _shake_node(node: Control) -> void:
 	tw.tween_property(node, "position:x", original_x - 6.0, 0.05)
 	tw.tween_property(node, "position:x", original_x + 3.0, 0.05)
 	tw.tween_property(node, "position:x", original_x, 0.05)
-

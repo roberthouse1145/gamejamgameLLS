@@ -225,6 +225,18 @@ func get_window_button(window: Control) -> Button:
 	return null
 
 
+func pulse_window_button(window: Control) -> void:
+	var button := get_window_button(window)
+	if button == null or not is_instance_valid(button):
+		return
+	button.pivot_offset = button.size * 0.5
+	var tween := button.create_tween()
+	tween.set_trans(Tween.TRANS_CUBIC)
+	tween.set_ease(Tween.EASE_OUT)
+	tween.tween_property(button, "scale", Vector2(1.04, 1.04), 0.07)
+	tween.tween_property(button, "scale", Vector2.ONE, 0.1)
+
+
 ## Get all tracked windows
 ## @return: Array of windows
 func get_tracked_windows() -> Array:

@@ -1,6 +1,11 @@
-﻿extends Node
-## ShopManager 鈥?鍟嗗簵杩愯惀鏍稿績锛氳鍗?搴撳瓨/瑁呭鐘舵€佺鐞?+ 瀛樻。
-## 鐩綍鐢熸垚閫昏緫濮旀墭缁?ShopCatalogFactory
+extends Node
+## ShopManager — 商店门面：对外 API 不变，内部委托给 OrderService / InventoryService
+## 目录生成委托给 ShopCatalogFactory
+
+const _ShopItem = preload("res://scripts/shop/shop_item.gd")
+const _OrderSvc = preload("res://scripts/shop/shop_order_service.gd")
+const _InvSvc = preload("res://scripts/shop/shop_inventory_service.gd")
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
 
 signal catalog_refreshed(catalog: Array)
 signal catalog_generation_started(day: int)
@@ -10,9 +15,9 @@ signal order_status_changed(order_id: String, status: String)
 signal delivery_arrived(order_id: String, inventory_item: Dictionary)
 signal inventory_changed(inventory: Array)
 signal active_effects_changed(active_effects: Array)
+signal item_gifted(shop_item: ShopItem)
 signal shop_state_changed()
 
-const FIXED_CORE_ITEMS_PATH: String = "res://resources/data/shop/fixed_core_items.json"
 const SHOP_ROLE: String = "shop_generator"
 const FALLBACK_ROLE: String = "chat_default"
 
@@ -22,13 +27,11 @@ var _catalog_request_id: String = ""
 var _catalog_request_day: int = -1
 var _is_generating_catalog: bool = false
 var _fixed_core_items: Array[Dictionary] = []
-var _catalog: Array[Dictionary] = []
+var _catalog: Array = []  # Array[ShopItem]
 var _catalog_day: int = -1
-var _orders: Array[Dictionary] = []
-var _inventory: Array[Dictionary] = []
-var _active_effects: Dictionary = {}
-var _id_counter: int = 0
-var _last_gift_day: int = -1
+
+var _order_svc = _OrderSvc.new()
+var _inv_svc = _InvSvc.new()
 
 
 func _ready() -> void:
@@ -36,13 +39,26 @@ func _ready() -> void:
 	_load_fixed_core_items()
 	_setup_ai_service()
 	_connect_signals()
-	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(_get_current_day(), _fixed_core_items, _get_gm()), _get_current_day())
+	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
+		_get_current_day(), _fixed_core_items, _get_gm()), _get_current_day())
 
 
 func _connect_signals() -> void:
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if glm != null and glm.has_signal("day_changed") and not glm.day_changed.is_connected(_on_day_changed):
+	if glm != null and glm.has_signal("day_changed") \
+			and not glm.day_changed.is_connected(_on_day_changed):
 		glm.day_changed.connect(_on_day_changed)
+
+	# 转发 service 信号
+	_order_svc.purchase_completed.connect(func(o): purchase_completed.emit(o))
+	_order_svc.order_status_changed.connect(func(oid, s): order_status_changed.emit(oid, s))
+	_order_svc.delivery_arrived.connect(func(oid, inv):
+		delivery_arrived.emit(oid, inv)
+		inventory_changed.emit(_inv_svc.get_inventory())
+		_emit_state_changed()
+	)
+	_inv_svc.inventory_changed.connect(func(inv): inventory_changed.emit(inv))
+	_inv_svc.active_effects_changed.connect(func(eff): active_effects_changed.emit(eff))
 
 
 func _setup_ai_service() -> void:
@@ -68,29 +84,23 @@ func _setup_ai_service() -> void:
 			_llm_enabled = config_mgr.apply_to_service(_ai_service, FALLBACK_ROLE)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-#  鍏叡鏌ヨ API
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ══════════════════════════════════════════════════════
+#  公共查询 API（保持对外接口不变）
+# ══════════════════════════════════════════════════════
 
 func get_catalog() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for item in _catalog:
-		result.append((item as Dictionary).duplicate(true))
+		result.append(item.to_dict())
 	return result
 
 
 func get_orders() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for order in _orders:
-		result.append((order as Dictionary).duplicate(true))
-	return result
+	return _order_svc.get_orders()
 
 
 func get_inventory() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for item in _inventory:
-		result.append((item as Dictionary).duplicate(true))
-	return result
+	return _inv_svc.get_inventory()
 
 
 func get_catalog_day() -> int:
@@ -98,29 +108,11 @@ func get_catalog_day() -> int:
 
 
 func get_active_effects() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for slot in _active_effects.keys():
-		var inventory_id: String = str(_active_effects[slot])
-		var inventory_item := _get_inventory_item(inventory_id)
-		if inventory_item.is_empty():
-			continue
-		var effect_id: String = str(inventory_item.get("effect_archetype", ""))
-		var effect := ShopCatalogFactory.get_effect_definition(effect_id)
-		result.append({
-			"slot": str(slot),
-			"inventory_id": inventory_id,
-			"title": str(inventory_item.get("title", "")),
-			"summary": str(effect.get("summary", "")),
-			"persistent_modifiers": effect.get("persistent_modifiers", []),
-		})
-	return result
+	return _inv_svc.get_active_effects()
 
 
 func get_active_modifier_map() -> Dictionary:
-	var result: Dictionary = {}
-	for effect_data in get_active_effects():
-		result[str(effect_data.get("slot", ""))] = effect_data.get("persistent_modifiers", [])
-	return result
+	return _inv_svc.get_active_modifier_map()
 
 
 func has_pending_requests() -> bool:
@@ -128,16 +120,12 @@ func has_pending_requests() -> bool:
 
 
 func has_purchased_item(item_id: String) -> bool:
-	for order in _orders:
-		var snapshot: Dictionary = (order as Dictionary).get("item_snapshot", {})
-		if str(snapshot.get("item_id", "")) == item_id:
-			return true
-	return false
+	return _order_svc.has_purchased_item(item_id)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-#  鐩綍鍒锋柊
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ══════════════════════════════════════════════════════
+#  目录刷新
+# ══════════════════════════════════════════════════════
 
 func refresh_daily_catalog(force: bool = false, use_local_only: bool = false) -> void:
 	var day: int = _get_current_day()
@@ -147,7 +135,8 @@ func refresh_daily_catalog(force: bool = false, use_local_only: bool = false) ->
 
 	if use_local_only or _ai_service == null or not _llm_enabled:
 		_cancel_pending_catalog_request()
-		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(day, _fixed_core_items, _get_gm()), day)
+		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
+			day, _fixed_core_items, _get_gm()), day)
 		return
 
 	_cancel_pending_catalog_request()
@@ -161,23 +150,20 @@ func refresh_daily_catalog(force: bool = false, use_local_only: bool = false) ->
 	if _catalog_request_id.is_empty():
 		_is_generating_catalog = false
 		catalog_generation_failed.emit("商品生成请求未能发出，已回退到本地商品。")
-		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(day, _fixed_core_items, _get_gm()), day)
+		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
+			day, _fixed_core_items, _get_gm()), day)
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-#  璐拱 / 浣跨敤
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ══════════════════════════════════════════════════════
+#  购买 / 使用（委托给 service）
+# ══════════════════════════════════════════════════════
 
 func purchase_item(item_ref: String) -> Dictionary:
-	var item := _find_catalog_item(item_ref)
-	if item.is_empty():
+	var item = _find_catalog_item(item_ref)
+	if item == null:
 		return {"success": false, "error": "没有找到这件商品。"}
 
-	var item_id: String = str(item.get("item_id", ""))
-	if has_purchased_item(item_id):
-		return {"success": false, "error": "这件商品已经买过了。"}
-
-	var price: int = int(item.get("price", 0))
+	var price: int = item.price
 	var gm: Node = _get_gm()
 	if gm == null:
 		return {"success": false, "error": "GameManager 不存在。"}
@@ -186,115 +172,55 @@ func purchase_item(item_ref: String) -> Dictionary:
 
 	gm.modify_stat("money", -price)
 	var current_day: int = _get_current_day()
-	var order_id: String = _next_id("order")
-	var shipping_days: int = maxi(1, int(item.get("shipping_days", 1)))
-	var order := {
-		"order_id": order_id,
-		"catalog_entry_id": str(item.get("instance_id", item.get("item_id", ""))),
-		"item_snapshot": item.duplicate(true),
-		"purchase_day": current_day,
-		"delivery_day": current_day + shipping_days,
-		"status": "shipping",
-		"tracking_text": _build_tracking_text(current_day, current_day + shipping_days),
-	}
-	_orders.append(order)
-	purchase_completed.emit(order.duplicate(true))
-	order_status_changed.emit(order_id, "shipping")
-
 	var storage: Node = get_node_or_null("/root/StorageManager")
 	var is_debug: bool = storage != null and bool(storage.get("developer_mode"))
-	if is_debug:
-		_instant_deliver_order(_orders.size() - 1)
 
-	var latest_order: Dictionary = (_orders[_orders.size() - 1] as Dictionary).duplicate(true)
-	_emit_state_changed()
-	var msg: String = "已下单，已直接送达（调试模式）。" if is_debug else "已下单，预计 Day %d 送达。" % int(latest_order.get("delivery_day", current_day))
-	return {
-		"success": true,
-		"order": latest_order,
-		"message": msg,
-	}
+	var result: Dictionary = _order_svc.create_order(
+		item, current_day, is_debug, _inv_svc.add_inventory_item)
+	if bool(result.get("success", false)):
+		_emit_state_changed()
+	return result
 
 
 func use_inventory_item(inventory_id: String, target: String = "self") -> Dictionary:
-	var index: int = _find_inventory_index(inventory_id)
-	if index < 0:
-		return {"success": false, "error": "库存里没有这件物品。"}
-
-	var item: Dictionary = (_inventory[index] as Dictionary).duplicate(true)
-	var state: String = str(item.get("state", "ready"))
-	if state == "consumed" or state == "gifted":
-		return {"success": false, "error": "这件物品已经使用过了。"}
-
-	var effect_id: String = str(item.get("effect_archetype", ""))
-	var effect := ShopCatalogFactory.get_effect_definition(effect_id)
-	var use_mode: String = str(effect.get("use_mode", "consume"))
-	var gm: Node = _get_gm()
-
-	if use_mode == "gift":
-		var current_day: int = _get_current_day()
-		if _last_gift_day == current_day:
-			return {"success": false, "error": "今天已经送过礼物了，明天再送吧。"}
-
-	if use_mode == "equip":
-		var slot: String = str(effect.get("modifier_slot", effect_id))
-		if _active_effects.has(slot) and str(_active_effects[slot]) == inventory_id:
-			return {"success": false, "error": "该物品已在生效中。"}
-		if _active_effects.has(slot):
-			var previous_id: String = str(_active_effects[slot])
-			var previous_index: int = _find_inventory_index(previous_id)
-			if previous_index >= 0:
-				var previous_item: Dictionary = (_inventory[previous_index] as Dictionary).duplicate(true)
-				previous_item["state"] = "ready"
-				previous_item["equipped_slot"] = ""
-				_inventory[previous_index] = previous_item
-		_active_effects[slot] = inventory_id
-		item["state"] = "equipped"
-		item["equipped_slot"] = slot
-	else:
-		if use_mode == "gift":
-			_last_gift_day = _get_current_day()
-		item["state"] = "gifted" if use_mode == "gift" else "consumed"
-		item["equipped_slot"] = ""
-
-	if gm != null and gm.has_method("modify_stats"):
-		var instant_stats: Dictionary = effect.get("instant_stats", {})
-		if not instant_stats.is_empty():
-			gm.modify_stats(instant_stats)
-
-	_inventory[index] = item
-	inventory_changed.emit(get_inventory())
-	active_effects_changed.emit(get_active_effects())
-	_emit_state_changed()
-
-	return {
-		"success": true,
-		"mode": use_mode,
-		"item": item.duplicate(true),
-		"instant_stats": effect.get("instant_stats", {}),
-		"persistent_modifiers": effect.get("persistent_modifiers", []),
-		"effect_summary": str(effect.get("summary", "")),
-		"reaction_text": _build_reaction_text(item, target, use_mode),
-	}
+	var blocking_reason := _get_inventory_use_blocking_reason(inventory_id)
+	if not blocking_reason.is_empty():
+		ActivityLockUtilsClass.notify_blocked(self, blocking_reason)
+		return {"success": false, "error": blocking_reason}
+	var result: Dictionary = _inv_svc.use_item(
+		inventory_id, target, _get_current_day(), _get_gm())
+	if bool(result.get("success", false)):
+		_emit_state_changed()
+		if str(result.get("mode", "")) == "gift":
+			var shop_item := ShopItem.from_dict(result.get("item", {}))
+			item_gifted.emit(shop_item)
+			_trigger_gift_topic(shop_item)
+	return result
 
 
 func process_day_transition(day: int) -> void:
-	_advance_orders_for_day(day)
+	var did_deliver: bool = _order_svc.advance_orders_for_day(
+		day, _inv_svc.add_inventory_item)
+	if did_deliver:
+		inventory_changed.emit(_inv_svc.get_inventory())
+		_emit_state_changed()
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-#  瀛樻。
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ══════════════════════════════════════════════════════
+#  存档
+# ══════════════════════════════════════════════════════
 
 func get_run_state() -> Dictionary:
+	var order_state: Dictionary = _order_svc.get_state()
+	var inv_state: Dictionary = _inv_svc.get_state()
 	return {
 		"catalog_day": _catalog_day,
 		"catalog": get_catalog(),
-		"orders": get_orders(),
-		"inventory": get_inventory(),
-		"active_effects": _active_effects.duplicate(true),
-		"id_counter": _id_counter,
-		"last_gift_day": _last_gift_day,
+		"orders": order_state.get("orders", []),
+		"id_counter": int(order_state.get("id_counter", 0)),
+		"inventory": inv_state.get("inventory", []),
+		"active_effects": inv_state.get("active_effects", {}),
+		"last_gift_day": int(inv_state.get("last_gift_day", -1)),
 	}
 
 
@@ -302,32 +228,28 @@ func load_run_state(data: Dictionary) -> bool:
 	_cancel_pending_catalog_request()
 	_catalog_day = int(data.get("catalog_day", -1))
 	_catalog.clear()
-	_orders.clear()
-	_inventory.clear()
-	_active_effects.clear()
-	_id_counter = int(data.get("id_counter", 0))
-	_last_gift_day = int(data.get("last_gift_day", -1))
 
 	for item in data.get("catalog", []):
 		if item is Dictionary:
-			_catalog.append((item as Dictionary).duplicate(true))
-	for order in data.get("orders", []):
-		if order is Dictionary:
-			_orders.append((order as Dictionary).duplicate(true))
-	for inventory_item in data.get("inventory", []):
-		if inventory_item is Dictionary:
-			_inventory.append((inventory_item as Dictionary).duplicate(true))
+			_catalog.append(_ShopItem.from_dict(item as Dictionary))
 
-	var active_effects: Variant = data.get("active_effects", {})
-	if active_effects is Dictionary:
-		_active_effects = (active_effects as Dictionary).duplicate(true)
+	_order_svc.load_state({
+		"orders": data.get("orders", []),
+		"id_counter": int(data.get("id_counter", 0)),
+	})
+	_inv_svc.load_state({
+		"inventory": data.get("inventory", []),
+		"active_effects": data.get("active_effects", {}),
+		"last_gift_day": int(data.get("last_gift_day", -1)),
+	})
 
 	if _catalog.is_empty():
-		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(_get_current_day(), _fixed_core_items, _get_gm()), _get_current_day())
+		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
+			_get_current_day(), _fixed_core_items, _get_gm()), _get_current_day())
 	else:
 		catalog_refreshed.emit(get_catalog())
-		inventory_changed.emit(get_inventory())
-		active_effects_changed.emit(get_active_effects())
+		inventory_changed.emit(_inv_svc.get_inventory())
+		active_effects_changed.emit(_inv_svc.get_active_effects())
 		_emit_state_changed()
 	return true
 
@@ -335,104 +257,25 @@ func load_run_state(data: Dictionary) -> bool:
 func reset_runtime_state() -> void:
 	_cancel_pending_catalog_request()
 	_catalog.clear()
-	_orders.clear()
-	_inventory.clear()
-	_active_effects.clear()
-	_id_counter = 0
-	_last_gift_day = -1
-	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(_get_current_day(), _fixed_core_items, _get_gm()), _get_current_day())
+	_order_svc.reset()
+	_inv_svc.reset()
+	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
+		_get_current_day(), _fixed_core_items, _get_gm()), _get_current_day())
 
 
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-#  鍐呴儴锛氶厤閫?/ 瑁呭
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
+# ══════════════════════════════════════════════════════
+#  内部：LLM 回调
+# ══════════════════════════════════════════════════════
+
 func _on_day_changed(new_day: int) -> void:
-	_advance_orders_for_day(new_day)
+	var did_deliver: bool = _order_svc.advance_orders_for_day(
+		new_day, _inv_svc.add_inventory_item)
+	if did_deliver:
+		inventory_changed.emit(_inv_svc.get_inventory())
+		_emit_state_changed()
 	refresh_daily_catalog(true)
 
 
-
-func _instant_deliver_order(order_index: int) -> void:
-	var order: Dictionary = (_orders[order_index] as Dictionary).duplicate(true)
-	order["status"] = "delivered"
-	order["tracking_text"] = "宸查€佽揪锛堣皟璇曟ā寮忥級"
-	order["delivery_day"] = int(order.get("purchase_day", _get_current_day()))
-	var inventory_item := _build_inventory_item_from_order(order)
-	order["inventory_id"] = str(inventory_item.get("inventory_id", ""))
-	_orders[order_index] = order
-	_inventory.append(inventory_item)
-	_auto_equip_if_needed(inventory_item)
-	order_status_changed.emit(str(order.get("order_id", "")), "delivered")
-	delivery_arrived.emit(str(order.get("order_id", "")), inventory_item.duplicate(true))
-	inventory_changed.emit(get_inventory())
-
-
-func _advance_orders_for_day(day: int) -> void:
-	var inventory_did_change: bool = false
-	for i in range(_orders.size()):
-		var order: Dictionary = (_orders[i] as Dictionary).duplicate(true)
-		if str(order.get("status", "")) == "delivered":
-			continue
-		if day < int(order.get("delivery_day", day)):
-			order["tracking_text"] = _build_tracking_text(day, int(order.get("delivery_day", day)))
-			_orders[i] = order
-			continue
-
-		order["status"] = "delivered"
-		order["tracking_text"] = "宸查€佽揪"
-		var inventory_item := _build_inventory_item_from_order(order)
-		order["inventory_id"] = str(inventory_item.get("inventory_id", ""))
-		_orders[i] = order
-		_inventory.append(inventory_item)
-		_auto_equip_if_needed(inventory_item)
-		order_status_changed.emit(str(order.get("order_id", "")), "delivered")
-		delivery_arrived.emit(str(order.get("order_id", "")), inventory_item.duplicate(true))
-		inventory_did_change = true
-
-	if inventory_did_change:
-		inventory_changed.emit(get_inventory())
-		_emit_state_changed()
-
-
-func _auto_equip_if_needed(inventory_item: Dictionary) -> void:
-	var effect_id: String = str(inventory_item.get("effect_archetype", ""))
-	var effect := ShopCatalogFactory.get_effect_definition(effect_id)
-	var use_mode: String = str(effect.get("use_mode", "consume"))
-	if use_mode != "equip":
-		return
-
-	var inventory_id: String = str(inventory_item.get("inventory_id", ""))
-	var slot: String = str(effect.get("modifier_slot", effect_id))
-
-	if _active_effects.has(slot):
-		var previous_id: String = str(_active_effects[slot])
-		var previous_index: int = _find_inventory_index(previous_id)
-		if previous_index >= 0:
-			var previous_item: Dictionary = (_inventory[previous_index] as Dictionary).duplicate(true)
-			previous_item["state"] = "ready"
-			previous_item["equipped_slot"] = ""
-			_inventory[previous_index] = previous_item
-
-	_active_effects[slot] = inventory_id
-	var index: int = _find_inventory_index(inventory_id)
-	if index >= 0:
-		var updated: Dictionary = (_inventory[index] as Dictionary).duplicate(true)
-		updated["state"] = "equipped"
-		updated["equipped_slot"] = slot
-		_inventory[index] = updated
-
-	var gm: Node = _get_gm()
-	if gm != null and gm.has_method("modify_stats"):
-		var instant_stats: Dictionary = effect.get("instant_stats", {})
-		if not instant_stats.is_empty():
-			gm.modify_stats(instant_stats)
-
-	active_effects_changed.emit(get_active_effects())
-
-
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-#  鍐呴儴锛歀LM 鍥炶皟
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
 func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 	if request_id != _catalog_request_id:
 		return
@@ -442,37 +285,41 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 
 	var raw_text: String = AIService.extract_content(response).strip_edges()
 	var max_llm: int = maxi(1, ShopCatalogFactory.CATALOG_SIZE - _fixed_core_items.size())
-	var llm_items := ShopCatalogFactory.parse_llm_catalog_items(raw_text, request_day, max_llm)
+	var llm_items: Array = ShopCatalogFactory.parse_llm_catalog_items(raw_text, request_day, max_llm)
 	if llm_items.is_empty():
 		catalog_generation_failed.emit("LLM 商品结果解析失败，已回退到本地商品。")
-		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(request_day, _fixed_core_items, _get_gm()), request_day)
+		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
+			request_day, _fixed_core_items, _get_gm()), request_day)
 		return
 
-	var catalog: Array[Dictionary] = []
+	var catalog: Array = []
 	var index: int = 0
 	for fixed_item in _fixed_core_items:
-		catalog.append(ShopCatalogFactory.decorate_catalog_item((fixed_item as Dictionary).duplicate(true), request_day, index))
+		var decorated := ShopCatalogFactory.decorate_catalog_item(
+			(fixed_item as Dictionary).duplicate(true), request_day, index)
+		catalog.append(_ShopItem.from_dict(decorated))
 		index += 1
-	for item in llm_items:
-		catalog.append(ShopCatalogFactory.decorate_catalog_item(item.duplicate(true), request_day, index))
+	for llm_item in llm_items:
+		var decorated := ShopCatalogFactory.decorate_catalog_item(
+			llm_item.to_dict(), request_day, index)
+		catalog.append(_ShopItem.from_dict(decorated))
 		index += 1
 		if catalog.size() >= ShopCatalogFactory.CATALOG_SIZE:
 			break
 
-	var local_fill_candidates: Array[Dictionary] = ShopCatalogFactory.generate_local_daily_catalog(request_day, [], _get_gm())
-	var used_fill_item_ids: Dictionary = {}
-	for existing_item in catalog:
-		used_fill_item_ids[str((existing_item as Dictionary).get("item_id", ""))] = true
+	var local_fill: Array = ShopCatalogFactory.generate_local_daily_catalog(
+		request_day, [], _get_gm())
+	var used_ids: Dictionary = {}
+	for existing in catalog:
+		used_ids[existing.item_id] = true
 
 	while catalog.size() < ShopCatalogFactory.CATALOG_SIZE:
 		var appended: bool = false
-		for candidate in local_fill_candidates:
-			var candidate_item: Dictionary = candidate as Dictionary
-			var candidate_item_id: String = str(candidate_item.get("item_id", ""))
-			if used_fill_item_ids.has(candidate_item_id):
+		for candidate in local_fill:
+			if used_ids.has(candidate.item_id):
 				continue
-			catalog.append(candidate_item.duplicate(true))
-			used_fill_item_ids[candidate_item_id] = true
+			catalog.append(candidate.duplicate())
+			used_ids[candidate.item_id] = true
 			appended = true
 			break
 		if not appended:
@@ -487,109 +334,32 @@ func _on_ai_request_failed(request_id: String, error_msg: String, _error_code: i
 	var request_day: int = _catalog_request_day
 	_cancel_pending_catalog_request()
 	catalog_generation_failed.emit("LLM 商品生成失败：%s，已回退到本地商品。" % error_msg)
-	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(request_day, _fixed_core_items, _get_gm()), request_day)
+	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
+		request_day, _fixed_core_items, _get_gm()), request_day)
 
 
-
-# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-#  鍐呴儴锛氬伐鍏峰嚱鏁?# 鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲鈺愨晲
-
-func _build_inventory_item_from_order(order: Dictionary) -> Dictionary:
-	var item: Dictionary = order.get("item_snapshot", {}).duplicate(true)
-	return {
-		"inventory_id": _next_id("inv"),
-		"order_id": str(order.get("order_id", "")),
-		"item_id": str(item.get("item_id", "")),
-		"title": str(item.get("title", "")),
-		"subtitle": str(item.get("subtitle", "")),
-		"category": str(item.get("category", "")),
-		"sub_category": str(item.get("sub_category", "")),
-		"effect_archetype": str(item.get("effect_archetype", "flavor_no_effect")),
-		"source_type": str(item.get("source_type", "")),
-		"giftable": bool(item.get("giftable", false)),
-		"tags": item.get("tags", []).duplicate(true),
-		"heroine_reaction_hint": str(item.get("heroine_reaction_hint", "")),
-		"detail_desc": str(item.get("detail_desc", "")),
-		"state": "ready",
-		"equipped_slot": "",
-		"delivered_day": int(order.get("delivery_day", _get_current_day())),
-	}
-
+# ══════════════════════════════════════════════════════
+#  内部：工具函数
+# ══════════════════════════════════════════════════════
 
 func _load_fixed_core_items() -> void:
-	_fixed_core_items.clear()
-	if not FileAccess.file_exists(FIXED_CORE_ITEMS_PATH):
-		push_warning("[ShopManager] fixed core items file missing: %s" % FIXED_CORE_ITEMS_PATH)
-		return
-	var file := FileAccess.open(FIXED_CORE_ITEMS_PATH, FileAccess.READ)
-	if file == null:
-		push_warning("[ShopManager] failed to open fixed core items file")
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	if not parsed is Array:
-		push_warning("[ShopManager] invalid fixed core items json")
-		return
-	for raw_item in parsed:
-		if raw_item is Dictionary:
-			_fixed_core_items.append((raw_item as Dictionary).duplicate(true))
+	_fixed_core_items = ShopCatalogStaticData.get_fixed_core_items()
 
 
-func _apply_catalog(items: Array[Dictionary], day: int) -> void:
+func _apply_catalog(items: Array, day: int) -> void:
 	_catalog = []
 	for item in items:
-		_catalog.append(item.duplicate(true))
+		_catalog.append(item.duplicate())
 	_catalog_day = day
 	catalog_refreshed.emit(get_catalog())
 	_emit_state_changed()
 
 
-func _find_catalog_item(item_ref: String) -> Dictionary:
+func _find_catalog_item(item_ref: String):
 	for item in _catalog:
-		var catalog_item: Dictionary = item as Dictionary
-		if str(catalog_item.get("instance_id", "")) == item_ref or str(catalog_item.get("item_id", "")) == item_ref:
-			return catalog_item.duplicate(true)
-	return {}
-
-
-func _find_inventory_index(inventory_id: String) -> int:
-	for i in range(_inventory.size()):
-		if str((_inventory[i] as Dictionary).get("inventory_id", "")) == inventory_id:
-			return i
-	return -1
-
-
-func _get_inventory_item(inventory_id: String) -> Dictionary:
-	var index: int = _find_inventory_index(inventory_id)
-	if index < 0:
-		return {}
-	return (_inventory[index] as Dictionary).duplicate(true)
-
-
-func _build_tracking_text(current_day: int, delivery_day: int) -> String:
-	if current_day >= delivery_day:
-		return "宸查€佽揪"
-	if delivery_day - current_day <= 1:
-		return "姝ｅ湪娲鹃€佷腑"
-	return "杩愯緭涓紝棰勮 Day %d 閫佽揪" % delivery_day
-
-
-func _build_reaction_text(item: Dictionary, target: String, use_mode: String) -> String:
-	var hint: String = str(item.get("heroine_reaction_hint", "")).strip_edges()
-	if not hint.is_empty():
-		return hint
-	if use_mode == "gift" or target == "heroine":
-		return "她应该会先看你一眼，再决定要不要把这份心意收下。"
-	if use_mode == "equip":
-		return "这件东西会开始常驻在房间里，慢慢改变你们的生活气味。"
-	if use_mode == "consume":
-		return "它的效果会来得快一点，也会过去得快一点。"
-	return "它更像是给生活添了一点细节。"
-
-
-func _next_id(prefix: String) -> String:
-	_id_counter += 1
-	return "%s_%04d" % [prefix, _id_counter]
+		if item.instance_id == item_ref or item.item_id == item_ref:
+			return item
+	return null
 
 
 func _cancel_pending_catalog_request() -> void:
@@ -609,6 +379,83 @@ func _get_gm() -> Node:
 	return get_node_or_null("/root/GameManager")
 
 
+func _get_inventory_use_blocking_reason(inventory_id: String) -> String:
+	var inventory_item := _find_inventory_item(inventory_id)
+	if inventory_item.is_empty():
+		return ""
+	var effect_id: String = str(inventory_item.get("effect_archetype", ""))
+	var effect := ShopCatalogFactory.get_effect_definition(effect_id)
+	if str(effect.get("use_mode", "consume")) != "gift":
+		return ""
+	return ActivityLockUtilsClass.get_blocking_reason(self)
+
+
+func _find_inventory_item(inventory_id: String) -> Dictionary:
+	for item_data in _inv_svc.get_inventory():
+		if not (item_data is Dictionary):
+			continue
+		var item: Dictionary = item_data
+		if str(item.get("inventory_id", "")) == inventory_id:
+			return item.duplicate(true)
+	return {}
+
+
+func _trigger_gift_topic(shop_item: ShopItem) -> void:
+	var chat: Node = get_node_or_null("/root/ChatManager")
+	if chat == null or not chat.has_method("activate_topic"):
+		return
+	const DM_CHANNEL := "dm_lin_xia"
+	if chat.has_method("has_active_topic") and chat.has_active_topic(DM_CHANNEL):
+		return
+
+	# 1) 玩家发送商品分享卡片
+	if chat.has_method("store_player_message_data"):
+		chat.store_player_message_data(DM_CHANNEL, {
+			"content": "送你一个礼物~",
+			"card": shop_item.build_gift_card(),
+		})
+
+	# 2) 打开 linkchat 并定位到 DM 频道
+	_open_linkchat_dm(DM_CHANNEL)
+
+	# 3) 激活 topic，让 NPC 回复
+	var prompt := "玩家刚刚送了你一件礼物：%s\n请根据你对这件礼物的感受自然地回应，简短即可。" % shop_item.get_prompt()
+
+	const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
+	var topic := ChatTopicClass.new()
+	topic.topic_id = "gift_%s_%d" % [shop_item.item_id, Time.get_ticks_msec()]
+	topic.topic_type = "relationship_event"
+	topic.display_title = "收到礼物"
+	topic.npc_id = "npc_lin_xia"
+	topic.channel_id = DM_CHANNEL
+	topic.system_prompt = prompt
+	topic.goal_description = "对收到的礼物做出反应"
+	topic.max_turns = 1
+	topic.timeout_seconds = 30
+	topic.context_data = {"suppress_system_notice": true}
+
+	if not chat.activate_topic(topic):
+		return
+	chat.request_topic_npc_reply(DM_CHANNEL, "", false, true)
+
+
+func _open_linkchat_dm(channel_id: String) -> void:
+	var app_manager: Node = get_node_or_null("/root/AppManager")
+	if app_manager == null or not app_manager.has_method("launch_app"):
+		return
+	var window: Control = app_manager.launch_app("linkchat", true)
+	if window == null or not is_instance_valid(window):
+		return
+	call_deferred("_select_linkchat_channel", window, channel_id)
+
+
+func _select_linkchat_channel(window: Control, channel_id: String) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+	var content: Variant = window.get("content")
+	if content != null and content.has_method("select_channel"):
+		content.select_channel(channel_id)
+
+
 func _emit_state_changed() -> void:
 	shop_state_changed.emit()
-

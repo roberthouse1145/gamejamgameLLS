@@ -284,12 +284,10 @@ func _on_minimize_pressed() -> void:
 	if minimize_locked:
 		return
 	minimize_requested.emit()
-	minimize()
 
 
 func _on_maximize_pressed() -> void:
 	maximize_requested.emit()
-	toggle_maximize()
 
 
 func _on_close_pressed() -> void:

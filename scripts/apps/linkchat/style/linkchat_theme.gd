@@ -77,10 +77,10 @@ static func get_npc_bubble_style() -> StyleBoxFlat:
 	# 白底 + 微阴影
 	var s := rounded_flat(COLOR_BUBBLE_NPC, RADIUS_BUBBLE, Color.TRANSPARENT, 0, Color(0, 0, 0, 0.05), 1)
 	s.corner_radius_top_left = 2 # 小尖角
-	s.content_margin_left = 16
-	s.content_margin_top = 10
-	s.content_margin_right = 16
-	s.content_margin_bottom = 10
+	s.content_margin_left = 20
+	s.content_margin_top = 14
+	s.content_margin_right = 20
+	s.content_margin_bottom = 14
 	return s
 
 
@@ -88,10 +88,10 @@ static func get_npc_bubble_style() -> StyleBoxFlat:
 static func get_player_bubble_style() -> StyleBoxFlat:
 	var s := rounded_flat(COLOR_BUBBLE_PLAYER, RADIUS_BUBBLE)
 	s.corner_radius_top_right = 2 # 小尖角
-	s.content_margin_left = 16
-	s.content_margin_top = 10
-	s.content_margin_right = 16
-	s.content_margin_bottom = 10
+	s.content_margin_left = 20
+	s.content_margin_top = 14
+	s.content_margin_right = 20
+	s.content_margin_bottom = 14
 	return s
 
 
@@ -113,50 +113,50 @@ static func get_contact_selected_style() -> StyleBoxFlat:
 ## 输入框
 static func get_input_field_style() -> StyleBoxFlat:
 	var s := rounded_flat(COLOR_BG_INPUT_FIELD, RADIUS_LG)
-	s.content_margin_left = 16
-	s.content_margin_top = 10
-	s.content_margin_right = 16
-	s.content_margin_bottom = 10
+	s.content_margin_left = 20
+	s.content_margin_top = 12
+	s.content_margin_right = 20
+	s.content_margin_bottom = 12
 	return s
 
 
 ## 输入框 focus
 static func get_input_field_focus_style() -> StyleBoxFlat:
 	var s := rounded_flat(Color("#FFFFFF"), RADIUS_LG, COLOR_BORDER_FOCUS, 1)
-	s.content_margin_left = 16
-	s.content_margin_top = 10
-	s.content_margin_right = 16
-	s.content_margin_bottom = 10
+	s.content_margin_left = 20
+	s.content_margin_top = 12
+	s.content_margin_right = 20
+	s.content_margin_bottom = 12
 	return s
 
 
 ## 输入框 disabled / read_only
 static func get_input_field_disabled_style() -> StyleBoxFlat:
 	var s := rounded_flat(Color("#E5E5E5"), RADIUS_LG) # 灰色不可用状态
-	s.content_margin_left = 16
-	s.content_margin_top = 10
-	s.content_margin_right = 16
-	s.content_margin_bottom = 10
+	s.content_margin_left = 20
+	s.content_margin_top = 12
+	s.content_margin_right = 20
+	s.content_margin_bottom = 12
 	return s
 
 
 ## 发送按钮
 static func get_send_button_style() -> StyleBoxFlat:
 	var s := rounded_flat(COLOR_BG_INPUT_FIELD, RADIUS_LG) # 默认灰底
-	s.content_margin_left = 14
-	s.content_margin_top = 8
-	s.content_margin_right = 14
-	s.content_margin_bottom = 8
+	s.content_margin_left = 18
+	s.content_margin_top = 10
+	s.content_margin_right = 18
+	s.content_margin_bottom = 10
 	return s
 
 
 ## 发送按钮 hover
 static func get_send_button_hover_style() -> StyleBoxFlat:
 	var s := rounded_flat(COLOR_ACCENT, RADIUS_LG) # 悬停变绿
-	s.content_margin_left = 14
-	s.content_margin_top = 8
-	s.content_margin_right = 14
-	s.content_margin_bottom = 8
+	s.content_margin_left = 18
+	s.content_margin_top = 10
+	s.content_margin_right = 18
+	s.content_margin_bottom = 10
 	return s
 
 
@@ -173,17 +173,17 @@ static func get_unread_badge_style() -> StyleBoxFlat:
 ## 推荐回复选项 (Chip)
 static func get_chip_style() -> StyleBoxFlat:
 	var s := rounded_flat(Color("#FFFFFF"), RADIUS_LG, COLOR_BORDER, 1)
-	s.content_margin_left = 12
-	s.content_margin_top = 6
-	s.content_margin_right = 12
-	s.content_margin_bottom = 6
+	s.content_margin_left = 16
+	s.content_margin_top = 8
+	s.content_margin_right = 16
+	s.content_margin_bottom = 8
 	return s
 
 
 static func get_chip_hover_style() -> StyleBoxFlat:
 	var s := rounded_flat(Color("#F2F3F5"), RADIUS_LG, COLOR_ACCENT, 1)
-	s.content_margin_left = 12
-	s.content_margin_top = 6
-	s.content_margin_right = 12
-	s.content_margin_bottom = 6
+	s.content_margin_left = 16
+	s.content_margin_top = 8
+	s.content_margin_right = 16
+	s.content_margin_bottom = 8
 	return s
