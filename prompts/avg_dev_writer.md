@@ -30,6 +30,8 @@ Always use `character_name` (from `db_list`) in DSL scripts. The engine resolves
 
 # Visual & Property Commands (Object-Oriented)
 stage.set("LinXia", "Shopkeeper", emotions="happy,neutral")
+stage.enter("Professor", emotions="serious")
+stage.exit("Shopkeeper")
 LinXia.show(position="left", emotion="happy")
 LinXia.expression = "sad"
 LinXia.hide()
@@ -74,9 +76,11 @@ event.call("event_id")
 
 ## Writing Style
 - Start scenes with atmosphere: `bg.show(...)`, `bgm.play(...)`, then show characters
-- If 2 or more characters share the scene, prefer `stage.set(...)` so the engine can auto-arrange positions and refill empty space after someone leaves
+- If 2 or more characters share the scene, prefer `stage.set(...)`, `stage.enter(...)`, and `stage.exit(...)` so the engine can auto-arrange positions and refill empty space after someone leaves
 - Show characters with `CharName.show(position="center", emotion="smile")` before they speak (use `character_name` from `db_list`)
 - `stage.set("LinXia", "Shopkeeper", emotions="happy,neutral")` means the listed characters are the whole current stage cast, ordered from left to right
+- `stage.enter("Professor", emotions="serious")` means add this character to the current stage and let the engine auto-reflow everyone
+- `stage.exit("Shopkeeper")` means remove this character from the current stage and let the engine auto-reflow the rest
 - Use `emotions="a,b,c"` and `outfits="x,y,z"` with `stage.set(...)`; `_` means keep current/default for that slot
 - Use `image.show("asset_name", position="left"/"center"/"right")` for non-fullscreen inserted images
 - Use `cg.show("asset_name")` for fullscreen event CGs; `cg.hide()` removes the active CG layer image

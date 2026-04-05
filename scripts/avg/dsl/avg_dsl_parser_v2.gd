@@ -590,15 +590,21 @@ func _build_method_command(obj: String, method: String, kwargs_str: String, line
 
 
 func _build_stage_command(method: String, pos_args: Array, kw: Dictionary, line_num: int, errors: Array[Dictionary]) -> AVGCommand:
-	if method != "set" and method != "clear":
+	if method != "set" and method != "clear" and method != "enter" and method != "exit":
 		errors.append({"line": line_num, "message": "Undefined object or method: stage.%s()" % method})
 		return null
 
 	var cmd: AVGCommand = AVGCommand.new()
-	cmd.command_type = "STAGE_SET"
+	match method:
+		"enter":
+			cmd.command_type = "STAGE_ENTER"
+		"exit":
+			cmd.command_type = "STAGE_EXIT"
+		_:
+			cmd.command_type = "STAGE_SET"
 
 	var characters: Array[String] = []
-	if method == "set":
+	if method != "clear":
 		for entry in pos_args:
 			var character_ref: String = str(entry).strip_edges()
 			if character_ref.is_empty():

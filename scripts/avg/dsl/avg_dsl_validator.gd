@@ -71,6 +71,10 @@ func validate_commands(commands: Array, project: Resource, project_root_path: St
 				_validate_hide_character(index, params, character_map, errors)
 			"STAGE_SET":
 				_validate_stage_set(index, params, character_map, errors)
+			"STAGE_ENTER":
+				_validate_stage_enter(index, params, character_map, errors)
+			"STAGE_EXIT":
+				_validate_stage_exit(index, params, character_map, errors)
 			"CHANGE_EXPRESSION":
 				_validate_change_expression(index, params, character_map, errors)
 			"CHANGE_OUTFIT":
@@ -232,6 +236,94 @@ func _validate_stage_set(index: int, params: Dictionary, character_map: Dictiona
 		if character_index < outfit_overrides.size():
 			var outfit_name: String = outfit_overrides[character_index]
 			_validate_outfit_name(index, character_entry, character_label, outfit_name, "STAGE_SET", errors)
+
+
+func _validate_stage_enter(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
+	var stage_characters: Array[String] = _extract_stage_characters(params)
+	if stage_characters.is_empty():
+		errors.append("STAGE_ENTER %d must include at least one character" % (index + 1))
+		return
+	if stage_characters.size() > MAX_STAGE_CHARACTERS:
+		errors.append("STAGE_ENTER %d supports at most %d characters at once, got %d" % [index + 1, MAX_STAGE_CHARACTERS, stage_characters.size()])
+
+	var resolved_character_entries: Array[Dictionary] = []
+	var seen_character_ids: Dictionary = {}
+	for character_ref in stage_characters:
+		var character_entry: Dictionary = _resolve_character_entry(character_map, character_ref)
+		if character_entry.is_empty():
+			errors.append("STAGE_ENTER %d references missing character: %s" % [index + 1, character_ref])
+			continue
+		var resolved_character_id: String = str(character_entry.get("character_id", character_ref))
+		if seen_character_ids.has(resolved_character_id):
+			errors.append("STAGE_ENTER %d repeats character: %s" % [index + 1, resolved_character_id])
+			continue
+		seen_character_ids[resolved_character_id] = true
+		resolved_character_entries.append(character_entry)
+
+	var emotion_overrides: Array[String] = _parse_stage_override_list(params.get("emotions", ""))
+	var outfit_overrides: Array[String] = _parse_stage_override_list(params.get("outfits", ""))
+	if not emotion_overrides.is_empty() and emotion_overrides.size() != stage_characters.size():
+		errors.append("STAGE_ENTER %d emotions count must match characters count" % (index + 1))
+	if not outfit_overrides.is_empty() and outfit_overrides.size() != stage_characters.size():
+		errors.append("STAGE_ENTER %d outfits count must match characters count" % (index + 1))
+
+	var enter_effect: String = _normalize_token(params.get("enter_effect", "fade")).to_lower()
+	if enter_effect.is_empty():
+		enter_effect = "fade"
+	if not DEFAULT_ALLOWED_ENTER_EFFECTS.has(enter_effect):
+		errors.append("STAGE_ENTER %d uses unsupported enter_effect: %s" % [index + 1, enter_effect])
+
+	for easing_param in ["move_easing", "enter_easing"]:
+		var easing_name: String = _normalize_token(params.get(easing_param, ""))
+		if easing_name.is_empty():
+			continue
+		if not DEFAULT_ALLOWED_EASINGS.has(easing_name):
+			errors.append("STAGE_ENTER %d uses unsupported %s: %s" % [index + 1, easing_param, easing_name])
+
+	for character_index in range(resolved_character_entries.size()):
+		var character_entry: Dictionary = resolved_character_entries[character_index]
+		var character_label: String = str(character_entry.get("character_id", stage_characters[character_index]))
+		if character_index < emotion_overrides.size():
+			var emotion_name: String = emotion_overrides[character_index]
+			if not emotion_name.is_empty():
+				var emotions: Array[String] = character_entry.get("emotions", [])
+				if not emotions.has(emotion_name):
+					errors.append("STAGE_ENTER %d uses missing emotion on %s: %s" % [index + 1, character_label, emotion_name])
+		if character_index < outfit_overrides.size():
+			var outfit_name: String = outfit_overrides[character_index]
+			_validate_outfit_name(index, character_entry, character_label, outfit_name, "STAGE_ENTER", errors)
+
+
+func _validate_stage_exit(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
+	var stage_characters: Array[String] = _extract_stage_characters(params)
+	if stage_characters.is_empty():
+		errors.append("STAGE_EXIT %d must include at least one character" % (index + 1))
+		return
+
+	var seen_character_ids: Dictionary = {}
+	for character_ref in stage_characters:
+		var character_entry: Dictionary = _resolve_character_entry(character_map, character_ref)
+		if character_entry.is_empty():
+			errors.append("STAGE_EXIT %d references missing character: %s" % [index + 1, character_ref])
+			continue
+		var resolved_character_id: String = str(character_entry.get("character_id", character_ref))
+		if seen_character_ids.has(resolved_character_id):
+			errors.append("STAGE_EXIT %d repeats character: %s" % [index + 1, resolved_character_id])
+			continue
+		seen_character_ids[resolved_character_id] = true
+
+	var exit_effect: String = _normalize_token(params.get("exit_effect", "fade")).to_lower()
+	if exit_effect.is_empty():
+		exit_effect = "fade"
+	if not DEFAULT_ALLOWED_EXIT_EFFECTS.has(exit_effect):
+		errors.append("STAGE_EXIT %d uses unsupported exit_effect: %s" % [index + 1, exit_effect])
+
+	for easing_param in ["move_easing", "exit_easing"]:
+		var easing_name: String = _normalize_token(params.get(easing_param, ""))
+		if easing_name.is_empty():
+			continue
+		if not DEFAULT_ALLOWED_EASINGS.has(easing_name):
+			errors.append("STAGE_EXIT %d uses unsupported %s: %s" % [index + 1, easing_param, easing_name])
 
 
 func _validate_change_expression(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:

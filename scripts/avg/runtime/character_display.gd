@@ -210,6 +210,78 @@ func stage_set(character_refs: Array, emotions_spec: String = "", outfits_spec: 
 		)
 
 
+func stage_enter(character_refs: Array, emotions_spec: String = "", outfits_spec: String = "", duration: float = 0.35, enter_effect: String = "fade", enter_distance: float = 0.08, enter_easing: String = "ease_out", move_easing: String = "ease_in_out") -> void:
+	var entering_ids: Array[String] = _resolve_stage_character_ids(character_refs)
+	if entering_ids.is_empty():
+		return
+
+	var current_stage_ids: Array[String] = get_visible_character_ids_in_stage_order()
+	var next_stage_ids: Array[String] = current_stage_ids.duplicate()
+	var actually_entering_ids: Array[String] = []
+	for character_id in entering_ids:
+		if next_stage_ids.has(character_id):
+			continue
+		next_stage_ids.append(character_id)
+		actually_entering_ids.append(character_id)
+
+	if next_stage_ids.size() > STAGE_LAYOUTS.size() - 1:
+		push_warning("CharacterDisplay: stage_enter supports at most %d stage characters, got %d" % [STAGE_LAYOUTS.size() - 1, next_stage_ids.size()])
+		return
+
+	var emotion_overrides: Array[String] = []
+	var outfit_overrides: Array[String] = []
+	for _index in range(current_stage_ids.size()):
+		emotion_overrides.append("")
+		outfit_overrides.append("")
+
+	emotion_overrides.append_array(_parse_stage_override_list(emotions_spec, actually_entering_ids.size()))
+	outfit_overrides.append_array(_parse_stage_override_list(outfits_spec, actually_entering_ids.size()))
+
+	stage_set(
+		next_stage_ids,
+		",".join(PackedStringArray(emotion_overrides)),
+		",".join(PackedStringArray(outfit_overrides)),
+		duration,
+		enter_effect,
+		"fade",
+		enter_distance,
+		0.08,
+		enter_easing,
+		"ease_in",
+		move_easing
+	)
+
+
+func stage_exit(character_refs: Array, duration: float = 0.35, exit_effect: String = "fade", exit_distance: float = 0.08, exit_easing: String = "ease_in", move_easing: String = "ease_in_out") -> void:
+	var exiting_ids: Array[String] = _resolve_stage_character_ids(character_refs)
+	if exiting_ids.is_empty():
+		return
+
+	var current_stage_ids: Array[String] = get_visible_character_ids_in_stage_order()
+	if current_stage_ids.is_empty():
+		return
+
+	var next_stage_ids: Array[String] = []
+	for character_id in current_stage_ids:
+		if exiting_ids.has(character_id):
+			continue
+		next_stage_ids.append(character_id)
+
+	stage_set(
+		next_stage_ids,
+		"",
+		"",
+		duration,
+		"fade",
+		exit_effect,
+		0.08,
+		exit_distance,
+		"ease_out",
+		exit_easing,
+		move_easing
+	)
+
+
 # =============================================================================
 # Expression Change (Crossfade)
 # =============================================================================
@@ -706,6 +778,22 @@ func get_visible_character_ids() -> Array[String]:
 		if not is_character_visible(character_id):
 			continue
 		result.append(character_id)
+	return result
+
+
+func get_visible_character_ids_in_stage_order() -> Array[String]:
+	var result: Array[String] = get_visible_character_ids()
+	result.sort_custom(func(a: String, b: String) -> bool:
+		var state_a: Dictionary = _character_state.get(a, {})
+		var state_b: Dictionary = _character_state.get(b, {})
+		var ratio_a: Variant = state_a.get("position_ratio", Vector2(0.5, 0.5))
+		var ratio_b: Variant = state_b.get("position_ratio", Vector2(0.5, 0.5))
+		var x_a: float = ratio_a.x if ratio_a is Vector2 else 0.5
+		var x_b: float = ratio_b.x if ratio_b is Vector2 else 0.5
+		if is_equal_approx(x_a, x_b):
+			return a < b
+		return x_a < x_b
+	)
 	return result
 
 

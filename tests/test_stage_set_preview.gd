@@ -10,22 +10,27 @@ const SAMPLE_DSL: String = """stage.set("Heroine01", emotions="happy")
 # => TextBlock(speaker="Heroine01", expression="happy")
 > 先让一位角色单独站在中间。
 
-stage.set("Heroine01", "Hero01", emotions="surprised,serious")
+stage.enter("Hero01", emotions="serious")
 # => TextBlock(speaker="Hero01", expression="serious")
 > 第二位角色登场时，原来的角色会自动让位。
 
+Heroine01.expression = "surprised"
 # => TextBlock(speaker="Heroine01", expression="surprised")
 > 登场时的表情，也可以和 stage.set 一起指定。
 
-stage.set("Heroine01", "Hero01", "Hero02", emotions="thinking,serious,happy")
+stage.enter("Hero02", emotions="happy")
 # => TextBlock(speaker="Hero02", expression="happy")
 > 第三位角色加入时，系统会继续自动排位。
 
-stage.set("Heroine01", "Hero02", emotions="happy,thinking")
+stage.exit("Hero01")
 # => TextBlock(speaker="Heroine01", expression="happy")
 > 中途有人离场后，剩下的人会自动补位。
 
-stage.set("Hero02", emotions="serious")
+stage.set("Heroine01", "Hero02", emotions="happy,thinking")
+# => TextBlock(speaker="Heroine01", expression="happy")
+> 如果需要，也还是可以随时回到 stage.set 直接重排整组角色。
+
+stage.exit("Heroine01")
 # => TextBlock(speaker="Hero02", expression="serious")
 > 最后只剩一个人时，会自动回到中间。
 """

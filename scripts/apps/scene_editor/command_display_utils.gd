@@ -17,6 +17,8 @@ const COMMAND_TYPES: Array = [
 	{"id": "SHOW_CHARACTER", "name": "显示角色", "category": "角色"},
 	{"id": "HIDE_CHARACTER", "name": "隐藏角色", "category": "角色"},
 	{"id": "STAGE_SET", "name": "舞台排位", "category": "角色"},
+	{"id": "STAGE_ENTER", "name": "舞台入场", "category": "角色"},
+	{"id": "STAGE_EXIT", "name": "舞台离场", "category": "角色"},
 	{"id": "CHANGE_EXPRESSION", "name": "切换表情", "category": "角色"},
 	{"id": "MOVE_CHARACTER", "name": "移动角色", "category": "角色"},
 	{"id": "MOVE_CHARACTER_BY", "name": "相对移动", "category": "角色"},
@@ -201,6 +203,12 @@ static func get_command_display(cmd: Variant) -> String:
 			if stage_characters.is_empty():
 				return "舞台清场"
 			return "舞台排位 [%s]" % " / ".join(PackedStringArray(stage_characters))
+		"STAGE_ENTER":
+			var entering_characters: Array[String] = _extract_stage_characters(params)
+			return "舞台入场 [%s]" % " / ".join(PackedStringArray(entering_characters))
+		"STAGE_EXIT":
+			var exiting_characters: Array[String] = _extract_stage_characters(params)
+			return "舞台离场 [%s]" % " / ".join(PackedStringArray(exiting_characters))
 		"CHANGE_EXPRESSION":
 			var char_id: String = params.get("character_id", "")
 			var expr: String = params.get("expression", "")
@@ -415,6 +423,10 @@ static func init_command_params(cmd: Resource) -> void:
 			cmd.params = {"character_id": "", "fade_duration": 0.3}
 		"STAGE_SET":
 			cmd.params = {"characters_csv": "", "emotions": "", "outfits": "", "duration": 0.35, "enter_effect": "fade", "exit_effect": "fade"}
+		"STAGE_ENTER":
+			cmd.params = {"characters_csv": "", "emotions": "", "outfits": "", "duration": 0.35, "enter_effect": "fade"}
+		"STAGE_EXIT":
+			cmd.params = {"characters_csv": "", "duration": 0.35, "exit_effect": "fade"}
 		"CHANGE_EXPRESSION":
 			cmd.params = {"character_id": "", "expression": "", "transition": "", "duration": -1.0}
 		"MOVE_CHARACTER":

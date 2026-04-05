@@ -24,8 +24,11 @@ func _ready() -> void:
 func _run_tests() -> void:
 	print("=== Stage Set Layout Test ===")
 	_test_parser_stage_set()
+	_test_parser_stage_enter_exit()
 	_test_validator_stage_set()
+	_test_validator_stage_enter_exit()
 	await _test_character_display_stage_set()
+	await _test_character_display_stage_enter_exit()
 
 	if _all_passed:
 		print("✅ ALL TESTS PASSED")
@@ -57,6 +60,23 @@ func _test_parser_stage_set() -> void:
 	_assert_equal("parser outfits", str(command.params.get("outfits", "")), "casual,_")
 
 
+func _test_parser_stage_enter_exit() -> void:
+	var enter_result: Dictionary = _parser.parse('stage.enter("LinXia", "Shopkeeper", emotions="happy,neutral", outfits="casual,uniform")')
+	_assert_true("stage.enter parser success", bool(enter_result.get("success", false)), str(enter_result.get("errors", [])))
+	if bool(enter_result.get("success", false)):
+		var enter_command: AVGCommand = enter_result.get("commands", [])[0]
+		_assert_equal("stage.enter command_type", enter_command.command_type, "STAGE_ENTER")
+		_assert_equal("stage.enter characters_csv", str(enter_command.params.get("characters_csv", "")), "LinXia,Shopkeeper")
+		_assert_equal("stage.enter emotions", str(enter_command.params.get("emotions", "")), "happy,neutral")
+
+	var exit_result: Dictionary = _parser.parse('stage.exit("Shopkeeper")')
+	_assert_true("stage.exit parser success", bool(exit_result.get("success", false)), str(exit_result.get("errors", [])))
+	if bool(exit_result.get("success", false)):
+		var exit_command: AVGCommand = exit_result.get("commands", [])[0]
+		_assert_equal("stage.exit command_type", exit_command.command_type, "STAGE_EXIT")
+		_assert_equal("stage.exit characters_csv", str(exit_command.params.get("characters_csv", "")), "Shopkeeper")
+
+
 func _test_validator_stage_set() -> void:
 	var project := MockProject.new()
 	project.characters = [_make_character("char_linxia", "LinXia", "林夏"), _make_character("char_shopkeeper", "Shopkeeper", "店员")]
@@ -80,6 +100,31 @@ func _test_validator_stage_set() -> void:
 		_errors_contain(invalid_result.get("errors", []), "emotions count"),
 		str(invalid_result.get("errors", []))
 	)
+
+
+func _test_validator_stage_enter_exit() -> void:
+	var project := MockProject.new()
+	project.characters = [_make_character("char_linxia", "LinXia", "林夏"), _make_character("char_shopkeeper", "Shopkeeper", "店员")]
+
+	var valid_enter := AVGCommandClass.new("STAGE_ENTER", {
+		"characters": ["LinXia", "Shopkeeper"],
+		"emotions": "happy,neutral",
+	})
+	var enter_result: Dictionary = _validator.validate_commands([valid_enter], project, "res://")
+	_assert_true("validator accepts valid stage_enter", bool(enter_result.get("ok", false)), str(enter_result.get("errors", [])))
+
+	var invalid_enter := AVGCommandClass.new("STAGE_ENTER", {
+		"characters": ["LinXia", "Shopkeeper"],
+		"emotions": "happy",
+	})
+	var invalid_enter_result: Dictionary = _validator.validate_commands([invalid_enter], project, "res://")
+	_assert_true("validator rejects mismatched stage_enter emotions", not bool(invalid_enter_result.get("ok", true)), "expected mismatch error")
+
+	var valid_exit := AVGCommandClass.new("STAGE_EXIT", {
+		"characters": ["Shopkeeper"],
+	})
+	var exit_result: Dictionary = _validator.validate_commands([valid_exit], project, "res://")
+	_assert_true("validator accepts valid stage_exit", bool(exit_result.get("ok", false)), str(exit_result.get("errors", [])))
 
 
 func _test_character_display_stage_set() -> void:
@@ -140,6 +185,31 @@ func _test_character_display_stage_set() -> void:
 	_assert_true("shopkeeper hidden after relayout", not _character_display.is_character_visible("Shopkeeper"), "Shopkeeper should be hidden")
 	_assert_vector2_eq("return center after exit", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
 	_assert_equal("exit relayout keeps new emotion", str(lin_state.get("current_emotion", "")), "surprised")
+
+
+func _test_character_display_stage_enter_exit() -> void:
+	_character_display.hide_all(0.0)
+	await get_tree().process_frame
+
+	_character_display.stage_enter(["LinXia"], "happy", "casual", 0.0)
+	await get_tree().process_frame
+	var lin_state: Dictionary = _character_display.get_character_state("LinXia")
+	_assert_vector2_eq("stage.enter single center", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
+	_assert_equal("stage.enter single emotion", str(lin_state.get("current_emotion", "")), "happy")
+
+	_character_display.stage_enter(["Shopkeeper"], "neutral", "uniform", 0.0)
+	await get_tree().process_frame
+	lin_state = _character_display.get_character_state("LinXia")
+	var shop_state: Dictionary = _character_display.get_character_state("Shopkeeper")
+	_assert_vector2_eq("stage.enter relayout left", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.33, 0.5))
+	_assert_vector2_eq("stage.enter relayout right", _vector_from_variant(shop_state.get("position_ratio", Vector2.ZERO)), Vector2(0.67, 0.5))
+	_assert_equal("stage.enter new emotion", str(shop_state.get("current_emotion", "")), "neutral")
+
+	_character_display.stage_exit(["LinXia"], 0.0)
+	await get_tree().process_frame
+	shop_state = _character_display.get_character_state("Shopkeeper")
+	_assert_true("stage.exit hides LinXia", not _character_display.is_character_visible("LinXia"), "LinXia should be hidden")
+	_assert_vector2_eq("stage.exit recenters remaining", _vector_from_variant(shop_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
 
 
 func _make_character(character_id: String, character_name: String, display_name: String) -> Resource:

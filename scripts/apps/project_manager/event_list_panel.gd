@@ -21,6 +21,9 @@ const COMMAND_TYPES: Array = [
 	{"id": "DIALOGUE", "name": "对话"},
 	{"id": "SHOW_CHARACTER", "name": "显示角色"},
 	{"id": "HIDE_CHARACTER", "name": "隐藏角色"},
+	{"id": "STAGE_SET", "name": "舞台排位"},
+	{"id": "STAGE_ENTER", "name": "舞台入场"},
+	{"id": "STAGE_EXIT", "name": "舞台离场"},
 	{"id": "WAIT_CLICK", "name": "等待点击"},
 	{"id": "WAIT_TIME", "name": "等待时间"},
 	{"id": "CHOICE", "name": "选项"},
@@ -357,6 +360,38 @@ func _get_command_display(cmd: Variant) -> String:
 			if stage_characters.is_empty():
 				return "舞台清场"
 			return "舞台排位 [%s]" % " / ".join(PackedStringArray(stage_characters))
+		"STAGE_ENTER":
+			var stage_enter_characters: Array[String] = []
+			var raw_stage_enter_characters: Variant = p.get("characters", [])
+			if raw_stage_enter_characters is Array:
+				for entry in raw_stage_enter_characters:
+					var trimmed: String = str(entry).strip_edges()
+					if trimmed.is_empty():
+						continue
+					stage_enter_characters.append(trimmed)
+			if stage_enter_characters.is_empty():
+				for entry in str(p.get("characters_csv", "")).split(","):
+					var trimmed_csv: String = entry.strip_edges()
+					if trimmed_csv.is_empty():
+						continue
+					stage_enter_characters.append(trimmed_csv)
+			return "舞台入场 [%s]" % " / ".join(PackedStringArray(stage_enter_characters))
+		"STAGE_EXIT":
+			var stage_exit_characters: Array[String] = []
+			var raw_stage_exit_characters: Variant = p.get("characters", [])
+			if raw_stage_exit_characters is Array:
+				for entry in raw_stage_exit_characters:
+					var trimmed_exit: String = str(entry).strip_edges()
+					if trimmed_exit.is_empty():
+						continue
+					stage_exit_characters.append(trimmed_exit)
+			if stage_exit_characters.is_empty():
+				for entry in str(p.get("characters_csv", "")).split(","):
+					var trimmed_exit_csv: String = entry.strip_edges()
+					if trimmed_exit_csv.is_empty():
+						continue
+					stage_exit_characters.append(trimmed_exit_csv)
+			return "舞台离场 [%s]" % " / ".join(PackedStringArray(stage_exit_characters))
 		"WAIT_CLICK": return "等待点击"
 		"WAIT_TIME": return "等待 %.1f秒" % p.get("duration", 1.0)
 		"CHOICE": return "选项 (%d个)" % p.get("choices", []).size()
@@ -495,6 +530,8 @@ func _init_command_params(cmd: Resource) -> void:
 		"SHOW_CHARACTER": cmd.params = {"character_id": "", "position": "center", "emotion": "", "fade_duration": 0.3}
 		"HIDE_CHARACTER": cmd.params = {"character_id": "", "fade_duration": 0.3}
 		"STAGE_SET": cmd.params = {"characters_csv": "", "emotions": "", "outfits": "", "duration": 0.35, "enter_effect": "fade", "exit_effect": "fade"}
+		"STAGE_ENTER": cmd.params = {"characters_csv": "", "emotions": "", "outfits": "", "duration": 0.35, "enter_effect": "fade"}
+		"STAGE_EXIT": cmd.params = {"characters_csv": "", "duration": 0.35, "exit_effect": "fade"}
 		"WAIT_CLICK": cmd.params = {}
 		"WAIT_TIME": cmd.params = {"duration": 1.0}
 		"CHOICE": cmd.params = {"choices": []}
