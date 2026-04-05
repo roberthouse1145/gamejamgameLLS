@@ -211,10 +211,10 @@ func _update_speaker(speaker: String, emotion: String) -> void:
 			name_label.text = ""
 		return
 
-	# 尝试解析为角色
+	# 尝试解析为角色（支持 character_id、character_name、display_name 匹配）
 	var display_name: String = speaker
-	if _character_data.has(speaker):
-		var char_data: Dictionary = _character_data[speaker]
+	var char_data: Dictionary = _find_character_data(speaker)
+	if not char_data.is_empty():
 		if char_data.has("display_name") and not char_data["display_name"].is_empty():
 			display_name = char_data["display_name"]
 		elif char_data.has("character_name") and not char_data["character_name"].is_empty():
@@ -227,6 +227,22 @@ func _update_speaker(speaker: String, emotion: String) -> void:
 		name_label.text = display_name
 	if name_panel != null:
 		name_panel.visible = true
+
+
+## 根据 speaker 引用查找角色数据（支持 character_id、character_name、display_name）
+func _find_character_data(speaker: String) -> Dictionary:
+	var normalized_speaker: String = str(speaker).strip_edges()
+	if normalized_speaker.is_empty():
+		return {}
+	if _character_data.has(normalized_speaker):
+		return _character_data[normalized_speaker]
+	for char_id in _character_data:
+		var cd: Dictionary = _character_data[char_id]
+		if str(cd.get("character_name", "")).strip_edges() == normalized_speaker:
+			return cd
+		if str(cd.get("display_name", "")).strip_edges() == normalized_speaker:
+			return cd
+	return {}
 
 
 # =============================================================================

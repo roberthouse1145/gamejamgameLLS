@@ -89,6 +89,11 @@ const DesktopIconClass = preload("res://scripts/pseudo_os/desktop_icon.gd")
 const TaskbarClass = preload("res://scripts/pseudo_os/taskbar.gd")
 const NPCResponseHandlerClass = preload("res://scripts/chat/npc_response_handler.gd")
 
+# Start menu & system panels
+const StartMenuScene = preload("res://scenes/pseudo_os/start_menu.tscn")
+const SettingsPanelScene = preload("res://scenes/pseudo_os/settings_panel.tscn")
+const QuitConfirmPanelScene = preload("res://scenes/pseudo_os/quit_confirm_panel.tscn")
+
 # Signals
 signal desktop_ready
 signal icon_double_clicked(app_id: String)
@@ -114,18 +119,35 @@ var _notification_message_queues: Dictionary = {} # channel_id -> Array[Dictiona
 var _notification_delivery_tokens: Dictionary = {} # channel_id -> int
 var _active_notification_deliveries: Dictionary = {} # channel_id -> bool
 
+# Start menu
+var _start_menu: Control = null
+var _settings_window: Control = null
+var _quit_confirm_window: Control = null
+
 # Desktop settings
 @export var background_color: Color = Color(0.1, 0.3, 0.5)
 @export var background_texture: Texture2D = null
 @export var icon_spacing: Vector2 = Vector2(110, 116)
 @export var icon_margin: Vector2 = Vector2(24, 24)
+@export var desktop_app_ids: PackedStringArray = PackedStringArray()
 
 const CHAT_NOTIFICATION_DURATION: float = 6.0
 const CHAT_NOTIFICATION_PAUSE_MIN: float = 0.5
 const CHAT_NOTIFICATION_PAUSE_MAX: float = 1.5
 
+const GROUP_NAME: String = "desktop"
+
+
+## 获取当前唯一 Desktop 实例（通过 group 查找，与节点路径无关）
+static func instance() -> Desktop:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	return tree.get_first_node_in_group(GROUP_NAME) as Desktop
+
 
 func _ready() -> void:
+	add_to_group(GROUP_NAME)
 	# Get AppManager autoload reference
 	_app_manager = get_node_or_null("/root/AppManager")
 	_chat_manager = get_node_or_null("/root/ChatManager")
@@ -141,18 +163,22 @@ func _ready() -> void:
 	# Setup background
 	_setup_background()
 	
+	# Phase change notification
+	_setup_phase_notification()
+	
 	# Create desktop icons for registered apps
 	_create_desktop_icons()
 	
+	# Setup start menu
+	_setup_start_menu()
+	
 	# Emit ready signal
 	desktop_ready.emit()
-	return
-	await get_tree().create_timer(1).timeout
-	var run_manager: Node = get_node_or_null("/root/CampaignRunManager")
-	if run_manager != null and run_manager.has_method("ensure_campaign_started"):
-		run_manager.ensure_campaign_started("day1")
-	elif StoryDirector != null:
-		StoryDirector.start_chapter("day1")
+	call_deferred("_after_desktop_ready")
+
+
+func _after_desktop_ready() -> void:
+	pass
 
 ## Setup the WindowManager instance
 func _setup_window_manager() -> void:
@@ -172,6 +198,82 @@ func _setup_window_manager() -> void:
 	# Connect taskbar signal
 	if taskbar:
 		taskbar.window_button_clicked.connect(_on_taskbar_window_button_clicked)
+
+
+## Setup the start menu popup
+func _setup_start_menu() -> void:
+	_start_menu = StartMenuScene.instantiate()
+	_start_menu.z_index = 200
+	add_child(_start_menu)
+
+	_start_menu.settings_requested.connect(_on_start_menu_settings)
+	_start_menu.power_off_requested.connect(_on_start_menu_power_off)
+
+	if taskbar and taskbar.has_signal("start_button_clicked"):
+		taskbar.start_button_clicked.connect(_on_start_button_clicked)
+
+
+func _on_start_button_clicked() -> void:
+	if _start_menu == null:
+		return
+	var anchor_pos: Vector2 = Vector2.ZERO
+	if taskbar and taskbar.has_method("get_start_button_global_position"):
+		anchor_pos = taskbar.get_start_button_global_position()
+	_start_menu.toggle_menu(anchor_pos)
+
+
+func _on_start_menu_settings() -> void:
+	_open_settings_window()
+
+
+func _on_start_menu_power_off() -> void:
+	_open_quit_confirm_window()
+
+
+func _open_settings_window() -> void:
+	# 如果已打开，聚焦已有窗口
+	if _settings_window and is_instance_valid(_settings_window):
+		window_manager.focus_window(_settings_window)
+		return
+
+	var content: Control = SettingsPanelScene.instantiate()
+	var constraints := preload("res://scripts/pseudo_os/window_constraints.gd").new()
+	constraints.min_size = Vector2(480, 360)
+	constraints.default_size = Vector2(520, 420)
+	constraints.resizable = true
+
+	_settings_window = window_manager.create_window("设置", content, constraints)
+	if _settings_window:
+		_settings_window.close_requested.connect(func() -> void:
+			window_manager.close_window(_settings_window)
+			_settings_window = null
+		)
+
+
+func _open_quit_confirm_window() -> void:
+	if _quit_confirm_window and is_instance_valid(_quit_confirm_window):
+		window_manager.focus_window(_quit_confirm_window)
+		return
+
+	var content: Control = QuitConfirmPanelScene.instantiate()
+	var constraints := preload("res://scripts/pseudo_os/window_constraints.gd").new()
+	constraints.min_size = Vector2(400, 300)
+	constraints.default_size = Vector2(440, 340)
+	constraints.resizable = false
+
+	_quit_confirm_window = window_manager.create_window("关闭电源", content, constraints)
+	if _quit_confirm_window:
+		_quit_confirm_window.close_requested.connect(func() -> void:
+			window_manager.close_window(_quit_confirm_window)
+			_quit_confirm_window = null
+		)
+		content.confirmed.connect(func() -> void:
+			get_tree().quit()
+		)
+		content.cancelled.connect(func() -> void:
+			window_manager.close_window(_quit_confirm_window)
+			_quit_confirm_window = null
+		)
 
 
 func _bind_embedded_window_focus() -> void:
@@ -224,11 +326,11 @@ func _setup_notification_layer() -> void:
 	_notification_stack.anchor_top = 1.0
 	_notification_stack.anchor_right = 1.0
 	_notification_stack.anchor_bottom = 1.0
-	# 2560x1440: 宽 420px，底部避开 taskbar(56px) + 间距 16px
-	_notification_stack.offset_left = -436.0
-	_notification_stack.offset_top = -360.0
-	_notification_stack.offset_right = -16.0
-	_notification_stack.offset_bottom = -72.0
+	# 2560x1440: 右下角更靠内，底部避开 taskbar 与时钟区域
+	_notification_stack.offset_left = -496.0
+	_notification_stack.offset_top = -340.0
+	_notification_stack.offset_right = -28.0
+	_notification_stack.offset_bottom = -106.0
 	_notification_stack.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_notification_stack.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_notification_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -239,6 +341,40 @@ func _setup_notification_layer() -> void:
 
 
 ## Setup the desktop background
+# ── 时段切换系统通知 ──────────────────────────────────────────
+const _PHASE_HINTS: Dictionary = {
+	0: {"name": "上午", "icon": "☀", "msg": "进入上午时段，适合推进主线任务。"},
+	1: {"name": "下午", "icon": "🌤", "msg": "进入下午时段，记得平衡效率与状态。"},
+	2: {"name": "晚上", "icon": "🌙", "msg": "进入晚上时段，适合收尾或触发夜间剧情。"},
+}
+var _last_notified_phase: int = -1
+
+
+func _setup_phase_notification() -> void:
+	var glm := get_node_or_null("/root/GameLoopManager")
+	if glm:
+		_last_notified_phase = glm.time_phase
+		glm.phase_changed.connect(_on_phase_changed_notify)
+
+
+func _on_phase_changed_notify(new_phase: int) -> void:
+	# 跳过初始阶段（MORNING of day 1）与同阶段重复
+	if new_phase == _last_notified_phase:
+		return
+	_last_notified_phase = new_phase
+
+	var info: Dictionary = _PHASE_HINTS.get(new_phase, _PHASE_HINTS[0])
+	var day: int = 1
+	var glm := get_node_or_null("/root/GameLoopManager")
+	if glm != null:
+		day = int(glm.get("current_day"))
+	show_system_notification("第%d天 · %s" % [day, info["name"]], info["msg"], info["icon"], 2.8)
+
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio and audio.has_method("play_sfx_key"):
+		audio.play_sfx_key("sys_notify")
+
+
 func _setup_background() -> void:
 	if not background:
 		push_warning("Desktop: Background node not found")
@@ -258,10 +394,31 @@ func _create_desktop_icons() -> void:
 	if not _app_manager:
 		return
 	
-	var registered_apps: Array = _app_manager.get_registered_apps()
+	var registered_apps: Array = _get_desktop_app_definitions()
 	for app_def in registered_apps:
 		add_desktop_icon(app_def)
 	_refresh_icon_access_state()
+
+
+func _get_desktop_app_definitions() -> Array:
+	if _app_manager == null:
+		return []
+
+	if desktop_app_ids.is_empty():
+		return _app_manager.get_registered_apps()
+
+	var app_definitions: Array = []
+	for raw_app_id in desktop_app_ids:
+		var app_id: String = str(raw_app_id)
+		if app_id.is_empty():
+			continue
+		var app_definition: Resource = _app_manager.get_app_definition(app_id)
+		if app_definition == null:
+			push_warning("Desktop: App '%s' is configured for this desktop but is not registered" % app_id)
+			continue
+		app_definitions.append(app_definition)
+
+	return app_definitions
 
 
 ## Add a desktop icon for an app
@@ -469,11 +626,11 @@ func _on_chat_message_added(channel_id: String, msg: Dictionary) -> void:
 	if _is_linkchat_viewing_channel(channel_id):
 		return
 
-	var sender_name: String = str(msg.get("sender_name", sender))
+	var _sender_name: String = str(msg.get("sender_name", sender))
 	if _chat_manager != null and _chat_manager.has_method("resolve_sender_name"):
 		var resolved: String = str(_chat_manager.resolve_sender_name(sender)).strip_edges()
 		if not resolved.is_empty():
-			sender_name = resolved
+			_sender_name = resolved
 
 	var content_preview: String = str(msg.get("content", "")).strip_edges()
 	if content_preview.length() > 40:
@@ -848,7 +1005,7 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	toast.modulate.a = 0.0
 
 	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color("#1A1A2E")
+	panel_style.bg_color = Color("#F7FAFF")
 	panel_style.corner_radius_top_left = 12
 	panel_style.corner_radius_top_right = 12
 	panel_style.corner_radius_bottom_left = 12
@@ -857,10 +1014,10 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	panel_style.border_width_top = 1
 	panel_style.border_width_right = 1
 	panel_style.border_width_bottom = 1
-	panel_style.border_color = Color("#3A3A5C")
-	panel_style.shadow_size = 10
-	panel_style.shadow_color = Color(0, 0, 0, 0.25)
-	panel_style.shadow_offset = Vector2(0, 3)
+	panel_style.border_color = Color("#D6DFEE")
+	panel_style.shadow_size = 8
+	panel_style.shadow_color = Color(0, 0, 0, 0.14)
+	panel_style.shadow_offset = Vector2(0, 2)
 	toast.add_theme_stylebox_override("panel", panel_style)
 
 	var margin := MarginContainer.new()
@@ -879,7 +1036,7 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	icon_panel.custom_minimum_size = Vector2(44, 44)
 	icon_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var icon_style := StyleBoxFlat.new()
-	icon_style.bg_color = Color("#2D2D4A")
+	icon_style.bg_color = Color("#E7EEFC")
 	icon_style.corner_radius_top_left = 22
 	icon_style.corner_radius_top_right = 22
 	icon_style.corner_radius_bottom_left = 22
@@ -888,7 +1045,7 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	var icon_label := Label.new()
 	icon_label.text = icon_text
 	icon_label.add_theme_font_size_override("font_size", 20)
-	icon_label.add_theme_color_override("font_color", Color("#FFD93D"))
+	icon_label.add_theme_color_override("font_color", Color("#4569C7"))
 	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	icon_panel.add_child(icon_label)
@@ -903,14 +1060,14 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	var title_label := Label.new()
 	title_label.text = title
 	title_label.add_theme_font_size_override("font_size", 15)
-	title_label.add_theme_color_override("font_color", Color("#E0E0E0"))
+	title_label.add_theme_color_override("font_color", Color("#1E2738"))
 	text_vbox.add_child(title_label)
 
 	var body_label := Label.new()
 	body_label.text = body
 	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body_label.add_theme_font_size_override("font_size", 14)
-	body_label.add_theme_color_override("font_color", Color("#A0A0B8"))
+	body_label.add_theme_color_override("font_color", Color("#56627A"))
 	text_vbox.add_child(body_label)
 
 	# 点击关闭

@@ -1,366 +1,265 @@
 class_name KnowledgeBaseApp extends Control
 
+## 统一文档模型的知识库 UI。
+## 四个页签分别对应 world / characters / story / notes 分类。
+
 ## UI References
 @onready var close_button: Button = %CloseButton
 @onready var bookmark_list: VBoxContainer = %BookmarkList
 @onready var content_container: MarginContainer = %ContentContainer
 
-# Category Panels
+# Category Panels（复用原场景节点名，但映射到新分类）
 @onready var world_panel: Control = %WorldPanel
 @onready var character_panel: Control = %CharacterPanel
-@onready var character_list: ItemList = %CharacterList
-@onready var character_form: Control = %CharacterForm
+@onready var beat_panel: Control = %BeatPanel       # 现在是 story 分类
+@onready var asset_panel: Control = %AssetPanel     # 现在是 notes 分类
+
+# Canvases
+@onready var world_canvas: Control = %WorldCanvas
+@onready var character_canvas: Control = %CharacterCanvas
+@onready var beat_canvas: Control = %BeatCanvas      # story canvas
+@onready var note_canvas: Control = %NoteCanvas
+
+# Add buttons
+@onready var add_world_btn: Button = %AddWorldBtn
 @onready var add_character_btn: Button = %AddCharacterBtn
-@onready var beat_panel: Control = %BeatPanel
-@onready var beat_list: ItemList = %BeatList
-@onready var beat_form: Control = %BeatForm
 @onready var add_beat_btn: Button = %AddBeatBtn
-@onready var asset_panel: Control = %AssetPanel
+@onready var add_note_btn: Button = %AddNoteBtn
 
 var _category_panels: Array[Control] = []
 
-const CATEGORIES: Array[String] = [
-	"🌍 我们的世界 (World)",
-	"👤 角色灵感设定 (Characters)",
-	"📖 剧情剧本卡 (Story Beats)",
-	"🎨 美术看板 (Assets)"
+## 页签名 → category 映射
+const TAB_CONFIG: Array[Dictionary] = [
+	{"label": "🌍 世界观设定 (World)", "category": "world"},
+	{"label": "👤 角色设定 (Characters)", "category": "characters"},
+	{"label": "📖 故事剧本 (Story)", "category": "story"},
+	{"label": "📝 灵感备忘 (Notes)", "category": "notes"},
 ]
 
+const DraggableCardScene = preload("res://scenes/apps/knowledge_base/draggable_card.tscn")
 
 signal close_requested
 
 func _ready() -> void:
 	_category_panels = [world_panel, character_panel, beat_panel, asset_panel]
-	
-	if KnowledgeBaseManager.current_data:
-		_setup_ui()
-	else:
-		KnowledgeBaseManager.data_loaded.connect(func(_d): _setup_ui())
-	
 	_connect_signals()
 
+	if KnowledgeBaseManager.documents.size() > 0:
+		_setup_ui()
+	else:
+		KnowledgeBaseManager.data_loaded.connect(func(): _setup_ui(), CONNECT_ONE_SHOT)
+
 func _setup_ui() -> void:
-	# Add categories to bookmark list
+	# Build sidebar bookmarks
 	for child in bookmark_list.get_children():
 		child.queue_free()
-		
-	for i in range(CATEGORIES.size()):
-		var btn = Button.new()
-		btn.text = CATEGORIES[i]
+
+	for i in range(TAB_CONFIG.size()):
+		var btn := Button.new()
+		btn.text = TAB_CONFIG[i]["label"]
 		btn.add_theme_font_size_override("font_size", 14)
 		btn.custom_minimum_size = Vector2(0, 48)
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		
-		# Bookmark style
-		var style = StyleBoxFlat.new()
+
+		var style := StyleBoxFlat.new()
 		style.bg_color = Color(0.2, 0.2, 0.25, 1)
 		style.corner_radius_top_left = 8
 		style.corner_radius_bottom_left = 8
 		style.content_margin_left = 12
 		btn.add_theme_stylebox_override("normal", style)
-		
-		var hover_style = style.duplicate()
+
+		var hover_style: StyleBoxFlat = style.duplicate()
 		hover_style.bg_color = Color(0.3, 0.3, 0.35, 1)
 		btn.add_theme_stylebox_override("hover", hover_style)
-		
-		btn.pressed.connect(func(): _on_category_selected(i))
+
+		btn.pressed.connect(_on_category_selected.bind(i))
 		bookmark_list.add_child(btn)
-	
+
 	# Hide all panels initially
 	for panel in _category_panels:
 		if panel:
 			panel.visible = false
-	
-	# Select first category automatically
+
 	_on_category_selected(0)
-		
-	_build_world_panel()
-	_refresh_character_list()
-	_refresh_beat_list()
+	_refresh_all()
 
-func _build_world_panel() -> void:
-	# Clear existing children except the title label
-	for i in range(1, world_panel.get_child_count()):
-		world_panel.get_child(i).queue_free()
-		
-	var data: KnowledgeBaseData = KnowledgeBaseManager.current_data
-	if not data: return
-	
-	_add_field_ui(world_panel, "游戏名称 (Game Title)", data.game_title, false, func(t): data.game_title = t)
-	
-	var placeholder = "【助理留言】：在这里写下你想做的游戏吧！\n不用写得太完整，随便写写：\n1. 这是一个什么样的故事？世界背景是什么样的？\n2. 游戏大概的基调是轻松的还是沉重的？\n\n我们会一起把这些点子变成现实的！"
-	_add_notes_field_with_tags(world_panel, "核心策划案 (Core Concept)", data.synopsis, placeholder,
-		["[+ 核心玩法]", "[+ 题材风格]", "[+ 情感基调]", "[+ 视觉风格]", "[+ 特殊机制]"],
-		func(t):
-			data.synopsis = t
-			# Merging genre, tone, art_style, world_rules into one concept text
-	)
+func _refresh_all() -> void:
+	_refresh_canvas(world_canvas, "world")
+	_refresh_canvas(character_canvas, "characters")
+	_refresh_canvas(beat_canvas, "story")
+	_refresh_canvas(note_canvas, "notes")
 
-func _add_field_ui(parent: Control, label_text: String, initial_val: String, is_multiline: bool, callback: Callable) -> void:
-	var vbox = VBoxContainer.new()
-	var label = Label.new()
-	label.text = label_text
-	label.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(label)
-	
-	if is_multiline:
-		var edit = TextEdit.new()
-		edit.text = initial_val
-		edit.custom_minimum_size = Vector2(0, 120)
-		edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-		edit.text_changed.connect(func(): callback.call(edit.text))
-		vbox.add_child(edit)
-	else:
-		var edit = LineEdit.new()
-		edit.text = initial_val
-		edit.text_changed.connect(func(new_text): callback.call(new_text))
-		vbox.add_child(edit)
-	
-	# Add spacer
-	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 10)
-	vbox.add_child(spacer)
-	
-	parent.add_child(vbox)
+# =============================================================================
+# Generic canvas builder — 根据 category 动态生成卡片
+# =============================================================================
 
-const DraggableCardScene = preload("res://scenes/apps/knowledge_base/draggable_card.tscn")
-
-# --- Characters ---
-@onready var character_canvas: Control = %CharacterCanvas
-
-func _refresh_character_list() -> void:
-	for child in character_canvas.get_children():
+func _refresh_canvas(canvas: Control, category: String) -> void:
+	for child in canvas.get_children():
 		child.queue_free()
-		
-	var data: KnowledgeBaseData = KnowledgeBaseManager.current_data
-	if not data: return
-	
-	for i in range(data.characters.size()):
-		_build_character_card(data.characters[i], i)
 
-func _build_character_card(c: Dictionary, index: int) -> void:
-	var data: KnowledgeBaseData = KnowledgeBaseManager.current_data
-	
+	var docs: Array[Dictionary] = KnowledgeBaseManager.get_documents(category)
+	for doc in docs:
+		_build_doc_card(canvas, doc, category)
+
+func _build_doc_card(canvas: Control, doc: Dictionary, category: String) -> void:
 	var card = DraggableCardScene.instantiate()
-	character_canvas.add_child(card)
-	
-	var pos_x = c.get("position_x", randi_range(50, 400))
-	var pos_y = c.get("position_y", randi_range(50, 400))
-	card.setup(c.get("character_id", ""), c.get("author", "player"), pos_x, pos_y)
-	
-	card.card_moved.connect(func(_moved_card, new_pos):
-		c["position_x"] = new_pos.x
-		c["position_y"] = new_pos.y
+	canvas.add_child(card)
+
+	var pos_x: float = doc.get("position_x", randf_range(50.0, 400.0))
+	var pos_y: float = doc.get("position_y", randf_range(50.0, 400.0))
+	card.setup(doc.get("doc_id", ""), doc.get("author", "player"), pos_x, pos_y)
+
+	card.card_moved.connect(func(_moved_card, new_pos: Vector2):
+		doc["position_x"] = new_pos.x
+		doc["position_y"] = new_pos.y
 		KnowledgeBaseManager.save_data()
 	)
-	
-	var vbox = card.content_vbox
-	
-	# Header
-	var header = HBoxContainer.new()
+
+	var vbox: VBoxContainer = card.content_vbox
+
+	# --- Header: title + delete ---
+	var header := HBoxContainer.new()
 	vbox.add_child(header)
-	
-	var name_edit = LineEdit.new()
-	name_edit.text = c.get("full_name", "Unnamed")
-	name_edit.placeholder_text = "角色全名"
-	name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_edit.add_theme_font_size_override("font_size", 16)
-	name_edit.text_changed.connect(func(t): c["full_name"] = t)
-	header.add_child(name_edit)
-	
-	var del_btn = Button.new()
-	del_btn.text = "×"
-	del_btn.modulate = Color.RED
-	del_btn.pressed.connect(func():
-		data.characters.remove_at(index)
-		_refresh_character_list()
-	)
-	header.add_child(del_btn)
-	
-	var id_box = HBoxContainer.new()
-	vbox.add_child(id_box)
-	var id_lbl = Label.new()
-	id_lbl.text = "ID: "
-	id_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	id_box.add_child(id_lbl)
-	var id_edit = LineEdit.new()
-	id_edit.text = c.get("character_id", "")
-	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_edit.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	id_edit.text_changed.connect(func(t): c["character_id"] = t)
-	id_box.add_child(id_edit)
-	
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-	
-	var placeholder = "【助理留言】：TA是一个什么样的人呢？\n比如性格、一些经历、跟你或其他人的关系、说话的小习惯、害怕什么、喜欢什么。\n不用写作完整的长篇大论，碎片化的句子也行，只要是你觉得有趣的设定都可以写在这里哦！"
-	_add_notes_field_with_tags(vbox, "人物便签", c.get("personality", ""), placeholder,
-		["[+ 说话习惯]", "[+ 隐藏的秘密]", "[+ 最大的弱点]", "[+ 喜欢/讨厌]", "[+ 核心动机]"],
-		func(t): c["personality"] = t
-	)
 
-func _add_new_character(spawn_pos: Vector2 = Vector2(50, 50)) -> void:
-	var data: KnowledgeBaseData = KnowledgeBaseManager.current_data
-	if not data: return
-	data.characters.append({
-		"character_id": "char_" + str(Time.get_ticks_msec()).substr(3, 10),
-		"full_name": "New Character",
-		"personality": "",
-		"author": "player",
-		"position_x": spawn_pos.x,
-		"position_y": spawn_pos.y
-	})
-	_refresh_character_list()
-
-# --- Beats ---
-@onready var beat_canvas: Control = %BeatCanvas
-
-func _refresh_beat_list() -> void:
-	for child in beat_canvas.get_children():
-		child.queue_free()
-		
-	var data: KnowledgeBaseData = KnowledgeBaseManager.current_data
-	if not data: return
-	
-	for i in range(data.beats.size()):
-		_build_beat_card(data.beats[i], i)
-
-func _build_beat_card(b: Dictionary, index: int) -> void:
-	var data: KnowledgeBaseData = KnowledgeBaseManager.current_data
-	
-	var card = DraggableCardScene.instantiate()
-	beat_canvas.add_child(card)
-	
-	var pos_x = b.get("position_x", randi_range(50, 400))
-	var pos_y = b.get("position_y", randi_range(50, 400))
-	card.setup(b.get("beat_id", ""), b.get("author", "player"), pos_x, pos_y)
-	
-	card.card_moved.connect(func(_moved_card, new_pos):
-		b["position_x"] = new_pos.x
-		b["position_y"] = new_pos.y
-		KnowledgeBaseManager.save_data()
-	)
-	
-	var vbox = card.content_vbox
-	
-	# Header
-	var header = HBoxContainer.new()
-	vbox.add_child(header)
-	
-	var title_edit = LineEdit.new()
-	title_edit.text = b.get("title", "Untitled Beat")
-	title_edit.placeholder_text = "剧情片段标题"
+	var title_edit := LineEdit.new()
+	title_edit.text = doc.get("title", "")
+	title_edit.placeholder_text = _get_title_placeholder(category)
 	title_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_edit.add_theme_font_size_override("font_size", 16)
-	title_edit.text_changed.connect(func(t): b["title"] = t)
+	title_edit.text_changed.connect(func(t: String): doc["title"] = t)
 	header.add_child(title_edit)
-	
-	var del_btn = Button.new()
+
+	var del_btn := Button.new()
 	del_btn.text = "×"
 	del_btn.modulate = Color.RED
 	del_btn.pressed.connect(func():
-		data.beats.remove_at(index)
-		_refresh_beat_list()
+		KnowledgeBaseManager.delete_document(doc.get("doc_id", ""))
+		_refresh_canvas(canvas, category)
 	)
 	header.add_child(del_btn)
-	
-	var id_box = HBoxContainer.new()
+
+	# --- ID display ---
+	var id_box := HBoxContainer.new()
 	vbox.add_child(id_box)
-	var id_lbl = Label.new()
+	var id_lbl := Label.new()
 	id_lbl.text = "ID: "
 	id_lbl.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	id_box.add_child(id_lbl)
-	var id_edit = LineEdit.new()
-	id_edit.text = b.get("beat_id", "")
-	id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	id_edit.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	id_edit.text_changed.connect(func(t): b["beat_id"] = t)
-	id_box.add_child(id_edit)
-	
-	var sep = HSeparator.new()
-	vbox.add_child(sep)
-	
-	var placeholder = "【助理留言】：想好这段剧情要怎么发展了吗？\n你可以写大纲，也可以直接写对白，或者用 [标签: 值] 的形式标注场景和舞台指示。\n\n[示例]\n[背景: 教室 | BGM: 轻松日常]\n[林夏出现, 表情: 开心]\n林夏：\"早上好呀！\""
-	_add_notes_field_with_tags(vbox, "剧本便签", b.get("content", ""), placeholder,
-		["[+ 环境氛围]", "[+ 核心冲突]", "[+ 情绪转折]", "[+ 隐藏细节]"],
-		func(t): b["content"] = t
-	)
+	var id_val := Label.new()
+	id_val.text = doc.get("doc_id", "")
+	id_val.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	id_val.add_theme_font_size_override("font_size", 12)
+	id_box.add_child(id_val)
 
-func _add_new_beat(spawn_pos: Vector2 = Vector2(50, 50)) -> void:
-	var data: KnowledgeBaseData = KnowledgeBaseManager.current_data
-	if not data: return
-	data.beats.append({
-		"beat_id": "beat_" + str(Time.get_ticks_msec()).substr(3, 10),
-		"title": "New Beat",
-		"content": "",
-		"author": "player",
-		"position_x": spawn_pos.x,
-		"position_y": spawn_pos.y
-	})
-	_refresh_beat_list()
+	vbox.add_child(HSeparator.new())
 
-func _add_notes_field_with_tags(parent: Control, label_text: String, initial_val: String, placeholder: String, tags: Array[String], callback: Callable) -> TextEdit:
-	var vbox = VBoxContainer.new()
-	
-	var label = Label.new()
-	label.text = label_text
-	label.add_theme_font_size_override("font_size", 14)
-	vbox.add_child(label)
-	
-	var edit = TextEdit.new()
-	edit.text = initial_val
+	# --- Content: free-form text area ---
+	var placeholder: String = _get_content_placeholder(category)
+	var edit := TextEdit.new()
+	edit.text = doc.get("content", "")
 	edit.placeholder_text = placeholder
 	edit.custom_minimum_size = Vector2(0, 200)
 	edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
-	edit.text_changed.connect(func(): callback.call(edit.text))
+	edit.text_changed.connect(func(): doc["content"] = edit.text)
 	vbox.add_child(edit)
-	
-	var flow = HFlowContainer.new()
-	for tag in tags:
-		var btn = Button.new()
-		btn.text = tag
-		btn.add_theme_font_size_override("font_size", 12)
-		btn.pressed.connect(func():
-			edit.text += "\n" + tag + ": "
-			edit.set_caret_line(edit.get_line_count())
-			edit.set_caret_column(edit.get_line(edit.get_line_count() - 1).length())
-			edit.grab_focus()
-			callback.call(edit.text)
-		)
-		flow.add_child(btn)
-	vbox.add_child(flow)
-	
-	var spacer = Control.new()
-	spacer.custom_minimum_size = Vector2(0, 10)
-	vbox.add_child(spacer)
-	
-	parent.add_child(vbox)
-	return edit
+
+	# --- Tags display/edit ---
+	var tags: Array = doc.get("tags", [])
+	var tag_lbl := Label.new()
+	tag_lbl.text = "标签: " + ", ".join(tags) if tags.size() > 0 else ""
+	tag_lbl.add_theme_font_size_override("font_size", 11)
+	tag_lbl.add_theme_color_override("font_color", Color(0.5, 0.6, 0.7))
+	vbox.add_child(tag_lbl)
+
+# =============================================================================
+# Add new document
+# =============================================================================
+
+func _add_new_document(category: String, canvas: Control, spawn_pos: Vector2 = Vector2(50, 50)) -> void:
+	var doc_id: String = KnowledgeBaseManager.generate_doc_id(category)
+	var title: String = _get_default_title(category)
+	KnowledgeBaseManager.upsert_document(doc_id, title, "", category, [], "player")
+
+	# Set spawn position
+	var doc: Dictionary = KnowledgeBaseManager.get_document(doc_id)
+	if not doc.is_empty():
+		doc["position_x"] = spawn_pos.x
+		doc["position_y"] = spawn_pos.y
+
+	_refresh_canvas(canvas, category)
+
+# =============================================================================
+# Placeholders & defaults per category
+# =============================================================================
+
+func _get_title_placeholder(category: String) -> String:
+	match category:
+		"world": return "主题/概念名称"
+		"characters": return "角色名"
+		"story": return "章节/剧情标题"
+		"notes": return "备忘标题"
+	return "标题"
+
+func _get_content_placeholder(category: String) -> String:
+	match category:
+		"world":
+			return "在这里写下游戏的世界观、核心概要、基调等。\n比如：故事发生在什么时代？核心矛盾是什么？情感基调是温暖还是沉重？"
+		"characters":
+			return "在这里写角色的设定。\n比如性格、说话习惯、经历、和其他角色的关系、动机、外貌特征等。\n随便写，碎片化也行。"
+		"story":
+			return "在这里写故事大纲或具体场景剧本。\n可以用自然语言描述剧情走向，也可以用内联舞台指示：\n[背景: 教室 | BGM: 轻松日常]\n[林夏出现, 表情: 开心]\n林夏：\"早上好呀！\""
+		"notes":
+			return "随手记录灵感、讨论备忘、待办想法等。"
+	return ""
+
+func _get_default_title(category: String) -> String:
+	match category:
+		"world": return "新文档"
+		"characters": return "新角色"
+		"story": return "新章节"
+		"notes": return "新备忘"
+	return "新文档"
+
+# =============================================================================
+# Signals
+# =============================================================================
 
 func _connect_signals() -> void:
 	close_button.pressed.connect(func(): close_requested.emit())
 	%SaveButton.pressed.connect(func(): KnowledgeBaseManager.save_data())
-	
-	add_character_btn.pressed.connect(_add_new_character)
-	add_beat_btn.pressed.connect(_add_new_beat)
-	
-	character_canvas.gui_input.connect(func(event):
+
+	add_world_btn.pressed.connect(func(): _add_new_document("world", world_canvas))
+	add_character_btn.pressed.connect(func(): _add_new_document("characters", character_canvas))
+	add_beat_btn.pressed.connect(func(): _add_new_document("story", beat_canvas))
+	add_note_btn.pressed.connect(func(): _add_new_document("notes", note_canvas))
+
+	# Double-click on canvas to add new card
+	world_canvas.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.double_click:
-			_add_new_character(character_canvas.get_local_mouse_position())
+			_add_new_document("world", world_canvas, world_canvas.get_local_mouse_position())
+			world_canvas.accept_event()
+	)
+	character_canvas.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.double_click:
+			_add_new_document("characters", character_canvas, character_canvas.get_local_mouse_position())
 			character_canvas.accept_event()
 	)
-	
-	beat_canvas.gui_input.connect(func(event):
+	beat_canvas.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.double_click:
-			_add_new_beat(beat_canvas.get_local_mouse_position())
+			_add_new_document("story", beat_canvas, beat_canvas.get_local_mouse_position())
 			beat_canvas.accept_event()
+	)
+	note_canvas.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.double_click:
+			_add_new_document("notes", note_canvas, note_canvas.get_local_mouse_position())
+			note_canvas.accept_event()
 	)
 
 func _on_category_selected(index: int) -> void:
 	for i in range(_category_panels.size()):
 		if _category_panels[i]:
 			_category_panels[i].visible = (i == index)
-			
+
 	# Highlight selected bookmark
 	for i in range(bookmark_list.get_child_count()):
 		var btn: Button = bookmark_list.get_child(i)

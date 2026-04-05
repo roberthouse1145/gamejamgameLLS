@@ -48,7 +48,7 @@ requirements_text 应该包含：
 输出：
 ```json
 {
-  "requirements_text": "## 目标\n为项目新建一个场景，展示角色Alice的自我介绍。\n\n## 涉及内容\n- 新场景：自我介绍场景\n- 角色：Alice (char_001)\n\n## 预期效果\n玩家进入该场景后，Alice会进行自我介绍对话。",
+  "requirements_text": "## 目标\n为项目新建一个场景，展示角色Alice的自我介绍。\n\n## 涉及内容\n- 新场景：自我介绍场景\n- 角色：Alice\n\n## 预期效果\n玩家进入该场景后，Alice会进行自我介绍对话。",
   "tasks": [
     {"description": "在项目中创建一个新场景，命名为"Alice自我介绍"", "done": false},
     {"description": "在场景中添加Alice角色显示命令", "done": false},

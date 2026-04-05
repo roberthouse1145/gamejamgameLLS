@@ -26,6 +26,11 @@ const MAX_DAYS: int = 45
 const DEFAULT_MAX_AP: int = 1
 const MILESTONE_DAYS: Array[int] = [15, 30, 45]
 
+## 游戏起始日历日期：2027年5月5日（周一）
+const START_YEAR: int = 2027
+const START_MONTH: int = 5
+const START_DAY: int = 5
+
 var current_day: int = 1
 var max_ap_per_day: int = DEFAULT_MAX_AP
 var current_ap: int = DEFAULT_MAX_AP
@@ -219,6 +224,52 @@ func load_run_state(data: Dictionary) -> bool:
 	ap_changed.emit(current_ap, max_ap_per_day)
 	phase_changed.emit(time_phase)
 	return true
+
+
+## 供 PromptManager 的 JSON 绑定调用，返回当前游戏时间的自然语言描述。
+func get_time_prompt() -> String:
+	var phase_name: String = get_phase_display_name(time_phase)
+	var daylight_hint: String = ""
+	match time_phase:
+		TimePhase.MORNING:
+			daylight_hint = "现在是上午，天是亮的，不是晚上。"
+		TimePhase.AFTERNOON:
+			daylight_hint = "现在是下午，天还亮着，不是晚上。"
+		TimePhase.NIGHT:
+			daylight_hint = "现在是夜晚。"
+	var cal := get_calendar_date()
+	var weekday := get_weekday_name()
+	return "当前时间：%d年%d月%d日（%s）・%s，ARCADE GRAND JAM 2027 比赛第 %d 天（总计 %d 天）。%s" % [
+		cal["year"], cal["month"], cal["day"], weekday, phase_name, current_day, MAX_DAYS, daylight_hint]
+
+
+## 获取当前游戏日对应的日历日期
+func get_calendar_date() -> Dictionary:
+	var days_since_start: int = current_day - 1
+	# 从起始日期推算（简单实现，每月天数固定表）
+	var days_in_month: Array[int] = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+	var y: int = START_YEAR
+	var m: int = START_MONTH
+	var d: int = START_DAY + days_since_start
+	while d > days_in_month[m]:
+		d -= days_in_month[m]
+		m += 1
+		if m > 12:
+			m = 1
+			y += 1
+	return {"year": y, "month": m, "day": d}
+
+
+## 获取当前游戏日的星期几
+func get_weekday_name() -> String:
+	var cal := get_calendar_date()
+	# Zeller 公式简化：用 Godot 内置 Time 类计算
+	var dict := {"year": cal["year"], "month": cal["month"], "day": cal["day"]}
+	var unix := Time.get_unix_time_from_datetime_dict(dict)
+	var dt := Time.get_datetime_dict_from_unix_time(int(unix))
+	var weekday: int = dt.get("weekday", 0)
+	var names: Array[String] = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
+	return names[weekday] if weekday >= 0 and weekday < names.size() else "未知"
 
 
 func reset_runtime_state() -> void:

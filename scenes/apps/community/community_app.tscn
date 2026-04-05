@@ -1,0 +1,207 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/community/community_app.gd" id="1_script"]
+[ext_resource type="Theme" path="res://resources/themes/browser_light.tres" id="2_theme"]
+
+[sub_resource type="StyleBoxFlat" id="header_style"]
+bg_color = Color(0.118, 0.161, 0.247, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_left = 10
+corner_radius_bottom_right = 10
+
+[sub_resource type="StyleBoxFlat" id="status_style"]
+bg_color = Color(0.145, 0.188, 0.278, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_left = 8
+corner_radius_bottom_right = 8
+
+[node name="CommunityApp" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.96, 0.957, 0.949, 1)
+
+[node name="RootMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 16
+
+[node name="RootVBox" type="VBoxContainer" parent="RootMargin"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="HeaderPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("header_style")
+
+[node name="HeaderMargin" type="MarginContainer" parent="RootMargin/RootVBox/HeaderPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 18
+
+[node name="HeaderVBox" type="VBoxContainer" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TitleLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 26
+text = "社区广场"
+
+[node name="SubtitleLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.68, 0.78, 1)
+theme_override_font_sizes/font_size = 14
+text = "论坛、比赛消息、宣传——看看大家在聊什么。"
+autowrap_mode = 3
+
+[node name="ContentStack" type="Control" parent="RootMargin/RootVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="FeedScroll" type="ScrollContainer" parent="RootMargin/RootVBox/ContentStack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="FeedVBox" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 14
+
+[node name="ActionsSection" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="ActionsTitle" type="Label" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/ActionsSection"]
+layout_mode = 2
+text = "今日动态"
+
+[node name="ActionsContainer" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/ActionsSection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HistorySection" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="HistoryTitle" type="Label" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/HistorySection"]
+layout_mode = 2
+text = "浏览足迹"
+
+[node name="HistoryContainer" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/HistorySection"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StatusPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("status_style")
+
+[node name="StatusMargin" type="MarginContainer" parent="RootMargin/RootVBox/StatusPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 10
+
+[node name="StatusLabel" type="Label" parent="RootMargin/RootVBox/StatusPanel/StatusMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.65, 0.72, 0.82, 1)
+theme_override_font_sizes/font_size = 14
+text = "选一个感兴趣的开始刷。"
+
+[node name="LoadingView" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+clip_contents = true
+mouse_filter = 2
+
+[node name="LoadingBackground" type="ColorRect" parent="LoadingView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.96, 0.957, 0.949, 1)
+
+[node name="LoadingMargin" type="MarginContainer" parent="LoadingView"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="LoadingVBox" type="VBoxContainer" parent="LoadingView/LoadingMargin"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 12
+
+[node name="LoadingScroll" type="ScrollContainer" parent="LoadingView/LoadingMargin/LoadingVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
+
+[node name="LoadingContent" type="HBoxContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="LeftCol" type="VBoxContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScroll/LoadingContent"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10
+
+[node name="RightCol" type="VBoxContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScroll/LoadingContent"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 10

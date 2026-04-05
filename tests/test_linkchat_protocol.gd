@@ -6,6 +6,7 @@ const WindowManagerClass = preload("res://scripts/pseudo_os/window_manager.gd")
 
 func _ready() -> void:
 	print("[Test] LinkChat protocol tests start")
+	_test_chat_manager_stores_normalized_npc_message()
 	_test_strip_thinking_tag_variants()
 	_test_ai_service_extract_content_strips_think()
 	_test_linkchat_response_protocol_parser()
@@ -14,6 +15,22 @@ func _ready() -> void:
 	await _ensure_window_manager()
 	await _test_linkchat_protocol_effect_dispatch()
 	print("[Test] LinkChat protocol tests ready")
+
+
+func _test_chat_manager_stores_normalized_npc_message() -> void:
+	var stored: Dictionary = ChatManager.store_npc_message_data("dm_lin_xia", {
+		"speaker": "npc_lin_xia",
+		"content": "normalized sender payload",
+	})
+	var ok: bool = str(stored.get("sender_id", "")) == "npc_lin_xia" \
+		and not str(stored.get("sender_name", "")).strip_edges().is_empty() \
+		and not stored.has("speaker")
+	if not ok:
+		print("[FAIL] ChatManager should return normalized stored NPC messages")
+		print("  stored: %s" % str(stored))
+		return
+
+	print("[OK] ChatManager returns normalized stored NPC messages")
 
 
 func _ensure_window_manager() -> void:

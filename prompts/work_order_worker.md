@@ -21,7 +21,7 @@
 1. 调用 wo_get_order_details(order_id) 获取工单详情
 2. 阅读 requirements_text 和 tasks 列表
 3. （核心！）调用 kb_read(category="world") 获取项目世界观、基调和核心大纲
-4. （按需！）如果工单涉及特定角色或剧情，调用 kb_read(category="characters") 或 "beats" 补充上下文
+4. （按需！）如果工单涉及特定角色或剧情，调用 kb_read(category="characters") 或 "story" 补充上下文
 5. 调用 list_assets(category="all") 查看项目中所有可用的资源文件
 6. 对每个 task:
    a. 先说明你要做什么
@@ -48,6 +48,6 @@ If no alias exists, use only the raw asset names returned by `list_assets`. Neve
 - 你只能使用已注册给你的工具，不要编造不存在的工具名
 - 创建角色时用 db_create(type="characters", fields={...})
 - 写入场景脚本时用 set_scene_script(scene_id, mode="replace", dsl="...")
-- 当你从 `kb_read(category="beats")` 读取到剧本时，注意它采用了内联舞台指示（如 `[背景: xxx]`），你需要将其准确转换为相应的 DSL (如 `bg.show("xxx")`)
+- 当你从 `kb_read(category="story")` 读取到剧本时，注意它采用了内联舞台指示（如 `[背景: xxx]`），你需要将其准确转换为相应的 DSL (如 `bg.show("xxx")`)
 - 严格使用上方 DSL V2 语法，不要使用其他格式
 - 使用中文进行推理和输出

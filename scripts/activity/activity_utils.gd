@@ -36,11 +36,26 @@ static func is_test_scene() -> bool:
 	return str(tree.current_scene.scene_file_path) == "res://test.tscn"
 
 
-static func pick_random_event_seed(data: Dictionary) -> String:
+static func pick_random_event_seed(data: Dictionary, used_seeds: Array = []) -> String:
 	var seeds: Array = data.get("event_seeds", [])
 	if seeds.is_empty():
 		return ""
+	# Prefer seeds that haven't been used yet
+	if not used_seeds.is_empty():
+		var unused: Array = []
+		for s in seeds:
+			if not used_seeds.has(str(s).strip_edges()):
+				unused.append(s)
+		if not unused.is_empty():
+			return str(unused[randi() % unused.size()]).strip_edges()
 	return str(seeds[randi() % seeds.size()]).strip_edges()
+
+
+static func pick_activity_variant(data: Dictionary) -> String:
+	var variants: Array = data.get("activity_variants", [])
+	if variants.is_empty():
+		return str(data.get("base_activity", "")).strip_edges()
+	return str(variants[randi() % variants.size()]).strip_edges()
 
 
 static func extract_topic_summary(result: Dictionary) -> String:

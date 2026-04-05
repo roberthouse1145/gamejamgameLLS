@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3 uid="uid://cxevwkramyq58"]
+
+[ext_resource type="Script" uid="uid://bd5m8bxlu7jrv" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_017"
+character_name = "Heroine17"
+display_name = "Heroine17"
+sprites = {
+"angry": "assets/images/character/heroine17/heroine17_cos15.png",
+"default": "assets/images/character/heroine17/heroine17_cos01.png",
+"happy": "assets/images/character/heroine17/heroine17_cos04.png",
+"laugh": "assets/images/character/heroine17/heroine17_cos05.png",
+"love": "assets/images/character/heroine17/heroine17_cos06.png",
+"serious": "assets/images/character/heroine17/heroine17_cos19.png",
+"shy": "assets/images/character/heroine17/heroine17_cos11.png",
+"smug": "assets/images/character/heroine17/heroine17_cos03.png",
+"teasing": "assets/images/character/heroine17/heroine17_cos02.png",
+"thinking": "assets/images/character/heroine17/heroine17_cos14.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "15",
+"default": "01",
+"happy": "04",
+"laugh": "05",
+"love": "06",
+"serious": "19",
+"shy": "11",
+"smug": "03",
+"teasing": "02",
+"thinking": "14"
+}
+profile = "妖艳撩人的魅魔少女，紫发红角蝙蝠翼，红眼惑人"

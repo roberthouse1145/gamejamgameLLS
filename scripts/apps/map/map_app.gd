@@ -1,10 +1,17 @@
 class_name MapApp
 extends Control
 
+const ActivityPreviewHintClass = preload("res://scripts/ui/activity_preview/activity_preview_hint.gd")
+
 const TRANSIT_STAGES: Array[String] = [
-	"正在进站...",
-	"列车运行中...",
-	"即将到达目的地..."
+	"正在规划路线...",
+	"步行前往站点  约 2 分钟",
+	"正在等待进站...",
+	"列车运行中",
+	"途经 3 站",
+	"下一站即为目的地",
+	"请准备下车",
+	"已到达  步行约 1 分钟"
 ]
 
 const COLOR_MAP_BG := Color("#EDE8DF")
@@ -28,7 +35,7 @@ const COLOR_TRANSIT_GREEN := Color("#34A853")
 var _date_manager: Node = null
 var _game_loop: Node = null
 var _pin_buttons: Dictionary = {}
-var _selected_location_id: String = ""
+var _selected_event_id: String = ""
 var _active_session_id: String = ""
 var _transit_progress: float = 0.0
 
@@ -276,7 +283,7 @@ func _build_detail_card() -> void:
 
 	# 行动按钮
 	_confirm_button = Button.new()
-	_confirm_button.text = "分享位置"
+	_confirm_button.text = "出发"
 	_confirm_button.custom_minimum_size = Vector2(0, 40)
 	var btn_style_n := StyleBoxFlat.new()
 	btn_style_n.bg_color = COLOR_BTN_ACTION
@@ -320,24 +327,24 @@ func _refresh_locations() -> void:
 		child.queue_free()
 	_pin_buttons.clear()
 
-	var locations: Array = _date_manager.get_available_locations()
-	for location in locations:
-		if not location is Dictionary:
+	var events: Array = _date_manager.get_available_events()
+	for event in events:
+		if not event is Dictionary:
 			continue
-		var pin := _create_map_pin(location)
+		var pin := _create_map_pin(event)
 		_map_canvas.add_child(pin)
-		_pin_buttons[str(location.get("location_id", ""))] = {
+		_pin_buttons[str(event.get("event_id", ""))] = {
 			"button": pin,
-			"location": location,
+			"event": event,
 		}
 
-	if _selected_location_id.is_empty() and not locations.is_empty():
-		_selected_location_id = str((locations[0] as Dictionary).get("location_id", ""))
+	if _selected_event_id.is_empty() and not events.is_empty():
+		_selected_event_id = str((events[0] as Dictionary).get("event_id", ""))
 
 	_refresh_selection_state()
 
 
-func _create_map_pin(location: Dictionary) -> Control:
+func _create_map_pin(event: Dictionary) -> Control:
 	var pin_root := VBoxContainer.new()
 	pin_root.add_theme_constant_override("separation", 2)
 
@@ -346,7 +353,8 @@ func _create_map_pin(location: Dictionary) -> Control:
 	dot_panel.custom_minimum_size = Vector2(18, 18)
 	dot_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	var dot_style := StyleBoxFlat.new()
-	dot_style.bg_color = COLOR_PIN_DEFAULT
+	var accent := str(event.get("accent_color", "#EA4335")).strip_edges()
+	dot_style.bg_color = Color(accent) if not accent.is_empty() else COLOR_PIN_DEFAULT
 	dot_style.corner_radius_top_left = 9
 	dot_style.corner_radius_top_right = 9
 	dot_style.corner_radius_bottom_left = 9
@@ -358,10 +366,10 @@ func _create_map_pin(location: Dictionary) -> Control:
 	dot_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	pin_root.add_child(dot_panel)
 
-	# 地名按钮
-	var loc_id := str(location.get("location_id", ""))
+	# 事件名按钮
+	var evt_id := str(event.get("event_id", ""))
 	var name_btn := Button.new()
-	name_btn.text = str(location.get("title", "地点"))
+	name_btn.text = str(event.get("title", "活动"))
 	name_btn.flat = true
 	name_btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	name_btn.add_theme_font_size_override("font_size", 12)
@@ -383,17 +391,20 @@ func _create_map_pin(location: Dictionary) -> Control:
 	name_btn.add_theme_stylebox_override("hover", name_style)
 	name_btn.add_theme_stylebox_override("pressed", name_style)
 	name_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	name_btn.pressed.connect(_on_location_pressed.bind(loc_id))
+	name_btn.pressed.connect(_on_location_pressed.bind(evt_id))
+	var hint := ActivityPreviewHintClass.new()
+	hint.set_preview_payload(_build_date_preview_payload(event))
+	name_btn.add_child(hint)
 	pin_root.add_child(name_btn)
 
 	# VBox 本身也接收 gui_input（处理点击圆点的情况）
-	pin_root.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-			_on_location_pressed(loc_id)
+	pin_root.gui_input.connect(func(e: InputEvent) -> void:
+		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			_on_location_pressed(evt_id)
 			get_viewport().set_input_as_handled()
 	)
 
-	var pos := _map_to_canvas(location.get("map_position", Vector2(0.5, 0.5)))
+	var pos := _map_to_canvas(event.get("map_position", Vector2(0.5, 0.5)))
 	pin_root.position = pos
 
 	return pin_root
@@ -407,16 +418,42 @@ func _map_to_canvas(pos: Variant) -> Vector2:
 	)
 
 
+func _build_date_preview_payload(event: Dictionary) -> Dictionary:
+	var conditions: Array[String] = []
+	var phases: Array = event.get("valid_phases", [])
+	if not phases.is_empty():
+		var phase_names: Array[String] = []
+		for phase in phases:
+			match str(phase):
+				"MORNING":
+					phase_names.append("早上")
+				"AFTERNOON":
+					phase_names.append("下午")
+				"NIGHT":
+					phase_names.append("晚上")
+				_:
+					phase_names.append(str(phase))
+		conditions.append("可用时段：%s" % " / ".join(phase_names))
+
+	return {
+		"title": str(event.get("title", "约会")),
+		"rewards": (event.get("rewards", {}) as Dictionary).duplicate(true),
+		"text": str(event.get("subtitle", "")),
+		"conditions": conditions,
+		"accent_color": Color(str(event.get("accent_color", "#1A73E8"))),
+	}
+
+
 func _refresh_selection_state() -> void:
-	for location_id in _pin_buttons.keys():
-		var info: Dictionary = _pin_buttons[location_id]
+	for event_id in _pin_buttons.keys():
+		var info: Dictionary = _pin_buttons[event_id]
 		var pin: Control = info.get("button")
 		if pin == null:
 			continue
 		var dot: PanelContainer = pin.get_child(0) if pin.get_child_count() > 0 else null
 		if dot == null or not dot is PanelContainer:
 			continue
-		var is_selected: bool = (location_id == _selected_location_id)
+		var is_selected: bool = (event_id == _selected_event_id)
 		var dot_style := StyleBoxFlat.new()
 		dot_style.bg_color = COLOR_PIN_SELECTED if is_selected else COLOR_PIN_DEFAULT
 		var radius := 11 if is_selected else 9
@@ -436,38 +473,38 @@ func _refresh_selection_state() -> void:
 		dot.custom_minimum_size = Vector2(22, 22) if is_selected else Vector2(18, 18)
 		dot.add_theme_stylebox_override("panel", dot_style)
 
-	var selected: Dictionary = _get_selected_location()
+	var selected: Dictionary = _get_selected_event()
 	if selected.is_empty():
-		_detail_title.text = "选择目的地"
+		_detail_title.text = "选择约会活动"
 		_detail_subtitle.text = ""
 		_detail_body.text = ""
 		_detail_footer.text = ""
 		_confirm_button.disabled = true
 		return
 
-	_detail_title.text = str(selected.get("title", "未命名地点"))
-	_detail_subtitle.text = str(selected.get("subtitle", ""))
+	_detail_title.text = str(selected.get("title", "未命名活动"))
+	var location_title := str(selected.get("location_title", selected.get("subtitle", ""))).strip_edges()
+	_detail_subtitle.text = location_title
 	_detail_body.text = str(selected.get("description", ""))
-	var transit_label := str(selected.get("transit_label", "")).strip_edges()
-	_detail_footer.text = "🚇 %s" % transit_label if not transit_label.is_empty() else ""
+	_detail_footer.text = ""
 	_confirm_button.disabled = _active_session_id != "" or not bool(selected.get("enabled", true))
 
 
-func _get_selected_location() -> Dictionary:
-	if _selected_location_id.is_empty() or not _pin_buttons.has(_selected_location_id):
+func _get_selected_event() -> Dictionary:
+	if _selected_event_id.is_empty() or not _pin_buttons.has(_selected_event_id):
 		return {}
-	return (_pin_buttons[_selected_location_id] as Dictionary).get("location", {}).duplicate(true)
+	return (_pin_buttons[_selected_event_id] as Dictionary).get("event", {}).duplicate(true)
 
 
-func _on_location_pressed(location_id: String) -> void:
-	_selected_location_id = location_id
+func _on_location_pressed(event_id: String) -> void:
+	_selected_event_id = event_id
 	_refresh_selection_state()
 
 
 func _on_confirm_pressed() -> void:
-	if _date_manager == null or _selected_location_id.is_empty():
+	if _date_manager == null or _selected_event_id.is_empty():
 		return
-	var result: Dictionary = _date_manager.begin_date(_selected_location_id)
+	var result: Dictionary = _date_manager.begin_date(_selected_event_id)
 	if not bool(result.get("success", false)):
 		return
 
@@ -651,4 +688,4 @@ func _on_action_state_changed(_current: int, _max: int) -> void:
 
 
 func _on_phase_changed(_phase: int) -> void:
-	pass
+	_refresh_locations()

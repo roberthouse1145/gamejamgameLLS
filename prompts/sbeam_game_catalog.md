@@ -10,18 +10,13 @@
 每款游戏至少包含这些字段：
 - title
 - genre
-- price
+- rewards
 - pitch
 - review_summary
 - hook_moment
-- reaction_bias
 
-reaction_bias 只能从以下值中选择：
-- laugh
-- complain
-- cozy
-- hyped
-- aftertaste
+其中 `rewards` 必须是对象，并且至少包含 `money` 键表示购买花费，例如 `{ "money": -38, "affection": 1, "passion": 1 }`。
+除 `money` 外，还可以按共同体验补充 `affection`、`stress`、`passion` 等数值变化。
 
 写作原则：
 - sbeam 里的游戏是共同情绪的引子，不是论述中心。

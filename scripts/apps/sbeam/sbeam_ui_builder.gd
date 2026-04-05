@@ -1,6 +1,8 @@
 class_name SbeamUIBuilder
 extends RefCounted
 
+const SbeamGameListClass = preload("res://scripts/apps/sbeam/sbeam_game_list.gd")
+
 
 static func build_app_ui(target: Control, library_game_count: int, on_view_selected: Callable) -> Dictionary:
 	var background := ColorRect.new()
@@ -148,7 +150,7 @@ static func build_store_view() -> Dictionary:
 	filter_label.add_theme_color_override("font_color", Color("#ffffff"))
 	sidebar_box.add_child(filter_label)
 
-	var game_list := ItemList.new()
+	var game_list := SbeamGameListClass.new()
 	game_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	game_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	game_list.select_mode = ItemList.SELECT_SINGLE

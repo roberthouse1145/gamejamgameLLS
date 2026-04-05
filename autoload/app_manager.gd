@@ -53,6 +53,7 @@ func _register_all_apps() -> void:
 		"res://resources/apps/deepcode_app.tres",
 		"res://resources/apps/linkchat_app.tres",
 		"res://resources/apps/browser_app.tres",
+		"res://resources/apps/community_app.tres",
 		"res://resources/apps/home_app.tres",
 		"res://resources/apps/map_app.tres",
 		"res://resources/apps/avg_player_app.tres",
@@ -62,6 +63,7 @@ func _register_all_apps() -> void:
 		"res://resources/apps/knowledge_base_app.tres",
 		"res://resources/apps/dev_work_app.tres",
 		"res://resources/apps/shop_app.tres",
+		"res://resources/apps/desktop_pet_app.tres",
 	]
 	
 	for path in app_paths:
@@ -239,6 +241,12 @@ func get_registered_app_ids() -> Array[String]:
 	for key in app_registry.keys():
 		ids.append(key)
 	return ids
+
+
+func get_app_definition(app_id: String) -> Resource:
+	if app_registry.has(app_id):
+		return app_registry[app_id]
+	return null
 
 
 ## Set the WindowManager reference

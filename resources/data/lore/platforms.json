@@ -1,0 +1,155 @@
+{
+	"version": 1,
+	"entries": [
+		{
+			"id": "platform_sbeam_overview",
+			"enabled": true,
+			"title": "Sbeam 平台概览",
+			"scope": ["browser"],
+			"priority": 500,
+			"group": "platform_sbeam",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["Sbeam", "游戏平台", "发布", "上架", "愿望单", "评测", "好评"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "Sbeam 是世界上最大的PC游戏数字发行平台，功能类似 Steam。AGJ线上海选阶段，参赛作品会在 Sbeam 上设立专页供公众试玩和投票。",
+			"tags": ["fact", "platform"]
+		},
+		{
+			"id": "platform_sbeam_community",
+			"enabled": true,
+			"title": "Sbeam 社区文化",
+			"scope": ["browser"],
+			"priority": 400,
+			"group": "platform_sbeam",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["评论", "差评", "好评", "评测", "社区", "讨论区", "Sbeam"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "Sbeam 社区鱼龙混杂。GameJam作品页面可能出现真诚反馈，也可能有抬杠、玩梗、无意义差评和竞争对手的阴阳怪气。",
+			"tags": ["fact", "platform"]
+		},
+		{
+			"id": "platform_linkchat_overview",
+			"enabled": true,
+			"title": "LinkChat 概览",
+			"scope": ["chat"],
+			"priority": 500,
+			"group": "platform_linkchat",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["LinkChat", "发消息", "私聊"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "LinkChat 是两人日常使用的即时通讯软件，类似微信/QQ。两人各自在房间，通过 LinkChat 交流是最自然的方式。",
+			"tags": ["fact", "platform"]
+		},
+		{
+			"id": "platform_agj_forum",
+			"enabled": true,
+			"title": "AGJ 官方论坛",
+			"scope": ["browser"],
+			"priority": 400,
+			"group": "platform_agj",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["论坛", "AGJ", "帖子", "发帖", "开发日志", "devlog", "公告"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 70,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "AGJ 官方论坛是比赛信息的主阵地：官方公告、规则答疑、参赛者交流、开发日志（devlog）分享区。不少选手会在论坛发进度截图和开发心得，有些帖子会引发热议。论坛氛围整体友好但偶有争论。林夏经常潜水看别人的帖子，偶尔忍不住回复。",
+			"tags": ["fact", "platform"]
+		},
+		{
+			"id": "platform_browser_constraint",
+			"enabled": true,
+			"title": "浏览器内容生成约束",
+			"scope": ["browser"],
+			"priority": 900,
+			"group": "platform_safety",
+			"insert_position": "lore_constraints",
+			"trigger": {
+				"mode": "always",
+				"keys": [],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 40,
+				"max_scope_count": 4
+			},
+			"behavior": {
+				"kind": "constraint"
+			},
+			"content": "浏览器中生成的所有网页内容（论坛帖子、商店页面、新闻稿等）必须像真实网站，但不得包含现实中存在的真实公司名、真实游戏名、真实人物名。所有品牌、游戏、人名应虚构。网页风格应有真实网站的广告、侧栏、用户评论等元素，营造拟真感。",
+			"tags": ["constraint", "browser"]
+		}
+	]
+}

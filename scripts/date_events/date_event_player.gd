@@ -57,6 +57,8 @@ var _capture_timer: Timer = null
 
 ## 历史数据缓存
 var _history_entries: Array = []
+## Whether we paused the global AudioManager BGM during playback
+var _did_pause_global_bgm: bool = false
 
 
 func _ready() -> void:
@@ -453,6 +455,7 @@ func play_event(session_id: String, event_request: Dictionary) -> void:
 	scene_runner.load_scene(scene)
 	scene_runner.start()
 	set_process(true)
+	_pause_global_bgm()
 
 
 func play_scene_package(session_id: String, scene_package: Dictionary) -> void:
@@ -476,6 +479,7 @@ func play_scene_package(session_id: String, scene_package: Dictionary) -> void:
 	scene_runner.load_scene(scene)
 	scene_runner.start()
 	set_process(true)
+	_pause_global_bgm()
 
 
 func _on_scene_ended(_scene_id: String) -> void:
@@ -520,6 +524,7 @@ func _emit_outcome(outcome: Dictionary) -> void:
 		return
 	_finished = true
 	set_process(false)
+	_resume_global_bgm()
 
 	# 保存历史记录（仅首次播放，即截图开启时）
 	if _capture_enabled:
@@ -690,3 +695,23 @@ func _get_date_manager_history() -> Array:
 	if dm != null and dm.has_method("get_avg_history"):
 		return dm.get_avg_history()
 	return []
+
+
+# =============================================================================
+# 全局 BGM 互斥
+# =============================================================================
+
+func _pause_global_bgm() -> void:
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio != null and audio.has_method("pause_bgm"):
+		_did_pause_global_bgm = true
+		audio.pause_bgm()
+
+
+func _resume_global_bgm() -> void:
+	if not _did_pause_global_bgm:
+		return
+	_did_pause_global_bgm = false
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio != null and audio.has_method("resume_bgm"):
+		audio.resume_bgm()

@@ -1,5 +1,7 @@
 extends Node
 
+const AVGScenePromptBuilderClass = preload("res://scripts/activity/avg_scene_prompt_builder.gd")
+
 func _ready() -> void:
 	print("=== StoryDirector Test ===")
 
@@ -9,6 +11,33 @@ func _ready() -> void:
 		return
 
 	print("[OK] StoryDirector autoload found")
+	print("[INFO] Testing activity guidance...")
+	sd.clear_activity_guidance()
+	sd.set_activity_guidance("date", "test guidance")
+	print("  peek date guidance: %s (expect test guidance)" % sd.peek_activity_guidance("date"))
+	print("  consume date guidance: %s (expect test guidance)" % sd.consume_activity_guidance("date"))
+	print("  peek after consume: %s (expect empty)" % sd.peek_activity_guidance("date"))
+	sd.set_activity_guidance("part_time", "persist guidance", false)
+	var save_data: Dictionary = sd.get_save_data()
+	sd.clear_activity_guidance()
+	sd.load_run_state(save_data)
+	print("  restored persistent guidance: %s (expect persist guidance)" % sd.peek_activity_guidance("part_time"))
+	sd.clear_activity_guidance()
+	var prompt_builder := AVGScenePromptBuilderClass.new()
+	var preview_prompt := prompt_builder.build_normal_date_prompt_from_session({
+		"activity_type": "date",
+		"location": {
+			"location_id": "test_location",
+			"title": "测试地点",
+			"description": "测试描述",
+			"base_activity": "你们在这里随便走走。"
+		},
+		"entry_id": "test_location",
+		"start_day": 1,
+		"phase_after_action": "MORNING",
+		"story_guidance_prompt": "这是导演指导测试。",
+	})
+	print("  prompt contains guidance: %s (expect true)" % str(preview_prompt.contains("这是导演指导测试。")))
 
 	# 检查章节加载
 	var chapters: Dictionary = sd._chapters

@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name JumpLabelHandler
 ## Handler for JUMP_LABEL command
 ## Jumps to a label in the current scene.

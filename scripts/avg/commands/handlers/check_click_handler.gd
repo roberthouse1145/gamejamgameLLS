@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name CheckClickHandler
 ## Handler for CHECK_CLICK command
 ## 条件命令 — 检查鼠标是否正在按下指定节点

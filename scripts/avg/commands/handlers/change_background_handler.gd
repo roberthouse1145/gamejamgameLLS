@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ChangeBackgroundHandler
 ## Handler for CHANGE_BACKGROUND command
 ## Changes the scene background with optional shader transition.
@@ -74,7 +74,8 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 		texture = context.scene_runner.load_texture_from_project(texture_path)
 
 	if texture == null:
-		return CommandResultClass.error("texture is required for CHANGE_BACKGROUND command")
+		push_warning("CHANGE_BACKGROUND: texture not found ('%s'), keeping current background" % texture_path)
+		return CommandResultClass.ok()
 	
 	# 优先使用 runner 的 shader 转场方法
 	if context.scene_runner != null and context.scene_runner.has_method("change_background_transition"):

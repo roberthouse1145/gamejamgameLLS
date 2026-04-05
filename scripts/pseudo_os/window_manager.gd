@@ -9,6 +9,7 @@ const PseudoWindowClass = preload("res://scripts/pseudo_os/pseudo_window.gd")
 signal window_created(window: Control)
 signal window_closed(window: Control)
 signal window_focused(window: Control)
+signal window_minimized(window: Control)
 
 # Window scene reference
 const WINDOW_SCENE_PATH := "res://scenes/pseudo_os/window.tscn"
@@ -22,7 +23,6 @@ var _window_scene: PackedScene
 # Window management
 var windows: Array = []  # Array of PseudoWindow
 var focused_window: Control = null
-var next_z_index: int = 0
 
 # Container for windows (set by Desktop)
 var window_container: Control = null
@@ -68,10 +68,6 @@ func create_window(title: String, content: Control, constraints = null) -> Contr
 	# Set content
 	if content:
 		window.set_content(content)
-	
-	# Setup z-order
-	window.z_index = next_z_index
-	next_z_index += 1
 	
 	# Connect window signals
 	_connect_window_signals(window)
@@ -142,6 +138,7 @@ func _animate_window_minimize(window: Control) -> void:
 		window.scale = Vector2.ONE
 		window.modulate.a = 1.0
 		window.minimize()
+		window_minimized.emit(window)
 		if taskbar != null and is_instance_valid(taskbar):
 			if taskbar.has_method("set_window_button_minimized"):
 				taskbar.set_window_button_minimized(window, true)
@@ -273,6 +270,29 @@ func minimize_window(window: Control) -> void:
 	_animate_window_minimize(window)
 
 
+func minimize_window_with_callback(window: Control, on_finished: Callable = Callable()) -> bool:
+	if not window or not is_instance_valid(window):
+		return false
+	if window.is_minimized:
+		if on_finished.is_valid():
+			on_finished.call_deferred()
+		return true
+
+	if on_finished.is_valid():
+		var callable_ref: Array = []  # 用数组包装，让 lambda 能引用自身
+		var finished_callable: Callable = func(minimized_window: Control) -> void:
+			if minimized_window != window:
+				return
+			if callable_ref.size() > 0 and window_minimized.is_connected(callable_ref[0]):
+				window_minimized.disconnect(callable_ref[0])
+			on_finished.call()
+		callable_ref.append(finished_callable)
+		window_minimized.connect(finished_callable)
+
+	minimize_window(window)
+	return true
+
+
 ## Maximize a window to fill the desktop area
 ## @param window: The window to maximize
 func maximize_window(window: Control) -> void:
@@ -353,12 +373,13 @@ func _connect_window_signals(window: Control) -> void:
 ## Focus the topmost visible window
 func _focus_topmost_window() -> void:
 	var topmost: Control = null
-	var highest_z: int = -1
+	var highest_idx: int = -1
 	
 	for window in windows:
 		if is_instance_valid(window) and window.visible and not window.is_minimized:
-			if window.z_index > highest_z:
-				highest_z = window.z_index
+			var idx: int = window.get_index()
+			if idx > highest_idx:
+				highest_idx = idx
 				topmost = window
 	
 	if topmost:
@@ -366,11 +387,6 @@ func _focus_topmost_window() -> void:
 
 
 func _bring_window_to_front(window: Control) -> void:
-	# Keep visual stacking and mouse hit order in sync.
-	# Relying on z_index alone can still leave older siblings receiving input first.
-	window.z_index = next_z_index
-	next_z_index += 1
-
 	var parent := window.get_parent()
 	if parent == null:
 		return

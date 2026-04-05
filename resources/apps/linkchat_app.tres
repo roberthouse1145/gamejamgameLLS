@@ -6,10 +6,10 @@
 
 [sub_resource type="Resource" id="Resource_wc"]
 script = ExtResource("2_constraints")
-min_size = Vector2(900, 640)
+min_size = Vector2(1120, 760)
 max_size = Vector2(0, 0)
 resizable = true
-default_size = Vector2(1320, 920)
+default_size = Vector2(1580, 1040)
 
 [resource]
 script = ExtResource("1_app_def")

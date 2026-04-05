@@ -1,4 +1,4 @@
-﻿class_name ChatContactItem extends PanelContainer
+class_name ChatContactItem extends PanelContainer
 ## 侧边栏联系人/频道条目
 ## 显示头像、名称、最后一条消息预览、未读红点
 
@@ -72,7 +72,7 @@ func _build(channel: Resource, npc: Resource = null) -> void:
 
 	# 头像
 	var display_name: String = channel.display_name
-	var avatar_tex: Texture2D = npc.avatar if npc and npc.avatar else null
+	var avatar_tex: Texture2D = npc.avatar if npc and npc.avatar else channel.icon
 	_avatar_panel = _create_avatar(display_name, channel.channel_type, avatar_tex)
 	hbox.add_child(_avatar_panel)
 
@@ -225,9 +225,11 @@ func _create_avatar(display_name: String, channel_type: int, texture: Texture2D 
 	return panel
 
 
-func _format_preview_text(sender: String, content: String) -> String:
+func _format_preview_text(sender: String, content: String, sender_id: String = "") -> String:
 	var normalized := content.replace("\r", " ").replace("\n", " ").replace("\t", " ").strip_edges()
-	var preview := "%s: %s" % [sender, normalized] if not sender.is_empty() else normalized
+	var preview := normalized
+	if sender_id != "player" and not sender.is_empty():
+		preview = "%s: %s" % [sender, normalized]
 	if preview.length() <= PREVIEW_MAX_CHARS:
 		return preview
 	return "%s..." % preview.substr(0, PREVIEW_MAX_CHARS)
@@ -235,11 +237,12 @@ func _format_preview_text(sender: String, content: String) -> String:
 
 func _apply_preview_from_message(msg: Dictionary) -> void:
 	var sender: String = str(msg.get("sender_name", ""))
+	var sender_id: String = str(msg.get("sender_id", ""))
 	var content: String = str(msg.get("content", "")).strip_edges()
 	if content.is_empty() and msg.has("card") and msg["card"] is Dictionary:
 		content = _build_card_preview(msg["card"] as Dictionary)
-	_preview_label.text = _format_preview_text(sender, content)
-	_time_label.text = str(msg.get("time", ""))
+	_preview_label.text = _format_preview_text(sender, content, sender_id)
+	_time_label.text = _resolve_time_text(msg)
 
 
 func _build_card_preview(card: Dictionary) -> String:
@@ -254,3 +257,15 @@ func _build_card_preview(card: Dictionary) -> String:
 		_:
 			var title := str(card.get("title", "")).strip_edges()
 			return "[卡片] %s" % title if not title.is_empty() else "[卡片消息]"
+
+
+func _resolve_time_text(msg: Dictionary) -> String:
+	var phase_text := str(msg.get("time_phase", "")).strip_edges()
+	if not phase_text.is_empty():
+		return phase_text
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var glm := tree.root.get_node_or_null("GameLoopManager")
+		if glm != null and glm.has_method("get_phase_display_name"):
+			return str(glm.call("get_phase_display_name", glm.get("time_phase")))
+	return str(msg.get("time", ""))

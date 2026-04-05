@@ -12,9 +12,6 @@ var _variables: Dictionary = {}
 ## Default values for reset functionality
 var _defaults: Dictionary = {}
 
-## Variable type definitions
-var _types: Dictionary = {}
-
 ## ID -> name mapping for variable_id lookup
 var _id_to_name: Dictionary = {}
 
@@ -283,6 +280,7 @@ func _apply_operation(current: int, operand: int, operation: String) -> int:
 			if operand == 0:
 				push_warning("VariableManager: Division by zero")
 				return current
+			@warning_ignore("integer_division")
 			return current / operand
 		"modulo":
 			if operand == 0:

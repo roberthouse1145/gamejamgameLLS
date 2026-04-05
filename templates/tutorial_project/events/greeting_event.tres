@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AVGEvent" format=3 uid="uid://cviurb4vxyc6o"]
+[gd_resource type="Resource" script_class="AVGEvent" format=3 uid="uid://b6t5u0vjuiufw"]
 
 [ext_resource type="Script" uid="uid://chfcsjvhtwm77" path="res://scripts/avg/resources/avg_event.gd" id="1_event"]
 [ext_resource type="Script" uid="uid://b1pve6xq8ouco" path="res://scripts/avg/resources/avg_command.gd" id="2_cmd"]

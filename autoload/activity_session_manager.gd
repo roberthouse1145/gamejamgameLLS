@@ -142,6 +142,11 @@ func _apply_session_settlement(_session_id: String) -> void:
 	var session: Dictionary = (_pending_sessions[_session_id] as Dictionary).duplicate(true)
 	if bool(session.get("settlement_done", false)):
 		return
+	var rewards: Dictionary = _collect_session_rewards(session)
+	var game_manager: Node = get_node_or_null("/root/GameManager")
+	if not rewards.is_empty() and game_manager != null and game_manager.has_method("modify_stats"):
+		game_manager.modify_stats(rewards)
+	session["applied_rewards"] = rewards.duplicate(true)
 	session["settlement_done"] = true
 	_pending_sessions[_session_id] = session
 
@@ -149,6 +154,26 @@ func _apply_session_settlement(_session_id: String) -> void:
 ## 构建完成 payload（子类可在此添加额外字段）
 func _build_completed_payload(_session: Dictionary) -> Dictionary:
 	return {}
+
+
+func _collect_session_rewards(session: Dictionary) -> Dictionary:
+	return _merge_reward_sources([
+		session.get("rewards", {}),
+		session.get("outcome_rewards", {}),
+	])
+
+
+func _merge_reward_sources(sources: Array) -> Dictionary:
+	var merged: Dictionary = {}
+	for source in sources:
+		if not source is Dictionary:
+			continue
+		for key in (source as Dictionary).keys():
+			var stat_name := str(key).strip_edges()
+			if stat_name.is_empty():
+				continue
+			merged[stat_name] = int(merged.get(stat_name, 0)) + int((source as Dictionary).get(key, 0))
+	return merged
 
 
 ## 获取 session 中实体的显示名称（用于 chat display_label）
@@ -163,6 +188,11 @@ func _get_moment_hint(_session: Dictionary) -> String:
 
 func _on_reset_runtime_state() -> void:
 	pass
+
+
+## 收集同一地点最近用过的 event_seed，子类可 override
+func _collect_used_seeds(_entry_id: String) -> Array:
+	return []
 
 
 # =============================================================================
@@ -188,6 +218,12 @@ func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS
 		session_failed.emit(blocking_reason)
 		return {"success": false, "error": blocking_reason}
 
+	var narrative_reason := ActivityLockUtilsClass.get_narrative_blocking_reason(_get_activity_type())
+	if not narrative_reason.is_empty():
+		ActivityLockUtilsClass.notify_blocked(self, narrative_reason)
+		session_failed.emit(narrative_reason)
+		return {"success": false, "error": narrative_reason}
+
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm == null:
 		var err := "GameLoopManager 不可用"
@@ -208,9 +244,6 @@ func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS
 	_pending_sessions[session_id] = session
 
 	print("[%s] Session started: %s -> %s" % [name, session_id, normalized_id])
-
-	if _should_generate_scene_check(session_id):
-		_request_scene_generation(session_id)
 
 	_on_session_begin(session)
 
@@ -296,6 +329,8 @@ func _connect_chat_deferred() -> void:
 
 func _build_base_session(session_id: String, entry_id: String, entry: Dictionary, use_fallback: bool, progress_duration: float) -> Dictionary:
 	var activity_type := _get_activity_type()
+	var used_seeds: Array = _collect_used_seeds(entry_id)
+	var story_guidance_prompt := _consume_story_guidance(activity_type)
 	return {
 		"session_id": session_id,
 		"activity_type": activity_type,
@@ -304,7 +339,9 @@ func _build_base_session(session_id: String, entry_id: String, entry: Dictionary
 		"start_day": ActivityUtilsClass.get_current_day(),
 		"phase_after_action": ActivityUtilsClass.get_phase_name(),
 		"detail_prompt": str(entry.get("detail_prompt", "")),
-		"event_seed": ActivityUtilsClass.pick_random_event_seed(entry),
+		"event_seed": ActivityUtilsClass.pick_random_event_seed(entry, used_seeds),
+		"activity_variant": ActivityUtilsClass.pick_activity_variant(entry),
+		"story_guidance_prompt": story_guidance_prompt,
 		"progress_duration": maxf(progress_duration, 0.01),
 		"use_local_fallback": use_fallback,
 		"departure_done": false,
@@ -330,6 +367,13 @@ func _build_base_session(session_id: String, entry_id: String, entry: Dictionary
 		"scene_project_prefix": "%s_scene" % activity_type,
 		"scene_review_label": "%s scene" % activity_type,
 	}
+
+
+func _consume_story_guidance(activity_type: String) -> String:
+	var story_director: Node = get_node_or_null("/root/StoryDirector")
+	if story_director == null or not story_director.has_method("consume_activity_guidance"):
+		return ""
+	return str(story_director.consume_activity_guidance(activity_type)).strip_edges()
 
 
 func _is_fallback_mode() -> bool:
@@ -443,6 +487,11 @@ func _handle_departure_finished(session_id: String) -> void:
 	session["departure_done"] = true
 	session["progress_phase_started"] = true
 	_pending_sessions[session_id] = session
+
+	# Scene generation is deferred until after departure so the prompt
+	# builder can include the departure chat history.
+	if _should_generate_scene_check(session_id):
+		_request_scene_generation(session_id)
 
 	if bool(session.get("use_local_fallback", false)):
 		_emit_progress_started(session_id)
@@ -569,10 +618,26 @@ func _on_scene_playback_finished(session_id: String, outcome: Dictionary) -> voi
 	var session: Dictionary = (_pending_sessions[session_id] as Dictionary).duplicate(true)
 	session["scene_active"] = false
 	session["scene_result"] = outcome.duplicate(true)
-	SceneWindowClass.close(session.get("scene_window", null))
 	session["scene_window"] = null
 	_pending_sessions[session_id] = session
 	print("[%s] Scene playback finished: %s" % [name, session_id])
+	_schedule_scene_window_minimize(session_id)
+
+
+func _schedule_scene_window_minimize(session_id: String) -> void:
+	_begin_scene_window_minimize(session_id)
+
+
+func _begin_scene_window_minimize(session_id: String) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var finished_callback := Callable(self, "_on_scene_window_minimized").bind(session_id)
+	var started: bool = SceneWindowClass.minimize(finished_callback)
+	if not started:
+		finished_callback.call_deferred()
+
+
+func _on_scene_window_minimized(session_id: String) -> void:
 	_start_followup_phase(session_id)
 
 

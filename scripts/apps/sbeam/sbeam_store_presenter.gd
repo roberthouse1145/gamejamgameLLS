@@ -48,10 +48,14 @@ static func render_game_detail(refs: Dictionary, entry: Dictionary) -> void:
 	if detail_hook != null:
 		detail_hook.text = str(entry.get("hook_moment", "看起来很有趣。"))
 	if buy_price_label != null:
-		buy_price_label.text = "¥ %d" % int(entry.get("price", 0))
+		buy_price_label.text = "¥ %d" % _get_purchase_cost(entry)
 
-	_build_tags(refs.get("tags_container"), entry.get("tone_tags", []))
 	_build_user_reviews(refs.get("user_reviews_container"), entry.get("user_reviews", []))
+
+
+static func _get_purchase_cost(entry: Dictionary) -> int:
+	var rewards: Dictionary = entry.get("rewards", {}) as Dictionary
+	return maxi(0, -int(rewards.get("money", 0)))
 
 
 static func _build_tags(tags_container: HFlowContainer, tags: Array) -> void:

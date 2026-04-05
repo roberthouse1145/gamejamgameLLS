@@ -89,6 +89,54 @@ static func close(_window: Variant) -> void:
 		app_manager.unlock_app_window(APP_ID)
 
 
+static func minimize(on_finished: Callable = Callable()) -> bool:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return false
+	var app_manager: Node = tree.root.get_node_or_null("/root/AppManager")
+	if app_manager == null:
+		return false
+	if not app_manager.is_app_running(APP_ID):
+		return false
+	var window: Control = app_manager.running_apps.get(APP_ID, null)
+	if window == null or not is_instance_valid(window):
+		return false
+	if window.is_minimized:
+		if on_finished.is_valid():
+			on_finished.call_deferred()
+		return true
+
+	if app_manager.has_method("unlock_app_window"):
+		app_manager.unlock_app_window(APP_ID)
+
+	var window_manager: Node = app_manager.window_manager
+	if window_manager == null:
+		return false
+
+	if on_finished.is_valid() and window_manager.has_signal("window_minimized"):
+		var callable_ref: Array = []  # 用数组包装，让 lambda 能引用自身
+		var finished_callable: Callable = func(minimized_window: Control) -> void:
+			if minimized_window != window:
+				return
+			if callable_ref.size() > 0 and window_manager.window_minimized.is_connected(callable_ref[0]):
+				window_manager.window_minimized.disconnect(callable_ref[0])
+			on_finished.call()
+		callable_ref.append(finished_callable)
+		window_manager.window_minimized.connect(finished_callable)
+
+	if window.has_signal("minimize_requested"):
+		window.call_deferred("emit_signal", "minimize_requested")
+		return true
+
+	if window_manager.has_method("minimize_window"):
+		window_manager.minimize_window(window)
+		if on_finished.is_valid():
+			on_finished.call_deferred()
+		return true
+
+	return false
+
+
 static func force_close() -> void:
 	var tree: SceneTree = Engine.get_main_loop() as SceneTree
 	if tree == null:

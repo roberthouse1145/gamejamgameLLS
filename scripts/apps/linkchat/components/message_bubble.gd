@@ -15,6 +15,12 @@ enum BubbleType {NPC, PLAYER, SYSTEM}
 
 ## 气泡最大宽度占父容器的比例
 const MAX_WIDTH_RATIO: float = 0.82
+const AVATAR_SIZE: float = 56.0
+const AVATAR_FONT_SIZE: int = 20
+const NAME_FONT_SIZE: int = 18
+const TIME_FONT_SIZE: int = 16
+const CONTENT_FONT_SIZE: int = 22
+const SYSTEM_FONT_SIZE: int = 18
 
 static var _image_regex: RegEx
 
@@ -64,7 +70,10 @@ func _build_npc(msg: Dictionary) -> void:
 	hbox.add_theme_constant_override("separation", 10)
 	add_child(hbox)
 
-	var avatar := _create_avatar(msg.get("sender_name", "?"))
+	var avatar := _create_avatar(
+		str(msg.get("sender_name", "?")),
+		_resolve_avatar_texture(msg)
+	)
 	avatar.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	hbox.add_child(avatar)
 
@@ -82,13 +91,13 @@ func _build_npc(msg: Dictionary) -> void:
 	var name_label := Label.new()
 	name_label.text = msg.get("sender_name", "")
 	name_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SENDER_NPC)
-	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
 	header.add_child(name_label)
 
 	var time_label := Label.new()
-	time_label.text = msg.get("time", "")
+	time_label.text = _resolve_time_text(msg)
 	time_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_TIME)
-	time_label.add_theme_font_size_override("font_size", 12)
+	time_label.add_theme_font_size_override("font_size", TIME_FONT_SIZE)
 	header.add_child(time_label)
 
 	# 气泡 — SHRINK_BEGIN 让短消息不撑满
@@ -116,9 +125,9 @@ func _build_player(msg: Dictionary) -> void:
 	add_child(vbox)
 
 	var time_label := Label.new()
-	time_label.text = msg.get("time", "")
+	time_label.text = _resolve_time_text(msg)
 	time_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_TIME)
-	time_label.add_theme_font_size_override("font_size", 12)
+	time_label.add_theme_font_size_override("font_size", TIME_FONT_SIZE)
 	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	vbox.add_child(time_label)
 
@@ -153,7 +162,7 @@ func _build_system(msg: Dictionary) -> void:
 	var label := Label.new()
 	label.text = msg.get("content", "")
 	label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_font_size_override("font_size", SYSTEM_FONT_SIZE)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(label)
@@ -204,7 +213,7 @@ func _adjust_bubble_width() -> void:
 		padding = style.content_margin_left + style.content_margin_right
 
 	# 头像 + 间距占用的固定宽度
-	var fixed_width: float = 68.0 # larger avatar + spacing + outer margin
+	var fixed_width: float = AVATAR_SIZE + 24.0 # avatar + spacing + outer margin
 
 	# 最大内容宽度
 	var max_content_w: float = container_width * MAX_WIDTH_RATIO - fixed_width - padding
@@ -316,7 +325,7 @@ func _create_text_label(text: String) -> Label:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	lbl.add_theme_font_size_override("font_size", 17)
+	lbl.add_theme_font_size_override("font_size", CONTENT_FONT_SIZE)
 	# 默认不换行，_ready 中根据测量结果决定是否开启
 	lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
 	return lbl
@@ -351,23 +360,62 @@ func _create_image_placeholder(description: String) -> PanelContainer:
 	return panel
 
 
-func _create_avatar(display_name: String) -> PanelContainer:
+func _create_avatar(display_name: String, texture: Texture2D = null) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(44, 44)
+	panel.custom_minimum_size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
 
 	var hue := float(display_name.hash() & 0xFFFF) / 65535.0
 	# Brighter pastel colors for Anime style
 	var avatar_color := Color.from_hsv(hue, 0.55, 0.95)
 	panel.add_theme_stylebox_override("panel", LCTheme.get_avatar_style(avatar_color))
 
-	var initial := Label.new()
-	initial.text = display_name.substr(0, 1) if not display_name.is_empty() else "?"
-	initial.add_theme_color_override("font_color", Color.WHITE)
-	initial.add_theme_font_size_override("font_size", 16)
-	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	initial.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	initial.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_child(initial)
+	if texture != null:
+		var tex_rect := TextureRect.new()
+		tex_rect.texture = texture
+		tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(tex_rect)
+	else:
+		var initial := Label.new()
+		initial.text = display_name.substr(0, 1) if not display_name.is_empty() else "?"
+		initial.add_theme_color_override("font_color", Color.WHITE)
+		initial.add_theme_font_size_override("font_size", AVATAR_FONT_SIZE)
+		initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		initial.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		initial.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		panel.add_child(initial)
 
 	return panel
+
+
+static func _resolve_avatar_texture(msg: Dictionary) -> Texture2D:
+	var sender_id := str(msg.get("sender_id", "")).strip_edges()
+	if sender_id.is_empty() or sender_id == "player" or sender_id == "system":
+		return null
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	var chat_manager := tree.root.get_node_or_null("ChatManager")
+	if chat_manager == null or not chat_manager.has_method("get_npc"):
+		return null
+	var npc = chat_manager.call("get_npc", sender_id)
+	if npc == null:
+		return null
+	var avatar = npc.get("avatar")
+	return avatar as Texture2D if avatar != null else null
+
+
+static func _resolve_time_text(msg: Dictionary) -> String:
+	var phase_text := str(msg.get("time_phase", "")).strip_edges()
+	if not phase_text.is_empty():
+		return phase_text
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		var glm := tree.root.get_node_or_null("GameLoopManager")
+		if glm != null and glm.has_method("get_phase_display_name"):
+			return str(glm.call("get_phase_display_name", glm.get("time_phase")))
+	return str(msg.get("time", ""))

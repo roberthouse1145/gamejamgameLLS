@@ -5,37 +5,49 @@
 			"title": "刷论坛",
 			"description": "看看玩家和路人在聊什么，获取舆论、灵感和争议苗头。",
 			"action_type": "community",
-			"ap_cost": 1,
+			"ap_cost": 1.0,
 			"stat_changes": {
-				"hype": 3,
-				"stress": 1
+				"hype": 3.0,
+				"stress": 1.0
 			},
-			"tags": ["forum", "gossip", "inspiration"]
+			"tags": [
+				"论坛",
+				"八卦",
+				"灵感"
+			]
 		},
 		{
 			"action_id": "post_promo",
 			"title": "发帖宣传",
 			"description": "主动在社区刷存在感，换来热度，也可能换来压力。",
 			"action_type": "community",
-			"ap_cost": 1,
+			"ap_cost": 1.0,
 			"stat_changes": {
-				"hype": 8,
-				"stress": 2,
-				"passion": 1
+				"hype": 8.0,
+				"stress": 2.0,
+				"passion": 1.0
 			},
-			"tags": ["promo", "community", "heat"]
+			"tags": [
+				"宣传",
+				"社区",
+				"热度"
+			]
 		},
 		{
 			"action_id": "watch_event",
 			"title": "看比赛动态",
 			"description": "关注比赛官网和社区热帖，感受竞争环境和阶段压力。",
 			"action_type": "community",
-			"ap_cost": 1,
+			"ap_cost": 1.0,
 			"stat_changes": {
-				"hype": 2,
-				"stress": 1
+				"hype": 2.0,
+				"stress": 1.0
 			},
-			"tags": ["jam", "news", "competition"]
+			"tags": [
+				"比赛",
+				"资讯",
+				"竞争"
+			]
 		}
 	],
 	"sites": [
@@ -45,7 +57,10 @@
 			"display_name": "校园论坛",
 			"url_prefix": "campus://bbs/",
 			"tone": "轻松、嘴碎、喜欢围观",
-			"supported_actions": ["browse_forum", "post_promo"]
+			"supported_actions": [
+				"browse_forum",
+				"post_promo"
+			]
 		},
 		{
 			"site_id": "jam_square",
@@ -53,7 +68,11 @@
 			"display_name": "比赛广场",
 			"url_prefix": "jam://square/",
 			"tone": "半官方、讨论热烈、喜欢比进度",
-			"supported_actions": ["browse_forum", "watch_event", "post_promo"]
+			"supported_actions": [
+				"browse_forum",
+				"watch_event",
+				"post_promo"
+			]
 		},
 		{
 			"site_id": "pixel_post",
@@ -61,7 +80,9 @@
 			"display_name": "像素快讯",
 			"url_prefix": "news://pixelpost/",
 			"tone": "资讯站、导语感强、像小编快讯",
-			"supported_actions": ["watch_event"]
+			"supported_actions": [
+				"watch_event"
+			]
 		},
 		{
 			"site_id": "indie_hub",
@@ -69,7 +90,10 @@
 			"display_name": "独立游戏圈",
 			"url_prefix": "hub://indie/",
 			"tone": "开发者聚集、技术向、偶尔互相diss",
-			"supported_actions": ["browse_forum", "post_promo"]
+			"supported_actions": [
+				"browse_forum",
+				"post_promo"
+			]
 		},
 		{
 			"site_id": "gamer_plaza",
@@ -77,7 +101,10 @@
 			"display_name": "玩家广场",
 			"url_prefix": "plaza://gamer/",
 			"tone": "玩家视角、口味挑剔、喜欢比较",
-			"supported_actions": ["browse_forum", "watch_event"]
+			"supported_actions": [
+				"browse_forum",
+				"watch_event"
+			]
 		}
 	],
 	"topics": [
@@ -87,13 +114,28 @@
 			"direction": "技术或规则争议",
 			"mood": "heated",
 			"seeds": [
-				"AI素材", "引擎bug", "规则漏洞", "外包争议", "开源协议",
-				"抄袭嫌疑", "插件授权", "素材版权", "代码生成", "付费资源",
-				"技术门槛", "工具链", "跨平台", "性能优化", "第三方库"
+				"AI素材",
+				"引擎bug",
+				"规则漏洞",
+				"外包争议",
+				"开源协议",
+				"抄袭嫌疑",
+				"插件授权",
+				"素材版权",
+				"代码生成",
+				"付费资源",
+				"技术门槛",
+				"工具链",
+				"跨平台",
+				"性能优化",
+				"第三方库"
 			],
-			"weight": 8,
-			"valid_actions": ["browse_forum", "watch_event"],
-			"min_day": 1
+			"weight": 8.0,
+			"valid_actions": [
+				"browse_forum",
+				"watch_event"
+			],
+			"min_day": 1.0
 		},
 		{
 			"topic_id": "creative_debate",
@@ -101,15 +143,37 @@
 			"direction": "创作方向讨论",
 			"mood": "mixed",
 			"seeds": [
-				"青梅竹马", "末日生存", "时间循环", "校园恋爱", "赛博朋克",
-				"克苏鲁", "解谜", "像素风", "叙事实验", "多结局",
-				"反转", "黑色幽默", "治愈系", "恐怖", "开放世界",
-				"roguelike", "视觉小说", "节奏游戏", "塔防", "经营模拟",
-				"角色塑造", "世界观", "文风", "代入感", "分支复杂度"
+				"青梅竹马",
+				"末日生存",
+				"时间循环",
+				"校园恋爱",
+				"赛博朋克",
+				"克苏鲁",
+				"解谜",
+				"像素风",
+				"叙事实验",
+				"多结局",
+				"反转",
+				"黑色幽默",
+				"治愈系",
+				"恐怖",
+				"开放世界",
+				"roguelike",
+				"视觉小说",
+				"节奏游戏",
+				"塔防",
+				"经营模拟",
+				"角色塑造",
+				"世界观",
+				"文风",
+				"代入感",
+				"分支复杂度"
 			],
-			"weight": 7,
-			"valid_actions": ["browse_forum"],
-			"min_day": 1
+			"weight": 7.0,
+			"valid_actions": [
+				"browse_forum"
+			],
+			"min_day": 1.0
 		},
 		{
 			"topic_id": "progress_anxiety",
@@ -117,14 +181,33 @@
 			"direction": "进度焦虑",
 			"mood": "anxious",
 			"seeds": [
-				"熬夜", "进度落后", "砍功能", "重写", "队友摸鱼",
-				"时间不够", "scope creep", "完成度", "技术债", "美术缺人",
-				"音乐外包", "测试不够", "demo崩溃", "存档丢失", "版本冲突",
-				"需求变更", "灵感枯竭", "拖延症", "过度设计", "完美主义"
+				"熬夜",
+				"进度落后",
+				"砍功能",
+				"重写",
+				"队友摸鱼",
+				"时间不够",
+				"scope creep",
+				"完成度",
+				"技术债",
+				"美术缺人",
+				"音乐外包",
+				"测试不够",
+				"demo崩溃",
+				"存档丢失",
+				"版本冲突",
+				"需求变更",
+				"灵感枯竭",
+				"拖延症",
+				"过度设计",
+				"完美主义"
 			],
-			"weight": 8,
-			"valid_actions": ["browse_forum", "watch_event"],
-			"min_day": 1
+			"weight": 8.0,
+			"valid_actions": [
+				"browse_forum",
+				"watch_event"
+			],
+			"min_day": 1.0
 		},
 		{
 			"topic_id": "community_buzz",
@@ -132,14 +215,33 @@
 			"direction": "社区热点",
 			"mood": "curious",
 			"seeds": [
-				"截图", "试玩", "美术风格", "UI设计", "音乐", "配音",
-				"黑马队伍", "翻车现场", "神仙打架", "整活", "梗图",
-				"直播开发", "粉丝催更", "路人围观", "评论区", "热搜",
-				"对比评测", "安利", "吐槽", "表情包"
+				"截图",
+				"试玩",
+				"美术风格",
+				"UI设计",
+				"音乐",
+				"配音",
+				"黑马队伍",
+				"翻车现场",
+				"神仙打架",
+				"整活",
+				"梗图",
+				"直播开发",
+				"粉丝催更",
+				"路人围观",
+				"评论区",
+				"热搜",
+				"对比评测",
+				"安利",
+				"吐槽",
+				"表情包"
 			],
-			"weight": 7,
-			"valid_actions": ["browse_forum", "watch_event"],
-			"min_day": 1
+			"weight": 7.0,
+			"valid_actions": [
+				"browse_forum",
+				"watch_event"
+			],
+			"min_day": 1.0
 		},
 		{
 			"topic_id": "team_dynamics",
@@ -147,14 +249,31 @@
 			"direction": "团队协作",
 			"mood": "mixed",
 			"seeds": [
-				"单人参赛", "找队友", "分工", "吵架", "退出",
-				"磨合", "远程协作", "临时加人", "甩锅", "背刺",
-				"神队友", "猪队友", "跑路", "加班", "划水",
-				"技术栈不合", "审美分歧", "沟通障碍", "时区差异"
+				"单人参赛",
+				"找队友",
+				"分工",
+				"吵架",
+				"退出",
+				"磨合",
+				"远程协作",
+				"临时加人",
+				"甩锅",
+				"背刺",
+				"神队友",
+				"猪队友",
+				"跑路",
+				"加班",
+				"划水",
+				"技术栈不合",
+				"审美分歧",
+				"沟通障碍",
+				"时区差异"
 			],
-			"weight": 6,
-			"valid_actions": ["browse_forum"],
-			"min_day": 1
+			"weight": 6.0,
+			"valid_actions": [
+				"browse_forum"
+			],
+			"min_day": 1.0
 		},
 		{
 			"topic_id": "promo_devlog",
@@ -162,13 +281,27 @@
 			"direction": "开发日志和宣传",
 			"mood": "supportive",
 			"seeds": [
-				"开发日志", "进度汇报", "立绘公开", "系统展示", "玩法揭秘",
-				"幕后故事", "设计理念", "技术分享", "踩坑记录", "版本对比",
-				"before/after", "灵感来源", "致敬", "彩蛋", "预告片"
+				"开发日志",
+				"进度汇报",
+				"立绘公开",
+				"系统展示",
+				"玩法揭秘",
+				"幕后故事",
+				"设计理念",
+				"技术分享",
+				"踩坑记录",
+				"版本对比",
+				"before/after",
+				"灵感来源",
+				"致敬",
+				"彩蛋",
+				"预告片"
 			],
-			"weight": 9,
-			"valid_actions": ["post_promo"],
-			"min_day": 1
+			"weight": 9.0,
+			"valid_actions": [
+				"post_promo"
+			],
+			"min_day": 1.0
 		},
 		{
 			"topic_id": "event_official",
@@ -176,13 +309,27 @@
 			"direction": "赛事动态",
 			"mood": "curious",
 			"seeds": [
-				"榜单更新", "赞助商", "评审标准", "赛程调整", "提交规则",
-				"奖金变化", "特别奖项", "评委阵容", "直播预告", "合作伙伴",
-				"参赛人数", "地区分布", "往届回顾", "新增赛道", "规则修改"
+				"榜单更新",
+				"赞助商",
+				"评审标准",
+				"赛程调整",
+				"提交规则",
+				"奖金变化",
+				"特别奖项",
+				"评委阵容",
+				"直播预告",
+				"合作伙伴",
+				"参赛人数",
+				"地区分布",
+				"往届回顾",
+				"新增赛道",
+				"规则修改"
 			],
-			"weight": 9,
-			"valid_actions": ["watch_event"],
-			"min_day": 1
+			"weight": 9.0,
+			"valid_actions": [
+				"watch_event"
+			],
+			"min_day": 1.0
 		},
 		{
 			"topic_id": "emotional_sharing",
@@ -190,13 +337,27 @@
 			"direction": "参赛者心声",
 			"mood": "supportive",
 			"seeds": [
-				"倦怠", "自我怀疑", "突破瓶颈", "意外收获", "感动瞬间",
-				"压力", "孤独感", "成就感", "初心", "放弃边缘",
-				"深夜感慨", "互相鼓励", "回忆杀", "第一次参赛", "老选手"
+				"倦怠",
+				"自我怀疑",
+				"突破瓶颈",
+				"意外收获",
+				"感动瞬间",
+				"压力",
+				"孤独感",
+				"成就感",
+				"初心",
+				"放弃边缘",
+				"深夜感慨",
+				"互相鼓励",
+				"回忆杀",
+				"第一次参赛",
+				"老选手"
 			],
-			"weight": 6,
-			"valid_actions": ["browse_forum"],
-			"min_day": 3
+			"weight": 6.0,
+			"valid_actions": [
+				"browse_forum"
+			],
+			"min_day": 3.0
 		},
 		{
 			"topic_id": "midterm_review",
@@ -204,13 +365,28 @@
 			"direction": "中期回顾",
 			"mood": "anxious",
 			"seeds": [
-				"中期检查", "淘汰率", "进度对比", "黑马", "掉队",
-				"逆袭", "评委点评", "人气投票", "数据分析", "预测",
-				"爆冷", "稳定发挥", "翻盘", "弃赛", "复活赛"
+				"中期检查",
+				"淘汰率",
+				"进度对比",
+				"黑马",
+				"掉队",
+				"逆袭",
+				"评委点评",
+				"人气投票",
+				"数据分析",
+				"预测",
+				"爆冷",
+				"稳定发挥",
+				"翻盘",
+				"弃赛",
+				"复活赛"
 			],
-			"weight": 9,
-			"valid_actions": ["watch_event", "browse_forum"],
-			"min_day": 12
+			"weight": 9.0,
+			"valid_actions": [
+				"watch_event",
+				"browse_forum"
+			],
+			"min_day": 12.0
 		},
 		{
 			"topic_id": "final_sprint",
@@ -218,13 +394,28 @@
 			"direction": "最后冲刺",
 			"mood": "heated",
 			"seeds": [
-				"倒计时", "通宵", "最后打磨", "提交", "放弃",
-				"奇迹", "赶工", "最终版本", "紧急修复", "压线提交",
-				"遗憾", "满足", "庆祝", "复盘", "下次再来"
+				"倒计时",
+				"通宵",
+				"最后打磨",
+				"提交",
+				"放弃",
+				"奇迹",
+				"赶工",
+				"最终版本",
+				"紧急修复",
+				"压线提交",
+				"遗憾",
+				"满足",
+				"庆祝",
+				"复盘",
+				"下次再来"
 			],
-			"weight": 10,
-			"valid_actions": ["browse_forum", "watch_event"],
-			"min_day": 35
+			"weight": 10.0,
+			"valid_actions": [
+				"browse_forum",
+				"watch_event"
+			],
+			"min_day": 35.0
 		}
 	]
 }

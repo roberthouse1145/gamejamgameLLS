@@ -65,6 +65,27 @@ const COMMAND_TYPES: Array = [
 const CONDITION_OPERATORS: Array[String] = ["==", "!=", ">", ">=", "<", "<="]
 
 
+static func _format_decimal_number(value: float) -> String:
+	if is_equal_approx(value, roundf(value)):
+		return "%.0f" % value
+	return "%.1f" % value
+
+
+static func _format_screen_shake_intensity(value: Variant) -> String:
+	if value is int or value is float:
+		return _format_decimal_number(float(value))
+
+	if value is String:
+		var text: String = value.strip_edges()
+		if text.is_empty():
+			return "10"
+		if text.is_valid_int() or text.is_valid_float():
+			return _format_decimal_number(text.to_float())
+		return text
+
+	return str(value)
+
+
 ## 解析变量显示名称：优先用 variable_id 查找名称，显示为 "ID(名称)" 格式
 static func resolve_variable_display(var_id: String, var_name: String) -> String:
 	var project: Resource = StorageManager.current_project
@@ -253,8 +274,8 @@ static func get_command_display(cmd: Variant) -> String:
 			return "屏幕闪烁 %.1fs" % params.get("duration", 0.3)
 		"SCREEN_SHAKE":
 			var dur: float = params.get("duration", 0.5)
-			var intensity: float = params.get("intensity", 10.0)
-			return "屏幕震动 %.0f %.1fs" % [intensity, dur]
+			var intensity_text: String = _format_screen_shake_intensity(params.get("intensity", 10.0))
+			return "屏幕震动 %s %.1fs" % [intensity_text, dur]
 		"SHOW_IMAGE":
 			return "显示图片 %s" % params.get("image_id", "")
 		"HIDE_IMAGE":
@@ -330,14 +351,22 @@ static func get_command_display(cmd: Variant) -> String:
 			return "点击检测 %s" % nid3
 		"CAMERA_ZOOM":
 			var zm: float = params.get("zoom", 1.5)
+			var focus_target: String = str(params.get("focus", ""))
+			var dur: float = params.get("duration", 1.0)
+			if not focus_target.is_empty():
+				return "镜头缩放 x%.1f →%s %.1fs" % [zm, focus_target, dur]
 			var fx: float = params.get("focus_x", 0.5)
 			var fy: float = params.get("focus_y", 0.5)
-			var dur: float = params.get("duration", 1.0)
-			return "镜头缩放 x%.1f (%.2f,%.2f) %.1fs" % [zm, fx, fy, dur]
+			if params.has("focus_x") or params.has("focus_y"):
+				return "镜头缩放 x%.1f (%.2f,%.2f) %.1fs" % [zm, fx, fy, dur]
+			return "镜头缩放 x%.1f (自动) %.1fs" % [zm, dur]
 		"CAMERA_PAN":
+			var pan_target: String = str(params.get("target", ""))
+			var dur2: float = params.get("duration", 1.0)
+			if not pan_target.is_empty():
+				return "镜头平移 %s %.1fs" % [pan_target, dur2]
 			var px: float = params.get("norm_x", 0.0)
 			var py: float = params.get("norm_y", 0.0)
-			var dur2: float = params.get("duration", 1.0)
 			return "镜头平移 (%.2f,%.2f) %.1fs" % [px, py, dur2]
 		"CAMERA_RESET":
 			var dur3: float = params.get("duration", 1.0)
@@ -434,9 +463,9 @@ static func init_command_params(cmd: Resource) -> void:
 		"CHECK_CLICK":
 			cmd.params = {"node_id": ""}
 		"CAMERA_ZOOM":
-			cmd.params = {"zoom": 1.5, "focus_x": 0.5, "focus_y": 0.5, "duration": 1.0}
+			cmd.params = {"zoom": 1.5, "focus": "", "duration": 1.0}
 		"CAMERA_PAN":
-			cmd.params = {"norm_x": 0.0, "norm_y": 0.0, "duration": 1.0}
+			cmd.params = {"target": "", "norm_x": 0.0, "norm_y": 0.0, "duration": 1.0}
 		"CAMERA_RESET":
 			cmd.params = {"duration": 1.0}
 		_:

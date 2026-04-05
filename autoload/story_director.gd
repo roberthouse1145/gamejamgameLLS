@@ -5,9 +5,10 @@ extends Node
 
 const StoryStepClass = preload("res://scripts/story/resources/story_step.gd")
 const StoryChapterClass = preload("res://scripts/story/resources/story_chapter.gd")
+const StoryChapterIndexClass = preload("res://scripts/story/resources/story_chapter_index.gd")
+const StoryCompilerClass = preload("res://scripts/story/story_compiler.gd")
 const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
-
-const CHAPTERS_DIR: String = "res://resources/story/chapters/"
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
 
 # =============================================================================
 # Signals
@@ -38,6 +39,7 @@ var completed_steps: Dictionary = {}
 
 ## 已完成的章节 ID 集合
 var completed_chapters: Dictionary = {}
+var _pending_activity_guidance: Dictionary = {}
 
 ## 是否正在等待条件
 var _waiting: bool = false
@@ -124,6 +126,50 @@ func submit_story_event(condition_type: String, data: Dictionary = {}, variables
 		set_variable(str(key), variables[key])
 
 
+func set_activity_guidance(activity_type: String, prompt: String, consume_once: bool = true) -> void:
+	var normalized_type := activity_type.strip_edges()
+	var normalized_prompt := prompt.strip_edges()
+	if normalized_type.is_empty():
+		push_warning("[StoryDirector] set_activity_guidance: empty activity_type")
+		return
+	if normalized_prompt.is_empty():
+		_pending_activity_guidance.erase(normalized_type)
+		return
+	_pending_activity_guidance[normalized_type] = {
+		"prompt": normalized_prompt,
+		"consume_once": consume_once,
+	}
+
+
+func consume_activity_guidance(activity_type: String) -> String:
+	var normalized_type := activity_type.strip_edges()
+	if normalized_type.is_empty() or not _pending_activity_guidance.has(normalized_type):
+		return ""
+	var entry: Variant = _pending_activity_guidance.get(normalized_type, {})
+	var guidance: Dictionary = entry if entry is Dictionary else {}
+	var prompt := str(guidance.get("prompt", "")).strip_edges()
+	if bool(guidance.get("consume_once", true)):
+		_pending_activity_guidance.erase(normalized_type)
+	return prompt
+
+
+func peek_activity_guidance(activity_type: String) -> String:
+	var normalized_type := activity_type.strip_edges()
+	if normalized_type.is_empty() or not _pending_activity_guidance.has(normalized_type):
+		return ""
+	var entry: Variant = _pending_activity_guidance.get(normalized_type, {})
+	var guidance: Dictionary = entry if entry is Dictionary else {}
+	return str(guidance.get("prompt", "")).strip_edges()
+
+
+func clear_activity_guidance(activity_type: String = "") -> void:
+	var normalized_type := activity_type.strip_edges()
+	if normalized_type.is_empty():
+		_pending_activity_guidance.clear()
+		return
+	_pending_activity_guidance.erase(normalized_type)
+
+
 ## 获取当前状态摘要（存档用）
 func get_save_data() -> Dictionary:
 	return {
@@ -132,6 +178,7 @@ func get_save_data() -> Dictionary:
 		"story_variables": story_variables.duplicate(true),
 		"completed_steps": completed_steps.duplicate(true),
 		"completed_chapters": completed_chapters.duplicate(true),
+		"pending_activity_guidance": _pending_activity_guidance.duplicate(true),
 	}
 
 
@@ -140,6 +187,7 @@ func load_save_data(data: Dictionary) -> bool:
 	story_variables = data.get("story_variables", {}).duplicate(true)
 	completed_steps = data.get("completed_steps", {}).duplicate(true)
 	completed_chapters = data.get("completed_chapters", {}).duplicate(true)
+	_pending_activity_guidance = data.get("pending_activity_guidance", {}).duplicate(true)
 
 	var chapter_id: String = str(data.get("chapter_id", ""))
 	var step_id: String = str(data.get("step_id", ""))
@@ -178,6 +226,7 @@ func load_run_state(data: Dictionary) -> bool:
 	story_variables = data.get("story_variables", {}).duplicate(true)
 	completed_steps = data.get("completed_steps", {}).duplicate(true)
 	completed_chapters = data.get("completed_chapters", {}).duplicate(true)
+	_pending_activity_guidance = data.get("pending_activity_guidance", {}).duplicate(true)
 
 	var chapter_id: String = str(data.get("chapter_id", "")).strip_edges()
 	var step_id: String = str(data.get("step_id", "")).strip_edges()
@@ -195,8 +244,29 @@ func load_run_state(data: Dictionary) -> bool:
 			"story_variables": story_variables,
 			"completed_steps": completed_steps,
 			"completed_chapters": completed_chapters,
+			"pending_activity_guidance": _pending_activity_guidance,
 		})
 	return load_save_data(data)
+
+
+## ── Prompt Provider 方法（供 PromptManager 的 JSON 绑定调用）──
+
+func get_player_name_prompt() -> String:
+	var real_name: String = str(get_variable("player_real_name", "")).strip_edges()
+	var nickname: String = str(get_variable("player_name", "")).strip_edges()
+	return real_name if not real_name.is_empty() else nickname
+
+
+func get_player_web_name_prompt() -> String:
+	return str(get_variable("player_name", "")).strip_edges()
+
+
+func get_player_team_prompt() -> String:
+	return str(get_variable("team_name", "")).strip_edges()
+
+
+func get_player_college_prompt() -> String:
+	return str(get_variable("player_college", "")).strip_edges()
 
 
 func has_active_story() -> bool:
@@ -212,8 +282,18 @@ func reset_runtime_state() -> void:
 	story_variables.clear()
 	completed_steps.clear()
 	completed_chapters.clear()
+	_pending_activity_guidance.clear()
 	_waiting = false
 	_started = false
+
+
+func rebuild_story_cache() -> bool:
+	if OS.has_feature("template"):
+		push_warning("[StoryDirector] rebuild_story_cache is unavailable in exported builds")
+		return false
+
+	var index_resource: Resource = StoryCompilerClass.compile_all()
+	return _load_compiled_chapters(index_resource)
 
 
 # =============================================================================
@@ -299,6 +379,8 @@ func _execute_action(action: Dictionary) -> void:
 	match action_type:
 		"activate_topic":
 			_action_activate_topic(action)
+		"set_activity_guidance":
+			_action_set_activity_guidance(action)
 		"set_app_access":
 			_action_set_app_access(action)
 		"set_phase":
@@ -315,6 +397,10 @@ func _execute_action(action: Dictionary) -> void:
 			_action_set_variable(action)
 		"delay":
 			_action_delay(action)
+		"play_bgm":
+			_action_play_bgm(action)
+		"stop_bgm":
+			_action_stop_bgm(action)
 		"launch_app":
 			_action_launch_app(action)
 		"close_app":
@@ -325,6 +411,14 @@ func _execute_action(action: Dictionary) -> void:
 			_action_lock_app_window(action)
 		"unlock_app_window":
 			_action_unlock_app_window(action)
+		"set_activity_lock":
+			_action_set_activity_lock(action)
+		"clear_activity_lock":
+			_action_clear_activity_lock(action)
+		"dispatch_work_order":
+			_action_dispatch_work_order(action)
+		"generate_work_order":
+			_action_generate_work_order(action)
 		_:
 			push_warning("[StoryDirector] Unknown action type: %s" % action_type)
 
@@ -378,6 +472,21 @@ func _action_activate_topic(action: Dictionary) -> void:
 		auto_complete = auto_complete or bool(topic.context_data.get("complete_after_first_reply", false))
 		if chat.has_method("request_topic_npc_reply"):
 			chat.request_topic_npc_reply(topic.channel_id, seed_msg, auto_store, auto_complete)
+
+
+func _action_set_activity_guidance(action: Dictionary) -> void:
+	var activity_type := str(action.get("activity_type", action.get("activity", ""))).strip_edges()
+	if activity_type.is_empty():
+		push_warning("[StoryDirector] set_activity_guidance: missing activity_type")
+		return
+
+	var prompt_text := _resolve_activity_guidance_prompt(action)
+	if prompt_text.is_empty():
+		push_warning("[StoryDirector] set_activity_guidance: empty prompt for activity '%s'" % activity_type)
+		return
+
+	set_activity_guidance(activity_type, prompt_text, bool(action.get("consume_once", true)))
+	print("[StoryDirector] Activity guidance set: %s" % activity_type)
 
 
 ## set_app_access — 控制 APP 白名单/黑名单
@@ -547,6 +656,22 @@ func _interpolate_array(items: Array) -> Array:
 	return result
 
 
+func _to_string_array(value: Variant) -> Array[String]:
+	var result: Array[String] = []
+	if value is Array:
+		for item in value:
+			var normalized: String = str(item).strip_edges()
+			if not normalized.is_empty():
+				result.append(normalized)
+		return result
+
+	var single_value: String = str(value).strip_edges()
+	if single_value.is_empty():
+		return result
+	result.append(single_value)
+	return result
+
+
 func _action_set_app_access(action: Dictionary) -> void:
 	var app_mgr: Node = get_node_or_null("/root/AppManager")
 	if app_mgr == null:
@@ -554,23 +679,17 @@ func _action_set_app_access(action: Dictionary) -> void:
 		return
 
 	var mode: String = str(action.get("mode", "all"))
-	var apps: Array = action.get("apps", [])
+	var app_ids: Array[String] = _to_string_array(action.get("apps", []))
 
 	match mode:
 		"whitelist":
 			if app_mgr.has_method("set_app_whitelist"):
-				var app_ids: Array[String] = []
-				for a in apps:
-					app_ids.append(str(a))
 				app_mgr.set_app_whitelist(app_ids)
 				print("[StoryDirector] App whitelist set: %s" % str(app_ids))
 			else:
 				push_warning("[StoryDirector] set_app_access: AppManager missing set_app_whitelist()")
 		"blacklist":
 			if app_mgr.has_method("set_app_blacklist"):
-				var app_ids: Array[String] = []
-				for a in apps:
-					app_ids.append(str(a))
 				app_mgr.set_app_blacklist(app_ids)
 				print("[StoryDirector] App blacklist set: %s" % str(app_ids))
 			else:
@@ -696,6 +815,37 @@ func _action_delay(action: Dictionary) -> void:
 	await _delay_timer.timeout
 
 
+## play_bgm — 播放背景音乐
+## { "type": "play_bgm", "path": "res://Assets/sounds/bgm/Blush (loop).ogg", "crossfade": 1.0 }
+func _action_play_bgm(action: Dictionary) -> void:
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio == null or not audio.has_method("play_bgm"):
+		push_warning("[StoryDirector] play_bgm: AudioManager not available")
+		return
+	var path: String = _interpolate(str(action.get("path", "")))
+	if path.is_empty() or not ResourceLoader.exists(path):
+		push_warning("[StoryDirector] play_bgm: invalid path: %s" % path)
+		return
+	var stream: AudioStream = load(path) as AudioStream
+	if stream == null:
+		push_warning("[StoryDirector] play_bgm: failed to load: %s" % path)
+		return
+	var crossfade: float = float(action.get("crossfade", 1.0))
+	audio.play_bgm(stream, crossfade)
+	print("[StoryDirector] BGM started: %s" % path)
+
+
+## stop_bgm — 停止背景音乐
+## { "type": "stop_bgm", "fade": 0.5 }
+func _action_stop_bgm(action: Dictionary) -> void:
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio == null or not audio.has_method("stop_bgm"):
+		return
+	var fade: float = float(action.get("fade", 0.5))
+	audio.stop_bgm(fade)
+	print("[StoryDirector] BGM stopped")
+
+
 ## launch_app — 启动指定 APP
 ## { "type": "launch_app", "app_id": "browser" }
 func _action_launch_app(action: Dictionary) -> void:
@@ -759,6 +909,182 @@ func _action_unlock_app_window(action: Dictionary) -> void:
 	print("[StoryDirector] App window unlocked: %s" % app_id)
 
 
+## set_activity_lock — 叙事活动锁，按活动类型选择性禁用
+## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["date", "part_time", "gift"], "reason": "先把报名搞定" }
+## { "type": "set_activity_lock", "mode": "whitelist", "activities": ["chat_casual", "rest"], "reason": "今天只能待在家里" }
+## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["browser", "watch_event"], "reason": "先别分心刷网页" }
+func _action_set_activity_lock(action: Dictionary) -> void:
+	var mode: String = str(action.get("mode", "blacklist")).strip_edges().to_lower()
+	var raw_activities: Variant = action.get("activities", [])
+	var activities: Array[String] = []
+	if raw_activities is Array:
+		for a in raw_activities:
+			var s: String = str(a).strip_edges()
+			if not s.is_empty():
+				activities.append(s)
+	var reason: String = _interpolate(str(action.get("reason", "")))
+	ActivityLockUtilsClass.set_narrative_lock(mode, activities, reason)
+	print("[StoryDirector] Activity lock set: mode=%s, activities=%s" % [mode, str(activities)])
+
+
+## clear_activity_lock — 解除叙事活动锁
+## { "type": "clear_activity_lock" }
+func _action_clear_activity_lock(_action: Dictionary) -> void:
+	ActivityLockUtilsClass.clear_narrative_lock()
+	print("[StoryDirector] Activity lock cleared")
+
+
+## dispatch_work_order — 直接创建并派发工单
+## { "type": "dispatch_work_order", "title": "...", "description": "...",
+##   "assignee": "npc_lin_xia", "priority": 2, "save_order_id": "var_name" }
+func _action_dispatch_work_order(action: Dictionary) -> void:
+	var wom: Node = get_node_or_null("/root/WorkOrderManager")
+	if wom == null:
+		push_warning("[StoryDirector] dispatch_work_order: WorkOrderManager not found")
+		return
+
+	var order_title: String = _interpolate(str(action.get("title", "")))
+	var order_desc: String = _interpolate(str(action.get("description", "")))
+	if order_title.is_empty():
+		push_warning("[StoryDirector] dispatch_work_order: missing title")
+		return
+
+	var order: Resource = wom.create_order(order_title, order_desc, {
+		"source_type": "story_event",
+		"source_id": str(action.get("id", "")),
+	})
+	order.assignee_npc_id = str(action.get("assignee", "npc_lin_xia"))
+	order.priority = int(action.get("priority", 2))
+
+	var save_var: String = str(action.get("save_order_id", ""))
+	if not save_var.is_empty():
+		set_variable(save_var, order.id)
+
+	var dispatched: bool = wom.dispatch_order(order.id)
+	if dispatched:
+		print("[StoryDirector] Work order dispatched: %s (%s)" % [order.id, order_title])
+	else:
+		push_warning("[StoryDirector] dispatch_work_order: failed to dispatch %s" % order.id)
+
+
+## generate_work_order — 通过 LLM 生成工单内容后自动派发
+## { "type": "generate_work_order", "prompt": "...",
+##   "assignee": "npc_lin_xia", "priority": 2, "role": "work_order",
+##   "save_order_id": "var_name" }
+func _action_generate_work_order(action: Dictionary) -> void:
+	var wom: Node = get_node_or_null("/root/WorkOrderManager")
+	if wom == null:
+		push_warning("[StoryDirector] generate_work_order: WorkOrderManager not found")
+		return
+
+	var user_prompt: String = _interpolate(str(action.get("prompt", "")))
+	if user_prompt.is_empty():
+		push_warning("[StoryDirector] generate_work_order: missing prompt")
+		return
+
+	# 收集 KB 摘要作为上下文
+	var kb_context: String = _build_kb_context_for_generation()
+
+	var system_prompt: String = """你是一个游戏开发项目的任务拆解助手。
+根据用户的指令，生成一个详细的工单。
+
+你必须严格使用以下 JSON 格式回复，不要输出任何其他内容：
+{"title": "工单标题（简洁描述任务）", "description": "工单详细描述（包含背景、目标、具体要求）"}
+
+当前项目知识库摘要：
+%s""" % kb_context
+
+	# 创建一次性 AIService
+	var ai: AIService = AIService.new()
+	ai.name = "StoryDirectorGenWO"
+	var role_name: String = str(action.get("role", "work_order"))
+	add_child(ai)
+	AIConfigManager.get_instance().apply_to_service(ai, role_name)
+
+	var assignee: String = str(action.get("assignee", "npc_lin_xia"))
+	var priority: int = int(action.get("priority", 2))
+	var save_var: String = str(action.get("save_order_id", ""))
+
+	# 异步回调
+	ai.request_completed.connect(
+		func(_request_id: String, response: Dictionary) -> void:
+			_on_generate_work_order_completed(response, wom, assignee, priority, save_var)
+			ai.queue_free()
+	)
+	ai.request_failed.connect(
+		func(_request_id: String, error: String, _error_code: int) -> void:
+			push_warning("[StoryDirector] generate_work_order LLM failed: %s" % error)
+			ai.queue_free()
+	)
+
+	ai.chat_simple(user_prompt, system_prompt)
+
+
+func _on_generate_work_order_completed(response: Dictionary, wom: Node, assignee: String, priority: int, save_var: String) -> void:
+	var content: String = ""
+	var choices: Array = response.get("choices", [])
+	if choices.size() > 0:
+		content = str(choices[0].get("message", {}).get("content", ""))
+
+	if content.is_empty():
+		push_warning("[StoryDirector] generate_work_order: empty LLM response")
+		return
+
+	# 清理 markdown 包裹
+	content = content.strip_edges()
+	if content.begins_with("```"):
+		var first_nl: int = content.find("\n")
+		if first_nl >= 0:
+			content = content.substr(first_nl + 1)
+		if content.ends_with("```"):
+			content = content.substr(0, content.length() - 3).strip_edges()
+
+	var json := JSON.new()
+	if json.parse(content) != OK or typeof(json.data) != TYPE_DICTIONARY:
+		push_warning("[StoryDirector] generate_work_order: failed to parse LLM JSON: %s" % content)
+		return
+
+	var data: Dictionary = json.data
+	var title: String = str(data.get("title", ""))
+	var desc: String = str(data.get("description", ""))
+	if title.is_empty():
+		push_warning("[StoryDirector] generate_work_order: LLM returned empty title")
+		return
+
+	var order: Resource = wom.create_order(title, desc, {
+		"source_type": "story_event",
+		"source_id": "generated",
+	})
+	order.assignee_npc_id = assignee
+	order.priority = priority
+
+	if not save_var.is_empty():
+		set_variable(save_var, order.id)
+
+	var dispatched: bool = wom.dispatch_order(order.id)
+	if dispatched:
+		print("[StoryDirector] Generated work order dispatched: %s (%s)" % [order.id, title])
+	else:
+		push_warning("[StoryDirector] generate_work_order: failed to dispatch %s" % order.id)
+
+
+func _build_kb_context_for_generation() -> String:
+	var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
+	if kb == null:
+		return "(知识库不可用)"
+	var docs: Array = kb.get_documents()
+	if docs.is_empty():
+		return "(知识库为空)"
+	var lines: PackedStringArray = []
+	for doc in docs:
+		lines.append("- [%s] %s: %s" % [
+			str(doc.get("category", "")),
+			str(doc.get("title", "")),
+			str(doc.get("content", "")).left(100),
+		])
+	return "\n".join(lines)
+
+
 # =============================================================================
 # Wait System
 # =============================================================================
@@ -782,6 +1108,8 @@ func _setup_wait(wait: Dictionary) -> void:
 			_wait_on_signal("/root/HomeActivityManager", "activity_completed", _on_wait_home_activity_completed)
 		"avg_scene_ended":
 			_wait_on_signal_dynamic("scene_ended", _on_wait_avg_scene_ended)
+		"sbeam_completed":
+			_wait_on_signal("/root/SbeamManager", "play_session_completed", _on_wait_sbeam_completed)
 		"phase_reached":
 			_wait_on_signal("/root/GameLoopManager", "phase_changed", _on_wait_phase_reached)
 		"day_reached":
@@ -790,6 +1118,10 @@ func _setup_wait(wait: Dictionary) -> void:
 			# 由 set_variable / notify_condition_met 触发
 			story_variable_changed.connect(_on_wait_variable_changed)
 			_wait_connections.append({"signal": "story_variable_changed", "callable": _on_wait_variable_changed, "self": true})
+		"work_order_completed":
+			_wait_on_signal("/root/WorkOrderManager", "order_status_changed", _on_wait_work_order_completed)
+		"work_order_dispatched":
+			_wait_on_signal("/root/WorkOrderManager", "order_dispatched", _on_wait_work_order_dispatched)
 		_:
 			push_warning("[StoryDirector] Unknown wait type: %s" % wait_type)
 
@@ -969,6 +1301,12 @@ func _on_wait_avg_scene_ended(scene_id: String) -> void:
 	_on_wait_satisfied({"scene_id": scene_id})
 
 
+func _on_wait_sbeam_completed(session_id: String, payload: Dictionary) -> void:
+	if current_step == null:
+		return
+	_on_wait_satisfied({"session_id": session_id, "payload": payload})
+
+
 func _on_wait_phase_reached(new_phase: int) -> void:
 	if current_step == null:
 		return
@@ -1002,89 +1340,60 @@ func _on_wait_variable_changed(key: String, value: Variant) -> void:
 	_on_wait_satisfied({"key": key, "value": value})
 
 
+func _on_wait_work_order_completed(order_id: String, old_status: String, new_status: String) -> void:
+	if current_step == null:
+		return
+	if new_status != "completed":
+		return
+	var expected_id: String = _interpolate(str(current_step.wait_for.get("order_id", "")))
+	if not expected_id.is_empty() and order_id != expected_id:
+		return
+	_on_wait_satisfied({"order_id": order_id, "old_status": old_status, "new_status": new_status})
+
+
+func _on_wait_work_order_dispatched(order_id: String, assignee_npc_id: String) -> void:
+	if current_step == null:
+		return
+	var expected_id: String = _interpolate(str(current_step.wait_for.get("order_id", "")))
+	if not expected_id.is_empty() and order_id != expected_id:
+		return
+	_on_wait_satisfied({"order_id": order_id, "assignee_npc_id": assignee_npc_id})
+
+
 # =============================================================================
 # Chapter Loading
 # =============================================================================
 
 func _load_all_chapters() -> void:
 	_chapters.clear()
-	if not DirAccess.dir_exists_absolute(CHAPTERS_DIR):
-		print("[StoryDirector] Chapters dir not found: %s" % CHAPTERS_DIR)
-		return
 
-	var dir: DirAccess = DirAccess.open(CHAPTERS_DIR)
-	if dir == null:
-		return
+	# 非导出模式（编辑器运行）：重新编译 .story/.json → .tres + 索引
+	var index_resource: Resource = null
+	if not OS.has_feature("template"):
+		index_resource = StoryCompilerClass.compile_all()
+	else:
+		index_resource = StoryCompilerClass.load_index_resource()
 
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".json"):
-			var chapter: Resource = _load_chapter_from_json(CHAPTERS_DIR + file_name)
-			if chapter != null and not chapter.chapter_id.is_empty():
-				_chapters[chapter.chapter_id] = chapter
-				print("[StoryDirector] Loaded chapter: %s (%s)" % [chapter.chapter_id, chapter.chapter_name])
-		file_name = dir.get_next()
-	dir.list_dir_end()
+	_load_compiled_chapters(index_resource)
 
 
-func _load_chapter_from_json(path: String) -> Resource:
-	if not FileAccess.file_exists(path):
-		return null
+func _load_compiled_chapters(index_resource: Resource) -> bool:
+	_chapters.clear()
+	if index_resource == null or not (index_resource is StoryChapterIndexClass):
+		if OS.has_feature("template"):
+			push_warning("[StoryDirector] story_index.tres not found in exported build. No chapters loaded.")
+		else:
+			print("[StoryDirector] No compiled story index available.")
+		return false
 
-	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		push_warning("[StoryDirector] Failed to open: %s" % path)
-		return null
+	for chapter in index_resource.chapters:
+		if chapter != null and chapter is StoryChapterClass and not chapter.chapter_id.is_empty():
+			_chapters[chapter.chapter_id] = chapter
+			print("[StoryDirector] Loaded chapter: %s (%s)" % [chapter.chapter_id, chapter.chapter_name])
+		else:
+			push_warning("[StoryDirector] Invalid compiled chapter entry in story_index.tres")
 
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-
-	if not parsed is Dictionary:
-		push_warning("[StoryDirector] Invalid JSON in: %s" % path)
-		return null
-
-	var data: Dictionary = parsed
-	var chapter := StoryChapterClass.new()
-	chapter.chapter_id = str(data.get("chapter_id", ""))
-	chapter.chapter_name = str(data.get("chapter_name", ""))
-	chapter.description = str(data.get("description", ""))
-	chapter.next_chapter = str(data.get("next_chapter", ""))
-
-	var steps_data: Array = data.get("steps", [])
-	for step_data in steps_data:
-		if not step_data is Dictionary:
-			continue
-		var step := StoryStepClass.new()
-		step.step_id = str(step_data.get("step_id", ""))
-		step.description = str(step_data.get("description", ""))
-		step.next = str(step_data.get("next", ""))
-
-		# actions
-		var actions_raw: Array = step_data.get("actions", [])
-		for a in actions_raw:
-			if a is Dictionary:
-				step.actions.append(a)
-
-		# wait_for
-		var wait_raw: Variant = step_data.get("wait_for", {})
-		if wait_raw is Dictionary:
-			step.wait_for = wait_raw
-
-		# capture
-		var capture_raw: Variant = step_data.get("capture", {})
-		if capture_raw is Dictionary:
-			step.capture = capture_raw
-
-		# next_conditions
-		var nc_raw: Array = step_data.get("next_conditions", [])
-		for nc in nc_raw:
-			if nc is Dictionary:
-				step.next_conditions.append(nc)
-
-		chapter.steps.append(step)
-
-	return chapter
+	return not _chapters.is_empty()
 
 
 # =============================================================================
@@ -1097,6 +1406,27 @@ func _interpolate(text: String) -> String:
 	for key in story_variables:
 		result = result.replace("{%s}" % key, str(story_variables[key]))
 	return result
+
+
+func _resolve_activity_guidance_prompt(action: Dictionary) -> String:
+	var prompt_manager: Node = get_node_or_null("/root/PromptManager")
+	var vars := story_variables.duplicate(true)
+
+	var prompt_key := _interpolate(str(action.get("prompt_key", ""))).strip_edges()
+	if not prompt_key.is_empty():
+		if prompt_manager != null and prompt_manager.has_method("resolve_with_vars") and prompt_manager.has_method("has_prompt"):
+			if prompt_manager.has_prompt(prompt_key):
+				return str(prompt_manager.resolve_with_vars(prompt_key, vars)).strip_edges()
+			push_warning("[StoryDirector] set_activity_guidance: prompt_key not found: %s" % prompt_key)
+		else:
+			push_warning("[StoryDirector] set_activity_guidance: PromptManager unavailable for prompt_key '%s'" % prompt_key)
+
+	var prompt_text := _interpolate(str(action.get("prompt", ""))).strip_edges()
+	if prompt_text.is_empty():
+		return ""
+	if prompt_manager != null and prompt_manager.has_method("resolve_template_with_vars"):
+		return str(prompt_manager.resolve_template_with_vars(prompt_text, vars)).strip_edges()
+	return prompt_text
 
 
 ## 检查 wait_for 的附加数据是否匹配

@@ -16,28 +16,51 @@ static func resolve_chat(
 	chat_history: Array[Dictionary],
 	player_messages: Array[String],
 	topic: ChatTopic,
+	extra_scan_text: String = "",
 ) -> Dictionary:
 	_ensure_entries_loaded(OS.has_feature("editor"))
+	var scan := _build_chat_scan_text(chat_history, player_messages, topic)
+	if not extra_scan_text.is_empty():
+		scan += "\n" + extra_scan_text
 	var context := {
 		"generation_type": "chat",
 		"channel_id": channel.channel_id if channel else "",
 		"character_ids": _collect_npc_ids(npcs),
 		"has_topic": topic != null,
 		"topic_text": _build_topic_text(topic),
-		"scan_text": _build_chat_scan_text(chat_history, player_messages, topic),
+		"scan_text": scan,
 	}
 	return _resolve(context)
 
 
-static func resolve_browser(url: String, design_prompt: String = "", page_context: String = "") -> Dictionary:
+static func resolve_browser(url: String, design_prompt: String = "", page_context: String = "", extra_scan_text: String = "") -> Dictionary:
 	_ensure_entries_loaded(OS.has_feature("editor"))
+	var scan := _build_browser_scan_text(url, design_prompt, page_context)
+	if not extra_scan_text.is_empty():
+		scan += "\n" + extra_scan_text
 	var context := {
 		"generation_type": "browser",
 		"channel_id": "",
 		"character_ids": PackedStringArray(),
 		"has_topic": false,
 		"topic_text": "",
-		"scan_text": _build_browser_scan_text(url, design_prompt, page_context),
+		"scan_text": scan,
+	}
+	return _resolve(context)
+
+
+static func resolve_avg_scene(session: Dictionary, pre_resolved_prompt: String = "") -> Dictionary:
+	_ensure_entries_loaded(OS.has_feature("editor"))
+	var scan_text := _build_avg_scan_text(session)
+	if not pre_resolved_prompt.is_empty():
+		scan_text += "\n" + pre_resolved_prompt
+	var context := {
+		"generation_type": "avg",
+		"channel_id": "",
+		"character_ids": PackedStringArray(["npc_lin_xia"]),
+		"has_topic": false,
+		"topic_text": "",
+		"scan_text": scan_text,
 	}
 	return _resolve(context)
 
@@ -355,6 +378,22 @@ static func _build_browser_scan_text(url: String, design_prompt: String, page_co
 		var value := str(text).strip_edges()
 		if not value.is_empty():
 			parts.append(value)
+	return "\n".join(parts)
+
+
+static func _build_avg_scan_text(session: Dictionary) -> String:
+	var parts: Array[String] = []
+	var location: Dictionary = session.get("location", {})
+	for key in ["title", "subtitle", "description", "detail_prompt"]:
+		var value := str(location.get(key, "")).strip_edges()
+		if not value.is_empty():
+			parts.append(value)
+	var variant := str(session.get("activity_variant", "")).strip_edges()
+	if not variant.is_empty():
+		parts.append(variant)
+	var seed_text := str(session.get("event_seed", "")).strip_edges()
+	if not seed_text.is_empty():
+		parts.append(seed_text)
 	return "\n".join(parts)
 
 

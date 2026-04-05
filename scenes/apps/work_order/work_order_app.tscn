@@ -84,57 +84,20 @@ placeholder_text = "描述你想要完成的任务..."
 unique_name_in_owner = true
 visible = false
 layout_mode = 2
-size_flags_vertical = 3
-
-[node name="SpecHeader" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
-layout_mode = 2
-text = "Spec 规格说明"
-theme_override_font_sizes/font_size = 16
-
-[node name="RequirementsHeader" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
-layout_mode = 2
-text = "需求整理："
-
-[node name="RequirementsLabel" type="RichTextLabel" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 80)
-layout_mode = 2
-bbcode_enabled = true
-text = "(无需求说明)"
-scroll_active = true
-
-[node name="TasksHeader" type="Label" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
-layout_mode = 2
-text = "任务列表："
-
-[node name="TasksContainer" type="VBoxContainer" parent="HSplitContainer/RightPanel/DetailPanel/SpecContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 3
 
 [node name="ActionBar" type="HBoxContainer" parent="HSplitContainer/RightPanel/DetailPanel"]
 layout_mode = 2
 
-[node name="GenerateSpecButton" type="Button" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "AI生成Spec"
-
-[node name="AssigneeDropdown" type="OptionButton" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
+[node name="ConsumeAPButton" type="Button" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-
-[node name="SendButton" type="Button" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
-unique_name_in_owner = true
-layout_mode = 2
-disabled = true
-text = "发送执行"
+text = "投入行动"
 
 [node name="DeleteButton" type="Button" parent="HSplitContainer/RightPanel/DetailPanel/ActionBar"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "删除"
+text = "放弃"
 
 [node name="EmptyHint" type="Label" parent="HSplitContainer/RightPanel"]
 unique_name_in_owner = true

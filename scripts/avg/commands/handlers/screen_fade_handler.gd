@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ScreenFadeHandler
 ## Handler for SCREEN_FADE command
 ## 屏幕淡入淡出转场效果。阻塞命令 — 等待淡入淡出完成后继续。
@@ -58,7 +58,7 @@ func _create_schema() -> ParamSchemaClass:
 	return schema
 
 
-func execute(command: Resource, context: RefCounted) -> CommandResultClass:
+func execute(command: Resource, _context: RefCounted) -> CommandResultClass:
 	var direction: String = _get_param(command, "direction", "out")
 	var color: Color = _get_param(command, "color", Color.BLACK)
 	var duration: float = _get_param(command, "duration", 1.0)

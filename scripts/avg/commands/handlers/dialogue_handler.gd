@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name DialogueHandler
 ## Handler for DIALOGUE command
 ## 显示对话文本。合并了原 NARRATION 功能。

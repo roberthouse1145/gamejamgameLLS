@@ -1,4 +1,5 @@
 extends Node
+const PromptPipelineScript = preload("res://scripts/prompt/prompt_pipeline.gd")
 
 signal search_completed(request_id: String, keyword: String, results: Array)
 signal search_failed(request_id: String, keyword: String, error: String)
@@ -7,9 +8,6 @@ signal page_failed(request_id: String, url: String, error: String)
 signal url_open_requested(url: String, design_prompt: String, page_context: String)
 signal browser_history_updated()
 signal browser_state_changed()
-signal browser_action_completed(action_id: String, entry: Dictionary)
-signal browser_action_started(action_id: String, request_id: String)
-signal browser_action_failed(action_id: String, error: String)
 
 const SEARCH_PROMPT_KEY: String = "browser_search"
 const PAGE_PROMPT_KEY: String = "browser_webpage"
@@ -34,7 +32,6 @@ var _premade_pages: Dictionary = {}
 ## 预制页面搜索索引：keyword_lower → [WebPageResource]
 var _premade_keyword_index: Dictionary = {}
 var _browser_content: Dictionary = {}
-var _action_definitions: Dictionary = {}
 var _history_entries: Array = []
 var _history_counter: int = 0
 
@@ -49,16 +46,12 @@ func _ready() -> void:
 	_ai_service.request_failed.connect(_on_ai_request_failed)
 	_load_premade_pages()
 	_load_browser_content()
-	_load_history()
 
 
 func _setup_ai_service() -> void:
-	var cfg := AIConfigManager.new()
-	if cfg.load_config():
-		if not cfg.apply_to_service(_ai_service, "browser"):
-			cfg.apply_to_service(_ai_service, "chat_default")
-	else:
-		push_warning("BrowserManager: failed to load ai_config.cfg")
+	var cfg := AIConfigManager.get_instance()
+	if not cfg.apply_to_service(_ai_service, "browser"):
+		cfg.apply_to_service(_ai_service, "chat_default")
 
 	_ai_service.auto_execute_tools = false
 	_ai_service.stream_enabled = false
@@ -173,89 +166,6 @@ func _emit_open_url_request(url: String, design_prompt: String, page_context: St
 	url_open_requested.emit(url, design_prompt, page_context)
 
 
-func get_available_actions() -> Array:
-	var actions: Array = []
-	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	for action_id in _action_definitions.keys():
-		var data: Dictionary = _action_definitions[action_id].duplicate(true)
-		var ap_cost: int = int(data.get("ap_cost", 1))
-		data["enabled"] = glm != null and glm.can_consume_ap(ap_cost)
-		actions.append(data)
-	actions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return str(a.get("title", "")) < str(b.get("title", ""))
-	)
-	return actions
-
-
-func perform_action(action_id: String) -> Dictionary:
-	var normalized_id := action_id.strip_edges()
-	if normalized_id.is_empty() or not _action_definitions.has(normalized_id):
-		return {"success": false, "error": "未知的 Browser 行动"}
-
-	var action: Dictionary = _action_definitions[normalized_id]
-	var ap_cost: int = int(action.get("ap_cost", 1))
-	var action_type: String = str(action.get("action_type", "community"))
-	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if glm == null:
-		return {"success": false, "error": "GameLoopManager 不可用"}
-	if not glm.can_consume_ap(ap_cost):
-		return {"success": false, "error": "当前无法执行该行动"}
-	if not glm.consume_ap(ap_cost, action_type, normalized_id):
-		return {"success": false, "error": "行动消耗失败"}
-
-	var gm: Node = get_node_or_null("/root/GameManager")
-	var stat_changes: Dictionary = action.get("stat_changes", {})
-	if gm != null and gm.has_method("modify_stats") and not stat_changes.is_empty():
-		gm.modify_stats(stat_changes)
-
-	# 构建 URL 和元数据（同步），然后异步 LLM 生成网页
-	var day: int = _get_current_day()
-	var site: Dictionary = _pick_site_for_action(normalized_id, day)
-	var topic: Dictionary = _pick_topic_for_action(normalized_id, day)
-	var url: String = _build_action_url(site, topic, normalized_id, day)
-
-	var action_meta := {
-		"action_id": normalized_id,
-		"action": action.duplicate(true),
-		"site": site.duplicate(true),
-		"topic": topic.duplicate(true),
-		"url": url,
-	}
-
-	# 发起 LLM 生成
-	var messages := _build_action_page_messages(normalized_id, action, site, topic)
-	var request_id: String = _ai_service.chat(messages, {
-		"temperature": 0.7,
-		"max_tokens": 8192
-	})
-	if request_id.is_empty():
-		# LLM 不可用，fallback 到模板
-		var payload := _build_web_action_page(normalized_id, action)
-		var entry := _create_history_entry_v2(normalized_id, payload)
-		_record_history_entry(entry)
-		browser_action_completed.emit(normalized_id, entry.duplicate(true))
-		return {
-			"success": true,
-			"entry_id": entry.get("entry_id", ""),
-			"url": entry.get("url", ""),
-			"title": entry.get("title", ""),
-			"async": false
-		}
-
-	_pending_requests[request_id] = {
-		"kind": "action_page",
-		"action_meta": action_meta
-	}
-	browser_action_started.emit(normalized_id, request_id)
-	return {
-		"success": true,
-		"url": url,
-		"title": str(topic.get("direction", action.get("title", ""))),
-		"async": true,
-		"request_id": request_id
-	}
-
-
 func get_history_entries(limit: int = 0) -> Array:
 	var entries: Array = _history_entries.duplicate(true)
 	if limit > 0 and entries.size() > limit:
@@ -270,11 +180,18 @@ func get_history_entry(entry_id: String) -> Dictionary:
 	return {}
 
 
-func get_home_page_payload() -> Dictionary:
-	return {
-		"actions": get_available_actions(),
-		"history": get_history_entries(8)
-	}
+func register_generated_page_entry(action_id: String, payload: Dictionary, entry_prefix: String = "browser") -> Dictionary:
+	var url: String = str(payload.get("url", "")).strip_edges()
+	var page_snapshot: Dictionary = payload.get("page", {}).duplicate(true)
+	if not url.is_empty() and not page_snapshot.is_empty():
+		_page_cache[url] = {
+			"content": page_snapshot.duplicate(true),
+			"updated_at": Time.get_unix_time_from_system()
+		}
+
+	var entry := _create_history_entry_v2(action_id, payload, entry_prefix)
+	_record_history_entry(entry)
+	return entry.duplicate(true)
 
 
 func get_cached_search(keyword: String) -> Array:
@@ -345,6 +262,7 @@ func load_run_state(data: Dictionary) -> bool:
 	var browser_state: Variant = data.get("browser_state", {})
 	if browser_state is Dictionary:
 		_browser_state = (browser_state as Dictionary).duplicate(true)
+	_load_history()
 	browser_state_changed.emit()
 	return true
 
@@ -381,7 +299,6 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 	_pending_requests.erase(request_id)
 
 	var content: String = _extract_content(response)
-	print(content)
 	if content.is_empty():
 		_match_failed(meta, request_id, "LLM 返回为空")
 		return
@@ -416,10 +333,6 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 		_emit_page_generated_with_followers(request_id, url, page_content)
 		return
 
-	if kind == "action_page":
-		_handle_action_page_completed(meta, content)
-		return
-
 
 func _on_ai_request_failed(request_id: String, error: String, _error_code: int) -> void:
 	if not _pending_requests.has(request_id):
@@ -440,8 +353,6 @@ func _match_failed(meta: Dictionary, request_id: String, error: String) -> void:
 		_emit_search_failed_with_followers(request_id, meta.get("keyword", ""), error)
 	elif kind == "page":
 		_emit_page_failed_with_followers(request_id, meta.get("url", ""), error)
-	elif kind == "action_page":
-		_handle_action_page_failed(meta, error)
 
 
 func _append_follower(canonical_id: String, follower_id: String) -> void:
@@ -718,8 +629,27 @@ func _build_search_messages(keyword: String) -> Array:
 
 
 func _build_page_messages(url: String, design_prompt: String, page_context: String = "") -> Array:
-	var lore_payload := LoreSystem.resolve_browser(url, design_prompt, page_context)
-	var system_prompt: String = _resolve_prompt_with_lore(PAGE_PROMPT_KEY, lore_payload)
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	var system_prompt: String = ""
+
+	if pm != null and pm.has_method("resolve_with_vars"):
+		# 两遍 resolve：先展开 prompt → 用完整文本匹配 lore → 注入 lore
+		var pipeline_result := PromptPipelineScript.build_prompt(
+			PAGE_PROMPT_KEY,
+			{},
+			{
+				"lore_mode": "browser",
+				"lore_args": {
+					"url": url,
+					"design_prompt": design_prompt,
+					"page_context": page_context,
+				},
+			}
+		)
+		system_prompt = str(pipeline_result.get("prompt", ""))
+	else:
+		system_prompt = _resolve_prompt(PAGE_PROMPT_KEY)
+
 	if system_prompt.is_empty():
 		system_prompt = "你是模拟现代互联网的网页内容生成器。只返回JSON对象，禁止img类型，必须使用支持的UI节点类型。使用浅色背景深色文字。"
 
@@ -737,11 +667,10 @@ func _build_page_messages(url: String, design_prompt: String, page_context: Stri
 
 func _resolve_prompt_with_lore(key: String, lore_payload: Dictionary) -> String:
 	var pm: Node = get_node_or_null("/root/PromptManager")
-	if pm == null or not pm.has_method("resolve") or not pm.has_method("register_prompt"):
+	if pm == null or not pm.has_method("resolve_with_vars"):
 		return _resolve_prompt(key)
-	pm.register_prompt("lore_facts", LoreSystem.build_prompt_block(lore_payload.get("facts", [])))
-	pm.register_prompt("lore_constraints", LoreSystem.build_prompt_block(lore_payload.get("constraints", [])))
-	return str(pm.resolve(key))
+	var vars: Dictionary = PromptPipelineScript.build_lore_vars(lore_payload)
+	return str(pm.resolve_with_vars(key, vars))
 
 
 func _resolve_prompt(key: String) -> String:
@@ -760,7 +689,6 @@ func _next_local_request_id(prefix: String) -> String:
 
 func _load_browser_content() -> void:
 	_browser_content.clear()
-	_action_definitions.clear()
 	if not FileAccess.file_exists(BROWSER_DATA_PATH):
 		push_warning("BrowserManager: browser content file missing: %s" % BROWSER_DATA_PATH)
 		return
@@ -774,9 +702,6 @@ func _load_browser_content() -> void:
 		push_warning("BrowserManager: invalid browser content json")
 		return
 	_browser_content = parsed
-	for action in _browser_content.get("actions", []):
-		if action is Dictionary and action.has("action_id"):
-			_action_definitions[str(action.get("action_id", ""))] = action
 
 
 func _load_history() -> void:
@@ -811,6 +736,8 @@ func _load_history() -> void:
 func _save_history() -> void:
 	var history_path := _get_history_path()
 	if history_path.is_empty():
+		return
+	if history_path.begins_with("res://templates/"):
 		return
 	var dir_path := history_path.get_base_dir() + "/"
 	if not DirAccess.dir_exists_absolute(dir_path):
@@ -847,267 +774,12 @@ func _get_history_path() -> String:
 	return project_path + HISTORY_RELATIVE_PATH
 
 
-func _build_action_page(action_id: String, action: Dictionary) -> Dictionary:
-	var day: int = _get_current_day()
-	var site: Dictionary = _pick_site_for_action(action_id, day)
-	var topic: Dictionary = _pick_topic_for_action(action_id, day)
-	var url := _build_action_url(site, topic, action_id, day)
-	var seeds_label: String = ", ".join(PackedStringArray(topic.get("selected_seeds", [])))
-	var page_title: String = "%s - %s" % [str(site.get("display_name", "Browser")), seeds_label if not seeds_label.is_empty() else str(action.get("title", ""))]
-	var summary: String = str(topic.get("direction", action.get("description", "")))
-	var page := {
-		"title": page_title,
-		"type": "margin",
-		"margin": 18,
-		"child": {
-			"type": "vbox",
-			"separation": 14,
-			"children": [
-				{"type": "label", "text": page_title, "font_size": 28, "color": "#f5f7ff"},
-				{
-					"type": "panel",
-					"bg_color": "#1d2433",
-					"padding": 14,
-					"child": {
-						"type": "vbox",
-						"separation": 8,
-						"children": [
-							{"type": "label", "text": "今日站点：%s" % str(site.get("display_name", "未知站点")), "font_size": 20, "color": "#ffffff"},
-							{"type": "label", "text": summary, "font_size": 16, "color": "#d7dced"}
-						]
-					}
-				},
-				_build_action_body(action_id, action, site, topic),
-				_build_action_footer(action, site, url)
-			]
-		}
-	}
-	_page_cache[url] = {
-		"content": page.duplicate(true),
-		"updated_at": Time.get_unix_time_from_system()
-	}
-	return {
-		"url": url,
-		"title": page_title,
-		"summary": summary,
-		"site": site,
-		"topic": topic,
-		"page": page
-	}
-
-
-func _build_action_body(action_id: String, _action: Dictionary, site: Dictionary, topic: Dictionary) -> Dictionary:
-	var children: Array = []
-	var authors: Array = _browser_content.get("authors", [])
-	var support_pool: Array = _get_reply_pool("support")
-	var skeptic_pool: Array = _get_reply_pool("skeptic")
-	var gossip_pool: Array = _get_reply_pool("gossip")
-	if action_id == "post_promo":
-		children.append({
-			"type": "panel",
-			"bg_color": "#24314a",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 6,
-				"children": [
-					{"type": "label", "text": "你发布了一个宣传帖", "font_size": 18, "color": "#ffffff"},
-					{"type": "label", "text": ", ".join(PackedStringArray(topic.get("selected_seeds", []))), "font_size": 22, "color": "#9fd0ff"},
-					{"type": "label", "text": "站点风格：%s" % str(site.get("tone", "")), "font_size": 15, "color": "#d7dced"}
-				]
-			}
-		})
-	else:
-		children.append({
-			"type": "panel",
-			"bg_color": "#24314a",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 6,
-				"children": [
-					{"type": "label", "text": ", ".join(PackedStringArray(topic.get("selected_seeds", []))), "font_size": 22, "color": "#9fd0ff"},
-					{"type": "label", "text": "你正在浏览 %s 的今日热帖。" % str(site.get("display_name", "站点")), "font_size": 16, "color": "#d7dced"}
-				]
-			}
-		})
-
-	for index in range(3):
-		var author := _seeded_pick_array(authors, "%s_author_%d" % [str(topic.get("topic_id", "topic")), index], "匿名用户")
-		var reply_text: String
-		if index == 0:
-			reply_text = _seeded_pick_array(support_pool, "%s_support_%d" % [action_id, index], "这个方向有点意思。")
-		elif index == 1:
-			reply_text = _seeded_pick_array(skeptic_pool, "%s_skeptic_%d" % [action_id, index], "先把东西做出来再说。")
-		else:
-			reply_text = _seeded_pick_array(gossip_pool, "%s_gossip_%d" % [action_id, index], "这事估计还会继续发酵。")
-		children.append({
-			"type": "panel",
-			"bg_color": "#161b27",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 4,
-				"children": [
-					{"type": "label", "text": "%s 说：" % author, "font_size": 16, "color": "#ffffff"},
-					{"type": "label", "text": reply_text, "font_size": 15, "color": "#c6cede"}
-				]
-			}
-		})
-	return {
-		"type": "vbox",
-		"separation": 10,
-		"children": children
-	}
-
-
-func _build_action_footer(action: Dictionary, site: Dictionary, url: String) -> Dictionary:
-	var stat_changes: Dictionary = action.get("stat_changes", {})
-	var summary_parts: PackedStringArray = []
-	for stat_name in stat_changes.keys():
-		var delta: int = int(stat_changes[stat_name])
-		var delta_sign: String = "+" if delta >= 0 else ""
-		summary_parts.append("%s %s%d" % [stat_name, delta_sign, delta])
-	return {
-		"type": "panel",
-		"bg_color": "#111723",
-		"padding": 12,
-		"child": {
-			"type": "vbox",
-			"separation": 6,
-			"children": [
-				{"type": "label", "text": "行动：%s" % str(action.get("title", "")), "font_size": 16, "color": "#ffffff"},
-				{"type": "label", "text": "站点：%s" % str(site.get("name", "")), "font_size": 14, "color": "#aab6cc"},
-				{"type": "label", "text": "记录地址：%s" % url, "font_size": 13, "color": "#73809a"},
-				{"type": "label", "text": "本次附加变化：%s" % (", ".join(summary_parts) if not summary_parts.is_empty() else "无"), "font_size": 14, "color": "#d7dced"}
-			]
-		}
-	}
-
-
-func _create_history_entry(action_id: String, action: Dictionary, payload: Dictionary) -> Dictionary:
-	_history_counter += 1
-	var entry_id := "browser_%04d" % _history_counter
-	var phase_name := "UNKNOWN"
-	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if glm != null and glm.has_method("get_phase_name"):
-		phase_name = glm.get_phase_name(glm.get("time_phase"))
-	return {
-		"entry_id": entry_id,
-		"day": _get_current_day(),
-		"phase": phase_name,
-		"action_id": action_id,
-		"source_site": str(payload.get("site", {}).get("site_id", "")),
-		"title": str(payload.get("title", "")),
-		"url": str(payload.get("url", "")),
-		"summary": str(payload.get("summary", "")),
-		"tags": action.get("tags", []),
-		"stat_changes": action.get("stat_changes", {}),
-		"timestamp": _get_current_timestamp(),
-		"page_snapshot": payload.get("page", {}).duplicate(true),
-		"related_topic_ids": [str(payload.get("topic", {}).get("topic_id", ""))]
-	}
-
-
 func _record_history_entry(entry: Dictionary) -> void:
 	_history_entries.push_front(entry)
 	if _history_entries.size() > HISTORY_LIMIT:
 		_history_entries = _history_entries.slice(0, HISTORY_LIMIT)
 	_save_history()
 	browser_history_updated.emit()
-
-
-func _pick_site_for_action(action_id: String, day: int) -> Dictionary:
-	var candidates: Array = []
-	for site in _browser_content.get("sites", []):
-		if not site is Dictionary:
-			continue
-		var supported: Array = site.get("supported_actions", [])
-		if supported.has(action_id):
-			candidates.append(site)
-	if candidates.is_empty():
-		return {"site_id": "browser", "display_name": "Browser", "name": "Browser", "url_prefix": "browser://"}
-	return _seeded_pick_dict(candidates, "%s_site_day_%d" % [action_id, day], candidates[0])
-
-
-func _pick_topic_for_action(action_id: String, day: int) -> Dictionary:
-	var candidates: Array = []
-	for topic in _browser_content.get("topics", []):
-		if not topic is Dictionary:
-			continue
-		if int(topic.get("min_day", 1)) > day:
-			continue
-		var valid_actions: Array = topic.get("valid_actions", [])
-		if valid_actions.has(action_id):
-			candidates.append(topic)
-	if candidates.is_empty():
-		return {
-			"topic_id": "fallback_topic",
-			"category": "fallback",
-			"direction": "日常社区闲聊",
-			"mood": "mixed",
-			"seeds": ["日常", "闲聊", "围观"],
-			"selected_seeds": ["日常", "闲聊"],
-		}
-	var picked: Dictionary = _seeded_pick_weighted(candidates, "%s_topic_day_%d_%d" % [action_id, day, _history_counter])
-	var result: Dictionary = picked.duplicate(true)
-	var all_seeds: Array = result.get("seeds", [])
-	result["selected_seeds"] = _pick_random_seeds(all_seeds, "%s_%d_%d" % [action_id, day, _history_counter])
-	return result
-
-
-## 从 seeds 池中伪随机挑选 count 个不重复的关键词
-func _pick_random_seeds(seeds: Array, seed_key: String, count: int = 3) -> Array:
-	if seeds.is_empty():
-		return []
-	if seeds.size() <= count:
-		return seeds.duplicate()
-	var picked: Array = []
-	var available: Array = seeds.duplicate()
-	for i in range(count):
-		if available.is_empty():
-			break
-		var idx: int = abs(hash(seed_key + str(i))) % available.size()
-		picked.append(str(available[idx]))
-		available.remove_at(idx)
-	return picked
-
-
-func _build_action_url(site: Dictionary, topic: Dictionary, action_id: String, day: int) -> String:
-	var prefix := str(site.get("url_prefix", "browser://"))
-	return "%s%s/day-%d/%d" % [prefix, str(topic.get("topic_id", action_id)), day, _history_counter + 1]
-
-
-func _seeded_pick_weighted(items: Array, seed_key: String) -> Dictionary:
-	var total_weight: int = 0
-	for item in items:
-		total_weight += max(1, int(item.get("weight", 1)))
-	if total_weight <= 0:
-		return items[0]
-	var target: int = abs(hash(seed_key)) % total_weight
-	var acc: int = 0
-	for item in items:
-		acc += max(1, int(item.get("weight", 1)))
-		if target < acc:
-			return item
-	return items[0]
-
-
-func _seeded_pick_dict(items: Array, seed_key: String, fallback: Dictionary = {}) -> Dictionary:
-	if items.is_empty():
-		return fallback
-	return items[abs(hash(seed_key)) % items.size()]
-
-
-func _seeded_pick_array(items: Array, seed_key: String, fallback: String = "") -> String:
-	if items.is_empty():
-		return fallback
-	return str(items[abs(hash(seed_key)) % items.size()])
-
-
-func _get_reply_pool(key: String) -> Array:
-	var replies: Dictionary = _browser_content.get("replies", {})
-	return replies.get(key, [])
 
 
 func _get_current_day() -> int:
@@ -1127,196 +799,17 @@ func _get_current_timestamp() -> int:
 	return int(Time.get_unix_time_from_system())
 
 
-func _build_web_action_page(action_id: String, action: Dictionary) -> Dictionary:
-	var day: int = _get_current_day()
-	var site: Dictionary = _pick_site_for_action(action_id, day)
-	var topic: Dictionary = _pick_topic_for_action(action_id, day)
-	var url: String = _build_action_url(site, topic, action_id, day)
-	var site_name: String = str(site.get("display_name", "Browser"))
-	var seeds_label: String = ", ".join(PackedStringArray(topic.get("selected_seeds", [])))
-	var title_text: String = seeds_label if not seeds_label.is_empty() else str(action.get("title", site_name))
-	var summary_text: String = str(topic.get("direction", ""))
-	var page_content := {
-		"title": title_text,
-		"type": "margin",
-		"margin": 18,
-		"child": {
-			"type": "vbox",
-			"separation": 14,
-			"children": [
-				_build_site_header(site_name, url),
-				_build_web_action_body(action_id, site, topic, title_text, summary_text)
-			]
-		}
-	}
-	_page_cache[url] = {
-		"content": page_content.duplicate(true),
-		"updated_at": Time.get_unix_time_from_system()
-	}
-	return {
-		"url": url,
-		"title": title_text,
-		"summary": summary_text,
-		"site": site,
-		"topic": topic,
-		"page": page_content
-	}
-
-
-func _build_site_header(site_name: String, url: String) -> Dictionary:
-	return {
-		"type": "panel",
-		"bg_color": "#182032",
-		"padding": 12,
-		"child": {
-			"type": "vbox",
-			"separation": 4,
-			"children": [
-				{"type": "label", "text": site_name, "font_size": 28, "color": "#ffffff"},
-				{"type": "label", "text": url, "font_size": 13, "color": "#90a0bf"}
-			]
-		}
-	}
-
-
-func _build_web_action_body(action_id: String, site: Dictionary, topic: Dictionary, title_text: String, summary_text: String) -> Dictionary:
-	match action_id:
-		"post_promo":
-			return _build_promo_thread_page(site, topic, title_text, summary_text)
-		"watch_event":
-			return _build_event_news_page(site, topic, title_text, summary_text)
-		_:
-			return _build_forum_thread_page(site, topic, title_text, summary_text)
-
-
-func _build_forum_thread_page(site: Dictionary, topic: Dictionary, title_text: String, summary_text: String) -> Dictionary:
-	var site_name: String = str(site.get("display_name", "论坛"))
-	var authors: Array = _browser_content.get("authors", [])
-	var support_pool: Array = _get_reply_pool("support")
-	var skeptic_pool: Array = _get_reply_pool("skeptic")
-	var gossip_pool: Array = _get_reply_pool("gossip")
-	var children: Array = [
-		{
-			"type": "panel",
-			"bg_color": "#24314a",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 6,
-				"children": [
-					{"type": "label", "text": "[热帖] %s" % title_text, "font_size": 22, "color": "#9fd0ff"},
-					{"type": "label", "text": summary_text, "font_size": 16, "color": "#d7dced"},
-					{"type": "label", "text": "版块：%s 热门讨论" % site_name, "font_size": 13, "color": "#90a0bf"}
-				]
-			}
-		}
-	]
-	var reply_seeds: Array = [support_pool, skeptic_pool, gossip_pool]
-	for index in range(3):
-		var pool: Array = reply_seeds[index]
-		var author: String = _seeded_pick_array(authors, "%s_forum_author_%d" % [str(topic.get("topic_id", "topic")), index], "匿名用户")
-		var reply_text: String = _seeded_pick_array(pool, "%s_forum_reply_%d" % [str(topic.get("topic_id", "topic")), index], "围观。")
-		children.append({
-			"type": "panel",
-			"bg_color": "#151b28",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 4,
-				"children": [
-					{"type": "label", "text": author, "font_size": 16, "color": "#ffffff"},
-					{"type": "label", "text": reply_text, "font_size": 15, "color": "#c6cede"}
-				]
-			}
-		})
-	return {"type": "vbox", "separation": 10, "children": children}
-
-
-func _build_promo_thread_page(_site: Dictionary, topic: Dictionary, title_text: String, summary_text: String) -> Dictionary:
-	var children: Array = [
-		{
-			"type": "panel",
-			"bg_color": "#24314a",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 6,
-				"children": [
-					{"type": "label", "text": title_text, "font_size": 22, "color": "#9fd0ff"},
-					{"type": "label", "text": "作者：jam_duo_studio", "font_size": 14, "color": "#ffffff"},
-					{"type": "label", "text": summary_text, "font_size": 16, "color": "#d7dced"}
-				]
-			}
-		}
-	]
-	var authors: Array = _browser_content.get("authors", [])
-	var response_pool: Array = _get_reply_pool("support") + _get_reply_pool("skeptic")
-	for index in range(3):
-		var author: String = _seeded_pick_array(authors, "%s_promo_author_%d" % [str(topic.get("topic_id", "promo")), index], "路人")
-		var reply_text: String = _seeded_pick_array(response_pool, "%s_promo_reply_%d" % [str(topic.get("topic_id", "promo")), index], "继续观望。")
-		children.append({
-			"type": "panel",
-			"bg_color": "#151b28",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 4,
-				"children": [
-					{"type": "label", "text": author, "font_size": 16, "color": "#ffffff"},
-					{"type": "label", "text": reply_text, "font_size": 15, "color": "#c6cede"}
-				]
-			}
-		})
-	return {"type": "vbox", "separation": 10, "children": children}
-
-
-func _build_event_news_page(site: Dictionary, _topic: Dictionary, title_text: String, summary_text: String) -> Dictionary:
-	var news_items: Array = [
-		"关注度榜单发生变化",
-		"多支队伍在深夜释出新截图",
-		"讨论区对赛题尺度继续升温"
-	]
-	var children: Array = [
-		{
-			"type": "panel",
-			"bg_color": "#24314a",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 6,
-				"children": [
-					{"type": "label", "text": title_text, "font_size": 24, "color": "#ffffff"},
-					{"type": "label", "text": summary_text, "font_size": 16, "color": "#d7dced"},
-					{"type": "label", "text": "来源：%s 编辑部" % str(site.get("display_name", "资讯站")), "font_size": 13, "color": "#90a0bf"}
-				]
-			}
-		}
-	]
-	for index in range(news_items.size()):
-		children.append({
-			"type": "panel",
-			"bg_color": "#151b28",
-			"padding": 12,
-			"child": {
-				"type": "vbox",
-				"separation": 4,
-				"children": [
-					{"type": "label", "text": "快讯 %d" % (index + 1), "font_size": 16, "color": "#ffffff"},
-					{"type": "label", "text": news_items[index], "font_size": 15, "color": "#c6cede"}
-				]
-			}
-		})
-	return {"type": "vbox", "separation": 10, "children": children}
-
-
-func _create_history_entry_v2(action_id: String, payload: Dictionary) -> Dictionary:
+func _create_history_entry_v2(action_id: String, payload: Dictionary, entry_prefix: String = "browser") -> Dictionary:
 	_history_counter += 1
 	var phase_name := "UNKNOWN"
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm != null and glm.has_method("get_phase_name"):
 		phase_name = glm.get_phase_name(glm.get("time_phase"))
+	var normalized_prefix: String = entry_prefix.strip_edges()
+	if normalized_prefix.is_empty():
+		normalized_prefix = "browser"
 	return {
-		"entry_id": "browser_%04d" % _history_counter,
+		"entry_id": "%s_%04d" % [normalized_prefix, _history_counter],
 		"day": _get_current_day(),
 		"phase": phase_name,
 		"action_id": action_id,
@@ -1578,111 +1071,3 @@ func _compare_condition_values(actual: Variant, expected: Variant, op: String) -
 		_:
 			push_warning("BrowserManager: Unknown search condition op: %s" % op)
 			return false
-
-
-# ── Action LLM 生成 ──────────────────────────────────────
-
-func _build_action_page_messages(action_id: String, action: Dictionary, site: Dictionary, topic: Dictionary) -> Array:
-	var gm: Node = get_node_or_null("/root/GameManager")
-	var day: int = _get_current_day()
-	var state_prompt: String = ""
-	if gm != null and gm.has_method("get_llm_state_prompt"):
-		state_prompt = gm.get_llm_state_prompt()
-
-	var system_prompt: String = _resolve_prompt(PAGE_PROMPT_KEY)
-	if system_prompt.is_empty():
-		system_prompt = "你是模拟现代互联网的网页内容生成器。只返回JSON对象，禁止img类型，必须使用支持的UI节点类型。使用浅色背景深色文字。"
-
-	# 从 topic 中取出随机选中的 seed 关键词
-	var selected_seeds: Array = topic.get("selected_seeds", [])
-	var seeds_text: String = ", ".join(PackedStringArray(selected_seeds))
-	var category: String = str(topic.get("category", ""))
-	var mood: String = str(topic.get("mood", "mixed"))
-
-	var user_parts: PackedStringArray = []
-	user_parts.append("生成一个游戏内网页，模拟玩家在 GameJam 期间浏览社区网站的体验。")
-	user_parts.append("行动类型：%s（%s）" % [str(action.get("title", "")), action_id])
-	user_parts.append("站点：%s（风格：%s）" % [str(site.get("display_name", "")), str(site.get("tone", ""))])
-	user_parts.append("话题类型：%s" % category)
-	user_parts.append("氛围：%s" % mood)
-	user_parts.append("关键词灵感（围绕这些词自由发挥，不要照搬）：%s" % seeds_text)
-	user_parts.append("当前天数：Day %d / 45" % day)
-	if not state_prompt.is_empty():
-		user_parts.append("当前游戏状态：%s" % state_prompt)
-
-	match action_id:
-		"browse_forum":
-			user_parts.append("请生成一个论坛帖子页面，包含主帖和3-5条回复。回复者有不同立场。自由创作帖子标题、内容和网友ID。")
-		"post_promo":
-			user_parts.append("请生成一个宣传帖页面，玩家发布了开发日志，下方有社区回复。自由创作回复内容和网友ID。")
-		"watch_event":
-			user_parts.append("请生成一个比赛资讯页面，包含赛事动态和快讯条目。自由创作标题和内容。")
-
-	return [
-		{"role": "system", "content": system_prompt},
-		{"role": "user", "content": "\n".join(user_parts)}
-	]
-
-
-func _handle_action_page_completed(meta: Dictionary, content: String) -> void:
-	var action_meta: Dictionary = meta.get("action_meta", {})
-	var action_id: String = str(action_meta.get("action_id", ""))
-	var action: Dictionary = action_meta.get("action", {})
-	var site: Dictionary = action_meta.get("site", {})
-	var topic: Dictionary = action_meta.get("topic", {})
-	var url: String = str(action_meta.get("url", ""))
-
-	var page_content: Dictionary = _parse_page_content(content)
-	if page_content.is_empty():
-		# LLM 解析失败，fallback 到模板
-		_handle_action_page_fallback(action_meta)
-		return
-
-	var title_text: String = str(page_content.get("title", topic.get("direction", action.get("title", ""))))
-	var summary_text: String = str(topic.get("direction", ""))
-
-	_page_cache[url] = {
-		"content": page_content,
-		"updated_at": Time.get_unix_time_from_system()
-	}
-
-	var payload := {
-		"url": url,
-		"title": title_text,
-		"summary": summary_text,
-		"site": site,
-		"topic": topic,
-		"page": page_content
-	}
-	var entry := _create_history_entry_v2(action_id, payload)
-	_record_history_entry(entry)
-	browser_action_completed.emit(action_id, entry.duplicate(true))
-	_on_action_followup(entry)
-
-
-func _handle_action_page_failed(meta: Dictionary, error: String) -> void:
-	var action_meta: Dictionary = meta.get("action_meta", {})
-	var action_id: String = str(action_meta.get("action_id", ""))
-	push_warning("BrowserManager: Action LLM failed for '%s': %s — using fallback" % [action_id, error])
-	browser_action_failed.emit(action_id, error)
-	_handle_action_page_fallback(action_meta)
-
-
-func _handle_action_page_fallback(action_meta: Dictionary) -> void:
-	var action_id: String = str(action_meta.get("action_id", ""))
-	var action: Dictionary = action_meta.get("action", {})
-	var payload := _build_web_action_page(action_id, action)
-	var entry := _create_history_entry_v2(action_id, payload)
-	_record_history_entry(entry)
-	browser_action_completed.emit(action_id, entry.duplicate(true))
-	_on_action_followup(entry)
-
-
-# ── 预留接口（未来扩展：分享到 LinkChat 等）──────────────
-
-func _on_action_followup(_entry: Dictionary) -> void:
-	pass
-
-
-func _on_action_moment(_entry: Dictionary) -> void:
-	pass

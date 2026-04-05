@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="AVGScene" format=3 uid="uid://cmovjgvebv77t"]
+[gd_resource type="Resource" script_class="AVGScene" format=3 uid="uid://b3jy7xmd8aqt6"]
 
 [ext_resource type="Script" uid="uid://bp2jf8bgegffx" path="res://scripts/avg/resources/avg_scene.gd" id="1_scene"]
 [ext_resource type="Script" uid="uid://bqmt6mnvjwjtl" path="res://scripts/avg/resources/nodes/avg_root_node.gd" id="2_root"]

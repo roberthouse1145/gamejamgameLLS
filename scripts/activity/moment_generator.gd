@@ -21,11 +21,7 @@ func _setup_ai_service() -> void:
 	_ai_service.name = "MomentAIService"
 	add_child(_ai_service)
 
-	var config_mgr := AIConfigManager.new()
-	if config_mgr.load_config():
-		_llm_enabled = config_mgr.apply_to_service(_ai_service, "linkchat")
-	else:
-		_llm_enabled = false
+	_llm_enabled = AIConfigManager.get_instance().apply_to_service(_ai_service, "linkchat")
 
 	_ai_service.request_completed.connect(_on_request_completed)
 	_ai_service.request_failed.connect(_on_request_failed)

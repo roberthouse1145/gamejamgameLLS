@@ -1,0 +1,164 @@
+[gd_resource type="Resource" script_class="AVGProject" format=3]
+
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine01.tres" id="1_q510b"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine02.tres" id="2_hb6k3"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine03.tres" id="3_0e2dt"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine04.tres" id="4_hoyli"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine05.tres" id="5_yq08g"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine06.tres" id="6_a1hxr"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine07.tres" id="7_0kg84"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine08.tres" id="8_2b2f8"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine09.tres" id="9_qjwgm"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine10.tres" id="10_pw5iy"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine11.tres" id="11_i3voi"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine12.tres" id="12_o1ht2"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine13.tres" id="13_7skk4"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine14.tres" id="14_1irxb"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine15.tres" id="15_45w7s"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine16.tres" id="16_i2uyn"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine17.tres" id="17_lhv7k"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine18.tres" id="18_wr8io"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine19.tres" id="19_0k5y0"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine20.tres" id="20_5woq0"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/characters/heroine21.tres" id="21_onu8b"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_style_box.gd" id="22_dyecs"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_dialog_settings.gd" id="23_ygwr1"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/events/greeting_event.tres" id="24_g5w1b"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_ui_button.gd" id="25_gxror"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_game_ui_config.gd" id="26_tnx6k"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_00_title.tres" id="27_ietdx"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_01_dialogue.tres" id="28_irsyj"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_02_choices.tres" id="29_qwymw"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_03_variables.tres" id="30_g871j"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_04_character_commands.tres" id="31_8j2mq"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_05_variable_test.tres" id="32_c35l7"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_06_parallel_test.tres" id="33_e5x1c"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_07_camera_test.tres" id="34_hdq2g"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_08_transition_a.tres" id="35_u5phv"]
+[ext_resource type="Resource" path="res://templates/tutorial_project/scenes/scene_09_transition_b.tres" id="36_6tbi1"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_screen_config.gd" id="37_h0mt2"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_project.gd" id="38_7v0ef"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_node.gd" id="39_2m8fv"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_command.gd" id="40_g2nwa"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_title_config.gd" id="41_5kvea"]
+
+[sub_resource type="Resource" id="Resource_h7ib7"]
+script = ExtResource("22_dyecs")
+
+[sub_resource type="Resource" id="Resource_et8sw"]
+script = ExtResource("23_ygwr1")
+box_style = SubResource("Resource_h7ib7")
+
+[sub_resource type="Resource" id="Resource_hnumh"]
+script = ExtResource("25_gxror")
+button_id = "save"
+display_text = "存档"
+action = "save"
+norm_position = Vector2(0.55, 0.96)
+
+[sub_resource type="Resource" id="Resource_q6xkn"]
+script = ExtResource("25_gxror")
+button_id = "load"
+display_text = "读档"
+action = "load"
+norm_position = Vector2(0.605, 0.96)
+order = 1
+
+[sub_resource type="Resource" id="Resource_5uy3t"]
+script = ExtResource("25_gxror")
+button_id = "auto"
+display_text = "自动"
+action = "auto"
+norm_position = Vector2(0.66, 0.96)
+order = 2
+
+[sub_resource type="Resource" id="Resource_5gqdg"]
+script = ExtResource("25_gxror")
+button_id = "skip"
+display_text = "快进"
+action = "skip"
+norm_position = Vector2(0.715, 0.96)
+order = 3
+
+[sub_resource type="Resource" id="Resource_u8nxi"]
+script = ExtResource("25_gxror")
+button_id = "log"
+display_text = "历史"
+action = "log"
+norm_position = Vector2(0.77, 0.96)
+order = 4
+
+[sub_resource type="Resource" id="Resource_okrvf"]
+script = ExtResource("25_gxror")
+button_id = "hide_ui"
+display_text = "隐藏"
+action = "hide_ui"
+norm_position = Vector2(0.825, 0.96)
+order = 5
+
+[sub_resource type="Resource" id="Resource_uu6y8"]
+script = ExtResource("25_gxror")
+button_id = "settings"
+display_text = "设置"
+action = "settings"
+norm_position = Vector2(0.88, 0.96)
+order = 6
+
+[sub_resource type="Resource" id="Resource_duwfn"]
+script = ExtResource("25_gxror")
+button_id = "menu"
+display_text = "菜单"
+action = "menu"
+norm_position = Vector2(0.935, 0.96)
+order = 7
+
+[sub_resource type="Resource" id="Resource_32tf5"]
+script = ExtResource("26_tnx6k")
+buttons = [SubResource("Resource_hnumh"), SubResource("Resource_q6xkn"), SubResource("Resource_5uy3t"), SubResource("Resource_5gqdg"), SubResource("Resource_u8nxi"), SubResource("Resource_okrvf"), SubResource("Resource_uu6y8"), SubResource("Resource_duwfn")]
+
+[sub_resource type="Resource" id="Resource_bmaus"]
+script = ExtResource("37_h0mt2")
+title_text = "菜单"
+panel_norm_size = Vector2(0.4, 0.7)
+menu_button_texts = PackedStringArray("继续游戏", "存档", "读档", "历史记录", "设置", "回到标题", "退出游戏")
+
+[sub_resource type="Resource" id="shared_btn_cmd_jump"]
+script = ExtResource("40_g2nwa")
+command_type = "JUMP_SCENE"
+params = {
+"scene_id": "scene_001"
+}
+
+[sub_resource type="Resource" id="shared_start_button"]
+script = ExtResource("39_2m8fv")
+node_id = "shared_start_button"
+node_name = "StartButton"
+norm_size = Vector2(0.15625, 0.074074)
+size = Vector2(300, 80)
+command_tabs = [{
+"commands": [SubResource("shared_btn_cmd_jump")],
+"condition_commands": [],
+"mode": 2
+}]
+text = "Start Game"
+font_size = 24
+
+[sub_resource type="Resource" id="title_config"]
+script = ExtResource("41_5kvea")
+first_scene_id = "scene_001"
+title_text = "Tutorial Project"
+
+[resource]
+script = ExtResource("38_7v0ef")
+project_name = "Tutorial Project"
+project_root_path = "res://projects/Tutorial Project/"
+dialog_settings = SubResource("Resource_et8sw")
+scenes = [ExtResource("27_ietdx"), ExtResource("28_irsyj"), ExtResource("29_qwymw"), ExtResource("30_g871j"), ExtResource("31_8j2mq"), ExtResource("32_c35l7"), ExtResource("33_e5x1c"), ExtResource("34_hdq2g"), ExtResource("35_u5phv"), ExtResource("36_6tbi1")]
+characters = [ExtResource("1_q510b"), ExtResource("2_hb6k3"), ExtResource("3_0e2dt"), ExtResource("4_hoyli"), ExtResource("5_yq08g"), ExtResource("6_a1hxr"), ExtResource("7_0kg84"), ExtResource("8_2b2f8"), ExtResource("9_qjwgm"), ExtResource("10_pw5iy"), ExtResource("11_i3voi"), ExtResource("12_o1ht2"), ExtResource("13_7skk4"), ExtResource("14_1irxb"), ExtResource("15_45w7s"), ExtResource("16_i2uyn"), ExtResource("17_lhv7k"), ExtResource("18_wr8io"), ExtResource("19_0k5y0"), ExtResource("20_5woq0"), ExtResource("21_onu8b")]
+events = [ExtResource("24_g5w1b")]
+shared_nodes = [SubResource("shared_start_button")]
+title_config = SubResource("title_config")
+game_ui_config = SubResource("Resource_32tf5")
+screen_configs = {
+"menu": SubResource("Resource_bmaus")
+}

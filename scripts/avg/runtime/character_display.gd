@@ -93,21 +93,28 @@ func set_character_data(characters: Dictionary) -> void:
 
 ## Show a character on screen
 func show_character(character_id: String, pos_name: String = "center", emotion: String = "", fade_duration: float = 0.3, flip: bool = false, char_scale: float = 1.0, opacity: float = 1.0, outfit: String = "", enter_effect: String = "fade", enter_distance: float = 0.08, enter_easing: String = "ease_out") -> void:
-	var sprite: TextureRect = _get_or_create_sprite(character_id)
-	_cancel_crossfade(character_id)
-	
-	var resolved_outfit: String = _resolve_outfit(character_id, outfit)
-	var texture: Texture2D = _get_character_texture(character_id, emotion, resolved_outfit)
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+
+	var resolved_outfit: String = _resolve_outfit(resolved_character_id, outfit)
+	var texture: Texture2D = _get_character_texture(resolved_character_id, emotion, resolved_outfit)
+
+	# 容错：角色数据不存在且无可用纹理时跳过（防止 LLM 幻觉角色创建幽灵节点）
+	if texture == null and not _character_data.has(resolved_character_id):
+		push_warning("CharacterDisplay: character '%s' has no data and no texture, skipping show" % character_id)
+		return
+
+	var sprite: TextureRect = _get_or_create_sprite(resolved_character_id)
+	_cancel_crossfade(resolved_character_id)
 	if texture != null:
 		sprite.texture = texture
-		_apply_texture_size(sprite, texture, character_id)
+		_apply_texture_size(sprite, texture, resolved_character_id)
 
 	var pos_ratio: Vector2 = _parse_position(pos_name)
-	_position_sprite(sprite, pos_ratio, character_id)
+	_position_sprite(sprite, pos_ratio, resolved_character_id)
 	var target_pos: Vector2 = sprite.position
 
 	# Init state
-	_character_state[character_id] = {
+	_character_state[resolved_character_id] = {
 		"flip": flip,
 		"scale_factor": char_scale,
 		"opacity": opacity,
@@ -121,16 +128,17 @@ func show_character(character_id: String, pos_name: String = "center", emotion: 
 	sprite.pivot_offset = sprite.size / 2.0
 	var target_scale: Vector2 = Vector2(sx, char_scale)
 	sprite.scale = target_scale
-	_play_show_effect(character_id, sprite, target_pos, target_scale, opacity, fade_duration, enter_effect, enter_distance, enter_easing)
+	_play_show_effect(resolved_character_id, sprite, target_pos, target_scale, opacity, fade_duration, enter_effect, enter_distance, enter_easing)
 
 
 ## Hide a character from screen
 func hide_character(character_id: String, fade_duration: float = 0.3, exit_effect: String = "fade", exit_distance: float = 0.08, exit_easing: String = "ease_in") -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
-	var sprite: TextureRect = _active_characters[character_id]
-	_cancel_crossfade(character_id)
-	_play_hide_effect(character_id, sprite, fade_duration, exit_effect, exit_distance, exit_easing)
+	var sprite: TextureRect = _active_characters[resolved_character_id]
+	_cancel_crossfade(resolved_character_id)
+	_play_hide_effect(resolved_character_id, sprite, fade_duration, exit_effect, exit_distance, exit_easing)
 
 
 ## Hide all characters
@@ -145,20 +153,21 @@ func hide_all(fade_duration: float = 0.3) -> void:
 
 ## Change expression with transition
 func change_expression(character_id: String, expression: String, transition: String = "", duration: float = -1.0, outfit: String = "") -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
-	var sprite: TextureRect = _active_characters[character_id]
+	var sprite: TextureRect = _active_characters[resolved_character_id]
 
 	var target_outfit: String = outfit.strip_edges()
 	if target_outfit.is_empty():
-		target_outfit = str(_character_state.get(character_id, {}).get("current_outfit", "")).strip_edges()
+		target_outfit = str(_character_state.get(resolved_character_id, {}).get("current_outfit", "")).strip_edges()
 
-	var resolved_outfit: String = _resolve_outfit(character_id, target_outfit)
-	var new_texture: Texture2D = _get_character_texture(character_id, expression, resolved_outfit)
+	var resolved_outfit: String = _resolve_outfit(resolved_character_id, target_outfit)
+	var new_texture: Texture2D = _get_character_texture(resolved_character_id, expression, resolved_outfit)
 	if new_texture == null:
 		return
 
-	var previous_state: Dictionary = _character_state.get(character_id, {})
+	var previous_state: Dictionary = _character_state.get(resolved_character_id, {})
 	var current_emotion: String = str(previous_state.get("current_emotion", "")).strip_edges()
 	var current_outfit: String = str(previous_state.get("current_outfit", "")).strip_edges()
 	var target_emotion: String = expression.strip_edges()
@@ -171,30 +180,31 @@ func change_expression(character_id: String, expression: String, transition: Str
 	var mode: int = _resolve_transition_mode(transition)
 	var dur: float = duration if duration >= 0.0 else _get_default_expression_duration()
 
-	if _character_state.has(character_id):
-		_character_state[character_id]["current_emotion"] = target_emotion
-		_character_state[character_id]["current_outfit"] = resolved_outfit
+	if _character_state.has(resolved_character_id):
+		_character_state[resolved_character_id]["current_emotion"] = target_emotion
+		_character_state[resolved_character_id]["current_outfit"] = resolved_outfit
 
-	_cancel_crossfade(character_id)
+	_cancel_crossfade(resolved_character_id)
 
 	match mode:
 		TRANSITION_INSTANT:
-			_apply_texture_preserve_center(sprite, new_texture, character_id)
+			_apply_texture_preserve_center(sprite, new_texture, resolved_character_id)
 		TRANSITION_CROSSFADE:
-			_do_crossfade(character_id, sprite, new_texture, dur)
+			_do_crossfade(resolved_character_id, sprite, new_texture, dur)
 		TRANSITION_FADE_THROUGH_BLACK:
-			_do_fade_through(character_id, sprite, new_texture, dur)
+			_do_fade_through(resolved_character_id, sprite, new_texture, dur)
 
 
 func change_outfit(character_id: String, outfit: String, transition: String = "", duration: float = -1.0, emotion: String = "") -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
 	var target_emotion: String = emotion.strip_edges()
 	if target_emotion.is_empty():
-		target_emotion = str(_character_state.get(character_id, {}).get("current_emotion", "default")).strip_edges()
+		target_emotion = str(_character_state.get(resolved_character_id, {}).get("current_emotion", "default")).strip_edges()
 	if target_emotion.is_empty():
 		target_emotion = "default"
-	change_expression(character_id, target_emotion, transition, duration, outfit)
+	change_expression(resolved_character_id, target_emotion, transition, duration, outfit)
 
 
 func _do_crossfade(character_id: String, sprite: TextureRect, new_texture: Texture2D, duration: float) -> void:
@@ -291,16 +301,17 @@ func _cancel_crossfade(character_id: String) -> void:
 
 ## Move character to a position (predefined name or "x,y" normalized coords)
 func move_character(character_id: String, target: String, duration: float = 0.3, easing: String = "ease_in_out") -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
-	var sprite: TextureRect = _active_characters[character_id]
+	var sprite: TextureRect = _active_characters[resolved_character_id]
 	var pos_ratio: Vector2 = _parse_position(target)
 
-	if _character_state.has(character_id):
-		_character_state[character_id]["position_ratio"] = pos_ratio
+	if _character_state.has(resolved_character_id):
+		_character_state[resolved_character_id]["position_ratio"] = pos_ratio
 
-	var target_pos: Vector2 = _calculate_position(pos_ratio, sprite, character_id)
-	var move_key: String = character_id + "_move"
+	var target_pos: Vector2 = _calculate_position(pos_ratio, sprite, resolved_character_id)
+	var move_key: String = resolved_character_id + "_move"
 	_cancel_tween(move_key)
 
 	if duration > 0.0:
@@ -318,19 +329,20 @@ func move_character(character_id: String, target: String, duration: float = 0.3,
 
 ## Move character by a relative offset (normalized)
 func move_character_by(character_id: String, offset_x: float, offset_y: float, duration: float = 0.3) -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
-	var sprite: TextureRect = _active_characters[character_id]
+	var sprite: TextureRect = _active_characters[resolved_character_id]
 	var delta: Vector2 = Vector2(offset_x * _design_resolution.x, offset_y * _design_resolution.y)
 	var target_pos: Vector2 = sprite.position + delta
 
 	# Update state ratio
-	if _character_state.has(character_id):
+	if _character_state.has(resolved_character_id):
 		var sprite_size: Vector2 = sprite.size if sprite.size != Vector2.ZERO else Vector2(200, 400)
 		var center: Vector2 = target_pos + sprite_size / 2.0
-		_character_state[character_id]["position_ratio"] = center / _design_resolution
+		_character_state[resolved_character_id]["position_ratio"] = center / _design_resolution
 
-	var move_key: String = character_id + "_move"
+	var move_key: String = resolved_character_id + "_move"
 	_cancel_tween(move_key)
 
 	if duration > 0.0:
@@ -352,10 +364,11 @@ func move_character_by(character_id: String, offset_x: float, offset_y: float, d
 
 ## Flip character horizontally
 func flip_character(character_id: String, mode: String = "toggle", duration: float = 0.0) -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
-	var sprite: TextureRect = _active_characters[character_id]
-	var state: Dictionary = _character_state.get(character_id, {})
+	var sprite: TextureRect = _active_characters[resolved_character_id]
+	var state: Dictionary = _character_state.get(resolved_character_id, {})
 	var is_flipped: bool = state.get("flip", false)
 	var char_scale: float = state.get("scale_factor", 1.0)
 
@@ -367,13 +380,13 @@ func flip_character(character_id: String, mode: String = "toggle", duration: flo
 		_:
 			is_flipped = not is_flipped
 
-	if _character_state.has(character_id):
-		_character_state[character_id]["flip"] = is_flipped
+	if _character_state.has(resolved_character_id):
+		_character_state[resolved_character_id]["flip"] = is_flipped
 
 	var target_sx: float = - char_scale if is_flipped else char_scale
 	sprite.pivot_offset = sprite.size / 2.0
 
-	var flip_key: String = character_id + "_flip"
+	var flip_key: String = resolved_character_id + "_flip"
 	_cancel_tween(flip_key)
 
 	if duration > 0.0:
@@ -395,14 +408,15 @@ func flip_character(character_id: String, mode: String = "toggle", duration: flo
 
 ## Play an animation effect on a character
 func play_effect(character_id: String, effect_name: String, intensity: String = "medium", duration: float = -1.0) -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
-	var sprite: TextureRect = _active_characters[character_id]
+	var sprite: TextureRect = _active_characters[resolved_character_id]
 	var original_pos: Vector2 = sprite.position
 
 	var mult: float = _get_intensity_multiplier(intensity)
 
-	var effect_key: String = character_id + "_effect"
+	var effect_key: String = resolved_character_id + "_effect"
 	if _active_tweens.has(effect_key):
 		var old_tween: Tween = _active_tweens[effect_key]
 		if old_tween != null and old_tween.is_valid():
@@ -455,7 +469,7 @@ func play_effect(character_id: String, effect_name: String, intensity: String = 
 		_active_tweens.erase(effect_key)
 		if is_instance_valid(sprite):
 			sprite.position = original_pos
-		effect_finished.emit(character_id)
+		effect_finished.emit(resolved_character_id)
 	)
 
 
@@ -465,11 +479,12 @@ func play_effect(character_id: String, effect_name: String, intensity: String = 
 
 ## Set character visual property with optional animation
 func set_character_property(character_id: String, property: String, value: Variant, duration: float = 0.3) -> void:
-	if not _active_characters.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _active_characters.has(resolved_character_id):
 		return
-	var sprite: TextureRect = _active_characters[character_id]
+	var sprite: TextureRect = _active_characters[resolved_character_id]
 	# Use a per-property tween key so different properties do not cancel each other.
-	var prop_key: String = character_id + "_prop_" + property
+	var prop_key: String = resolved_character_id + "_prop_" + property
 	_cancel_tween(prop_key)
 
 	match property:
@@ -480,8 +495,8 @@ func set_character_property(character_id: String, property: String, value: Varia
 				target_color = value
 			elif value is String:
 				target_color = Color.from_string(value, Color.WHITE)
-			if _character_state.has(character_id):
-				_character_state[character_id]["opacity"] = target_color.a
+			if _character_state.has(resolved_character_id):
+				_character_state[resolved_character_id]["opacity"] = target_color.a
 			if duration > 0.0:
 				var tween := create_tween()
 				_active_tweens[prop_key] = tween
@@ -497,8 +512,8 @@ func set_character_property(character_id: String, property: String, value: Varia
 		"opacity":
 			# Backward compatibility: only change alpha and keep the current RGB.
 			var target_alpha: float = clampf(float(value), 0.0, 1.0)
-			if _character_state.has(character_id):
-				_character_state[character_id]["opacity"] = target_alpha
+			if _character_state.has(resolved_character_id):
+				_character_state[resolved_character_id]["opacity"] = target_alpha
 			if duration > 0.0:
 				var tween := create_tween()
 				_active_tweens[prop_key] = tween
@@ -532,9 +547,9 @@ func set_character_property(character_id: String, property: String, value: Varia
 
 		"scale":
 			var target_scale: float = maxf(float(value), 0.01)
-			if _character_state.has(character_id):
-				_character_state[character_id]["scale_factor"] = target_scale
-			var is_flipped: bool = _character_state.get(character_id, {}).get("flip", false)
+			if _character_state.has(resolved_character_id):
+				_character_state[resolved_character_id]["scale_factor"] = target_scale
+			var is_flipped: bool = _character_state.get(resolved_character_id, {}).get("flip", false)
 			var sx: float = - target_scale if is_flipped else target_scale
 			sprite.pivot_offset = sprite.size / 2.0
 			if duration > 0.0:
@@ -560,25 +575,31 @@ func set_character_property(character_id: String, property: String, value: Varia
 # =============================================================================
 
 func get_character_sprite(character_id: String) -> TextureRect:
-	return _active_characters.get(character_id, null)
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	return _active_characters.get(resolved_character_id, null)
 
 
 func is_character_visible(character_id: String) -> bool:
-	if _active_characters.has(character_id):
-		return _active_characters[character_id].visible
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if _active_characters.has(resolved_character_id):
+		return _active_characters[resolved_character_id].visible
 	return false
 
 
 func get_character_state(character_id: String) -> Dictionary:
-	return _character_state.get(character_id, {})
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	return _character_state.get(resolved_character_id, {})
 
 
 func resolve_visible_character_id(reference: String) -> String:
 	var trimmed_reference: String = reference.strip_edges()
 	if trimmed_reference.is_empty():
 		return ""
-	if is_character_visible(trimmed_reference):
-		return trimmed_reference
+	var resolved_character_id: String = _resolve_character_reference(trimmed_reference)
+	if _active_characters.has(resolved_character_id):
+		var sprite: TextureRect = _active_characters[resolved_character_id]
+		if is_instance_valid(sprite) and sprite.visible:
+			return resolved_character_id
 	for character_id in _active_characters.keys():
 		if not is_character_visible(character_id):
 			continue
@@ -745,8 +766,26 @@ func _create_crossfade_overlay(character_id: String, source_sprite: TextureRect,
 	return overlay
 
 
+func _resolve_character_reference(reference: String) -> String:
+	var trimmed_reference: String = reference.strip_edges()
+	if trimmed_reference.is_empty():
+		return ""
+	if _character_data.has(trimmed_reference):
+		return trimmed_reference
+	for character_id in _character_data.keys():
+		if _matches_character_reference(character_id, trimmed_reference):
+			return character_id
+	if _active_characters.has(trimmed_reference):
+		return trimmed_reference
+	for active_character_id in _active_characters.keys():
+		if _matches_character_reference(active_character_id, trimmed_reference):
+			return active_character_id
+	return trimmed_reference
+
+
 func _matches_character_reference(character_id: String, reference: String) -> bool:
-	if character_id == reference:
+	var trimmed_reference: String = reference.strip_edges()
+	if character_id == trimmed_reference:
 		return true
 	var char_data = _character_data.get(character_id, null)
 	if char_data == null:
@@ -763,19 +802,20 @@ func _matches_character_reference(character_id: String, reference: String) -> bo
 
 	for candidate in candidates:
 		var trimmed_candidate: String = candidate.strip_edges()
-		if not trimmed_candidate.is_empty() and trimmed_candidate == reference:
+		if not trimmed_candidate.is_empty() and trimmed_candidate == trimmed_reference:
 			return true
 	return false
 
 
 func _get_character_texture(character_id: String, emotion: String, outfit: String = "") -> Texture2D:
-	if not _character_data.has(character_id):
+	var resolved_character_id: String = _resolve_character_reference(character_id)
+	if not _character_data.has(resolved_character_id):
 		push_warning("CharacterDisplay: Character '%s' not found in data" % character_id)
 		return null
 
-	var char_data = _character_data[character_id]
+	var char_data = _character_data[resolved_character_id]
 	var sprites: Dictionary = {}
-	var resolved_outfit: String = _resolve_outfit(character_id, outfit)
+	var resolved_outfit: String = _resolve_outfit(resolved_character_id, outfit)
 
 	if char_data is Resource:
 		sprites = char_data.sprites if "sprites" in char_data else {}
@@ -806,6 +846,7 @@ func _get_character_texture(character_id: String, emotion: String, outfit: Strin
 
 
 func _resolve_outfit(character_id: String, requested_outfit: String) -> String:
+	character_id = _resolve_character_reference(character_id)
 	var trimmed_requested: String = requested_outfit.strip_edges()
 	var char_data = _character_data.get(character_id, null)
 	if char_data == null:
@@ -929,12 +970,20 @@ func _resolve_ease_type(easing_str: String) -> Tween.EaseType:
 			return Tween.EASE_IN_OUT
 
 
+const _ALL_KNOWN_EFFECTS: Array[String] = [
+	"fade", "none", "instant", "pop_in", "pop_out",
+	"slide_from_left", "slide_from_right", "slide_from_top", "slide_from_bottom",
+	"slide_to_left", "slide_to_right", "slide_to_top", "slide_to_bottom",
+]
+
 func _normalize_visibility_effect(effect_name: String) -> String:
 	var normalized: String = effect_name.strip_edges().to_lower()
 	if normalized.is_empty():
 		return VISIBILITY_EFFECT_FADE
 	if normalized == "instant":
 		return VISIBILITY_EFFECT_NONE
+	if not _ALL_KNOWN_EFFECTS.has(normalized):
+		push_warning("CharacterDisplay: unknown effect '%s', falling back to fade" % effect_name)
 	return normalized
 
 
@@ -965,6 +1014,7 @@ func _get_intensity_multiplier(intensity: String) -> float:
 
 ## Get character-level display_offset from character data
 func _get_char_display_offset(character_id: String) -> Vector2:
+	character_id = _resolve_character_reference(character_id)
 	if character_id.is_empty() or not _character_data.has(character_id):
 		return Vector2.ZERO
 	var data = _character_data[character_id]
@@ -979,6 +1029,7 @@ func _get_char_display_offset(character_id: String) -> Vector2:
 
 ## Get character-level display_scale from character data
 func _get_char_display_scale(character_id: String) -> float:
+	character_id = _resolve_character_reference(character_id)
 	if character_id.is_empty() or not _character_data.has(character_id):
 		return 1.0
 	var data = _character_data[character_id]
@@ -1005,6 +1056,43 @@ func get_all_character_states() -> Dictionary:
 		var state: Dictionary = _character_state.get(character_id, {})
 		result[character_id] = state.duplicate()
 	return result
+
+
+## 获取角色的镜头焦点坐标（归一化 0~1），基于精灵实际渲染位置
+## face_offset: 相对精灵尺寸的偏移，默认向上 20%（接近面部区域）
+func get_character_focus_point(character_id: String, face_offset: Vector2 = Vector2(0.0, -0.2)) -> Vector2:
+	var resolved_id: String = _resolve_character_reference(character_id)
+	var sprite: TextureRect = _active_characters.get(resolved_id, null)
+	if sprite == null or not is_instance_valid(sprite) or not sprite.visible:
+		# 回退到 position_ratio
+		var state: Dictionary = _character_state.get(resolved_id, {})
+		return state.get("position_ratio", Vector2(0.5, 0.5))
+	# 精灵中心（设计分辨率空间）+ 面部偏移
+	var center: Vector2 = sprite.position + sprite.size / 2.0
+	center += face_offset * sprite.size
+	# 转为归一化坐标
+	if _design_resolution.x > 0 and _design_resolution.y > 0:
+		return center / _design_resolution
+	return Vector2(0.5, 0.5)
+
+
+## 获取所有可见角色的镜头焦点坐标中点（归一化 0~1）
+func get_between_focus_point() -> Vector2:
+	var points: Array[Vector2] = []
+	for character_id in _active_characters:
+		var sprite: TextureRect = _active_characters[character_id]
+		if not is_instance_valid(sprite) or not sprite.visible:
+			continue
+		# between 场景不加面部偏移，取精灵实际中心
+		var center: Vector2 = sprite.position + sprite.size / 2.0
+		if _design_resolution.x > 0 and _design_resolution.y > 0:
+			points.append(center / _design_resolution)
+	if points.is_empty():
+		return Vector2(0.5, 0.5)
+	var sum: Vector2 = Vector2.ZERO
+	for p in points:
+		sum += p
+	return sum / float(points.size())
 
 
 ## Restore all characters from save data after clearing current ones

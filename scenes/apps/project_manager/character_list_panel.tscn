@@ -119,6 +119,87 @@ unique_name_in_owner = true
 layout_mode = 2
 horizontal_alignment = 1
 
+[node name="DisplayTuningSep" type="HSeparator" parent="MainSplit/RightPanel"]
+layout_mode = 2
+
+[node name="DisplayTuningLabel" type="Label" parent="MainSplit/RightPanel"]
+layout_mode = 2
+text = "显示调整"
+
+[node name="ScaleContainer" type="HBoxContainer" parent="MainSplit/RightPanel"]
+layout_mode = 2
+
+[node name="ScaleLabel" type="Label" parent="MainSplit/RightPanel/ScaleContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "缩放"
+
+[node name="ScaleSlider" type="HSlider" parent="MainSplit/RightPanel/ScaleContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.3
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="ScaleValue" type="Label" parent="MainSplit/RightPanel/ScaleContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(40, 0)
+text = "1.00"
+
+[node name="OffsetXContainer" type="HBoxContainer" parent="MainSplit/RightPanel"]
+layout_mode = 2
+
+[node name="OffsetXLabel" type="Label" parent="MainSplit/RightPanel/OffsetXContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "偏移 X"
+
+[node name="OffsetXSlider" type="HSlider" parent="MainSplit/RightPanel/OffsetXContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -0.5
+max_value = 0.5
+step = 0.01
+value = 0.0
+
+[node name="OffsetXValue" type="Label" parent="MainSplit/RightPanel/OffsetXContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(40, 0)
+text = "0.00"
+
+[node name="OffsetYContainer" type="HBoxContainer" parent="MainSplit/RightPanel"]
+layout_mode = 2
+
+[node name="OffsetYLabel" type="Label" parent="MainSplit/RightPanel/OffsetYContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(60, 0)
+text = "偏移 Y"
+
+[node name="OffsetYSlider" type="HSlider" parent="MainSplit/RightPanel/OffsetYContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = -0.5
+max_value = 0.5
+step = 0.01
+value = 0.0
+
+[node name="OffsetYValue" type="Label" parent="MainSplit/RightPanel/OffsetYContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(40, 0)
+text = "0.00"
+
+[node name="ResetDisplayButton" type="Button" parent="MainSplit/RightPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "重置显示参数"
+
 [node name="ResourcePickerDialog" type="Window" parent="."]
 unique_name_in_owner = true
 title = "选择图片资源"

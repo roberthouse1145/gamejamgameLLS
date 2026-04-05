@@ -51,6 +51,14 @@ static func _parse_children(text: String, pos: int, parent_tag: String) -> Array
 
 		# 遇到 < 开始解析标签
 		if text[pos] == "<":
+			# 跳过 HTML 注释 <!-- ... -->
+			if pos + 3 < length and text.substr(pos, 4) == "<!--":
+				var end_comment := text.find("-->", pos + 4)
+				if end_comment >= 0:
+					pos = end_comment + 3
+				else:
+					pos = length
+				continue
 			var tag_result := _parse_tag(text, pos, parent_tag)
 			if tag_result.is_empty():
 				# 解析失败，跳过这个 <

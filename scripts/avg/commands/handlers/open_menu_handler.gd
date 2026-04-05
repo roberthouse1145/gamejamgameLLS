@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name OpenMenuHandler
 ## Handler for OPEN_MENU command
 ## TODO: 打开菜单。后续完善。

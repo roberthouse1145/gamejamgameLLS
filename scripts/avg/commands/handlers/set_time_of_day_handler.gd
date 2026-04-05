@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SetTimeOfDayHandler
 
 const ParamDef = preload("res://scripts/avg/commands/param_definition.gd")

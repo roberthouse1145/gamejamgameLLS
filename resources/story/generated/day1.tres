@@ -1,0 +1,207 @@
+[gd_resource type="Resource" script_class="StoryChapter" format=3]
+
+[ext_resource type="Script" path="res://scripts/story/resources/story_chapter.gd" id="1_af1id"]
+[ext_resource type="Script" path="res://scripts/story/resources/story_step.gd" id="2_1j0nh"]
+
+[sub_resource type="Resource" id="Resource_drad2"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_01_init"
+description = "初始化第一天：锁定APP，只开放LinkChat，播放BGM"
+actions = Array[Dictionary]([{
+"day": 1,
+"phase": "MORNING",
+"type": "set_phase"
+}, {
+"apps": ["linkchat"],
+"mode": "whitelist",
+"type": "set_app_access"
+}, {
+"crossfade": 2.0,
+"path": "res://Assets/sounds/bgm/Blush (loop).ogg",
+"type": "play_bgm"
+}])
+next = "day1_02_gamejam_announce"
+
+[sub_resource type="Resource" id="Resource_w5tdx"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_02_gamejam_announce"
+description = "林夏发消息告知GameJam报名开始，引导玩家点击链接"
+actions = Array[Dictionary]([{
+"npc_speaks_first": true,
+"topic_path": "res://resources/story/topics/day1_gamejam_announce.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"type": "url_opened",
+"url": "gamejam://signup"
+}
+next = "day1_03_signup"
+
+[sub_resource type="Resource" id="Resource_buyxc"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_03_signup"
+description = "玩家在浏览器填写报名表"
+actions = Array[Dictionary]([{
+"apps": ["linkchat", "browser"],
+"mode": "whitelist",
+"type": "set_app_access"
+}, {
+"activities": ["community"],
+"mode": "blacklist",
+"reason": "先把报名搞定再说",
+"type": "set_activity_lock"
+}])
+wait_for = {
+"key": "signup_completed",
+"type": "variable_equals",
+"value": true
+}
+next = "day1_04_react"
+
+[sub_resource type="Resource" id="Resource_81c36"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_04_react"
+description = "林夏对队名反应"
+actions = Array[Dictionary]([{
+"npc_speaks_first": true,
+"topic_path": "res://resources/story/topics/day1_team_react.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "day1_team_react",
+"type": "topic_completed"
+}
+next = "day1_05_sbeam_play"
+
+[sub_resource type="Resource" id="Resource_js3ig"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_05_sbeam_play"
+description = "解锁Sbeam，等待玩家完成一局Sbeam游戏"
+actions = Array[Dictionary]([{
+"type": "clear_activity_lock"
+}, {
+"apps": ["linkchat", "sbeam"],
+"mode": "whitelist",
+"type": "set_app_access"
+}, {
+"app_id": "sbeam",
+"force": true,
+"type": "launch_app"
+}])
+wait_for = {
+"type": "sbeam_completed"
+}
+next = "day1_06_afternoon_theme"
+
+[sub_resource type="Resource" id="Resource_3ilyq"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_06_afternoon_theme"
+description = "进入下午，林夏发链接告知GameJam主题公布"
+actions = Array[Dictionary]([{
+"phase": "AFTERNOON",
+"type": "set_phase"
+}, {
+"apps": ["linkchat", "browser"],
+"mode": "whitelist",
+"type": "set_app_access"
+}, {
+"activities": ["community"],
+"mode": "blacklist",
+"reason": "先看完主题公告再说",
+"type": "set_activity_lock"
+}, {
+"npc_speaks_first": true,
+"topic_path": "res://resources/story/topics/day1_theme_announce.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"type": "url_opened",
+"url": "gamejam://forum/theme"
+}
+next = "day1_07_date_suggest"
+
+[sub_resource type="Resource" id="Resource_6piho"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_07_date_suggest"
+description = "林夏提议出去走走聊聊"
+actions = Array[Dictionary]([{
+"npc_speaks_first": true,
+"topic_path": "res://resources/story/topics/day1_date_suggest.tres",
+"type": "activate_topic"
+}, {
+"activity_type": "date",
+"consume_once": true,
+"prompt": "{{story/day1_first_date_guidance}}",
+"type": "set_activity_guidance"
+}])
+wait_for = {
+"topic_id": "day1_date_suggest",
+"type": "topic_completed"
+}
+next = "day1_08_open_map"
+
+[sub_resource type="Resource" id="Resource_4ugmq"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_08_open_map"
+description = "解锁地图APP，等待玩家选择约会地点"
+actions = Array[Dictionary]([{
+"type": "clear_activity_lock"
+}, {
+"apps": ["linkchat", "map"],
+"mode": "whitelist",
+"type": "set_app_access"
+}, {
+"app_id": "map",
+"force": true,
+"type": "launch_app"
+}])
+wait_for = {
+"type": "date_started"
+}
+next = "day1_09_date_avg"
+
+[sub_resource type="Resource" id="Resource_a70oa"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_09_date_avg"
+description = "约会AVG场景"
+actions = Array[Dictionary]([{
+"project_path": "",
+"scene_id": "day1_first_date",
+"type": "play_avg"
+}])
+wait_for = {
+"type": "date_completed"
+}
+next = "day1_10_night_plan"
+
+[sub_resource type="Resource" id="Resource_hqnh2"]
+script = ExtResource("2_1j0nh")
+step_id = "day1_10_night_plan"
+description = "进入晚上，回来后讨论游戏计划"
+actions = Array[Dictionary]([{
+"phase": "NIGHT",
+"type": "set_phase"
+}, {
+"crossfade": 2.0,
+"path": "res://Assets/sounds/bgm/astral house.ogg",
+"type": "play_bgm"
+}, {
+"apps": ["linkchat"],
+"mode": "whitelist",
+"type": "set_app_access"
+}, {
+"npc_speaks_first": true,
+"topic_path": "res://resources/story/topics/day1_night_plan.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "day1_night_plan",
+"type": "topic_completed"
+}
+
+[resource]
+script = ExtResource("1_af1id")
+chapter_id = "day1"
+chapter_name = "第一天 - GameJam报名"
+description = "游戏开始，林夏告知GameJam报名，玩家完成报名后玩游戏放松，下午主题公布后约会，晚上讨论计划"
+steps = Array[Resource]([SubResource("Resource_drad2"), SubResource("Resource_w5tdx"), SubResource("Resource_buyxc"), SubResource("Resource_81c36"), SubResource("Resource_js3ig"), SubResource("Resource_3ilyq"), SubResource("Resource_6piho"), SubResource("Resource_4ugmq"), SubResource("Resource_a70oa"), SubResource("Resource_hqnh2")])

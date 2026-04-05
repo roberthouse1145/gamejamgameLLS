@@ -16,6 +16,10 @@ const RES_PROJECTS_PATH: String = "res://projects/" # 开发者模式
 const RUNTIME_RUN_ROOT_PATH: String = "user://run/"
 const RUNTIME_PLAYER_PROJECT_PATH: String = RUNTIME_RUN_ROOT_PATH + "player_project/"
 const ASSET_MANIFEST_RELATIVE_PATH: String = "manifests/asset_aliases.json"
+
+## RTP（Runtime Package）机制：模板初始化时排除的大体积目录
+## 这些目录不复制到 user://，运行时通过回退查找 res://templates/ 中的原始文件
+const TEMPLATE_ASSET_EXCLUDE_DIRS: Array[String] = ["assets"]
 const IMPORTABLE_ASSET_TYPES: Dictionary = {
 	"background": {
 		"bucket": "backgrounds",
@@ -70,6 +74,127 @@ const DEFAULT_PROJECT_NAME: String = "tutorial_project"
 # 开发者模式开关
 # 编辑器中运行 = true（默认值），打包后强制 false
 var developer_mode: bool = true
+
+#region Trunk 分支保护
+## 工单执行期间的工作副本目录（Agent 写入 trunk，完成后合并回 main）
+const TRUNK_PATH: String = "user://run/trunk/"
+## 进入 trunk 模式时暂存的 main 路径
+var _main_project_path: String = ""
+
+## 获取 main 项目路径（无论是否处于 trunk 模式）
+var main_project_path: String:
+	get: return _main_project_path if not _main_project_path.is_empty() else current_project_path
+
+## 当前是否处于 trunk 模式
+var is_trunk_active: bool:
+	get: return not _main_project_path.is_empty()
+
+
+## 创建 trunk：将 main 项目的数据文件复制到 trunk 目录，切换写入路径
+## 排除 assets/（体积大、Agent 很少修改）和 work_orders/（元数据始终写 main）
+func create_trunk() -> Error:
+	if is_trunk_active:
+		discard_trunk()
+
+	if current_project_path.is_empty():
+		return ERR_UNCONFIGURED
+
+	_main_project_path = current_project_path
+
+	# 清理旧 trunk
+	if DirAccess.dir_exists_absolute(TRUNK_PATH):
+		_remove_directory_recursive(TRUNK_PATH)
+
+	# 复制 main → trunk（排除 assets/ 和 work_orders/）
+	var err := _copy_directory_filtered(current_project_path, TRUNK_PATH, ["assets", "work_orders"])
+	if err != OK:
+		push_error("[StorageManager] Failed to create trunk: %s" % error_string(err))
+		_main_project_path = ""
+		return err
+
+	# 切换到 trunk
+	current_project_path = TRUNK_PATH
+	print("[StorageManager] Trunk created: %s → %s" % [_main_project_path, TRUNK_PATH])
+	return OK
+
+
+## 提交 trunk：将 trunk 的变更合并回 main，恢复写入路径
+func commit_trunk() -> Error:
+	if not is_trunk_active:
+		return ERR_UNCONFIGURED
+
+	# 复制 trunk → main（排除 work_orders/，它始终在 main 上）
+	var err := _copy_directory_filtered(TRUNK_PATH, _main_project_path, ["work_orders"])
+	if err != OK:
+		push_error("[StorageManager] Failed to commit trunk: %s" % error_string(err))
+		return err
+
+	# 切换回 main
+	current_project_path = _main_project_path
+	_main_project_path = ""
+
+	# 修正 project_root_path（trunk 期间可能被设为 trunk 路径）
+	if current_project != null and "project_root_path" in current_project:
+		current_project.set("project_root_path", current_project_path)
+
+	# 清理 trunk
+	_remove_directory_recursive(TRUNK_PATH)
+
+	print("[StorageManager] Trunk committed to main: %s" % current_project_path)
+	return OK
+
+
+## 丢弃 trunk：删除工作副本，恢复到 main（用于崩溃恢复或取消）
+func discard_trunk() -> void:
+	if not is_trunk_active:
+		# 即使没有活跃 trunk，也清理残留目录
+		if DirAccess.dir_exists_absolute(TRUNK_PATH):
+			_remove_directory_recursive(TRUNK_PATH)
+		return
+
+	current_project_path = _main_project_path
+	_main_project_path = ""
+
+	if DirAccess.dir_exists_absolute(TRUNK_PATH):
+		_remove_directory_recursive(TRUNK_PATH)
+
+	print("[StorageManager] Trunk discarded, restored main: %s" % current_project_path)
+
+
+## 递归复制目录，排除指定子目录名（仅顶层排除，二进制复制，不走 ResourceLoader）
+func _copy_directory_filtered(source_dir: String, target_dir: String, exclude_dirs: Array = [], _is_top_level: bool = true) -> Error:
+	var dir := DirAccess.open(source_dir)
+	if dir == null:
+		return ERR_CANT_OPEN
+
+	if not DirAccess.dir_exists_absolute(target_dir):
+		var mkdir_err := DirAccess.make_dir_recursive_absolute(target_dir)
+		if mkdir_err != OK:
+			return mkdir_err
+
+	dir.list_dir_begin()
+	var item_name := dir.get_next()
+	while item_name != "":
+		if not item_name.begins_with("."):
+			var source_item := source_dir + item_name
+			var target_item := target_dir + item_name
+
+			if dir.current_is_dir():
+				if not _is_top_level or item_name not in exclude_dirs:
+					var subdir_err := _copy_directory_filtered(source_item + "/", target_item + "/", exclude_dirs, false)
+					if subdir_err != OK:
+						dir.list_dir_end()
+						return subdir_err
+			else:
+				var copy_err := _copy_file_binary(source_item, target_item)
+				if copy_err != OK:
+					dir.list_dir_end()
+					return copy_err
+
+		item_name = dir.get_next()
+	dir.list_dir_end()
+	return OK
+#endregion
 
 
 func _ready() -> void:
@@ -219,15 +344,171 @@ func load_project(project_path: String) -> Resource:
 	# 加载项目资源
 	var project: Resource = ResourceLoader.load(project_file_path)
 	if project == null:
-		push_error("Failed to load project: " + project_file_path)
-		return null
+		push_warning("[StorageManager] Failed to load project normally, attempting recovery: " + project_file_path)
+		project = _try_recover_project(project_path, project_file_path)
+		if project == null:
+			push_error("[StorageManager] Recovery failed, creating blank project")
+			project = create_project("recovered_project")
 
 	# 更新当前项目路径
 	current_project_path = project_path
 	if project != null and "project_root_path" in project:
 		project.set("project_root_path", project_path)
 
+	# 自动同步：扫描目录，补充缺失的资源引用，移除失效的引用
+	_sync_project_resources(project, project_path)
+
 	return project
+
+
+## 尝试修复损坏的 project.tres（移除不存在的 ext_resource 引用）
+func _try_recover_project(project_path: String, project_file_path: String) -> Resource:
+	var file := FileAccess.open(project_file_path, FileAccess.READ)
+	if file == null:
+		return null
+	var content := file.get_as_text()
+	file.close()
+
+	# 找出所有 ext_resource 引用的文件路径，检查是否存在
+	var regex := RegEx.new()
+	regex.compile('\\[ext_resource[^\\]]*path="([^"]*)"[^\\]]*id="([^"]*)"[^\\]]*\\]')
+	var bad_ids: Array[String] = []
+	for m in regex.search_all(content):
+		var res_path: String = m.get_string(1)
+		var res_id: String = m.get_string(2)
+		if not ResourceLoader.exists(res_path):
+			push_warning("[StorageManager] Missing resource: %s (id=%s), removing reference" % [res_path, res_id])
+			bad_ids.append(res_id)
+
+	if bad_ids.is_empty():
+		return null # 不是 ext_resource 缺失的问题，无法修复
+
+	var patched := content
+	for bad_id in bad_ids:
+		# 移除 ext_resource 声明行
+		var decl_regex := RegEx.new()
+		decl_regex.compile('\\[ext_resource[^\\]]*id="%s"[^\\]]*\\]\n?' % bad_id.c_escape())
+		patched = decl_regex.sub(patched, "")
+		# 将引用该 id 的地方替换为 null（Godot tres 格式支持 null）
+		patched = patched.replace('ExtResource("%s")' % bad_id, "null")
+
+	# 写入临时文件尝试加载
+	var tmp_path: String = project_path + "_project_recovered.tres"
+	var tmp_file := FileAccess.open(tmp_path, FileAccess.WRITE)
+	if tmp_file == null:
+		return null
+	tmp_file.store_string(patched)
+	tmp_file.close()
+
+	var recovered: Resource = ResourceLoader.load(tmp_path)
+	# 清理临时文件
+	DirAccess.remove_absolute(tmp_path)
+
+	if recovered != null:
+		print("[StorageManager] Project recovered successfully (removed %d bad references)" % bad_ids.size())
+	return recovered
+
+
+## 自动同步项目资源：扫描目录中的 .tres 文件，与 project 的数组保持一致
+## - 目录里有但数组里没有的 → 自动加载并添加
+## - 数组里有但文件已不存在的 → 自动移除
+## 支持的资源类型：characters, scenes, events, variables
+## 注意：仅在可扫描的文件系统路径上生效（user:// 或编辑器内的 res://）
+##       导出后 res:// 被打包进 PCK，无法扫描，此时跳过同步
+func _sync_project_resources(project: Resource, project_path: String) -> void:
+	if project == null:
+		return
+
+	# 导出后 res:// 无法被 DirAccess 扫描，跳过
+	if project_path.begins_with("res://") and not OS.has_feature("editor"):
+		return
+
+	var sync_map: Array[Dictionary] = [
+		{"dir": "characters/", "array": "characters", "id_field": "character_id"},
+		{"dir": "scenes/", "array": "scenes", "id_field": "scene_id"},
+		{"dir": "events/", "array": "events", "id_field": "event_id"},
+		{"dir": "variables/", "array": "variables", "id_field": "variable_id"},
+	]
+
+	var changed: bool = false
+	for entry in sync_map:
+		var dir_path: String = project_path + entry["dir"]
+		var array_name: String = entry["array"]
+		var id_field: String = entry["id_field"]
+
+		if not array_name in project:
+			continue
+
+		var arr: Array = project.get(array_name)
+
+		# 1) 收集数组中已有的资源路径（用于去重）
+		var known_ids: Dictionary = {} # id -> index
+		for i in range(arr.size()):
+			var item = arr[i]
+			if item != null and id_field in item:
+				known_ids[item.get(id_field)] = i
+
+		# 2) 扫描目录，找出新文件
+		var dir := DirAccess.open(dir_path)
+		if dir == null:
+			continue
+		var disk_ids: Dictionary = {} # id -> true (用于后续清理)
+		dir.list_dir_begin()
+		var file_name: String = dir.get_next()
+		while file_name != "":
+			if not dir.current_is_dir() and file_name.ends_with(".tres"):
+				var res_path: String = dir_path + file_name
+				if ResourceLoader.exists(res_path):
+					var res: Resource = ResourceLoader.load(res_path)
+					if res != null and id_field in res:
+						var res_id: String = res.get(id_field)
+						disk_ids[res_id] = true
+						if not known_ids.has(res_id):
+							arr.append(res)
+							known_ids[res_id] = arr.size() - 1
+							changed = true
+							print("[StorageManager] Sync: added %s '%s' from %s" % [array_name, res_id, file_name])
+			file_name = dir.get_next()
+		dir.list_dir_end()
+
+		# 3) 移除数组中已不在磁盘上的条目
+		#    - 有独立文件路径但文件不存在 → 移除
+		#    - 内联资源（无独立路径）且 id 不在磁盘文件中 → 移除
+		var to_remove: Array[int] = []
+		for i in range(arr.size()):
+			var item = arr[i]
+			if item == null:
+				to_remove.append(i)
+				continue
+			if not id_field in item:
+				continue
+			var item_id: String = item.get(id_field)
+			var item_path: String = str(item.resource_path).strip_edges()
+			var is_inline: bool = item_path.is_empty() or item_path.contains("::")
+
+			if is_inline and not disk_ids.has(item_id):
+				# 内联资源且磁盘上没有对应文件 → 移除
+				to_remove.append(i)
+				changed = true
+				print("[StorageManager] Sync: removed inline %s '%s' (no file on disk)" % [array_name, item_id])
+			elif not is_inline and not disk_ids.has(item_id):
+				# 有独立路径但文件不存在 → 移除
+				to_remove.append(i)
+				changed = true
+				print("[StorageManager] Sync: removed %s '%s' (file no longer exists)" % [array_name, item_id])
+
+		# 从后往前删，避免索引偏移
+		to_remove.reverse()
+		for idx in to_remove:
+			arr.remove_at(idx)
+
+	if changed:
+		print("[StorageManager] Project resources synced with disk")
+		# 同步后立即保存，避免下次启动重复执行同样的 add/remove
+		var project_file_path: String = project_path + "project.tres"
+		var save_err: Error = ResourceSaver.save(project, project_file_path)
+		if save_err != OK:
+			push_warning("[StorageManager] Sync: failed to save project after sync (err=%d)" % save_err)
 
 
 ## 列出用户项目
@@ -466,13 +747,16 @@ func _copy_template_to_path(template_name: String, target_path: String, project_
 			push_error("Failed to create target directory: " + target_path)
 			return mkdir_err
 
-	# 递归复制所有文件和目录
-	var copy_err: Error = _copy_directory_recursive(source_path, target_path)
+	# 复制目录（排除 assets/ 等大体积目录，运行时通过 RTP 回退机制访问）
+	var copy_err: Error = _copy_directory_filtered(source_path, target_path, TEMPLATE_ASSET_EXCLUDE_DIRS)
 	if copy_err != OK:
 		push_error("Failed to copy template files")
 		if fail_if_target_exists:
 			_remove_directory_recursive(target_path)
 		return copy_err
+
+	# 确保 manifests/ 目录及 asset_aliases.json 被复制（它在项目根目录下，不在 assets/ 中）
+	# _copy_directory_filtered 已经会复制 manifests/，无需额外处理
 
 	var override_name: String = project_name_override.strip_edges()
 	if override_name.is_empty():
@@ -824,15 +1108,49 @@ func _resolve_project_root(project: Resource = null, project_root_override: Stri
 func _resolve_texture_path(asset_ref: String, project_root: String) -> String:
 	var resolved: String = AVGAssetManifestClass.resolve_texture_path(asset_ref, project_root)
 	if resolved.begins_with("res://") or resolved.begins_with("user://"):
-		return resolved
-	return project_root + resolved
+		return _apply_rtp_fallback(resolved)
+	var abs_path: String = project_root + resolved
+	return _apply_rtp_fallback(abs_path)
 
 
 func _resolve_audio_path(asset_ref: String, project_root: String) -> String:
 	var resolved: String = AVGAssetManifestClass.resolve_audio_path(asset_ref, project_root)
 	if resolved.begins_with("res://") or resolved.begins_with("user://"):
-		return resolved
-	return project_root + resolved
+		return _apply_rtp_fallback(resolved)
+	var abs_path: String = project_root + resolved
+	return _apply_rtp_fallback(abs_path)
+
+
+## RTP 回退：当 user:// 项目中找不到资源文件时，回退到 res://templates/ 中查找
+## 类似 RPG Maker 的 RTP（Runtime Package）机制
+func _apply_rtp_fallback(abs_path: String) -> String:
+	# 只对 user:// 路径做回退（res:// 不需要）
+	if not abs_path.begins_with("user://"):
+		return abs_path
+
+	# 文件存在则直接返回
+	if FileAccess.file_exists(abs_path):
+		return abs_path
+
+	# 从 user://run/player_project/assets/xxx → res://templates/tutorial_project/assets/xxx
+	if abs_path.begins_with(RUNTIME_PLAYER_PROJECT_PATH):
+		var relative: String = abs_path.substr(RUNTIME_PLAYER_PROJECT_PATH.length())
+		var template_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/" + relative
+		if ResourceLoader.exists(template_path) or FileAccess.file_exists(template_path):
+			return template_path
+
+	# 通用 user://projects/ 回退（未来扩展）
+	if abs_path.begins_with(USER_PROJECTS_PATH):
+		# 提取 user://projects/<name>/assets/xxx 中的 assets/xxx 部分
+		var after_projects: String = abs_path.substr(USER_PROJECTS_PATH.length())
+		var slash_pos: int = after_projects.find("/")
+		if slash_pos >= 0:
+			var relative: String = after_projects.substr(slash_pos + 1)
+			var template_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/" + relative
+			if ResourceLoader.exists(template_path) or FileAccess.file_exists(template_path):
+				return template_path
+
+	return abs_path
 
 
 func _prepare_asset_manifest_entry(bucket_name: String, requested_alias: String, relative_path: String, alias_prefix: String, overwrite: bool) -> Dictionary:
@@ -956,7 +1274,15 @@ func _save_external_project_resources(project: Resource, project_root: String) -
 		if resource == null:
 			continue
 		var resource_path: String = str(resource.resource_path).strip_edges()
-		if resource_path.is_empty() or resource_path.contains("::") or not resource_path.begins_with(project_root):
+
+		# 新建的资源没有路径（或是内联 sub_resource），需要分配独立文件路径
+		if resource_path.is_empty() or resource_path.contains("::"):
+			resource_path = _assign_resource_path(resource, project_root)
+			if resource_path.is_empty():
+				continue # 无法确定类型，跳过
+			resource.resource_path = resource_path
+
+		if not resource_path.begins_with(project_root):
 			continue
 		if visited.has(resource_path):
 			continue
@@ -966,6 +1292,38 @@ func _save_external_project_resources(project: Resource, project_root: String) -
 			push_warning("[StorageManager] Failed to save subresource: %s" % resource_path)
 			return save_err
 	return OK
+
+
+## 为没有路径的资源自动分配文件路径
+func _assign_resource_path(resource: Resource, project_root: String) -> String:
+	var dir_name: String = ""
+	var file_name: String = ""
+
+	if "scene_id" in resource:
+		dir_name = "scenes"
+		file_name = str(resource.scene_id).strip_edges()
+	elif "character_id" in resource:
+		dir_name = "characters"
+		file_name = str(resource.character_id).strip_edges()
+	elif "variable_id" in resource:
+		dir_name = "variables"
+		file_name = str(resource.variable_id).strip_edges()
+	elif "event_id" in resource:
+		dir_name = "events"
+		file_name = str(resource.event_id).strip_edges()
+	else:
+		return ""
+
+	if file_name.is_empty():
+		return ""
+
+	var dir_path: String = project_root + dir_name + "/"
+	if not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
+
+	var path: String = dir_path + file_name + ".tres"
+	print("[StorageManager] Assigned path for new resource: %s" % path)
+	return path
 
 
 func _collect_project_resources(project: Resource, out_resources: Array[Resource]) -> void:

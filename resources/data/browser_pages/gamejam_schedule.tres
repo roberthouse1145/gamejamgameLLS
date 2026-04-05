@@ -5,109 +5,108 @@
 [resource]
 script = ExtResource("1_script")
 url = "gamejam://schedule"
-title = "AGJ 2025 - 赛程日程 & 活动介绍"
-hint = "Arcade Grand Jam 2025 新星赛道的完整赛程安排与活动核心理念。"
+title = "AGJ 2027 - 赛程日程 & 活动介绍"
+hint = "Arcade Grand Jam 2027 新星赛道的完整赛程安排与活动核心理念。"
 content = "<vbox sep=0>
 
   <panel bg=#080B12>
-    <margin 48>
+    <margin 60>
       <vbox sep=6>
         <hbox sep=10>
-          <label size=24 color=#ECEEF8>AGJ</label>
-          <label size=13 color=#E8622A>2025</label>
-          <label size=15 color=#3D4460>|</label>
-          <link size=13 color=#7A82A0 action=open_url url=gamejam://signup>REGISTRATION</link>
-          <label size=13 color=#5B8AFF>SCHEDULE</label>
-          <link size=13 color=#7A82A0 action=open_url url=gamejam://news>NEWS</link>
-          <link size=13 color=#7A82A0 action=open_url url=gamejam://faq>FAQ</link>
+          <label size=30 color=#ECEEF8>AGJ</label>
+          <vbox width=60><label size=16 color=#E8622A>2027</label></vbox>
+          <vbox width=20><label size=20 color=#3D4460>|</label></vbox>
+          <vbox width=120><link size=16 color=#7A82A0 action=open_url url=gamejam://signup>REGISTRATION</link></vbox>
+          <vbox width=100><label size=16 color=#5B8AFF>SCHEDULE</label></vbox>
+          <vbox width=60><link size=16 color=#7A82A0 action=open_url url=gamejam://news>NEWS</link></vbox>
+          <vbox width=60><link size=16 color=#7A82A0 action=open_url url=gamejam://faq>FAQ</link></vbox>
         </hbox>
       </vbox>
     </margin>
   </panel>
 
   <panel bg=#0A0D18>
-    <margin 48>
+    <margin 60>
       <vbox sep=8>
-        <label size=40 color=#ECEEF8>SCHEDULE & ABOUT</label>
-        <label size=18 color=#5B8AFF>赛程日程  ·  活动介绍</label>
+        <label size=48 color=#ECEEF8>SCHEDULE & ABOUT</label>
+        <label size=22 color=#5B8AFF>赛程日程  ·  活动介绍</label>
       </vbox>
     </margin>
   </panel>
 
   <panel bg=#080B12>
-    <margin 48>
-      <vbox sep=28>
+    <margin 60>
+      <vbox sep=36>
 
         <panel bg=#0D1020 border=#1A1F35>
-          <margin 28>
-            <vbox sep=16>
+          <margin 36>
+            <vbox sep=20>
               <hbox sep=10>
-                <panelcontainer bg=#1E3A8A border=#3D6FFF><margin 3><label size=12 color=#3D6FFF nowrap>ABOUT</label></margin></panelcontainer>
-                <label size=18 color=#ECEEF8>  关于 Arcade Grand Jam</label>
+                <panelcontainer shrink bg=#1E3A8A border=#3D6FFF><margin 4><label size=15 color=#3D6FFF nowrap>ABOUT</label></margin></panelcontainer>
+                <label size=22 color=#ECEEF8>  关于 Arcade Grand Jam</label>
               </hbox>
               <panel bg=#141828><margin 0><spacer 1/></margin></panel>
-              <label size=15 color=#7A82A0>Arcade Grand Jam 是一项面向全球高校学生的年度 GameJam 赛事。自 2019 年创办以来，AGJ 已成功举办六届，累计吸引超过 12,000 名参赛者。</label>
-              <label size=15 color=#7A82A0>本届新星赛道的核心理念：回归创意本身。我们限制了引擎选择、素材来源和开发周期，让所有参赛者站在同一起跑线上。比拼的不是资源堆砌，而是创意组织能力。</label>
-              <label size=15 color=#7A82A0>每支队伍由 2 人组成，使用官方提供的 AVG 引擎和素材包，在 60 天内完成一部原创 AVG 作品。</label>
+              <label size=20 color=#7A82A0>Arcade Grand Jam 是一项面向全球高校学生的年度 GameJam 赛事。自 2019 年创办以来，AGJ 已成功举办六届，累计吸引超过 12,000 名参赛者。</label>
+              <label size=20 color=#7A82A0>本届新星赛道的核心理念：回归创意本身。比赛将采用统一规则和限制条件，让所有参赛者站在同一起跑线上。具体赛制将在报名截止后公布。</label>
+              <label size=20 color=#7A82A0>每支队伍由 2-5 人组成，在限定时间内完成一部原创作品。</label>
             </vbox>
           </margin>
         </panel>
 
         <panel bg=#0D1020 border=#1A1F35>
-          <margin 28>
-            <vbox sep=16>
+          <margin 36>
+            <vbox sep=20>
               <hbox sep=10>
-                <panelcontainer bg=#1E3A8A border=#3D6FFF><margin 3><label size=12 color=#3D6FFF nowrap>TIMELINE</label></margin></panelcontainer>
-                <label size=18 color=#ECEEF8>  赛程时间线</label>
+                <panelcontainer shrink bg=#1E3A8A border=#3D6FFF><margin 4><label size=15 color=#3D6FFF nowrap>TIMELINE</label></margin></panelcontainer>
+                <label size=22 color=#ECEEF8>  赛程时间线</label>
               </hbox>
               <panel bg=#141828><margin 0><spacer 1/></margin></panel>
-              <hbox sep=16>
-                <label size=13 color=#5B8AFF min_width=90>DAY 1</label>
-                <label size=15 color=#7A82A0>报名开放 / 组队确认 / 熟悉官方引擎与素材包</label>
+              <hbox sep=20>
+                <label size=16 color=#5B8AFF min_width=110>DAY 1</label>
+                <label size=20 color=#7A82A0>报名开放 / 组队确认 / 熟悉官方引擎与素材包</label>
               </hbox>
-              <hbox sep=16>
-                <label size=13 color=#5B8AFF min_width=90>DAY 1 PM</label>
-                <label size=15 color=#7A82A0>主题公布 / 创意讨论 / 确定作品方向</label>
+              <hbox sep=20>
+                <label size=16 color=#5B8AFF min_width=110>DAY 1 PM</label>
+                <label size=20 color=#7A82A0>主题公布 / 创意讨论 / 确定作品方向</label>
               </hbox>
-              <hbox sep=16>
-                <label size=13 color=#5B8AFF min_width=90>DAY 2 - 30</label>
-                <label size=15 color=#7A82A0>核心开发期 / 剧本编写 / 场景制作 / 阶段性 Demo 提交</label>
+              <hbox sep=20>
+                <label size=16 color=#5B8AFF min_width=110>DAY 2 - 29</label>
+                <label size=20 color=#7A82A0>核心开发期 / 剧本编写 / 场景制作 / 阶段性 Demo 提交</label>
               </hbox>
-              <hbox sep=16>
-                <label size=13 color=#5B8AFF min_width=90>DAY 31 - 50</label>
-                <label size=15 color=#7A82A0>打磨优化期 / 社区反馈 / Bug 修复 / 内容完善</label>
+              <hbox sep=20>
+                <label size=16 color=#5B8AFF min_width=110>DAY 30</label>
+                <label size=20 color=#7A82A0>初赛截止 / 提交最终版本作为初赛作品</label>
               </hbox>
-              <hbox sep=16>
-                <label size=13 color=#5B8AFF min_width=90>DAY 51 - 58</label>
-                <label size=15 color=#7A82A0>最终提交期 / 作品封版 / 提交评审材料</label>
+              <hbox sep=20>
+                <label size=16 color=#5B8AFF min_width=110>DAY 31 - 44</label>
+                <label size=20 color=#7A82A0>初赛评审 / 社区投票 / 晋级名单公布</label>
               </hbox>
-              <hbox sep=16>
-                <label size=13 color=#5B8AFF min_width=90>DAY 59 - 60</label>
-                <label size=15 color=#7A82A0>评审与颁奖 / 社区投票 / 结果公布</label>
+              <hbox sep=20>
+                <label size=16 color=#5B8AFF min_width=110>DAY 45</label>
+                <label size=20 color=#7A82A0>决赛现场答辩 / 评审与颁奖 / 结果公布</label>
               </hbox>
             </vbox>
           </margin>
         </panel>
 
         <panel bg=#0D1020 border=#1A1F35>
-          <margin 28>
-            <vbox sep=16>
+          <margin 36>
+            <vbox sep=20>
               <hbox sep=10>
-                <panelcontainer bg=#7A3010 border=#E8622A><margin 3><label size=12 color=#E8622A nowrap>RULES</label></margin></panelcontainer>
-                <label size=18 color=#ECEEF8>  核心规则</label>
+                <panelcontainer shrink bg=#7A3010 border=#E8622A><margin 4><label size=15 color=#E8622A nowrap>RULES</label></margin></panelcontainer>
+                <label size=22 color=#ECEEF8>  核心规则</label>
               </hbox>
               <panel bg=#141828><margin 0><spacer 1/></margin></panel>
-              <label size=15 color=#7A82A0>01  必须使用官方 AVG 引擎，禁止自定义引擎或外部框架</label>
-              <label size=15 color=#7A82A0>02  素材仅限官方素材包，禁止使用商业素材或 AI 生成图片</label>
-              <label size=15 color=#7A82A0>03  队伍固定 2 人，不可中途更换成员</label>
-              <label size=15 color=#7A82A0>04  作品必须为原创，禁止预制工程或赛前准备的内容</label>
-              <label size=15 color=#7A82A0>05  阶段性 Demo 提交为必选项，未提交视为弃赛</label>
+              <label size=20 color=#7A82A0>01  作品必须为原创，禁止预制工程或赛前准备的内容</label>
+              <label size=20 color=#7A82A0>02  队伍 2-5 人，不可中途更换成员</label>
+              <label size=20 color=#7A82A0>03  阶段性 Demo 提交为必选项，未提交视为弃赛</label>
+              <label size=20 color=#7A82A0>04  具体开发规则、主题及工具链将在报名截止后统一公布</label>
             </vbox>
           </margin>
         </panel>
 
-        <label size=13 color=#3D4460 align=center>ARCADE GRAND JAM 2025  |  support@arcadegrandjam.com</label>
-        <spacer 24/>
+        <label size=16 color=#3D4460 align=center>ARCADE GRAND JAM 2027  |  support@arcadegrandjam.com</label>
+        <spacer 30/>
 
       </vbox>
     </margin>

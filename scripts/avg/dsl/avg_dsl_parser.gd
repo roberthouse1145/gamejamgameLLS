@@ -26,7 +26,7 @@ const POSITIONAL_PARAMS: Dictionary = {
 	"SCREEN_FADE": ["direction"],
 	"SCREEN_FLASH": [],
 	"SCREEN_SHAKE": [],
-	"CAMERA_ZOOM": ["zoom_level"],
+	"CAMERA_ZOOM": ["zoom"],
 	"CAMERA_PAN": [],
 	"CAMERA_RESET": [],
 	"SPAWN_NODE": ["shared_node_id"],

@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name MoveNodeHandler
 ## Handler for MOVE_NODE command
 ## 移动节点到指定归一化坐标，支持动画

@@ -1,6 +1,8 @@
 class_name PartTimeApp
 extends Control
 
+const ActivityPreviewHintClass = preload("res://scripts/ui/activity_preview/activity_preview_hint.gd")
+
 const COLOR_BG: Color = Color("#F5F7FA")
 const COLOR_BRAND: Color = Color("#00BE6E")
 const COLOR_BRAND_DARK: Color = Color("#00A862")
@@ -12,6 +14,17 @@ const COLOR_SALARY: Color = Color("#0E9F6E")
 const COLOR_TAG_BG: Color = Color("#E7F8F1")
 const COLOR_TAG_TEXT: Color = Color("#0D9A62")
 const COLOR_DISABLED: Color = Color("#D1D5DB")
+const COLOR_TRANSIT_GREEN := Color("#00BE6E")
+const TRANSIT_STAGES: Array[String] = [
+	"订单已确认，正在呼叫车辆...",
+	"司机正在赶来  预计 3 分钟",
+	"已上车，前往目的地",
+	"途经城市快速路",
+	"预计还剩 8 分钟",
+	"即将驶离快速路",
+	"距目的地不足 1 公里",
+	"已到达目的地附近"
+]
 
 var _part_time_manager: Node = null
 var _game_manager: Node = null
@@ -21,6 +34,13 @@ var _all_jobs: Array[Dictionary] = []
 var _filtered_jobs: Array[Dictionary] = []
 var _selected_job_id: String = ""
 var _active_session_id: String = ""
+var _transit_progress: float = 0.0
+
+var _transit_window: Control = null
+var _transit_title_label: Label = null
+var _transit_stage_label: Label = null
+var _transit_eta_label: Label = null
+var _transit_progress_bar: ProgressBar = null
 
 var _wallet_label: Label = null
 var _search_input: LineEdit = null
@@ -266,6 +286,10 @@ func _connect_signals() -> void:
 		if _game_loop.has_signal("phase_changed"):
 			_game_loop.phase_changed.connect(_on_phase_changed)
 	if _part_time_manager != null:
+		if _part_time_manager.has_signal("transit_started"):
+			_part_time_manager.transit_started.connect(_on_transit_started)
+		if _part_time_manager.has_signal("transit_progress_updated"):
+			_part_time_manager.transit_progress_updated.connect(_on_transit_progress_updated)
 		if _part_time_manager.has_signal("job_completed"):
 			_part_time_manager.job_completed.connect(_on_job_completed)
 		if _part_time_manager.has_signal("catalog_refreshed"):
@@ -319,16 +343,12 @@ func _apply_search_filter() -> void:
 
 
 func _job_matches_keyword(job: Dictionary, keyword: String) -> bool:
-	var tag_texts: Array[String] = []
-	for tag in job.get("tags", []):
-		tag_texts.append(str(tag))
 	var haystack := PackedStringArray([
 		str(job.get("job_title", "")),
 		str(job.get("company_name", "")),
 		str(job.get("district", "")),
 		str(job.get("subtitle", "")),
 		str(job.get("description", "")),
-		", ".join(tag_texts),
 	])
 	var combined_text: String = " ".join(haystack)
 	var haystack_text := combined_text.to_lower()
@@ -366,6 +386,10 @@ func _build_job_card(job: Dictionary) -> Button:
 	button.focus_mode = Control.FOCUS_NONE
 	button.pressed.connect(_on_job_selected.bind(str(job.get("job_id", ""))))
 
+	var hint := ActivityPreviewHintClass.new()
+	hint.set_preview_payload(_build_job_preview_payload(job))
+	button.add_child(hint)
+
 	var selected: bool = str(job.get("job_id", "")) == _selected_job_id
 	var enabled: bool = bool(job.get("enabled", true)) and _active_session_id.is_empty()
 	button.add_theme_stylebox_override("normal", _card_style(selected, enabled))
@@ -397,7 +421,7 @@ func _build_job_card(job: Dictionary) -> Button:
 	top.add_child(title)
 
 	var salary := Label.new()
-	salary.text = str(job.get("salary_text", ""))
+	salary.text = "%d元 / 班" % _get_money_reward(job)
 	salary.add_theme_font_size_override("font_size", 18)
 	salary.add_theme_color_override("font_color", COLOR_SALARY if enabled else COLOR_SUBTEXT)
 	top.add_child(salary)
@@ -412,21 +436,11 @@ func _build_job_card(job: Dictionary) -> Button:
 	content.add_child(company)
 
 	var subtitle := Label.new()
-	subtitle.text = "%s｜%s" % [
-		str(job.get("subtitle", "")),
-		str(job.get("schedule_text", "时间待定"))
-	]
+	subtitle.text = str(job.get("subtitle", ""))
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	subtitle.add_theme_font_size_override("font_size", 13)
 	subtitle.add_theme_color_override("font_color", Color("#4B5563"))
 	content.add_child(subtitle)
-
-	var tags := HFlowContainer.new()
-	tags.add_theme_constant_override("h_separation", 6)
-	tags.add_theme_constant_override("v_separation", 6)
-	content.add_child(tags)
-	for tag in job.get("tags", []):
-		tags.add_child(_create_tag(str(tag)))
 
 
 	return button
@@ -461,19 +475,14 @@ func _update_detail_panel(job: Dictionary) -> void:
 		str(job.get("company_name", "双人兼职")),
 		str(job.get("district", ""))
 	]
-	_detail_salary.text = str(job.get("salary_text", ""))
-	_detail_meta.text = "%s｜%s" % [
-		str(job.get("subtitle", "")),
-		str(job.get("transit_label", ""))
-	]
+	_detail_salary.text = "%d元 / 班" % _get_money_reward(job)
+	_detail_meta.text = str(job.get("subtitle", ""))
 	_detail_desc.text = str(job.get("description", ""))
 	if _detail_boss != null:
-		_detail_boss.text = str(job.get("boss_name", "店方主管"))
+		_detail_boss.text = ""
 
 	for child in _tags_flow.get_children():
 		child.queue_free()
-	for tag in job.get("tags", []):
-		_tags_flow.add_child(_create_tag(str(tag)))
 
 	var can_apply: bool = bool(job.get("enabled", true)) and _active_session_id.is_empty()
 	if _active_session_id.is_empty():
@@ -672,11 +681,151 @@ func _on_apply_pressed() -> void:
 		return
 
 	_active_session_id = str(result.get("session_id", ""))
-	var reward_money: int = int(result.get("reward_money", 0))
+	var reward_money: int = _get_money_reward(result)
 	if _detail_status != null:
 		_detail_status.text = "已投递成功。今晚和林夏一起去上班，预计到账 %d 元。" % reward_money
 	_open_linkchat_dm()
 	_reload_jobs()
+
+
+func _on_transit_started(session_id: String, payload: Dictionary) -> void:
+	if session_id != _active_session_id:
+		return
+	_transit_progress = 0.0
+	_show_transit_window(payload.get("location", {}))
+	set_process(true)
+
+
+func _on_transit_progress_updated(session_id: String, progress: float, _scene_ready: bool) -> void:
+	if session_id != _active_session_id:
+		return
+	_transit_progress = progress
+	if _transit_progress_bar != null:
+		_transit_progress_bar.value = progress * 100.0
+	if progress >= 1.0:
+		_close_transit_window()
+		set_process(false)
+
+
+func _process(_delta: float) -> void:
+	if _active_session_id.is_empty() or _transit_window == null or not is_instance_valid(_transit_window):
+		set_process(false)
+		return
+	if _transit_stage_label != null:
+		var stage_index := mini(int(floor(_transit_progress * float(TRANSIT_STAGES.size()))), TRANSIT_STAGES.size() - 1)
+		_transit_stage_label.text = TRANSIT_STAGES[stage_index]
+	if _transit_eta_label != null:
+		_transit_eta_label.text = "即将到达" if _transit_progress > 0.9 else "前往中..."
+
+
+func _show_transit_window(location: Variant) -> void:
+	_close_transit_window()
+
+	var loc: Dictionary = location if location is Dictionary else {}
+	var app_manager: Node = get_node_or_null("/root/AppManager")
+	var window_manager: Node = null
+	if app_manager != null:
+		window_manager = app_manager.get("window_manager")
+	if window_manager == null or not window_manager.has_method("create_window"):
+		return
+
+	var outer := PanelContainer.new()
+	var outer_style := StyleBoxFlat.new()
+	outer_style.bg_color = Color("#FFFFFF")
+	outer_style.corner_radius_top_left = 16
+	outer_style.corner_radius_top_right = 16
+	outer_style.corner_radius_bottom_left = 16
+	outer_style.corner_radius_bottom_right = 16
+	outer.add_theme_stylebox_override("panel", outer_style)
+	outer.custom_minimum_size = Vector2(420, 200)
+
+	var content := MarginContainer.new()
+	content.add_theme_constant_override("margin_left", 24)
+	content.add_theme_constant_override("margin_top", 20)
+	content.add_theme_constant_override("margin_right", 24)
+	content.add_theme_constant_override("margin_bottom", 20)
+	outer.add_child(content)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	content.add_child(box)
+
+	_transit_title_label = Label.new()
+	_transit_title_label.text = str(loc.get("title", "兼职地点"))
+	_transit_title_label.add_theme_font_size_override("font_size", 22)
+	_transit_title_label.add_theme_color_override("font_color", COLOR_TEXT)
+	box.add_child(_transit_title_label)
+
+	_transit_stage_label = Label.new()
+	_transit_stage_label.text = TRANSIT_STAGES[0]
+	_transit_stage_label.add_theme_font_size_override("font_size", 14)
+	_transit_stage_label.add_theme_color_override("font_color", COLOR_SUBTEXT)
+	box.add_child(_transit_stage_label)
+
+	_transit_progress_bar = ProgressBar.new()
+	_transit_progress_bar.min_value = 0.0
+	_transit_progress_bar.max_value = 100.0
+	_transit_progress_bar.value = 0.0
+	_transit_progress_bar.show_percentage = false
+	_transit_progress_bar.custom_minimum_size = Vector2(0, 6)
+	var progress_bg_style := StyleBoxFlat.new()
+	progress_bg_style.bg_color = Color("#E8EAED")
+	progress_bg_style.corner_radius_top_left = 3
+	progress_bg_style.corner_radius_top_right = 3
+	progress_bg_style.corner_radius_bottom_left = 3
+	progress_bg_style.corner_radius_bottom_right = 3
+	_transit_progress_bar.add_theme_stylebox_override("background", progress_bg_style)
+	var progress_fill_style := StyleBoxFlat.new()
+	progress_fill_style.bg_color = COLOR_TRANSIT_GREEN
+	progress_fill_style.corner_radius_top_left = 3
+	progress_fill_style.corner_radius_top_right = 3
+	progress_fill_style.corner_radius_bottom_left = 3
+	progress_fill_style.corner_radius_bottom_right = 3
+	_transit_progress_bar.add_theme_stylebox_override("fill", progress_fill_style)
+	box.add_child(_transit_progress_bar)
+
+	var eta_hbox := HBoxContainer.new()
+	box.add_child(eta_hbox)
+
+	var eta_icon := Label.new()
+	eta_icon.text = "🚌"
+	eta_icon.add_theme_font_size_override("font_size", 14)
+	eta_hbox.add_child(eta_icon)
+
+	_transit_eta_label = Label.new()
+	_transit_eta_label.text = "前往中..."
+	_transit_eta_label.add_theme_font_size_override("font_size", 14)
+	_transit_eta_label.add_theme_color_override("font_color", COLOR_TRANSIT_GREEN)
+	eta_hbox.add_child(_transit_eta_label)
+
+	_transit_window = window_manager.create_window("前往兼职", outer)
+	if _transit_window != null:
+		_transit_window.size = Vector2(460, 240)
+
+
+func _close_transit_window() -> void:
+	if _transit_window == null or not is_instance_valid(_transit_window):
+		_transit_window = null
+		_transit_title_label = null
+		_transit_stage_label = null
+		_transit_progress_bar = null
+		_transit_eta_label = null
+		return
+
+	var app_manager: Node = get_node_or_null("/root/AppManager")
+	var window_manager: Node = null
+	if app_manager != null:
+		window_manager = app_manager.get("window_manager")
+	if window_manager != null and window_manager.has_method("close_window"):
+		window_manager.close_window(_transit_window)
+	else:
+		_transit_window.queue_free()
+
+	_transit_window = null
+	_transit_title_label = null
+	_transit_stage_label = null
+	_transit_progress_bar = null
+	_transit_eta_label = null
 
 
 func _on_job_completed(session_id: String, payload: Dictionary) -> void:
@@ -686,11 +835,28 @@ func _on_job_completed(session_id: String, payload: Dictionary) -> void:
 		return
 
 	_active_session_id = ""
-	var reward_money: int = int(payload.get("reward_money", 0))
+	_transit_progress = 0.0
+	_close_transit_window()
+	var reward_money: int = _get_money_reward(payload)
 	if _detail_status != null:
 		_detail_status.text = "这班结束了，到手 %d 元。林夏应该也已经在 LinkChat 那边有后续反应了。" % reward_money
 	_update_wallet()
 	_reload_jobs()
+
+
+func _get_money_reward(source: Dictionary) -> int:
+	var rewards: Dictionary = source.get("rewards", {}) as Dictionary
+	return int(rewards.get("money", 0))
+
+
+func _build_job_preview_payload(job: Dictionary) -> Dictionary:
+	return {
+		"title": str(job.get("job_title", "兼职")),
+		"rewards": (job.get("rewards", {}) as Dictionary).duplicate(true),
+		"text": str(job.get("subtitle", "")),
+		"disabled_reason": str(job.get("disabled_reason", "")),
+		"accent_color": Color(str(job.get("accent_color", "#10B981"))),
+	}
 
 
 func _on_money_changed(_old_val: int, _new_val: int) -> void:

@@ -1,4 +1,5 @@
 class_name ChatPromptBuilder extends RefCounted
+const PromptPipelineScript = preload("res://scripts/prompt/prompt_pipeline.gd")
 ## 聊天Prompt构建器
 ## 利用 PromptManager 的 {{key}} 模板机制构建 prompt
 ## 支持私聊和群聊（多 NPC）
@@ -16,27 +17,43 @@ static func build(
 	relevant_memories: Array = [],
 	topic: ChatTopic = null,
 ) -> Dictionary:
-	# 注册动态变量到 PromptManager
-	var pm: Node = Engine.get_main_loop().root.get_node_or_null("PromptManager")
-	if pm == null:
+	# 构建上下文变量，通过 resolve_with_vars 传入（不污染全局状态）
+	# 注：player_name / player_web_name / player_team / game_time
+	# 已通过 PromptBindings 的 Provider 全局注册，无需再传。
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root.get_node_or_null("PromptManager") == null:
 		push_error("ChatPromptBuilder: PromptManager not found")
 		return {"messages": []}
 
-	var lore_payload := LoreSystem.resolve_chat(channel, npcs, chat_history, player_messages, topic)
+	var ctx: Dictionary = {
+		"characters": _build_characters(channel, npcs),
+		"player_identity": _build_player_identity(),
+		"chat_history": _build_history(chat_history),
+		"memories": _build_memories(relevant_memories),
+		"lore_facts": "",
+		"lore_constraints": "",
+		"topic": _build_topic(topic),
+		"topic_complete_hint":
+			"5. 达成对话目标后，单独输出一行 [TOPIC_COMPLETE] 作为完成标记。" if topic else "",
+		"speaker_ids": _build_speaker_ids(npcs),
+	}
 
-	pm.register_prompt("characters", _build_characters(channel, npcs))
-	pm.register_prompt("player_identity", _build_player_identity())
-	pm.register_prompt("game_time", _build_game_time())
-	pm.register_prompt("chat_history", _build_history(chat_history))
-	pm.register_prompt("memories", _build_memories(relevant_memories))
-	pm.register_prompt("lore_facts", LoreSystem.build_prompt_block(lore_payload.get("facts", [])))
-	pm.register_prompt("lore_constraints", LoreSystem.build_prompt_block(lore_payload.get("constraints", [])))
-	pm.register_prompt("topic", _build_topic(topic))
-	pm.register_prompt("topic_complete_hint",
-		"5. 达成对话目标后，单独输出一行 [TOPIC_COMPLETE] 作为完成标记。" if topic else "")
-	pm.register_prompt("speaker_ids", _build_speaker_ids(npcs))
-
-	var system_prompt: String = pm.resolve("linkchat_system")
+	# 两遍 resolve：先展开完整 prompt → 用完整文本匹配 lore → 注入 lore 后二次 resolve
+	var pipeline_result := PromptPipelineScript.build_prompt(
+		"linkchat_system",
+		ctx,
+		{
+			"lore_mode": "chat",
+			"lore_args": {
+				"channel": channel,
+				"npcs": npcs,
+				"chat_history": chat_history,
+				"player_messages": player_messages,
+				"topic": topic,
+			},
+		}
+	)
+	var system_prompt: String = str(pipeline_result.get("prompt", ""))
 	var user_message := _build_user_message(player_messages)
 
 	return {
@@ -51,7 +68,7 @@ static func _build_characters(channel: ChatChannel, npcs: Array) -> String:
 	var parts: Array[String] = []
 
 	if channel and not channel.channel_prompt.is_empty():
-		parts.append("### 频道（群组）环境设定\n%s" % channel.channel_prompt)
+		parts.append("### 频道（群组）环境设定\n%s" % _resolve_player_placeholders(channel.channel_prompt))
 
 	if npcs.is_empty() and parts.is_empty():
 		return "（当前频道无 NPC 及特殊环境设定）"
@@ -66,70 +83,73 @@ static func _build_characters(channel: ChatChannel, npcs: Array) -> String:
 	return "\n\n".join(parts)
 
 
-static func _build_game_time() -> String:
-	var glm: Node = Engine.get_main_loop().root.get_node_or_null("GameLoopManager")
-	if glm:
-		var day: int = glm.get("current_day")
-		var max_days: int = glm.get("MAX_DAYS")
-		var phase_enum: int = int(glm.get("time_phase"))
-		var phase_name: String = ""
-		if glm.has_method("get_phase_display_name"):
-			phase_name = glm.get_phase_display_name(glm.get("time_phase"))
-		var daylight_hint: String = ""
-		match phase_enum:
-			0: daylight_hint = "现在是上午，天是亮的，不是晚上。"
-			1: daylight_hint = "现在是下午，天还亮着，不是晚上。"
-			2: daylight_hint = "现在是夜晚。"
-		return "当前时间：ARCADE GRAND JAM 2025 比赛第 %d 天%s（总计 %d 天）。%s" % [
-			day,
-			"・%s" % phase_name if not phase_name.is_empty() else "",
-			max_days,
-			daylight_hint,
-		]
-	return "（时间线不明）"
+
+## 将 prompt 模板中的 {player_name} 替换为玩家实际名称（优先真实姓名）
+static func _resolve_player_placeholders(text: String) -> String:
+	if "{player_name}" not in text:
+		return text
+	var story_director: Node = Engine.get_main_loop().root.get_node_or_null("StoryDirector")
+	var real_name: String = ""
+	var nickname: String = ""
+	if story_director != null and story_director.has_method("get_variable"):
+		real_name = str(story_director.get_variable("player_real_name", "")).strip_edges()
+		nickname = str(story_director.get_variable("player_name", "")).strip_edges()
+	var name: String = real_name if not real_name.is_empty() else nickname
+	if name.is_empty():
+		name = "玩家"
+	return text.replace("{player_name}", name)
 
 
 static func _build_player_identity() -> String:
-	var player_name: String = "李沐"
+	var player_real_name: String = ""
+	var player_nickname: String = ""
 	var university_name: String = "蓝鲸大学"
 	var college_name: String = ""
 
 	var story_director: Node = Engine.get_main_loop().root.get_node_or_null("StoryDirector")
 	if story_director != null and story_director.has_method("get_variable"):
-		player_name = str(story_director.get_variable("player_name", player_name)).strip_edges()
+		player_real_name = str(story_director.get_variable("player_real_name", "")).strip_edges()
+		player_nickname = str(story_director.get_variable("player_name", "")).strip_edges()
 		university_name = str(story_director.get_variable("player_university", university_name)).strip_edges()
 		college_name = str(story_director.get_variable("player_college", "")).strip_edges()
 
-	if player_name.is_empty():
-		player_name = "李沐"
 	if university_name.is_empty():
 		university_name = "蓝鲸大学"
 
-	var identity_line := "玩家名称：%s" % player_name
+	# 优先使用真实姓名；报名前只有网名时用网名
+	var display_name: String = player_real_name if not player_real_name.is_empty() else player_nickname
+	if display_name.is_empty():
+		display_name = "（未知）"
+
+	var identity_line := "玩家真实姓名：%s" % display_name
+	if not player_nickname.is_empty() and player_nickname != display_name:
+		identity_line += "（网名：%s）" % player_nickname
 	if not college_name.is_empty():
 		identity_line += "（%s%s学生）" % [university_name, college_name]
 	else:
 		identity_line += "（%s学生）" % university_name
 
-	return "%s。与女友林夏一起参加 ARCADE GRAND JAM 2025。\n【绝对禁止】用其他名字称呼玩家，也禁止自行编造玩家的言行。" % identity_line
+	return "%s。与女友林夏一起参加 ARCADE GRAND JAM 2027。\n【绝对禁止】用其他名字称呼玩家，也禁止自行编造玩家的言行。" % identity_line
 
 
-static func _build_history(chat_history: Array[Dictionary]) -> String:
+static func _build_history(chat_history: Array[Dictionary], max_count: int = 20) -> String:
 	if chat_history.is_empty():
 		return "（这是对话的开始）"
 
 	var lines: Array[String] = []
-	for msg in chat_history.slice(-20):
+	for msg in chat_history.slice(-max_count):
 		var sender: String = msg.get("sender_name", "未知")
 		var time_str: String = msg.get("time", "")
-		var content: String = msg.get("content", "")
+		var content: String = msg.get("content", "").strip_edges()
 		if msg.has("card") and msg["card"] is Dictionary:
 			var card_summary := _summarize_card(msg["card"])
 			if not card_summary.is_empty():
-				if content.strip_edges().is_empty():
+				if content.is_empty():
 					content = card_summary
 				else:
 					content += " " + card_summary
+		if content.is_empty():
+			continue
 		lines.append("[%s] %s: %s" % [time_str, sender, content])
 	return "\n".join(lines)
 
@@ -144,8 +164,8 @@ static func _summarize_card(card: Dictionary) -> String:
 				hint if not hint.is_empty() else str(card.get("image_id", "图片"))
 			)
 		"location":
-			return "[location %s %s]" % [
-				title if not title.is_empty() else "place",
+			return "[分享了地点卡片：%s %s]" % [
+				title if not title.is_empty() else "未命名地点",
 				str(card.get("footer", "")).strip_edges()
 			]
 		"mock_image":
@@ -155,6 +175,17 @@ static func _summarize_card(card: Dictionary) -> String:
 				title if not title.is_empty() else "未命名网页",
 				str(card.get("url", "")).strip_edges()
 			]
+		"game":
+			var footer := str(card.get("footer", "")).strip_edges()
+			var subtitle := str(card.get("subtitle", "")).strip_edges()
+			var parts: Array[String] = []
+			if not title.is_empty():
+				parts.append(title)
+			if not subtitle.is_empty():
+				parts.append(subtitle)
+			if not footer.is_empty():
+				parts.append(footer)
+			return "[分享了游戏卡片：%s]" % "，".join(parts) if not parts.is_empty() else "[分享了游戏卡片]"
 		"product":
 			var price := str(card.get("price", "")).strip_edges()
 			var badge := str(card.get("badge", "")).strip_edges()
@@ -165,7 +196,7 @@ static func _summarize_card(card: Dictionary) -> String:
 				parts.append(badge)
 			if not price.is_empty():
 				parts.append(price)
-			return "[赠送了商品：%s]" % "，".join(parts)
+			return "[分享了商品卡片：%s]" % "，".join(parts)
 		_:
 			return "[分享了一张卡片]"
 
@@ -187,7 +218,7 @@ static func _build_topic(topic: ChatTopic) -> String:
 	if topic == null:
 		return "当前无特定话题，自由聊天即可。"
 
-	var parts: Array[String] = [topic.system_prompt]
+	var parts: Array[String] = [_resolve_player_placeholders(topic.system_prompt)]
 	if not topic.goal_description.is_empty():
 		parts.append("\n对话目标：%s" % topic.goal_description)
 	return "\n".join(parts)

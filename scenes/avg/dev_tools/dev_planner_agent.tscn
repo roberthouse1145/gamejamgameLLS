@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/dev_tools/dev_planner_agent.gd" id="1_planner"]
+[ext_resource type="Script" path="res://scripts/llm/AIService.gd" id="2_ai_service"]
+
+[node name="DevPlannerAgent" type="Node"]
+script = ExtResource("1_planner")
+role = "dev_planner"
+prompt_key = "dev_planner_agent"
+
+[node name="AIService" type="Node" parent="."]
+script = ExtResource("2_ai_service")
+auto_execute_tools = true
+max_tool_iterations = 12
+default_max_tokens = 8192

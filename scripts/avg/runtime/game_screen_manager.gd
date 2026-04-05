@@ -182,6 +182,7 @@ func _build_close_button(config: Resource) -> void:
 		norm_pos.x * _project_resolution.x - config.close_button_size.x / 2.0,
 		norm_pos.y * _project_resolution.y - config.close_button_size.y / 2.0
 	)
+	_apply_button_style(btn, config)
 	btn.pressed.connect(close_screen)
 	_screen_root.add_child(btn)
 
@@ -220,6 +221,7 @@ func _build_menu_content(config: Resource, panel: Panel) -> void:
 		btn.custom_minimum_size = config.menu_button_size
 		btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		btn.add_theme_font_size_override("font_size", config.menu_button_font_size)
+		_apply_button_style(btn, config)
 		btn.pressed.connect(_on_menu_action.bind(action))
 		container.add_child(btn)
 
@@ -301,6 +303,8 @@ func _create_slot_button(slot_index: int, config: Resource, summary: Dictionary,
 		if not text_preview.is_empty():
 			display += "\n" + text_preview.left(30)
 		slot.text = display
+
+	_apply_button_style(slot, config)
 
 	if is_save:
 		slot.pressed.connect(_on_save_slot_pressed.bind(slot_index))
@@ -430,3 +434,11 @@ func _build_settings_content(_config: Resource, panel: Panel) -> void:
 
 	margin.add_child(vbox)
 	panel.add_child(margin)
+
+
+## 将 config.button_style（AVGStyleBox）的四状态应用到按钮
+func _apply_button_style(btn: BaseButton, config: Resource) -> void:
+	if config == null:
+		return
+	if "button_style" in config and config.button_style != null and config.button_style.has_method("apply_to_button"):
+		config.button_style.apply_to_button(btn)

@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name MoveCharacterByHandler
 ## Handler for MOVE_CHARACTER_BY command
 ## Moves a character by a relative offset (normalized coordinates).

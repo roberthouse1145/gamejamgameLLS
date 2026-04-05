@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name CheckVarHandler
 ## Handler for CHECK_VAR command
 ## 条件专用命令 — 检查变量是否满足条件

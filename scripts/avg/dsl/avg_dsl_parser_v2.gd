@@ -36,7 +36,7 @@ const MAGIC_MAPPINGS: Dictionary = {
 	"camera": {
 		"shake": ["SCREEN_SHAKE", []],
 		"pan": ["CAMERA_PAN", []],
-		"zoom": ["CAMERA_ZOOM", ["zoom_level"]],
+		"zoom": ["CAMERA_ZOOM", ["zoom"]],
 		"reset": ["CAMERA_RESET", []]
 	},
 	"scene": {
@@ -340,8 +340,12 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			i += 1
 			continue
 			
-		# 其他未识别的行 (除非它仅是 CHOICE 的一部分，目前 CHOICE 暂未在主体实现中，这将在下个任务中分离)
-		errors.append({"line": i + 1, "message": "Syntax Error or Unsupported Command: " + line})
+		# 其他未识别的行：自动降级为旁白 DIALOGUE（容错 LLM 输出裸文本）
+		var bare_text: String = line.strip_edges()
+		if not bare_text.is_empty():
+			var fallback_cmd: AVGCommand = _create_dialogue_command(bare_text, {})
+			parsed_cmds.append(fallback_cmd)
+			push_warning("DSL line %d: auto-wrapped bare text as narration: %s" % [i + 1, bare_text])
 		i += 1
 		
 	return {

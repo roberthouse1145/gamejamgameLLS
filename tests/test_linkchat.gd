@@ -20,12 +20,11 @@ func _ready() -> void:
 
 	print("[Test] LinkChat instantiated, activating test topic...")
 
-	# 读取林夏的personality prompt
+	# 通过 PromptManager 读取林夏的 personality prompt
 	var personality_prompt := ""
-	var file := FileAccess.open("res://prompts/npc/lin_xia.md", FileAccess.READ)
-	if file:
-		personality_prompt = file.get_as_text()
-		file.close()
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("resolve"):
+		personality_prompt = str(pm.resolve("npc/lin_xia")).strip_edges()
 
 	# 通过 ChatManager 激活测试 Topic
 	var topic_prompt := personality_prompt + """

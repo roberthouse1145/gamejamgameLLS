@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name WaitTimeHandler
 ## Handler for WAIT_TIME command
 ## Waits for specified time before continuing.

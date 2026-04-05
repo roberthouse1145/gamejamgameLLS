@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name CheckHoverHandler
 ## Handler for CHECK_HOVER command
 ## 条件命令 — 检查鼠标是否悬停在指定节点上

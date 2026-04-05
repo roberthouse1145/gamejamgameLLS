@@ -7,14 +7,39 @@ class_name AIConfigManager extends RefCounted
 const DEFAULT_CONFIG_PATH: String = "res://ai_config.cfg"
 const USER_CONFIG_PATH: String = "user://ai_config.cfg"
 
+## 全局单例（生产代码用 get_instance()，测试代码可自行 new() 隔离）
+static var _instance: AIConfigManager = null
+
+## 获取全局共享实例，首次调用时自动加载配置。
+static func get_instance() -> AIConfigManager:
+	if _instance == null:
+		_instance = AIConfigManager.new()
+		_instance.load_config()
+	return _instance
+
 ## profile_name -> {base_url, api_key, model}
 var _profiles: Dictionary = {}
 ## role_name -> profile_name
 var _roles: Dictionary = {}
+## [dev] 节的键值对
+var _dev_settings: Dictionary = {}
 ## 加载来源描述
 var _loaded_from: String = ""
 ## 是否打印加载日志（测试时可设为 false 减少噪音）
-var verbose: bool = true
+var verbose: bool = false
+
+
+## 获取 [dev] 配置项。
+func get_dev_setting(key: String, default_value: Variant = null) -> Variant:
+	return _dev_settings.get(key, default_value)
+
+
+func is_background_llm_disabled() -> bool:
+	return _is_truthy(get_dev_setting("disable_background_llm", false))
+
+
+func is_quiet_logs_enabled() -> bool:
+	return _is_truthy(get_dev_setting("quiet_debug_logs", false))
 
 
 ## 加载配置。先加载 res:// 默认配置，再用 user:// 覆盖。
@@ -22,6 +47,7 @@ var verbose: bool = true
 func load_config() -> bool:
 	_profiles.clear()
 	_roles.clear()
+	_dev_settings.clear()
 	_loaded_from = ""
 	
 	var has_default: bool = _load_file(DEFAULT_CONFIG_PATH)
@@ -136,5 +162,21 @@ func _load_file(path: String) -> bool:
 				_roles[key] = config.get_value("roles", key, "")
 				if verbose:
 					print("[AIConfigManager] Loaded role: %s -> %s" % [key, _roles[key]])
+		elif section == "dev":
+			for key in config.get_section_keys("dev"):
+				_dev_settings[key] = config.get_value("dev", key, "")
+				if verbose:
+					print("[AIConfigManager] Loaded dev setting: %s = %s" % [key, str(_dev_settings[key])])
 	
 	return true
+
+
+func _is_truthy(value: Variant) -> bool:
+	match typeof(value):
+		TYPE_BOOL:
+			return value
+		TYPE_INT, TYPE_FLOAT:
+			return value != 0
+		_:
+			var normalized: String = str(value).strip_edges().to_lower()
+			return normalized == "true" or normalized == "1" or normalized == "yes" or normalized == "on"

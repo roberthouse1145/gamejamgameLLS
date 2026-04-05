@@ -92,6 +92,8 @@ signal conversation_updated(conversation_id: String, messages: Array)
 @export var auto_execute_tools: bool = true
 ## 最大工具调用循环次数（防止无限循环）
 @export var max_tool_iterations: int = 10
+## 是否输出完整响应与逐步工具调用日志（默认关闭，避免刷屏）
+@export var verbose_debug_logging: bool = false
 #endregion
 
 #region 内部变量
@@ -581,6 +583,7 @@ func _build_chat_request(messages: Array, options: Dictionary) -> Dictionary:
 	# 默认 disabled，避免浪费 token（项目已通过 <think> 标签自行管理思维链）
 	var thinking_type: String = options.get("thinking", "disabled")
 	body["thinking"] = {"type": thinking_type}
+	body["enable_thinking"] = options.get("enable_thinking", false)
 	
 	# Seed for reproducibility
 	if options.has("seed"):
@@ -660,7 +663,8 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	var response_text = body.get_string_from_utf8()
 	var json = JSON.new()
 	var parse_result = json.parse(response_text)
-	print(response_text)
+	if verbose_debug_logging:
+		print(response_text)
 	if parse_result != OK:
 		_handle_error(request_id, "Failed to parse JSON response", parse_result, original_request)
 		return
@@ -1005,7 +1009,8 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 		var func_name = tc.function.name
 		var args = _parse_tool_arguments(tc.function.arguments)
 		
-		print("[AIService] Auto-executing tool: %s with args: %s" % [func_name, str(args)])
+		if verbose_debug_logging:
+			print("[AIService] Auto-executing tool: %s with args: %s" % [func_name, str(args)])
 		
 		# 使用await支持异步回调
 		var result = await execute_tool_callback(func_name, args)

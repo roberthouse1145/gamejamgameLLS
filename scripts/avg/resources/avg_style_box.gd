@@ -22,12 +22,83 @@ class_name AVGStyleBox extends Resource
 @export var content_margins: Vector4i = Vector4i(0, 0, 0, 0)
 
 
-## 生成 Godot StyleBox
+## 生成 Godot StyleBox（normal 状态）
 func to_stylebox() -> StyleBox:
 	if texture != null:
 		return _create_texture_stylebox()
 	else:
 		return _create_flat_stylebox()
+
+
+## 生成 hover 状态样式（基于 normal 变亮）
+func to_hover_stylebox() -> StyleBox:
+	if texture != null:
+		var sb := _create_texture_stylebox()
+		sb.modulate_color = texture_modulate.lightened(0.15)
+		return sb
+	else:
+		var sb := _create_flat_stylebox()
+		sb.bg_color = bg_color.lightened(0.15)
+		if border_width > 0:
+			sb.border_color = border_color.lightened(0.15)
+		return sb
+
+
+## 生成 pressed 状态样式（基于 normal 变暗）
+func to_pressed_stylebox() -> StyleBox:
+	if texture != null:
+		var sb := _create_texture_stylebox()
+		sb.modulate_color = texture_modulate.darkened(0.15)
+		return sb
+	else:
+		var sb := _create_flat_stylebox()
+		sb.bg_color = bg_color.darkened(0.15)
+		if border_width > 0:
+			sb.border_color = border_color.darkened(0.15)
+		return sb
+
+
+## 生成 disabled 状态样式（基于 normal 变灰/去饱和）
+func to_disabled_stylebox() -> StyleBox:
+	if texture != null:
+		var sb := _create_texture_stylebox()
+		var c := texture_modulate
+		var grey := c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+		sb.modulate_color = Color(
+			lerpf(c.r, grey, 0.6),
+			lerpf(c.g, grey, 0.6),
+			lerpf(c.b, grey, 0.6),
+			c.a * 0.6
+		)
+		return sb
+	else:
+		var sb := _create_flat_stylebox()
+		var c := bg_color
+		var grey := c.r * 0.3 + c.g * 0.59 + c.b * 0.11
+		sb.bg_color = Color(
+			lerpf(c.r, grey, 0.6),
+			lerpf(c.g, grey, 0.6),
+			lerpf(c.b, grey, 0.6),
+			c.a * 0.6
+		)
+		if border_width > 0:
+			var bc := border_color
+			var bg := bc.r * 0.3 + bc.g * 0.59 + bc.b * 0.11
+			sb.border_color = Color(
+				lerpf(bc.r, bg, 0.6),
+				lerpf(bc.g, bg, 0.6),
+				lerpf(bc.b, bg, 0.6),
+				bc.a * 0.6
+			)
+		return sb
+
+
+## 将全部 4 个状态（normal / hover / pressed / disabled）应用到按钮
+func apply_to_button(button: BaseButton) -> void:
+	button.add_theme_stylebox_override("normal", to_stylebox())
+	button.add_theme_stylebox_override("hover", to_hover_stylebox())
+	button.add_theme_stylebox_override("pressed", to_pressed_stylebox())
+	button.add_theme_stylebox_override("disabled", to_disabled_stylebox())
 
 
 ## 生成 StyleBoxTexture（九宫格）

@@ -2,6 +2,7 @@ extends PanelContainer
 class_name DeepCodeDebugPanel
 ## Debug 面板 — 显示当前 system prompt、tool 调用记录、active skills
 
+@warning_ignore("unused_signal")
 signal visibility_toggled(visible: bool)
 
 @onready var tab_bar: TabBar = %DebugTabBar

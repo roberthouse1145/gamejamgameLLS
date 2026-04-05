@@ -19,6 +19,14 @@ func get_npc(character_id: String) -> NPCCharacter:
 	return _npcs.get(character_id)
 
 
+## 通过 display_name 查找NPC（用于将AI输出的显示名映射回 character_id）
+func find_npc_by_display_name(display_name: String) -> NPCCharacter:
+	for npc: NPCCharacter in _npcs.values():
+		if npc.display_name == display_name:
+			return npc
+	return null
+
+
 ## 获取所有NPC
 func get_all_npcs() -> Array[NPCCharacter]:
 	var result: Array[NPCCharacter] = []

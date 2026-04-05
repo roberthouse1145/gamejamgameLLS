@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ShowNodeHandler
 ## Handler for SHOW_NODE command
 ## 显示节点（淡入）

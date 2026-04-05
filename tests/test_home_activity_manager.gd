@@ -2,6 +2,7 @@ extends Node
 
 var _passed: int = 0
 var _failed: int = 0
+var _last_completed_payload: Dictionary = {}
 
 
 func _ready() -> void:
@@ -221,6 +222,7 @@ func _test_rest_flow() -> void:
 	_assert_equal("rest next phase", glm.get_phase_name(glm.time_phase), "MORNING")
 	# 初始 stress=20, rest stress_delta=-3 → 17, 然后 advance_to_next_day → on_new_day stress -2 = 15
 	_assert_equal("rest stress", int(gm.get("stress")), 15)
+	_assert_equal("rest payload reward stress", int((_last_completed_payload.get("rewards", {}) as Dictionary).get("stress", 0)), -3)
 	_assert_true("rest cleared", not home.has_any_pending_sessions(), "休息结束后不应残留 session")
 
 
@@ -251,6 +253,7 @@ func _test_rest_early_flow() -> void:
 	# 提前休息：消耗 1 AP + advance_to_next_day → 跳过下午和晚上
 	_assert_equal("rest_early next day", int(glm.get("current_day")), 2)
 	_assert_equal("rest_early next phase", glm.get_phase_name(glm.time_phase), "MORNING")
+	_assert_true("rest_early payload has rewards", (_last_completed_payload.get("rewards", {}) as Dictionary).has("stress"), "提前休息结果应包含 stress")
 	_assert_true("rest_early cleared", not home.has_any_pending_sessions(), "提前休息结束后不应残留 session")
 
 
@@ -270,6 +273,11 @@ func _reset_managers() -> void:
 		glm.reset_runtime_state()
 	if home != null and home.has_method("reset_runtime_state"):
 		home.reset_runtime_state()
+	_last_completed_payload.clear()
+	if home != null and home.has_signal("activity_completed"):
+		var callback := Callable(self, "_on_activity_completed")
+		if not home.activity_completed.is_connected(callback):
+			home.activity_completed.connect(callback)
 
 
 func _find_activity(activities: Array[Dictionary], activity_id: String) -> Dictionary:
@@ -311,3 +319,7 @@ func _fail(label: String, detail: String = "") -> void:
 		print("[FAIL] %s" % label)
 	else:
 		print("[FAIL] %s :: %s" % [label, detail])
+
+
+func _on_activity_completed(_activity_id: String, payload: Dictionary) -> void:
+	_last_completed_payload = payload.duplicate(true)

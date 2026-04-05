@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ClearDialogueHandler
 ## Handler for CLEAR_DIALOGUE command
 ## 清空并隐藏对话框。非阻塞，立即生效。

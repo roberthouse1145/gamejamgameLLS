@@ -63,11 +63,11 @@ var _active_offscreen_deliveries: Dictionary = {}
 ## 过渡动画时长
 const TRANSITION_DURATION: float = 0.18
 ## 侧边栏目标宽度
-const SIDEBAR_WIDTH: float = 420.0
-const NAV_STRIP_WIDTH: float = 90.0
-const NAV_AVATAR_SIZE: float = 62.0
-const NAV_BUTTON_SIZE: float = 72.0
-const SEND_BUTTON_MIN_WIDTH: float = 110.0
+const SIDEBAR_WIDTH: float = 500.0
+const NAV_STRIP_WIDTH: float = 108.0
+const NAV_AVATAR_SIZE: float = 72.0
+const NAV_BUTTON_SIZE: float = 84.0
+const SEND_BUTTON_MIN_WIDTH: float = 132.0
 const OFFSCREEN_MESSAGE_PAUSE_MIN: float = 0.5
 const OFFSCREEN_MESSAGE_PAUSE_MAX: float = 1.5
 ## 页面切换动画 tween
@@ -112,6 +112,9 @@ func _apply_theme() -> void:
 	nav_chat_btn.custom_minimum_size = Vector2(NAV_BUTTON_SIZE, NAV_BUTTON_SIZE)
 	nav_moments_btn.custom_minimum_size = Vector2(NAV_BUTTON_SIZE, NAV_BUTTON_SIZE)
 	nav_settings_btn.custom_minimum_size = Vector2(NAV_BUTTON_SIZE, NAV_BUTTON_SIZE)
+	nav_settings_btn.visible = false
+	nav_settings_btn.disabled = true
+	nav_settings_btn.focus_mode = Control.FOCUS_NONE
 
 	# 导航头像
 	var avatar_style := LCTheme.rounded_flat(LCTheme.COLOR_ACCENT, LCTheme.RADIUS_AVATAR)
@@ -119,22 +122,22 @@ func _apply_theme() -> void:
 	var avatar_label: Label = nav_avatar.get_child(0)
 	if avatar_label:
 		avatar_label.add_theme_color_override("font_color", Color.WHITE)
-		avatar_label.add_theme_font_size_override("font_size", 24)
+		avatar_label.add_theme_font_size_override("font_size", 26)
 
 	# 侧边栏
 	sidebar.custom_minimum_size.x = SIDEBAR_WIDTH
 	sidebar.add_theme_stylebox_override("panel", LCTheme.get_sidebar_bg_style())
 	app_title.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	app_title.add_theme_font_size_override("font_size", 28)
+	app_title.add_theme_font_size_override("font_size", 30)
 
 	# 聊天头部
 	chat_header.add_theme_stylebox_override("panel", LCTheme.rounded_flat(LCTheme.COLOR_BG_HEADER, 0))
 	channel_title.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	channel_title.add_theme_font_size_override("font_size", 24)
+	channel_title.add_theme_font_size_override("font_size", 28)
 	channel_subtitle.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
-	channel_subtitle.add_theme_font_size_override("font_size", 17)
+	channel_subtitle.add_theme_font_size_override("font_size", 19)
 	topic_info.add_theme_color_override("font_color", LCTheme.COLOR_ACCENT)
-	topic_info.add_theme_font_size_override("font_size", 17)
+	topic_info.add_theme_font_size_override("font_size", 19)
 
 	# 输入区域
 	input_area.add_theme_stylebox_override("panel", LCTheme.rounded_flat(LCTheme.COLOR_BG_INPUT_AREA, 0))
@@ -144,7 +147,7 @@ func _apply_theme() -> void:
 	input_field.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
 	input_field.add_theme_color_override("font_placeholder_color", LCTheme.COLOR_TEXT_MUTED)
 	input_field.add_theme_color_override("caret_color", LCTheme.COLOR_ACCENT)
-	input_field.add_theme_font_size_override("font_size", 20)
+	input_field.add_theme_font_size_override("font_size", 22)
 
 	send_button.add_theme_stylebox_override("normal", LCTheme.get_send_button_style())
 	send_button.add_theme_stylebox_override("hover", LCTheme.get_send_button_hover_style())
@@ -154,16 +157,16 @@ func _apply_theme() -> void:
 	send_button.add_theme_color_override("font_hover_color", Color.WHITE)
 	send_button.add_theme_color_override("font_pressed_color", Color.WHITE)
 	send_button.add_theme_color_override("font_disabled_color", LCTheme.COLOR_TEXT_MUTED)
-	send_button.add_theme_font_size_override("font_size", 18)
+	send_button.add_theme_font_size_override("font_size", 20)
 	send_button.custom_minimum_size.x = SEND_BUTTON_MIN_WIDTH
 
 	# 提示文字
 	hint_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-	hint_label.add_theme_font_size_override("font_size", 17)
+	hint_label.add_theme_font_size_override("font_size", 18)
 	typing_indicator.add_theme_color_override("font_color", LCTheme.COLOR_ACCENT)
-	typing_indicator.add_theme_font_size_override("font_size", 17)
+	typing_indicator.add_theme_font_size_override("font_size", 18)
 	batch_indicator.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
-	batch_indicator.add_theme_font_size_override("font_size", 17)
+	batch_indicator.add_theme_font_size_override("font_size", 18)
 
 	# 初始导航高亮
 	_update_nav_highlight()
@@ -172,20 +175,20 @@ func _apply_theme() -> void:
 func _apply_nav_button_theme(btn: Button) -> void:
 	btn.flat = true
 	var normal := LCTheme.rounded_flat(Color.TRANSPARENT, LCTheme.RADIUS_SM)
-	normal.content_margin_left = 4
-	normal.content_margin_right = 4
-	normal.content_margin_top = 8
-	normal.content_margin_bottom = 8
+	normal.content_margin_left = 8
+	normal.content_margin_right = 8
+	normal.content_margin_top = 10
+	normal.content_margin_bottom = 10
 	var hover := LCTheme.rounded_flat(Color("#DCDCE0"), LCTheme.RADIUS_SM)
-	hover.content_margin_left = 4
-	hover.content_margin_right = 4
-	hover.content_margin_top = 8
-	hover.content_margin_bottom = 8
+	hover.content_margin_left = 8
+	hover.content_margin_right = 8
+	hover.content_margin_top = 10
+	hover.content_margin_bottom = 10
 	btn.add_theme_stylebox_override("normal", normal)
 	btn.add_theme_stylebox_override("hover", hover)
 	btn.add_theme_stylebox_override("pressed", hover)
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	btn.add_theme_font_size_override("font_size", 16)
+	btn.add_theme_font_size_override("font_size", 18)
 	btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
 	btn.add_theme_color_override("font_hover_color", LCTheme.COLOR_TEXT_PRIMARY)
 
@@ -194,19 +197,19 @@ func _set_nav_button_active(btn: Button, active: bool) -> void:
 	if active:
 		# 选中态：浅灰背景 + 深色文字（和联系人选中一致）
 		var active_style := LCTheme.rounded_flat(LCTheme.COLOR_CONTACT_SELECTED, LCTheme.RADIUS_SM)
-		active_style.content_margin_left = 4
-		active_style.content_margin_right = 4
-		active_style.content_margin_top = 8
-		active_style.content_margin_bottom = 8
+		active_style.content_margin_left = 8
+		active_style.content_margin_right = 8
+		active_style.content_margin_top = 10
+		active_style.content_margin_bottom = 10
 		btn.add_theme_stylebox_override("normal", active_style)
 		btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
 	else:
 		# 非选中态：透明背景 + 灰色文字
 		var normal := LCTheme.rounded_flat(Color.TRANSPARENT, LCTheme.RADIUS_SM)
-		normal.content_margin_left = 4
-		normal.content_margin_right = 4
-		normal.content_margin_top = 8
-		normal.content_margin_bottom = 8
+		normal.content_margin_left = 8
+		normal.content_margin_right = 8
+		normal.content_margin_top = 10
+		normal.content_margin_bottom = 10
 		btn.add_theme_stylebox_override("normal", normal)
 		btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
 
@@ -319,41 +322,51 @@ func _navigate_to(page: NavPage) -> void:
 
 	_page_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
-	# --- 侧边栏滑动 ---
-	if show_sidebar != old_show_sidebar:
-		if show_sidebar:
-			sidebar.visible = true
-			sidebar_border.visible = true
-			sidebar.modulate.a = 0.0
-			sidebar.custom_minimum_size.x = 0.0
-			_page_tween.tween_property(sidebar, "custom_minimum_size:x", SIDEBAR_WIDTH, TRANSITION_DURATION)
-			_page_tween.parallel().tween_property(sidebar, "modulate:a", 1.0, TRANSITION_DURATION)
-		else:
-			_page_tween.tween_property(sidebar, "custom_minimum_size:x", 0.0, TRANSITION_DURATION)
-			_page_tween.parallel().tween_property(sidebar, "modulate:a", 0.0, TRANSITION_DURATION)
-			_page_tween.tween_callback(func() -> void:
-				sidebar.visible = false
-				sidebar_border.visible = false
-			)
+	var sidebar_changing := (show_sidebar != old_show_sidebar)
 
-	# --- 内容区淡出旧内容 ---
+	# === Phase 1: 收起侧边栏（仅隐藏时）+ 淡出旧内容 ===
+	if sidebar_changing and not show_sidebar:
+		_page_tween.tween_property(sidebar, "custom_minimum_size:x", 0.0, TRANSITION_DURATION)
+		_page_tween.parallel().tween_property(sidebar, "modulate:a", 0.0, TRANSITION_DURATION)
+		_page_tween.parallel().tween_property(sidebar_border, "modulate:a", 0.0, TRANSITION_DURATION)
+
 	for node in content_nodes_to_hide:
 		if node.visible:
 			_page_tween.parallel().tween_property(node, "modulate:a", 0.0, TRANSITION_DURATION * 0.6)
 
-	# 淡出结束后隐藏旧节点、显示并淡入新节点
+	# === Phase 2: 交换节点 ===
 	_page_tween.tween_callback(func() -> void:
 		for node in content_nodes_to_hide:
 			node.visible = false
 			node.modulate.a = 1.0
+		if sidebar_changing:
+			if show_sidebar:
+				sidebar.custom_minimum_size.x = SIDEBAR_WIDTH
+				sidebar.modulate.a = 0.0
+				sidebar_border.modulate.a = 0.0
+				sidebar.visible = true
+				sidebar_border.visible = true
+			else:
+				sidebar.visible = false
+				sidebar_border.visible = false
 		for node in content_nodes_to_show:
 			node.visible = true
 			node.modulate.a = 0.0
 	)
 
-	# --- 内容区淡入新内容 ---
+	# === Phase 3: 淡入侧边栏（仅展开时）+ 淡入新内容 ===
+	var _first_fadein := true
+	if sidebar_changing and show_sidebar:
+		_page_tween.tween_property(sidebar, "modulate:a", 1.0, TRANSITION_DURATION * 0.6)
+		_page_tween.parallel().tween_property(sidebar_border, "modulate:a", 1.0, TRANSITION_DURATION * 0.6)
+		_first_fadein = false
+
 	for node in content_nodes_to_show:
-		_page_tween.tween_property(node, "modulate:a", 1.0, TRANSITION_DURATION * 0.6)
+		if _first_fadein:
+			_page_tween.tween_property(node, "modulate:a", 1.0, TRANSITION_DURATION * 0.6)
+			_first_fadein = false
+		else:
+			_page_tween.parallel().tween_property(node, "modulate:a", 1.0, TRANSITION_DURATION * 0.6)
 
 
 # --- 联系人列表渲染 ---
@@ -453,11 +466,6 @@ func _update_chat_header(channel: Resource) -> void:
 					channel_subtitle.text = "在线"
 					channel_subtitle.visible = true
 					return
-	elif channel.channel_type == ChatChannelClass.ChannelType.WORK or channel.channel_type == ChatChannelClass.ChannelType.SOCIAL:
-		var member_count: int = channel.members.size()
-		channel_subtitle.text = "%d 位成员" % member_count
-		channel_subtitle.visible = true
-		return
 
 	channel_subtitle.visible = false
 
@@ -619,6 +627,7 @@ func _show_toast(text: String, duration: float = 2.5) -> void:
 func _on_message_added(channel_id: String, msg: Dictionary) -> void:
 	if _should_defer_npc_message(channel_id, msg):
 		_enqueue_deferred_npc_message(channel_id, msg)
+		return
 	elif _should_queue_offscreen_npc_message(channel_id, msg):
 		_enqueue_offscreen_npc_message(channel_id, msg)
 		return
@@ -640,6 +649,18 @@ func _on_message_added(channel_id: String, msg: Dictionary) -> void:
 		var ci = _contact_items.get(channel_id)
 		if ci:
 			ci.update_from_channel(ch)
+
+
+func _update_contact_preview_for_message(channel_id: String, msg: Dictionary) -> void:
+	var item = _contact_items.get(channel_id)
+	if item == null:
+		return
+
+	var channel: Resource = ChatManager.get_channel(channel_id)
+	if channel == null:
+		return
+
+	item.update_from_message(msg, int(channel.unread_count))
 
 
 func _on_npc_messages_received(channel_id: String, messages: Array, recommended_replies: Array[String] = []) -> void:
@@ -748,12 +769,17 @@ func _play_typing_animation(messages: Array, channel_id: String, token: int) -> 
 	typing_indicator.visible = true
 
 	for i in messages.size():
-		var msg_data: Dictionary = messages[i] if messages[i] is Dictionary else {"speaker": "unknown", "content": str(messages[i])}
-		var speaker: String = msg_data.get("speaker", "unknown")
+		var msg_data: Dictionary = messages[i] if messages[i] is Dictionary else {"sender_name": "unknown", "content": str(messages[i])}
+		var sender_id := str(msg_data.get("sender_id", msg_data.get("speaker", ""))).strip_edges()
+		var sender_name := str(msg_data.get("sender_name", "")).strip_edges()
 		var content: String = msg_data.get("content", "")
 
-		var npc := ChatManager.get_npc(speaker)
-		var npc_name: String = npc.display_name if npc else speaker
+		var npc := ChatManager.get_npc(sender_id)
+		var npc_name: String = sender_name
+		if npc_name.is_empty():
+			npc_name = npc.display_name if npc else sender_id
+		if npc_name.is_empty():
+			npc_name = "unknown"
 		typing_indicator.text = "%s 正在输入..." % npc_name
 
 		var clean_content := NPCResponseHandler.clean_message(content)
@@ -766,6 +792,7 @@ func _play_typing_animation(messages: Array, channel_id: String, token: int) -> 
 
 		var bubble := MessageBubbleClass.create(msg_data)
 		message_list.add_child(bubble)
+		_update_contact_preview_for_message(channel_id, msg_data)
 		_scroll_to_bottom()
 
 		if i < messages.size() - 1:
@@ -866,6 +893,7 @@ func _flush_deferred_messages(channel_id: String) -> void:
 		if msg is Dictionary:
 			var bubble := MessageBubbleClass.create(msg)
 			message_list.add_child(bubble)
+			_update_contact_preview_for_message(channel_id, msg)
 	_scroll_to_bottom()
 
 

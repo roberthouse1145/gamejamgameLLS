@@ -14,12 +14,71 @@ const InputGuardClass = preload("res://scripts/chat/input_guard.gd")
 const LINKCHAT_IMAGE_CARD_REGISTRY_PATH: String = "res://resources/data/linkchat_image_cards.json"
 const NPC_RESOURCE_PATHS: Array[String] = [
 	"res://resources/characters/npc_lin_xia.tres",
+	"res://resources/characters/npc_mom.tres",
 ]
 const CHANNEL_RESOURCE_PATHS: Array[String] = [
 	"res://resources/channels/dm_lin_xia.tres",
+	"res://resources/channels/dm_mom.tres",
 	"res://resources/channels/agj_official.tres",
 	"res://resources/channels/class_group.tres",
+	"res://resources/channels/hs_group.tres",
 ]
+const PROTOCOL_DIRECT_ACTION_COMMANDS: Array[String] = [
+	"open_browser",
+	"focus_app",
+	"launch_app",
+	"post_moment",
+	"lock_app_window",
+	"unlock_app_window",
+	"generate_work_order",
+]
+## 每日开始时只对白名单频道触发摘要（对话历史非空时）
+const SUMMARY_CHANNEL_WHITELIST: Array[String] = [
+	"dm_lin_xia",
+	"dm_mom",
+]
+const MOMENT_AUTHOR_PRESETS: Dictionary = {
+	"npc_agj_assist": {
+		"display_name": "AGJ组委会-小月",
+		"avatar_mode": "seed",
+		"avatar_seed": "agj_assist",
+	},
+	"npc_classmate_a": {
+		"display_name": "战蓝哥",
+		"avatar_mode": "seed",
+		"avatar_seed": "classmate_zhanlange",
+	},
+	"npc_classmate_b": {
+		"display_name": "呢喃老登",
+		"avatar_mode": "seed",
+		"avatar_seed": "classmate_ninan",
+	},
+	"npc_class_monitor": {
+		"display_name": "蓝鲸小南门",
+		"avatar_mode": "seed",
+		"avatar_seed": "class_nanmen",
+	},
+	"npc_hs_zhao": {
+		"display_name": "澜听雨落",
+		"avatar_mode": "seed",
+		"avatar_seed": "hs_zhao",
+	},
+	"npc_hs_sun": {
+		"display_name": "考研上岸倒计时",
+		"avatar_mode": "seed",
+		"avatar_seed": "hs_sun",
+	},
+	"npc_uni_wang": {
+		"display_name": "阿汪在路上",
+		"avatar_mode": "seed",
+		"avatar_seed": "uni_wang",
+	},
+	"npc_hs_liu": {
+		"display_name": "嘻嘻的刘刘",
+		"avatar_mode": "seed",
+		"avatar_seed": "hs_liu",
+	},
+}
 
 #region 信号
 ## 频道新增
@@ -130,18 +189,19 @@ func _setup_subsystems() -> void:
 
 	daily_memory_summarizer = DailyMemorySummarizerClass.new()
 	daily_memory_summarizer.setup(memory_manager)
+	daily_memory_summarizer.summary_channel_whitelist.assign(SUMMARY_CHANNEL_WHITELIST)
 	add_child(daily_memory_summarizer)
 
 	# 加载 AI 配置
-	var config_mgr := AIConfigManager.new()
-	if config_mgr.load_config():
-		config_mgr.apply_to_service(ai_service, "linkchat")
-		# 读取审核开关
-		var raw_enabled: String = str(config_mgr._roles.get("input_guard_enabled", "true")).strip_edges().to_lower()
-		input_guard.enabled = (raw_enabled != "false" and raw_enabled != "0")
-		print("[ChatManager] AI config loaded, input_guard enabled=%s" % input_guard.enabled)
-	else:
-		push_warning("[ChatManager] Failed to load AI config")
+	var config_mgr := AIConfigManager.get_instance()
+	config_mgr.apply_to_service(ai_service, "linkchat")
+	# 读取审核开关。优先读 [dev]，再兼容旧配置里写在 [roles] 的方式。
+	var raw_enabled: Variant = config_mgr.get_dev_setting("input_guard_enabled", null)
+	if raw_enabled == null:
+		raw_enabled = config_mgr._roles.get("input_guard_enabled", "true")
+	var normalized_enabled: String = str(raw_enabled).strip_edges().to_lower()
+	input_guard.enabled = (normalized_enabled != "false" and normalized_enabled != "0")
+	print("[ChatManager] AI config loaded, input_guard enabled=%s" % input_guard.enabled)
 
 
 func _setup_connections() -> void:
@@ -159,6 +219,11 @@ func _setup_connections() -> void:
 	# AI
 	ai_service.request_completed.connect(_on_ai_request_completed)
 	ai_service.request_failed.connect(_on_ai_request_failed)
+
+	# 日期变更：清空前一天对话历史（DailyMemorySummarizer 已先于此连接，会先收集数据）
+	var glm: Node = get_node_or_null("/root/GameLoopManager")
+	if glm != null and glm.has_signal("day_changed"):
+		glm.day_changed.connect(_on_day_changed)
 
 
 func _setup_npcs() -> void:
@@ -242,13 +307,22 @@ func add_player_message(channel_id: String, text: String) -> bool:
 		return false
 
 	# 审核玩家输入
-	var passed: bool = await input_guard.check(text)
+	var audit: Dictionary = await input_guard.analyze(text)
+	var passed: bool = bool(audit.get("passed", true))
 	if not passed:
 		print("[ChatManager] Message blocked by InputGuard: %s" % text)
 		message_blocked.emit(channel_id, text)
 		return false
 
-	_store_message(channel_id, "player", text)
+	var message_payload: Dictionary = {"content": text}
+	if audit.get("risk_tags", null) is Array and not (audit.get("risk_tags", []) as Array).is_empty():
+		message_payload["input_guard"] = {
+			"source": str(audit.get("source", "")),
+			"risk_tags": (audit.get("risk_tags", []) as Array).duplicate(true),
+		}
+
+	_store_message_data(channel_id, "player", message_payload)
+
 	if debug_mode:
 		_on_batch_ready_for_channel([text], channel_id)
 	else:
@@ -256,17 +330,17 @@ func add_player_message(channel_id: String, text: String) -> bool:
 	return true
 
 
-func store_player_message_data(channel_id: String, message_data: Dictionary) -> void:
-	_store_message_data(channel_id, "player", message_data)
+func store_player_message_data(channel_id: String, message_data: Dictionary) -> Dictionary:
+	return _store_message_data(channel_id, "player", message_data)
 
 
 ## 系统消息（直接存储）
-func add_system_message(channel_id: String, text: String) -> void:
-	_store_message(channel_id, "system", text)
+func add_system_message(channel_id: String, text: String) -> Dictionary:
+	return _store_message(channel_id, "system", text)
 
 
-func add_system_message_data(channel_id: String, message_data: Dictionary) -> void:
-	_store_message_data(channel_id, "system", message_data)
+func add_system_message_data(channel_id: String, message_data: Dictionary) -> Dictionary:
+	return _store_message_data(channel_id, "system", message_data)
 
 
 func debug_send_image_card(channel_id: String = "dm_lin_xia", sender_id: String = "npc_lin_xia", image_id: String = "linxia_chibi_happy", text: String = "") -> void:
@@ -331,41 +405,43 @@ func force_send_batch() -> void:
 
 
 ## NPC 消息存储（由 UI 在打字机动画中逐条调用）
-func store_npc_message(channel_id: String, npc_id: String, content: String) -> void:
+func store_npc_message(channel_id: String, npc_id: String, content: String) -> Dictionary:
 	var clean_content := NPCResponseHandler.clean_message(content)
-	_store_message(channel_id, npc_id, clean_content)
+	return _store_message(channel_id, npc_id, clean_content)
 
 
-func store_npc_message_data(channel_id: String, message_data: Dictionary) -> void:
+func store_npc_message_data(channel_id: String, message_data: Dictionary) -> Dictionary:
 	var normalized := message_data.duplicate(true)
 	if normalized.has("content"):
 		normalized["content"] = NPCResponseHandler.clean_message(str(normalized.get("content", "")))
-	_store_message_data(channel_id, str(normalized.get("speaker", normalized.get("sender_id", "unknown"))), normalized)
+	return _store_message_data(channel_id, str(normalized.get("speaker", normalized.get("sender_id", "unknown"))), normalized)
 
 
 ## 内部：存储消息到频道并发信号
-func _store_message(channel_id: String, sender_id: String, content: String) -> void:
-	_store_message_data(channel_id, sender_id, {"content": content})
+func _store_message(channel_id: String, sender_id: String, content: String) -> Dictionary:
+	return _store_message_data(channel_id, sender_id, {"content": content})
 
 
-func _store_message_data(channel_id: String, sender_id: String, message_data: Dictionary) -> void:
+func _store_message_data(channel_id: String, sender_id: String, message_data: Dictionary) -> Dictionary:
 	var channel: Resource = _channels.get(channel_id)
 	if channel == null:
-		return
+		return {}
 	var normalized := _normalize_message_data(sender_id, message_data)
 	var actual_sender_id := str(normalized.get("speaker", sender_id)).strip_edges()
 	if actual_sender_id.is_empty():
 		actual_sender_id = sender_id
+	actual_sender_id = _resolve_character_id(actual_sender_id)
 	var sender_name := resolve_sender_name(actual_sender_id)
 	var content := str(normalized.get("content", ""))
 	if content.strip_edges().is_empty() and (not normalized.has("card") or (normalized["card"] as Dictionary).is_empty()):
-		return
+		return {}
 	var extras := normalized.duplicate(true)
 	extras.erase("speaker")
 	extras.erase("content")
 	var msg: Dictionary = channel.add_message(actual_sender_id, sender_name, content, extras)
 	message_added.emit(channel_id, msg)
 	_emit_chat_state_changed()
+	return msg
 
 
 func _normalize_message_data(default_sender_id: String, message_data: Dictionary) -> Dictionary:
@@ -380,6 +456,10 @@ func _normalize_message_data(default_sender_id: String, message_data: Dictionary
 		var card := _sanitize_message_card(message_data["card"])
 		if not card.is_empty():
 			normalized["card"] = card
+	for key in message_data:
+		if key in ["content", "speaker", "sender_id", "card"]:
+			continue
+		normalized[key] = message_data[key]
 	return normalized
 
 
@@ -465,6 +545,11 @@ func get_all_npc_ids() -> Array[String]:
 
 func resolve_sender_name(sender_id: String) -> String:
 	if sender_id == "player":
+		var story_director: Node = get_node_or_null("/root/StoryDirector")
+		if story_director != null and story_director.has_method("get_variable"):
+			var nickname: String = str(story_director.get_variable("player_name", "")).strip_edges()
+			if not nickname.is_empty():
+				return nickname
 		return "玩家"
 	if sender_id == "system":
 		return "系统"
@@ -472,6 +557,16 @@ func resolve_sender_name(sender_id: String) -> String:
 	if npc:
 		return npc.display_name
 	return sender_id
+
+
+## 将 display_name 或 character_id 统一解析为 character_id
+func _resolve_character_id(raw_id: String) -> String:
+	if npc_manager.get_npc(raw_id) != null:
+		return raw_id
+	var npc := npc_manager.find_npc_by_display_name(raw_id)
+	if npc != null:
+		return npc.character_id
+	return raw_id
 
 #endregion
 
@@ -571,9 +666,15 @@ func request_topic_npc_reply(
 #region Moments API (朋友圈)
 
 ## 发布朋友圈动态（由 NPC 通过 Topic 系统或外部调用）
-func post_moment(npc_id: String, content: String, image_hint: String = "", likes: int = 0) -> Dictionary:
-	var npc := npc_manager.get_npc(npc_id)
-	var npc_name: String = npc.display_name if npc else npc_id
+func post_moment(
+	npc_id: String,
+	content: String,
+	image_hint: String = "",
+	likes: int = 0,
+	author_override: Dictionary = {}
+) -> Dictionary:
+	var author := _build_moment_author_snapshot(npc_id, author_override)
+	var npc_name: String = str(author.get("display_name", npc_id)).strip_edges()
 
 	var tm: Node = get_node_or_null("/root/TimeManager")
 	var ts: int = tm.get_game_timestamp() if tm else int(Time.get_unix_time_from_system())
@@ -583,6 +684,7 @@ func post_moment(npc_id: String, content: String, image_hint: String = "", likes
 		"id": "moment_%d_%d" % [ts, _moments.size()],
 		"npc_id": npc_id,
 		"npc_name": npc_name,
+		"author": author,
 		"content": content,
 		"image_hint": image_hint,
 		"timestamp": ts,
@@ -596,6 +698,35 @@ func post_moment(npc_id: String, content: String, image_hint: String = "", likes
 	moment_posted.emit(moment)
 	_emit_chat_state_changed()
 	return moment
+
+
+func _build_moment_author_snapshot(npc_id: String, author_override: Dictionary = {}) -> Dictionary:
+	var author: Dictionary = {
+		"id": npc_id,
+		"display_name": npc_id,
+		"avatar_mode": "seed",
+		"avatar_seed": npc_id,
+	}
+	var npc := npc_manager.get_npc(npc_id)
+	if npc != null:
+		author["display_name"] = str(npc.display_name).strip_edges()
+		author["avatar_mode"] = "npc_ref"
+		author["avatar_id"] = npc_id
+		author["avatar_seed"] = str(npc.display_name).strip_edges()
+	elif MOMENT_AUTHOR_PRESETS.has(npc_id):
+		var preset: Dictionary = MOMENT_AUTHOR_PRESETS[npc_id]
+		for key in preset:
+			author[key] = preset[key]
+	for key in author_override:
+		author[key] = author_override[key]
+	var display_name := str(author.get("display_name", "")).strip_edges()
+	if display_name.is_empty():
+		display_name = npc_id
+	author["display_name"] = display_name
+	var avatar_seed := str(author.get("avatar_seed", "")).strip_edges()
+	if avatar_seed.is_empty():
+		author["avatar_seed"] = display_name
+	return author
 
 
 ## 玩家点赞
@@ -626,14 +757,38 @@ func clear_moments_unread() -> void:
 
 
 ## 添加示例朋友圈（初始化用）
+## 注意：这些是游戏开始前就存在的朋友圈，不应包含比赛相关内容
 func _setup_default_moments() -> void:
-	post_moment("npc_lin_xia", "报名了！AGJ 2025 新星赛道，两个人的队伍，冲冲冲💪", "", 8)
-	post_moment("npc_agj_assist", "【赛事公告】Lumina Engine v3.2 已正式下发至各参赛队伍工作流！祝各位好运！", "", 128)
-	post_moment("npc_classmate_a", "绝望了，剧本写了三版都被策划毙了，我这头发还能留到毕业吗...", "", 5)
-	post_moment("npc_classmate_b", "兄弟们听说最近很火的那个克苏鲁缝合消除游戏没？感觉有搞头，我准备在这次jam里抄一个 [狗头]", "", 2)
-	post_moment("npc_class_monitor", "明天老李的软件原理课要点名，选了这门课的兄弟别睡过头了。", "", 32)
-	post_moment("npc_lin_xia", "Lumina Engine 的文档好厚……今晚先啃完官方教程再说", "", 3)
-	_moments_unread = 6
+	# 按时间从旧到新排列（post_moment 会 insert 到头部，所以最后 post 的显示在最上面）
+
+	# --- 较早的动态 ---
+	post_moment("npc_hs_liu", "入职第三个月终于不用天天加班到十点了（今天只加到九点半 [狗头]）。工资到手发现交完房租也没剩多少……成年人的世界果然没有容易二字",
+		"昏暗的办公室工位，电脑屏幕亮着，桌上散落着空咖啡杯和零食包装袋。窗外是城市夜景。", 8)
+	post_moment("npc_uni_wang", "保研上岸后的第一个长假！海边日落太美了🌊 大学最后一段自由时光，必须好好珍惜。",
+		"金色的海边日落，沙滩上留下一串脚印，远处海平面上太阳正在下沉，天空被染成橙红色。手机自拍视角能看到一只举着冰淇淋的手。", 23)
+	post_moment("npc_hs_sun", "今天背了8小时英语真题，政治肖四还没开始看。二战考研如果再考不上我就去送外卖了🆘 有没有研友给点精神支持",
+		"凌晨的书桌，堆满了考研英语真题集、政治大纲和荧光笔。台灯发出暖黄色的光，旁边放着一杯已经凉了的速溶咖啡。", 6)
+	post_moment("npc_mom", "和老姐妹们到了度假村！泡完温泉整个人都舒坦了，拍了好多照片回来给你看😊 你在学校要好好吃饭，别老吃外卖！",
+		"几位中年女性穿着度假村浴袍在温泉池边合影，大家笑得很开心。背景是竹林和冒着热气的温泉水面。手机拍摄，构图略歪。", 15)
+	post_moment("npc_hs_zhao", "省考倒计时42天。行测第267天打卡，正确率终于稳定在70+了😭 申论还是一塌糊涂……这辈子就和公务员考试死磕了。",
+		"手机截图：一个学习打卡App的界面，显示'连续打卡267天'，今日学习时长8小时32分钟，正确率72%。", 3)
+	post_moment("npc_classmate_a", "关于把蓝鲸大学称为985的问题，我必须再次严正声明：蓝鲸大学是全国顶尖三所高校之一，不是普通985。以下三种人最喜欢这么叫：1.自己母校是非顶尖985，想抱蓝大大腿掩盖差距的；2.自己是211及以下想缩小差距的自媒体博主；3.只知道青白985211分级的无知群众……（长文预警）",
+		"", 18)
+	post_moment("npc_classmate_b", "学校食堂三楼的麻辣香锅今天居然涨价了 这辈子有什么意义 活着有哪些用 人生到底在追求什么 我只是想吃个15块的麻辣香锅",
+		"", 11)
+
+	# --- 最近的动态（显示在最上面）---
+	post_moment("npc_class_monitor", "毕业照预约开始了！23级的同学们记得在教务系统上选时间段，过期不候。另外学位服押金200，拍完退。",
+		"教务系统截图，页面标题'2027届本科毕业生毕业照预约'，下方是按院系分列的时间段表格，部分热门时段已标红'已满'。", 26)
+	post_moment("npc_lin_xia", "春天的南门银杏大道好好看……趁毕业前多拍几张",
+		"一条铺满嫩绿银杏叶的校园大道，两侧是老旧的教学楼，阳光透过树叶洒下斑驳光影。画面温暖明亮，有种青春即将结束的朦胧感。", 12)
+	post_moment("npc_mom", "转发：十种隔夜菜千万不能吃！第三种很多人天天在吃！！ \n\n你看看这个，外卖的东西真的不卫生",
+		"一篇典型的养生公众号文章截图，标题用大红色加粗字体，配了一张食物图片。", 4)
+	post_moment("npc_hs_sun", "凌晨3点 背完最后一套政治模拟题 窗外已经有鸟叫了 突然不知道自己为什么要这么拼",
+		"深夜窗边，台灯照亮一摞书和笔记本。窗帘缝隙透出一丝灰蓝色的天光，桌面上有一个倒空的泡面桶。", 2)
+	post_moment("npc_classmate_a", "转发一下：蓝鲸大学2027届本科生初次就业率达98.7%，位列全省高校第一。这是学校就业指导中心刚发布的数据。有些人总质疑我们学校的就业质量，数据摆在这里，请自行查阅。顶一个。",
+		"一张蓝鲸大学官网就业数据统计图的截图，柱状图显示各年度就业率对比，蓝大始终在最高位。", 31)
+	_moments_unread = 12
 
 #endregion
 
@@ -755,6 +910,7 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 	# 解析推荐回复
 	var recommended_replies: Array[String] = parsed_response.get("recommended_replies", [])
 	var topic_complete_from_protocol: bool = bool(parsed_response.get("topic_complete", false))
+	var topic_failed_from_protocol: bool = bool(parsed_response.get("topic_failed", false))
 	var topic_summary_from_protocol := str(parsed_response.get("topic_summary", "")).strip_edges()
 	var parsed_events: Array[Dictionary] = []
 	var raw_events: Variant = parsed_response.get("events", [])
@@ -770,15 +926,18 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 	var complete_after_response: bool = _pending_complete_topic_after_response
 	_pending_auto_store_response = false
 	_pending_complete_topic_after_response = false
+	var stored_messages: Array[Dictionary] = []
 
 	# ChatManager 始终负责存储消息（业务逻辑不依赖 UI）
 	for msg in parsed_messages:
-		store_npc_message_data(channel_id, msg)
+		var stored_message := store_npc_message_data(channel_id, msg)
+		if not stored_message.is_empty():
+			stored_messages.append(stored_message)
 
 	# 通知 UI 做打字机动画（纯展示信号，无业务逻辑）
 	# auto_store 路径的调用方不需要 UI 动画，跳过 emit
 	if not auto_store:
-		npc_messages_received.emit(channel_id, parsed_messages, recommended_replies)
+		npc_messages_received.emit(channel_id, stored_messages, recommended_replies)
 
 	if topic:
 		var immediate_effects := _split_protocol_effects_by_timing(parsed_events, parsed_actions, "immediate")
@@ -812,23 +971,26 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 
 	# 检查 Topic 完成
 	if topic and complete_after_response:
-		var summary := topic_summary_from_protocol
-		if summary.is_empty():
-			summary = _extract_topic_summary_from_messages(parsed_messages)
-		var topic_result := {"messages": parsed_messages, "summary": summary}
+		var topic_result := {"messages": parsed_messages}
+		if not topic_summary_from_protocol.is_empty():
+			topic_result["summary"] = topic_summary_from_protocol
+		if topic_failed_from_protocol:
+			topic_result["topic_failed"] = true
 		_request_topic_completion(channel_id, topic, topic_result)
 		return
 
-	if topic and not debug_mode:
+	if topic:
 		var has_complete_marker := topic_complete_from_protocol or _messages_have_complete_marker(parsed_messages)
 		if has_complete_marker:
 			var topic_result := {"messages": parsed_messages}
 			if not topic_summary_from_protocol.is_empty():
 				topic_result["summary"] = topic_summary_from_protocol
+			if topic_failed_from_protocol:
+				topic_result["topic_failed"] = true
 			_request_topic_completion(channel_id, topic, topic_result)
 
 	# 检查轮数超限
-	if topic and not debug_mode and topic.max_turns > 0 and topic.turn_count >= topic.max_turns:
+	if topic and topic.max_turns > 0 and topic.turn_count >= topic.max_turns:
 		topic_manager.timeout_topic(topic)
 
 
@@ -988,6 +1150,8 @@ func _execute_protocol_action(topic: ChatTopic, action: Dictionary) -> void:
 			_execute_protocol_lock_app_window(action)
 		"unlock_app_window":
 			_execute_protocol_unlock_app_window(action)
+		"generate_work_order":
+			_execute_protocol_generate_work_order(topic, action)
 		_:
 			push_warning("[ChatManager] Unsupported protocol action: %s" % action_type)
 
@@ -1077,6 +1241,155 @@ func _execute_protocol_unlock_app_window(action: Dictionary) -> void:
 		return
 
 	app_mgr.unlock_app_window(app_id)
+
+
+func _execute_protocol_generate_work_order(topic: ChatTopic, action: Dictionary) -> void:
+	var wo_mgr: Node = get_node_or_null("/root/WorkOrderManager")
+	if wo_mgr == null:
+		push_warning("[ChatManager] WorkOrderManager not found, cannot generate work order")
+		return
+
+	var hint_title := str(action.get("title", "")).strip_edges()
+	if hint_title.is_empty():
+		hint_title = topic.display_title
+
+	var assignee := str(action.get("assignee", topic.npc_id)).strip_edges()
+
+	# 从 channel 获取对话历史
+	var channel: Resource = _channels.get(topic.channel_id)
+	var conversation_log := ""
+	if channel != null:
+		for msg in channel.messages:
+			var sender := str(msg.get("sender_name", msg.get("sender_id", "???")))
+			var content := str(msg.get("content", ""))
+			if not content.strip_edges().is_empty():
+				conversation_log += "%s: %s\n" % [sender, content]
+
+	# 收集 KB 上下文
+	var kb_context := _build_kb_context_for_work_order()
+
+	# NPC 可通过 prompt 参数指定工单的结构要求
+	var extra_prompt := str(action.get("prompt", "")).strip_edges()
+
+	var user_prompt := """以下是一段关于「%s」的讨论记录，请根据讨论中达成的共识，生成一份结构化的工单。
+
+## 讨论背景
+%s
+
+## 对话记录
+%s""" % [hint_title, topic.system_prompt, conversation_log]
+
+	var requirement_section := ""
+	if not extra_prompt.is_empty():
+		requirement_section = "\n\n工单内容必须覆盖以下要点：\n%s\n" % extra_prompt
+
+	var system_prompt := """你是一个游戏开发项目的工单撰写助手。
+
+## 什么是工单
+工单是分配给 AI 工作代理（Controller Agent）的任务单。Controller 拿到工单后会阅读 description，然后调用工具完成任务。
+因此工单的 description 必须是明确的、可执行的指令，而不是模糊的方向总结。
+
+## Controller 的能力
+Controller 可以通过以下子代理完成工作：
+- planner：创建/修改知识库（KB）条目，包括世界观(world)、角色(characters)、剧情(story)、备注(notes)等
+- writer：根据知识库内容创建 AVG 场景和 DSL 脚本
+- executor：执行数据操作（重命名、删除等）
+
+## 你的任务
+根据讨论记录中达成的共识，撰写一份 Controller 能直接执行的工单。
+
+## description 的写法
+description 应该包含：
+1. 简要背景（一两句话）
+2. 具体需要完成的交付物清单（例如："在知识库 world 分类下创建一篇世界观基底文档"）
+3. 每项交付物的内容要求（根据讨论结果填写）
+4. 明确的约束条件
+%s
+你必须严格使用以下 JSON 格式回复，不要输出任何其他内容：
+{"title": "工单标题", "description": "详细的可执行需求描述"}
+
+当前项目知识库摘要：
+%s""" % [requirement_section, kb_context]
+
+	# 创建一次性 AIService 异步生成工单
+	var ai := AIService.new()
+	ai.name = "ChatMgrGenWO"
+	add_child(ai)
+	var config_mgr := AIConfigManager.get_instance()
+	config_mgr.apply_to_service(ai, "work_order")
+
+	ai.request_completed.connect(
+		func(_request_id: String, response: Dictionary) -> void:
+			_on_protocol_work_order_generated(response, wo_mgr, assignee, hint_title, topic.topic_id)
+			ai.queue_free()
+	)
+	ai.request_failed.connect(
+		func(_request_id: String, error: String, _error_code: int) -> void:
+			push_warning("[ChatManager] generate_work_order LLM failed: %s" % error)
+			ai.queue_free()
+	)
+
+	print("[ChatManager] generate_work_order: 开始 LLM 生成工单 (hint: %s, assignee: %s)" % [hint_title, assignee])
+	ai.chat_simple(user_prompt, system_prompt)
+
+
+func _on_protocol_work_order_generated(response: Dictionary, wo_mgr: Node, assignee: String, fallback_title: String, source_topic_id: String) -> void:
+	var content := AIService.extract_content(response).strip_edges()
+	if content.is_empty():
+		push_warning("[ChatManager] generate_work_order: empty LLM response")
+		return
+
+	# 清理 markdown 代码块包裹
+	if content.begins_with("```"):
+		var first_nl := content.find("\n")
+		if first_nl >= 0:
+			content = content.substr(first_nl + 1)
+		if content.ends_with("```"):
+			content = content.substr(0, content.length() - 3).strip_edges()
+
+	var json := JSON.new()
+	if json.parse(content) != OK or typeof(json.data) != TYPE_DICTIONARY:
+		push_warning("[ChatManager] generate_work_order: failed to parse LLM JSON: %s" % content)
+		return
+
+	var data: Dictionary = json.data
+	var title := str(data.get("title", "")).strip_edges()
+	var desc := str(data.get("description", "")).strip_edges()
+	if title.is_empty():
+		title = fallback_title
+
+	var order: Resource = wo_mgr.create_order(title, desc, {
+		"source_type": "linkchat",
+		"source_id": source_topic_id,
+	})
+	if order == null:
+		push_warning("[ChatManager] generate_work_order: failed to create order")
+		return
+
+	order.assignee_npc_id = assignee
+	if not wo_mgr.dispatch_order(order.id):
+		push_warning("[ChatManager] generate_work_order: failed to dispatch order %s" % order.id)
+		return
+	print("[ChatManager] generate_work_order: 工单已派发 %s (%s) -> %s" % [order.id, title, assignee])
+
+
+func _build_kb_context_for_work_order() -> String:
+	var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
+	if kb == null:
+		return "(知识库不可用)"
+	if not kb.has_method("get_documents"):
+		return "(知识库接口不可用)"
+	var docs: Array = kb.get_documents()
+	if docs.is_empty():
+		return "(知识库为空)"
+	var lines: PackedStringArray = []
+	for doc in docs:
+		lines.append("- [%s] %s: %s" % [
+			str(doc.get("category", "")),
+			str(doc.get("title", "")),
+			str(doc.get("content", "")).left(100),
+		])
+	return "\n".join(lines)
 
 
 func _focus_protocol_window_channel(window: Control, app_id: String, channel_id: String) -> void:
@@ -1212,6 +1525,33 @@ func _on_topic_timeout(topic: ChatTopic) -> void:
 #endregion
 
 
+#region 每日对话重置
+
+func _on_day_changed(_new_day: int) -> void:
+	# DailyMemorySummarizer 已先于此回调连接 day_changed，
+	# 它在同步阶段就已收集完前一天的消息数据，此处可安全清空。
+	_clear_all_channel_messages()
+
+
+## 清空所有频道的消息历史和未读计数
+func _clear_all_channel_messages() -> void:
+	var cleared_count: int = 0
+	for channel_id in _channels:
+		var channel: ChatChannel = _channels[channel_id] as ChatChannel
+		if channel == null:
+			continue
+		if channel.messages.is_empty():
+			continue
+		channel.messages.clear()
+		channel.unread_count = 0
+		cleared_count += 1
+	if cleared_count > 0:
+		print("[ChatManager] Day transition: cleared messages in %d channel(s)" % cleared_count)
+		_emit_chat_state_changed()
+
+#endregion
+
+
 #region Persistence
 
 func get_run_state() -> Dictionary:
@@ -1323,7 +1663,10 @@ func _restore_moments(moments_state: Variant) -> void:
 		return
 	for item in moments_state:
 		if item is Dictionary:
-			_moments.append((item as Dictionary).duplicate(true))
+			var moment := (item as Dictionary).duplicate(true)
+			if not moment.has("author"):
+				moment["author"] = _build_moment_author_snapshot(str(moment.get("npc_id", "")).strip_edges())
+			_moments.append(moment)
 
 
 func _reset_runtime_transients() -> void:
@@ -1441,11 +1784,16 @@ func _parse_ai_response_text(text: String, fallback_npc_id: String) -> Dictionar
 		line_protocol_result.erase("valid")
 		return line_protocol_result
 
-	var parse_source: String = clean_text.replace("[TOPIC_COMPLETE]", "")
+	var has_failed_marker: bool = "[TOPIC_FAILED]" in clean_text
+	var parse_source: String = clean_text.replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "")
 	var json_str := _extract_json_from_text(parse_source)
 	var response_json: Variant = JSON.parse_string(json_str)
 	if response_json != null and response_json is Dictionary:
-		return _parse_json_response_dict(response_json as Dictionary, fallback_npc_id, "[TOPIC_COMPLETE]" in clean_text)
+		var result := _parse_json_response_dict(response_json as Dictionary, fallback_npc_id, "[TOPIC_COMPLETE]" in clean_text)
+		if has_failed_marker:
+			result["topic_failed"] = true
+			result["topic_complete"] = true  # failed 也意味着 topic 结束
+		return result
 
 	push_warning("[ChatManager] Failed to parse structured AI response. Fallback to raw text message.")
 	return {
@@ -1563,6 +1911,31 @@ func _parse_line_protocol_response(text: String, fallback_npc_id: String) -> Dic
 			has_complete_marker = true
 			saw_protocol_line = true
 			continue
+		if line == "[TOPIC_FAILED]":
+			has_complete_marker = true  # failed 也结束 topic
+			saw_protocol_line = true
+			continue
+		var bracket_command := _parse_bracket_command(line)
+		if not bracket_command.is_empty():
+			var cmd_name := str(bracket_command.get("name", ""))
+			var cmd_params: Dictionary = bracket_command.get("params", {})
+			match cmd_name:
+				"event":
+					var parsed_event := _parse_protocol_event(cmd_params)
+					if not parsed_event.is_empty():
+						parsed_events.append(parsed_event)
+						saw_protocol_line = true
+				"complete":
+					has_complete_marker = true
+					has_explicit_complete_command = true
+					complete_summary = str(cmd_params.get("summary", cmd_params.get("text", ""))).strip_edges()
+					saw_protocol_line = true
+				_:
+					var parsed_action := _parse_protocol_action(_normalize_protocol_action_command(cmd_name, cmd_params))
+					if not parsed_action.is_empty():
+						parsed_actions.append(parsed_action)
+						saw_protocol_line = true
+			continue
 		if line.begins_with("!"):
 			var command := _parse_line_protocol_command(line)
 			var command_name := str(command.get("name", ""))
@@ -1578,8 +1951,8 @@ func _parse_line_protocol_response(text: String, fallback_npc_id: String) -> Dic
 					if not parsed_event.is_empty():
 						parsed_events.append(parsed_event)
 						saw_protocol_line = true
-				"action":
-					var parsed_action := _parse_protocol_action(command_params)
+				_:
+					var parsed_action := _parse_protocol_action(_normalize_protocol_action_command(command_name, command_params))
 					if not parsed_action.is_empty():
 						parsed_actions.append(parsed_action)
 						saw_protocol_line = true
@@ -1628,6 +2001,34 @@ func _parse_line_protocol_response(text: String, fallback_npc_id: String) -> Dic
 	}
 
 
+## 解析 [command key=value ...] 格式的方括号协议命令
+## 支持 [TOPIC_COMPLETE] 之外的 bracket protocol，包括旧写法 [action type=...] 和新写法 [generate_work_order ...]
+## 返回 {"name": "command_name", "params": {...}} 或空字典
+func _parse_bracket_command(line: String) -> Dictionary:
+	if not line.begins_with("[") or not line.ends_with("]"):
+		return {}
+	var inner := line.substr(1, line.length() - 2).strip_edges()
+	if inner.is_empty():
+		return {}
+	# 排除已知的非命令标记（如 [card:...] 由消息解析处理）
+	if inner.begins_with("card:"):
+		return {}
+	var first_space := inner.find(" ")
+	var command_name := inner
+	var params_text := ""
+	if first_space != -1:
+		command_name = inner.substr(0, first_space).strip_edges()
+		params_text = inner.substr(first_space + 1).strip_edges()
+	command_name = command_name.to_lower()
+	# 只接受已知的协议命令，避免把普通方括号文本误判成控制行
+	if command_name not in ["action", "event", "complete"] and command_name not in PROTOCOL_DIRECT_ACTION_COMMANDS:
+		return {}
+	return {
+		"name": command_name,
+		"params": _parse_protocol_key_values(params_text),
+	}
+
+
 func _parse_line_protocol_command(line: String) -> Dictionary:
 	if not line.begins_with("!"):
 		return {}
@@ -1647,6 +2048,22 @@ func _parse_line_protocol_command(line: String) -> Dictionary:
 		"name": command_name.to_lower(),
 		"params": _parse_protocol_key_values(params_text),
 	}
+
+
+func _normalize_protocol_action_command(command_name: String, params: Dictionary) -> Dictionary:
+	var normalized_name := command_name.strip_edges().to_lower()
+	if normalized_name.is_empty():
+		return {}
+
+	if normalized_name == "action":
+		return params.duplicate(true)
+
+	if normalized_name not in PROTOCOL_DIRECT_ACTION_COMMANDS:
+		return {}
+
+	var action_data := params.duplicate(true)
+	action_data["type"] = normalized_name
+	return action_data
 
 
 func _parse_protocol_event(raw_data: Dictionary) -> Dictionary:
@@ -1809,7 +2226,14 @@ func _strip_protocol_control_lines(text: String) -> String:
 	for raw_line in text.split("\n"):
 		var line := str(raw_line)
 		var stripped := line.strip_edges()
-		if stripped == "[TOPIC_COMPLETE]" or stripped.begins_with("!"):
+		if stripped == "[TOPIC_COMPLETE]":
+			continue
+		if not _parse_bracket_command(stripped).is_empty():
+			continue
+		var bang_command := _parse_line_protocol_command(stripped)
+		if not bang_command.is_empty() and not _normalize_protocol_action_command(str(bang_command.get("name", "")), bang_command.get("params", {})).is_empty():
+			continue
+		if not bang_command.is_empty() and str(bang_command.get("name", "")) in ["event", "complete"]:
 			continue
 		kept_lines.append(line)
 	return "\n".join(kept_lines).strip_edges()
@@ -1835,12 +2259,5 @@ func _messages_have_complete_marker(messages: Array[Dictionary]) -> bool:
 			return true
 	return false
 
-
-func _extract_topic_summary_from_messages(messages: Array[Dictionary]) -> String:
-	for i in range(messages.size() - 1, -1, -1):
-		var content_text := str(messages[i].get("content", "")).replace("[TOPIC_COMPLETE]", "").strip_edges()
-		if not content_text.is_empty():
-			return content_text
-	return ""
 
 #endregion

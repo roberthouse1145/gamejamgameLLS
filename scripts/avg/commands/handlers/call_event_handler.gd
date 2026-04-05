@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name CallEventHandler
 ## Handler for CALL_EVENT command
 ## Calls a reusable event (command sequence).

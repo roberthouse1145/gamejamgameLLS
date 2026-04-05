@@ -22,7 +22,7 @@
 				"requires_no_topic": false
 			},
 			"budget": {
-				"cost": 120,
+				"cost": 60,
 				"max_scope_count": 4
 			},
 			"behavior": {
@@ -52,7 +52,7 @@
 				"requires_no_topic": true
 			},
 			"budget": {
-				"cost": 120,
+				"cost": 60,
 				"max_scope_count": 4
 			},
 			"behavior": {
@@ -82,7 +82,7 @@
 				"requires_no_topic": false
 			},
 			"budget": {
-				"cost": 120,
+				"cost": 60,
 				"max_scope_count": 4
 			},
 			"behavior": {
@@ -101,7 +101,7 @@
 			"insert_position": "lore_facts",
 			"trigger": {
 				"mode": "any",
-				"keys": ["AGJ", "Arcade Grand Jam", "创界", "大锅饭", "新星赛道", "比赛", "gamejam", "game jam"],
+				"keys": ["AGJ", "Arcade Grand Jam", "创界", "大锅饭", "新星赛道", "gamejam", "game jam"],
 				"secondary_mode": "none",
 				"secondary_keys": []
 			},
@@ -112,13 +112,13 @@
 				"requires_no_topic": false
 			},
 			"budget": {
-				"cost": 100,
+				"cost": 70,
 				"max_scope_count": 2
 			},
 			"behavior": {
 				"kind": "fact"
 			},
-			"content": "AGJ 2025（创界大赛）是亚太互动创作者协会（APICA）主办的世界级 GameJam，本届为 ADV 赛季，比赛时长 45 天。玩家和林夏参加新星赛道（仅限在校学生）。比赛全程线上进行，选手在家开发和提交；只有挺进决赛才需要线下布展和答辩。若上下文没有给出更具体的赛事细节，不要擅自补出官方条款、截止时间、评审流程或提交流程。",
+"content": "AGJ 2027（创界大赛）是亚太互动创作者协会（APICA）主办的世界级 GameJam，本届为 ADV 赛季，比赛时长 45 天。玩家和林夏参加新星赛道（仅限在校学生）。比赛全程线上进行，选手在家开发和提交；只有挚进决赛才需要线下布展和答辩。若上下文没有给出更具体的赛事细节，不要擅自补出官方条款、截止时间、评审流程或提交流程。",
 			"tags": ["canon", "fact"]
 		},
 		{
@@ -131,7 +131,7 @@
 			"insert_position": "lore_facts",
 			"trigger": {
 				"mode": "any",
-				"keys": ["住", "家", "房间", "宿舍", "回来", "到家", "在家", "出门", "回去", "同居", "合租", "房子", "公寓", "客厅", "厨房"],
+				"keys": ["同居", "合租", "两居室", "公寓", "客厅", "厨房", "卫生间"],
 				"secondary_mode": "none",
 				"secondary_keys": []
 			},
@@ -142,13 +142,13 @@
 				"requires_no_topic": false
 			},
 			"budget": {
-				"cost": 80,
+				"cost": 60,
 				"max_scope_count": 2
 			},
 			"behavior": {
 				"kind": "fact"
 			},
-			"content": "玩家和林夏在校外合租一套两居室小公寓，各自有独立房间，共用客厅、厨房和卫生间。两人非常尊重彼此的私人空间，日常各自待在自己房间通过软件远程交流，需要讨论或想待在一起时才到客厅或对方房间。他们没有住学校宿舍，也没有在外地。",
+			"content": "玩家和林夏在蓝鲸大学南门附近校外合租两居室小公寓，各自有独立房间，共用客厅、厨房和卫生间。日常各自在房间通过软件交流，不住学校宿舍。",
 			"tags": ["canon", "fact"]
 		},
 		{
@@ -161,7 +161,7 @@
 			"insert_position": "lore_constraints",
 			"trigger": {
 				"mode": "any",
-				"keys": ["宿舍", "酒店", "外地", "出差", "集训", "住在哪", "搬", "回学校"],
+				"keys": ["宿舍", "酒店", "外地", "出差", "集训", "搬家", "回学校"],
 				"secondary_mode": "none",
 				"secondary_keys": []
 			},
@@ -178,7 +178,7 @@
 			"behavior": {
 				"kind": "constraint"
 			},
-			"content": "玩家和林夏住在校外合租公寓，不住学校宿舍。比赛是线上进行，两人在家开发，没有去外地、没有住酒店、没有集训营。不得编造与此矛盾的居住状态。",
+			"content": "玩家和林夏住在蓝鲸大学附近的校外合租公寓，不住学校宿舍。比赛线上进行，两人在澜京的家里开发。不得编造与此矛盾的居住状态。",
 			"tags": ["constraint", "canon"]
 		},
 		{
@@ -191,7 +191,7 @@
 			"insert_position": "lore_facts",
 			"trigger": {
 				"mode": "any",
-				"keys": ["兼职", "打工", "赚钱", "工作", "便利店", "咖啡", "外包", "零花钱", "房租", "生活费"],
+				"keys": ["兼职", "打工", "赚钱", "便利店", "外包", "零花钱", "房租", "生活费"],
 				"secondary_mode": "none",
 				"secondary_keys": []
 			},
@@ -202,7 +202,7 @@
 				"requires_no_topic": false
 			},
 			"budget": {
-				"cost": 70,
+				"cost": 50,
 				"max_scope_count": 2
 			},
 			"behavior": {
@@ -221,7 +221,7 @@
 			"insert_position": "lore_facts",
 			"trigger": {
 				"mode": "any",
-				"keys": ["毕业", "论文", "毕设", "上课", "学校", "大学", "大四", "学期", "课"],
+				"keys": ["毕业", "论文", "毕设", "上课", "大四", "学期", "答辩"],
 				"secondary_mode": "none",
 				"secondary_keys": []
 			},
@@ -232,13 +232,13 @@
 				"requires_no_topic": false
 			},
 			"budget": {
-				"cost": 60,
+				"cost": 50,
 				"max_scope_count": 2
 			},
 			"behavior": {
 				"kind": "fact"
 			},
-			"content": "两人都是大四下学期，同班同学，数字媒体艺术专业。课程已经很少，主要精力放在比赛上，但毕业论文/毕设仍然悬在头上偶尔需要处理。",
+			"content": "两人都是蓝鲸大学大四下学期同班同学，数字媒体艺术专业。课程已经很少，主要精力放在比赛上，但毕业论文/毕设仍然悬在头上偶尔需要处理。",
 			"tags": ["canon", "fact"]
 		}
 	]

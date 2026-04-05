@@ -6,7 +6,7 @@ var _wm: WindowManager = null
 
 
 func _ready() -> void:
-	print("=== Home App Launch Test ===")
+	print("=== Sleep App Launch Test ===")
 
 	_wm = WindowManager.new()
 	_wm.name = "WindowManager"
@@ -24,23 +24,23 @@ func _ready() -> void:
 		return
 
 	am.window_manager = _wm
-	if not am.app_registry.has("home"):
-		print("[FAIL] home app not registered")
+	if not am.app_registry.has("sleep"):
+		print("[FAIL] sleep app not registered")
 		return
 
-	var window: Control = am.launch_app("home")
+	var window: Control = am.launch_app("sleep")
 	if window == null:
-		print("[FAIL] home app failed to launch")
+		print("[FAIL] sleep app failed to launch")
 		return
 
 	await get_tree().process_frame
 
 	var content: Control = window.get("content")
 	if content == null:
-		print("[FAIL] home app content missing")
+		print("[FAIL] sleep app content missing")
 		return
 
 	if content.get_script() == HomeAppClass:
-		print("[OK] home app launched")
+		print("[OK] sleep app launched")
 	else:
-		print("[FAIL] launched content is not HomeApp")
+		print("[FAIL] launched content is not HomeApp (SleepApp)")

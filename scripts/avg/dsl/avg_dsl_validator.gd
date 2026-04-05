@@ -55,11 +55,9 @@ func validate_commands(commands: Array, project: Resource, project_root_path: St
 			errors.append("Command %d is missing command_type" % (index + 1))
 			continue
 
-		if not allowed_commands.is_empty() and not allowed_commands.has(command_type):
-			errors.append("Command %d uses disallowed type: %s" % [index + 1, command_type])
-			continue
-
 		match command_type:
+			"DIALOGUE":
+				_validate_dialogue(index, params, character_map, errors)
 			"SHOW_CHARACTER":
 				_validate_show_character(index, params, character_map, allowed_positions, errors)
 			"HIDE_CHARACTER":
@@ -101,6 +99,22 @@ func validate_commands(commands: Array, project: Resource, project_root_path: St
 	}
 
 
+func _validate_dialogue(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
+	var emotion: String = _normalize_token(params.get("emotion", ""))
+	if emotion.is_empty():
+		return
+	var speaker: String = _normalize_token(params.get("speaker", ""))
+	if speaker.is_empty():
+		return
+	var character_entry: Dictionary = _resolve_character_entry(character_map, speaker)
+	if character_entry.is_empty():
+		return
+	var character_label: String = str(character_entry.get("character_id", speaker))
+	var emotions: Array[String] = character_entry.get("emotions", [])
+	if not emotions.has(emotion):
+		errors.append("DIALOGUE %d uses missing emotion on %s: %s" % [index + 1, character_label, emotion])
+
+
 func _validate_show_character(index: int, params: Dictionary, character_map: Dictionary, allowed_positions: Array[String], errors: Array[String]) -> void:
 	_validate_character_reference(index, params, character_map, "character_id", "SHOW_CHARACTER", errors)
 
@@ -116,22 +130,24 @@ func _validate_show_character(index: int, params: Dictionary, character_map: Dic
 	if not DEFAULT_ALLOWED_ENTER_EFFECTS.has(enter_effect):
 		errors.append("SHOW_CHARACTER %d uses unsupported enter_effect: %s" % [index + 1, enter_effect])
 
-	var character_id: String = _normalize_token(params.get("character_id", ""))
-	if not character_map.has(character_id):
+	var character_ref: String = _normalize_token(params.get("character_id", ""))
+	var character_entry: Dictionary = _resolve_character_entry(character_map, character_ref)
+	if character_entry.is_empty():
 		return
+	var character_label: String = str(character_entry.get("character_id", character_ref))
 
 	var emotion: String = _normalize_token(params.get("emotion", ""))
 	if not emotion.is_empty():
-		var emotions: Array[String] = character_map[character_id].get("emotions", [])
+		var emotions: Array[String] = character_entry.get("emotions", [])
 		if not emotions.has(emotion):
-			errors.append("SHOW_CHARACTER %d uses missing emotion on %s: %s" % [index + 1, character_id, emotion])
+			errors.append("SHOW_CHARACTER %d uses missing emotion on %s: %s" % [index + 1, character_label, emotion])
 			return
 
 	var outfit: String = _normalize_token(params.get("outfit", ""))
-	if not _validate_outfit_name(index, character_id, outfit, "SHOW_CHARACTER", character_map, errors):
+	if not _validate_outfit_name(index, character_entry, character_label, outfit, "SHOW_CHARACTER", errors):
 		return
 
-	_validate_dynamic_sprite(index, character_map.get(character_id, {}), emotion, outfit, "SHOW_CHARACTER", errors)
+	_validate_dynamic_sprite(index, character_entry, emotion, outfit, "SHOW_CHARACTER", errors)
 
 
 func _validate_hide_character(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
@@ -147,43 +163,50 @@ func _validate_hide_character(index: int, params: Dictionary, character_map: Dic
 func _validate_change_expression(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
 	_validate_character_reference(index, params, character_map, "character_id", "CHANGE_EXPRESSION", errors)
 
-	var character_id: String = _normalize_token(params.get("character_id", ""))
+	var character_ref: String = _normalize_token(params.get("character_id", ""))
 	var expression: String = _normalize_token(params.get("expression", ""))
 	if expression.is_empty():
 		errors.append("CHANGE_EXPRESSION %d missing expression" % (index + 1))
 		return
-	if not character_map.has(character_id):
-		return
 
-	var emotions: Array[String] = character_map[character_id].get("emotions", [])
+	var character_entry: Dictionary = _resolve_character_entry(character_map, character_ref)
+	if character_entry.is_empty():
+		return
+	var character_label: String = str(character_entry.get("character_id", character_ref))
+
+	var emotions: Array[String] = character_entry.get("emotions", [])
 	if not emotions.has(expression):
-		errors.append("CHANGE_EXPRESSION %d uses missing emotion on %s: %s" % [index + 1, character_id, expression])
+		errors.append("CHANGE_EXPRESSION %d uses missing emotion on %s: %s" % [index + 1, character_label, expression])
 		return
 
 	var outfit: String = _normalize_token(params.get("outfit", ""))
-	if not _validate_outfit_name(index, character_id, outfit, "CHANGE_EXPRESSION", character_map, errors):
+	if not _validate_outfit_name(index, character_entry, character_label, outfit, "CHANGE_EXPRESSION", errors):
 		return
 
-	_validate_dynamic_sprite(index, character_map.get(character_id, {}), expression, outfit, "CHANGE_EXPRESSION", errors)
+	_validate_dynamic_sprite(index, character_entry, expression, outfit, "CHANGE_EXPRESSION", errors)
 
 
 func _validate_change_outfit(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
 	_validate_character_reference(index, params, character_map, "character_id", "CHANGE_OUTFIT", errors)
 
-	var character_id: String = _normalize_token(params.get("character_id", ""))
+	var character_ref: String = _normalize_token(params.get("character_id", ""))
 	var outfit: String = _normalize_token(params.get("outfit", ""))
 	if outfit.is_empty():
 		errors.append("CHANGE_OUTFIT %d missing outfit" % (index + 1))
 		return
-	if not character_map.has(character_id):
+
+	var character_entry: Dictionary = _resolve_character_entry(character_map, character_ref)
+	if character_entry.is_empty():
 		return
-	if not _validate_outfit_name(index, character_id, outfit, "CHANGE_OUTFIT", character_map, errors):
+	var character_label: String = str(character_entry.get("character_id", character_ref))
+
+	if not _validate_outfit_name(index, character_entry, character_label, outfit, "CHANGE_OUTFIT", errors):
 		return
 
 	var emotion: String = _normalize_token(params.get("emotion", ""))
 	if emotion.is_empty():
 		emotion = "default"
-	_validate_dynamic_sprite(index, character_map.get(character_id, {}), emotion, outfit, "CHANGE_OUTFIT", errors)
+	_validate_dynamic_sprite(index, character_entry, emotion, outfit, "CHANGE_OUTFIT", errors)
 
 
 func _validate_choice(index: int, params: Dictionary, min_choices: int, max_choices: int, errors: Array[String], warnings: Array[String]) -> void:
@@ -220,12 +243,12 @@ func _validate_hide_image(index: int, params: Dictionary, errors: Array[String])
 
 
 func _validate_character_reference(index: int, params: Dictionary, character_map: Dictionary, param_name: String, command_type: String, errors: Array[String]) -> void:
-	var character_id: String = _normalize_token(params.get(param_name, ""))
-	if character_id.is_empty():
+	var character_ref: String = _normalize_token(params.get(param_name, ""))
+	if character_ref.is_empty():
 		errors.append("%s %d missing %s" % [command_type, index + 1, param_name])
 		return
-	if not character_map.has(character_id):
-		errors.append("%s %d references missing character: %s" % [command_type, index + 1, character_id])
+	if _resolve_character_entry(character_map, character_ref).is_empty():
+		errors.append("%s %d references missing character: %s" % [command_type, index + 1, character_ref])
 
 
 func _validate_asset_ref(index: int, params: Dictionary, param_name: String, asset_label: String, project_root_path: String, buckets: Array[String], errors: Array[String]) -> void:
@@ -311,12 +334,22 @@ func _build_character_map(project: Resource) -> Dictionary:
 		if character_id.is_empty():
 			continue
 
-		var emotions: Array[String] = _collect_character_emotions(character)
-		character_map[character_id] = {
+		var character_name: String = _normalize_token(character.character_name if "character_name" in character else "")
+		var display_name: String = _normalize_token(character.display_name if "display_name" in character else "")
+		var entry: Dictionary = {
 			"character": character,
-			"emotions": emotions,
+			"character_id": character_id,
+			"character_name": character_name,
+			"display_name": display_name,
+			"emotions": _collect_character_emotions(character),
 			"outfits": _collect_character_outfits(character),
 		}
+		character_map[character_id] = entry
+
+		if not character_name.is_empty() and not character_map.has(character_name):
+			character_map[character_name] = entry
+		if not display_name.is_empty() and not character_map.has(display_name):
+			character_map[display_name] = entry
 
 	return character_map
 
@@ -371,12 +404,19 @@ func _collect_character_outfits(character: Resource) -> Array[String]:
 	return outfits
 
 
-func _validate_outfit_name(index: int, character_id: String, outfit: String, command_type: String, character_map: Dictionary, errors: Array[String]) -> bool:
+func _resolve_character_entry(character_map: Dictionary, character_ref: String) -> Dictionary:
+	var normalized_ref: String = _normalize_token(character_ref)
+	if normalized_ref.is_empty():
+		return {}
+	return character_map.get(normalized_ref, {})
+
+
+func _validate_outfit_name(index: int, character_entry: Dictionary, character_label: String, outfit: String, command_type: String, errors: Array[String]) -> bool:
 	if outfit.is_empty():
 		return true
-	var outfits: Array[String] = character_map[character_id].get("outfits", [])
+	var outfits: Array[String] = character_entry.get("outfits", [])
 	if not outfits.is_empty() and not outfits.has(outfit):
-		errors.append("%s %d uses missing outfit on %s: %s" % [command_type, index + 1, character_id, outfit])
+		errors.append("%s %d uses missing outfit on %s: %s" % [command_type, index + 1, character_label, outfit])
 		return false
 	return true
 

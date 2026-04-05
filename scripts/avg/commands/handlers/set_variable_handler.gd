@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SetVariableHandler
 ## Handler for SET_VARIABLE command
 ## 设置或修改变量。支持：

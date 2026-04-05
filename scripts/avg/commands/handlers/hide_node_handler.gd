@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name HideNodeHandler
 ## Handler for HIDE_NODE command
 ## 隐藏节点（淡出）

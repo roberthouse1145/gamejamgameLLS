@@ -20,6 +20,7 @@ class_name AVGTitleConfig extends Resource
 @export var button_font_size: int = 28
 @export var button_size: Vector2 = Vector2(300, 60)  ## 按钮像素尺寸（设计分辨率下）
 @export var button_spacing: float = 20.0  ## 按钮间距（像素）
+@export var button_style: Resource = null  ## AVGStyleBox，按钮样式（自动派生 hover/pressed/disabled）
 
 ## ---- 开始游戏按钮 ----
 @export var start_button_text: String = "开始游戏"
@@ -49,6 +50,8 @@ static func get_avg_properties() -> Array[Dictionary]:
 		{"name": "button_font_size", "type": TYPE_INT, "editable": true, "category": "按钮通用"},
 		{"name": "button_size", "type": TYPE_VECTOR2, "editable": true, "category": "按钮通用"},
 		{"name": "button_spacing", "type": TYPE_FLOAT, "editable": true, "category": "按钮通用"},
+		{"name": "button_style", "type": "sub_resource", "editable": true, "category": "按钮通用",
+		 "resource_script": "res://scripts/avg/resources/avg_style_box.gd"},
 		{"name": "start_button_text", "type": TYPE_STRING, "editable": true, "category": "开始游戏"},
 		{"name": "start_button_norm_position", "type": TYPE_VECTOR2, "editable": true, "category": "开始游戏"},
 		{"name": "load_button_text", "type": TYPE_STRING, "editable": true, "category": "读档"},

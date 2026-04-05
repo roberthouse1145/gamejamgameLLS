@@ -45,6 +45,9 @@ const SCREEN_TYPE_NAMES: Dictionary = {
 @export var close_button_size: Vector2 = Vector2(200, 50)
 @export var close_button_font_size: int = 24
 
+## ---- 按钮样式 ----
+@export var button_style: Resource = null  ## AVGStyleBox，按钮样式（自动派生 hover/pressed/disabled）
+
 ## ---- 菜单专用 ----
 @export var menu_button_texts: PackedStringArray = PackedStringArray([
 	"继续游戏", "存档", "读档", "历史记录", "设置", "回到标题", "退出游戏"
@@ -111,6 +114,8 @@ static func get_avg_properties() -> Array[Dictionary]:
 		{"name": "close_button_norm_position", "type": TYPE_VECTOR2, "editable": true, "category": "关闭按钮"},
 		{"name": "close_button_size", "type": TYPE_VECTOR2, "editable": true, "category": "关闭按钮"},
 		{"name": "close_button_font_size", "type": TYPE_INT, "editable": true, "category": "关闭按钮"},
+		{"name": "button_style", "type": "sub_resource", "editable": true, "category": "按钮样式",
+		 "resource_script": "res://scripts/avg/resources/avg_style_box.gd"},
 		# 菜单专用
 		{"name": "menu_button_texts", "type": TYPE_PACKED_STRING_ARRAY, "editable": true, "category": "菜单按钮",
 		 "visible_when": "screen_type == 0"},

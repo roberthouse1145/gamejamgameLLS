@@ -1,12 +1,36 @@
 {
-  "backgrounds": {
-	"bg_park_grass": "res://templates/tutorial_project/assets/images/background/WildGrass.png",
-	"bg_village_road": "res://templates/tutorial_project/assets/images/background/VillageRoad.jpg",
-	"bg_town_outside_1": "res://templates/tutorial_project/assets/images/background/TownOutside1.jpg",
-	"bg_town_outside_2": "res://templates/tutorial_project/assets/images/background/TownOutside2.jpg",
-	"bg_street_day": "res://templates/tutorial_project/assets/images/background/Street.jpg",
-	"bg_hotel_room": "res://templates/tutorial_project/assets/images/background/HotelRoomInside.jpg"
-  },
-  "bgm": {},
-  "sfx": {}
+	"backgrounds": {
+		"bg_apartment_living": "Assets/background/bg_apartment_living.jpg",
+		"bg_apartment_bedroom": "Assets/background/bg_apartment_bedroom.jpg",
+		"bg_park_grass": "Assets/background/bg_park_grass.jpg",
+		"bg_park_bench": "Assets/background/bg_park_bench.jpg",
+		"bg_commercial_street": "Assets/background/bg_commercial_street.jpg",
+		"bg_commercial_cafe": "Assets/background/bg_commercial_cafe.jpg",
+		"bg_campus_gate": "Assets/background/bg_campus_gate.jpg",
+		"bg_campus_classroom": "Assets/background/bg_campus_classroom.jpg",
+		"bg_harbor": "Assets/background/bg_harbor.jpg",
+		"bg_street_day": "Assets/background/bg_street_day.jpg",
+		"bg_copy_shop": "Assets/background/bg_copy_shop.jpg",
+		"bg_burger_stand": "Assets/background/bg_burger_stand.jpg",
+		"bg_cat_cafe": "Assets/background/bg_cat_cafe.jpg",
+		"bg_convenience_store": "Assets/background/bg_convenience_store.jpg",
+		"bg_library": "Assets/background/bg_library.jpg",
+		"bg_campus_cafeteria": "Assets/background/bg_campus_cafeteria.jpg",
+		"bg_campus_building": "Assets/background/bg_campus_building.jpg"
+	},
+	"bgm": {
+		"bgm_bewitched": "res://Assets/sounds/bgm/Bewitched (loop).ogg",
+		"bgm_blush": "res://Assets/sounds/bgm/Blush (loop).ogg",
+		"bgm_care": "res://Assets/sounds/bgm/Care (loop).ogg",
+		"bgm_duet_in_g": "res://Assets/sounds/bgm/Duet in G (loop).ogg",
+		"bgm_happy_end": "res://Assets/sounds/bgm/Happy End (loop).ogg",
+		"bgm_kabedon": "res://Assets/sounds/bgm/Kabedon (loop).ogg",
+		"bgm_lovebirds": "res://Assets/sounds/bgm/Lovebirds (loop).ogg",
+		"bgm_pet_names": "res://Assets/sounds/bgm/Pet Names (loop).ogg",
+		"bgm_pure_and_naive": "res://Assets/sounds/bgm/Pure and Naive (loop).ogg",
+		"bgm_sentiments": "res://Assets/sounds/bgm/Sentiments (loop).ogg"
+	},
+	"sfx": {
+
+	}
 }

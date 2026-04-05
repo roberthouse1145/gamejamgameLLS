@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ScreenFlashHandler
 ## Handler for SCREEN_FLASH command
 ## 屏幕闪烁效果（白闪/黑闪等）。非阻塞 — 触发后立即继续。

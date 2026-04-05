@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name RemoveNodeHandler
 ## Handler for REMOVE_NODE command
 ## 移除节点（淡出后从场景删除）

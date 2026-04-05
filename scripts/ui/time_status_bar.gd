@@ -22,19 +22,19 @@ const C_STABILITY: Color  = Color("#5898E0")
 const C_HYPE: Color       = Color("#E8A830")
 
 ## 进度条
-const C_TRACK: Color    = Color("#E8E0F0")
-const C_DAY_FILL: Color = Color("#B088D8")
+const C_TRACK: Color    = Color("#D9E2EC")
+const C_DAY_FILL: Color = Color("#7A8CEB")
 
 ## 布局常量 — 适配 2560x1440
 const BAR_H: int = 10
-const F_DAY: int = 48
-const F_SUB: int = 20
-const F_PH: int  = 24
-const F_LBL: int = 20
-const F_VAL: int = 20
-const F_HD: int  = 22
-const SEP: int   = 14
-const PAD: int   = 24
+const F_DAY: int = 36
+const F_SUB: int = 16
+const F_PH: int  = 20
+const F_LBL: int = 15
+const F_VAL: int = 18
+const F_HD: int  = 18
+const SEP: int   = 16
+const PAD: int   = 20
 
 var _day_label: Label          = null
 var _day_progress: ProgressBar = null
@@ -74,6 +74,18 @@ func _ready() -> void:
 	_connect_signals()
 	_refresh()
 
+	# 延迟一帧后根据内容容器的最小尺寸自动调整窗口高度
+	call_deferred("_fit_to_content")
+
+
+func _fit_to_content() -> void:
+	if not content_container or content_container.get_child_count() == 0:
+		return
+	var inner: Control = content_container.get_child(0)
+	var need_h: float = inner.get_combined_minimum_size().y
+	var tb_h: float = title_bar.size.y if title_bar else 52.0
+	self.size.y = need_h + tb_h
+
 
 # =============================================================================
 # Build
@@ -112,10 +124,11 @@ func _mk_day(p: VBoxContainer) -> void:
 	_day_label = Label.new()
 	_day_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_day_label.add_theme_font_size_override("font_size", F_DAY)
+	_day_label.add_theme_color_override("font_color", Color("#1A1D27"))
 	vb.add_child(_day_label)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 10)
 	vb.add_child(row)
 
 	_day_progress = ProgressBar.new()
@@ -128,17 +141,18 @@ func _mk_day(p: VBoxContainer) -> void:
 
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = C_TRACK
-	_rc(bg, 5)
+	_rc(bg, 7)
 	_day_progress.add_theme_stylebox_override("background", bg)
 
 	var fl := StyleBoxFlat.new()
 	fl.bg_color = C_DAY_FILL
-	_rc(fl, 5)
+	_rc(fl, 7)
 	_day_progress.add_theme_stylebox_override("fill", fl)
 	row.add_child(_day_progress)
 
 	_day_frac = Label.new()
 	_day_frac.add_theme_font_size_override("font_size", F_SUB)
+	_day_frac.add_theme_color_override("font_color", Color("#6B7086"))
 	_day_frac.custom_minimum_size.x = 72
 	_day_frac.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_day_frac.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -147,7 +161,7 @@ func _mk_day(p: VBoxContainer) -> void:
 
 func _mk_phase(p: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 10)
 	p.add_child(row)
 
 	_phase_dot = ColorRect.new()
@@ -158,6 +172,7 @@ func _mk_phase(p: VBoxContainer) -> void:
 
 	_phase_label = Label.new()
 	_phase_label.add_theme_font_size_override("font_size", F_PH)
+	_phase_label.add_theme_color_override("font_color", Color("#1A1D27"))
 	_phase_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_phase_label)
 
@@ -165,7 +180,7 @@ func _mk_phase(p: VBoxContainer) -> void:
 	var money_lbl := Label.new()
 	money_lbl.text = "¥"
 	money_lbl.add_theme_font_size_override("font_size", F_LBL)
-	money_lbl.add_theme_color_override("font_color", Color("#8899b0"))
+	money_lbl.add_theme_color_override("font_color", Color("#8899B0"))
 	money_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(money_lbl)
 
@@ -195,12 +210,12 @@ func _mk_completion(p: VBoxContainer) -> void:
 
 	var bg := StyleBoxFlat.new()
 	bg.bg_color = C_TRACK
-	_rc(bg, 5)
+	_rc(bg, 7)
 	_comp_progress.add_theme_stylebox_override("background", bg)
 
 	var fl := StyleBoxFlat.new()
 	fl.bg_color = C_COMPLETION
-	_rc(fl, 5)
+	_rc(fl, 7)
 	_comp_progress.add_theme_stylebox_override("fill", fl)
 	vb.add_child(_comp_progress)
 
@@ -209,21 +224,22 @@ func _mk_completion(p: VBoxContainer) -> void:
 	_comp_frac.text = "完成度  0%"
 	_comp_frac.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_comp_frac.add_theme_font_size_override("font_size", F_HD)
-	_comp_frac.add_theme_color_override("font_color", C_COMPLETION)
+	_comp_frac.add_theme_color_override("font_color", Color("#1A1D27"))
 	vb.add_child(_comp_frac)
 
 
 func _mk_stats(p: VBoxContainer) -> void:
 	var hd := Label.new()
-	hd.text = "林夏"
+	hd.text = "属性状态"
 	hd.add_theme_font_size_override("font_size", F_HD)
+	hd.add_theme_color_override("font_color", Color("#6B7086"))
 	p.add_child(hd)
 
 	# 第一行：好感 压力 热情（三列）
 	var row1 := GridContainer.new()
 	row1.columns = 6
 	row1.add_theme_constant_override("h_separation", 16)
-	row1.add_theme_constant_override("v_separation", 10)
+	row1.add_theme_constant_override("v_separation", 8)
 	p.add_child(row1)
 
 	_mk_inline(row1, "好感", "affection", C_AFFECTION)
@@ -233,14 +249,15 @@ func _mk_stats(p: VBoxContainer) -> void:
 
 func _mk_project_stats(p: VBoxContainer) -> void:
 	var hd := Label.new()
-	hd.text = "项目"
+	hd.text = "项目状态"
 	hd.add_theme_font_size_override("font_size", F_HD)
+	hd.add_theme_color_override("font_color", Color("#6B7086"))
 	p.add_child(hd)
 
 	var grid := GridContainer.new()
 	grid.columns = 6
 	grid.add_theme_constant_override("h_separation", 16)
-	grid.add_theme_constant_override("v_separation", 10)
+	grid.add_theme_constant_override("v_separation", 8)
 	p.add_child(grid)
 
 	_mk_inline(grid, "质量", "quality",   C_QUALITY)
@@ -253,14 +270,14 @@ func _mk_inline(container: Control, text: String, key: String, color: Color) -> 
 	var name_lbl := Label.new()
 	name_lbl.text = text
 	name_lbl.add_theme_font_size_override("font_size", F_LBL)
-	name_lbl.add_theme_color_override("font_color", Color("#8899b0"))
+	name_lbl.add_theme_color_override("font_color", Color("#8899B0"))
 	container.add_child(name_lbl)
 
 	var val_lbl := Label.new()
 	val_lbl.text = "0"
 	val_lbl.add_theme_font_size_override("font_size", F_VAL)
 	val_lbl.add_theme_color_override("font_color", color)
-	val_lbl.custom_minimum_size.x = 52
+	val_lbl.custom_minimum_size.x = 42
 	container.add_child(val_lbl)
 
 	_stat_labels[key] = {"label": val_lbl, "color": color}
@@ -278,7 +295,12 @@ func _rc(s: StyleBoxFlat, r: int) -> void:
 
 
 func _mk_div(p: VBoxContainer) -> void:
-	p.add_child(HSeparator.new())
+	var div := HSeparator.new()
+	var style := StyleBoxLine.new()
+	style.color = Color("#E4E8F0")
+	style.thickness = 1
+	div.add_theme_stylebox_override("separator", style)
+	p.add_child(div)
 
 
 # =============================================================================
@@ -300,10 +322,10 @@ func _connect_signals() -> void:
 func _refresh() -> void:
 	if _game_loop == null:
 		_upd_day(1)
-		_upd_phase(0)
+		_upd_phase(0, false)
 		return
 	_upd_day(_game_loop.current_day)
-	_upd_phase(_game_loop.time_phase)
+	_upd_phase(_game_loop.time_phase, false)
 	_upd_stats()
 
 
@@ -317,7 +339,7 @@ func _upd_day(day: int) -> void:
 			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 
 
-func _upd_phase(phase: int) -> void:
+func _upd_phase(phase: int, animate: bool = true) -> void:
 	var nm: Dictionary = {0: "上午", 1: "下午", 2: "晚上"}
 	var cm: Dictionary = {0: C_MORNING, 1: C_AFTERNOON, 2: C_NIGHT}
 	var n: String = nm.get(phase, "—")
@@ -328,6 +350,8 @@ func _upd_phase(phase: int) -> void:
 	if _phase_dot:
 		_phase_dot.color = c
 		_pulse(c)
+	if animate:
+		_phase_bounce()
 
 
 func _pulse(base: Color) -> void:
@@ -339,6 +363,30 @@ func _pulse(base: Color) -> void:
 		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 	_pulse_tw.tween_property(_phase_dot, "color", base, 1.6) \
 		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+
+func _phase_bounce() -> void:
+	# 时段切换时：克制的提示动效，避免破坏操作心流
+	if _phase_label:
+		_phase_label.pivot_offset = _phase_label.size * 0.5
+		_phase_label.modulate = Color(1, 1, 1, 0.84)
+		var tw := create_tween()
+		tw.tween_property(_phase_label, "scale", Vector2(1.07, 1.07), 0.1) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		tw.parallel().tween_property(_phase_label, "modulate:a", 1.0, 0.16) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		tw.tween_property(_phase_label, "scale", Vector2.ONE, 0.16) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+	if _phase_dot:
+		var tw2 := create_tween()
+		var base_color := _phase_dot.color
+		var bright := base_color.lightened(0.38)
+		tw2.tween_property(_phase_dot, "scale", Vector2(1.16, 1.16), 0.1) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		tw2.parallel().tween_property(_phase_dot, "color", bright, 0.1)
+		tw2.tween_property(_phase_dot, "scale", Vector2.ONE, 0.16) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		tw2.parallel().tween_property(_phase_dot, "color", base_color, 0.2)
 
 
 func _upd_stats() -> void:

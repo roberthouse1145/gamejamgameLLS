@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ShowImageHandler
 ## Handler for SHOW_IMAGE command
 ## 显示CG/图片到图片层。非阻塞。

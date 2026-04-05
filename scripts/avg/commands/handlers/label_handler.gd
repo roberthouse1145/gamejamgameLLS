@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name LabelHandler
 ## Handler for LABEL command
 ## Marks a position in the command list for jumping.

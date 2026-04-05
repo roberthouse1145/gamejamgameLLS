@@ -1,4 +1,26 @@
 class_name AVGAssetManifest extends RefCounted
+## AVG 素材清单管理器
+##
+## 从项目的 manifests/asset_aliases.json 加载素材别名映射，并构建 LLM 可读的可用素材列表。
+##
+## asset_aliases.json 格式：
+## [codeblock]
+## {
+##   "backgrounds": {
+##     "bg_park": "Assets/background/bg_park.jpg",
+##     "bg_ending": "Assets/background/bg_ending.jpg"
+##   },
+##   "images": { ... },
+##   "bgm": { ... },
+##   "sfx": { ... },
+##   "hidden": ["bg_ending", "cg_finale_01"]
+## }
+## [/codeblock]
+##
+## "hidden" 字段（可选）：一个字符串数组，列出不希望暴露给 LLM 的素材 alias。
+## 被隐藏的 alias 不会出现在 build_llm_prompt_block() 生成的可用素材列表中，
+## 但 resolve_texture_path() / resolve_audio_path() 仍可正常解析。
+## 当需要使用隐藏素材时，在生成需求 prompt 中显式指定即可。
 
 const MANIFEST_RELATIVE_PATH: String = "manifests/asset_aliases.json"
 const IMAGE_ROOT_RELATIVE_PATH: String = "assets/images"
@@ -50,9 +72,10 @@ static func resolve_audio_path(asset_ref: String, project_root_path: String) -> 
 
 static func build_llm_prompt_block(project_root_path: String, project: Resource = null) -> String:
 	var manifest: Dictionary = load_manifest(project_root_path)
+	var hidden_set: Dictionary = _build_hidden_set(manifest)
 	var lines: Array[String] = []
-	var image_aliases: Array[String] = _extract_filtered_aliases(manifest, "images", false)
-	var cg_aliases: Array[String] = _extract_filtered_aliases(manifest, "images", true)
+	var image_aliases: Array[String] = _extract_filtered_aliases(manifest, "images", false, hidden_set)
+	var cg_aliases: Array[String] = _extract_filtered_aliases(manifest, "images", true, hidden_set)
 	var image_assets: Array[String] = _scan_visual_asset_names(project_root_path, false)
 	var cg_assets: Array[String] = _scan_visual_asset_names(project_root_path, true)
 
@@ -89,9 +112,9 @@ static func build_llm_prompt_block(project_root_path: String, project: Resource 
 		lines.append("可用角色：")
 		lines.append_array(character_lines)
 
-	lines.append(_format_alias_section("可用背景 alias：", manifest.get("backgrounds", {})))
-	lines.append(_format_alias_section("可用 BGM alias：", manifest.get("bgm", {})))
-	lines.append(_format_alias_section("可用 SFX alias：", manifest.get("sfx", {})))
+	lines.append(_format_alias_section("可用背景 alias：", manifest.get("backgrounds", {}), hidden_set))
+	lines.append(_format_alias_section("可用 BGM alias：", manifest.get("bgm", {}), hidden_set))
+	lines.append(_format_alias_section("可用 SFX alias：", manifest.get("sfx", {}), hidden_set))
 	lines.append(_format_string_section("可用普通图片 alias：", image_aliases))
 	lines.append(_format_string_section("可用普通图片原始名：", image_assets))
 	lines.append(_format_string_section("可用 CG alias：", cg_aliases))
@@ -106,6 +129,16 @@ static func get_project_root_from_project(project: Resource) -> String:
 	if "project_root_path" in project:
 		return _normalize_project_root(str(project.get("project_root_path")))
 	return ""
+
+
+static func _build_hidden_set(manifest: Dictionary) -> Dictionary:
+	var hidden_set: Dictionary = {}
+	var hidden_array: Array = manifest.get("hidden", [])
+	for entry in hidden_array:
+		var name: String = str(entry).strip_edges()
+		if not name.is_empty():
+			hidden_set[name] = true
+	return hidden_set
 
 
 static func _resolve_alias(asset_ref: String, project_root_path: String, buckets: Array[String]) -> String:
@@ -220,7 +253,7 @@ static func _collect_outfits(character: Resource) -> Array[String]:
 	return outfits
 
 
-static func _format_alias_section(title: String, bucket_value: Variant) -> String:
+static func _format_alias_section(title: String, bucket_value: Variant, hidden_set: Dictionary = {}) -> String:
 	var lines: Array[String] = [title]
 	if not bucket_value is Dictionary or (bucket_value as Dictionary).is_empty():
 		lines.append("- 无")
@@ -229,10 +262,16 @@ static func _format_alias_section(title: String, bucket_value: Variant) -> Strin
 	var bucket: Dictionary = bucket_value
 	var aliases: Array[String] = []
 	for key in bucket.keys():
-		aliases.append(str(key))
+		var alias_name: String = str(key)
+		if hidden_set.has(alias_name):
+			continue
+		aliases.append(alias_name)
 	aliases.sort()
-	for alias in aliases:
-		lines.append("- %s" % alias)
+	if aliases.is_empty():
+		lines.append("- 无")
+	else:
+		for alias in aliases:
+			lines.append("- %s" % alias)
 	return "\n".join(lines)
 
 
@@ -246,11 +285,13 @@ static func _format_string_section(title: String, entries: Array[String]) -> Str
 	return "\n".join(lines)
 
 
-static func _extract_filtered_aliases(manifest: Dictionary, bucket_name: String, cg_only: bool) -> Array[String]:
+static func _extract_filtered_aliases(manifest: Dictionary, bucket_name: String, cg_only: bool, hidden_set: Dictionary = {}) -> Array[String]:
 	var aliases: Array[String] = []
 	var bucket: Dictionary = manifest.get(bucket_name, {})
 	for key in bucket.keys():
 		var alias_name: String = str(key).strip_edges()
+		if hidden_set.has(alias_name):
+			continue
 		var value: String = str(bucket.get(key, "")).strip_edges().to_lower()
 		var is_cg_alias: bool = _looks_like_cg(alias_name) or "/cg/" in value or "/cgs/" in value
 		if is_cg_alias != cg_only:

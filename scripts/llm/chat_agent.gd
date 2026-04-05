@@ -47,9 +47,8 @@ func _ready() -> void:
 	_ai_service.tool_executed.connect(_on_tool_executed)
 
 	# 用 AIConfigManager 配置 AIService
-	var config_mgr: AIConfigManager = AIConfigManager.new()
-	if config_mgr.load_config() and not role.is_empty():
-		config_mgr.apply_to_service(_ai_service, role)
+	if not role.is_empty():
+		AIConfigManager.get_instance().apply_to_service(_ai_service, role)
 #endregion
 
 
@@ -294,9 +293,7 @@ func _extract_result_tag(text: String) -> String:
 #region AIService 信号处理
 
 func _on_request_completed(_request_id: String, response: Dictionary) -> void:
-	print("[ChatAgent] _on_request_completed: req=%s _is_busy=%s" % [_request_id, str(_is_busy)])
 	if not _is_busy:
-		print("[ChatAgent] SKIPPED: not busy")
 		return
 
 	var content: String = ""
@@ -307,11 +304,8 @@ func _on_request_completed(_request_id: String, response: Dictionary) -> void:
 		var tool_calls: Array = tool_calls_value if tool_calls_value is Array else []
 		has_tool_calls = tool_calls.size() > 0
 		var msg_content: String = AIService.extract_content(response)
-		print("[ChatAgent] msg_content type=%s is_null=%s" % [type_string(typeof(msg_content)), str(msg_content == null)])
 		if not msg_content.is_empty():
 			content = msg_content
-	else:
-		print("[ChatAgent] no choices in response, keys=%s" % str(response.keys()))
 
 	# 将 assistant 回复存入历史（可选剥离 thinking）
 	if not content.is_empty() or has_tool_calls:
@@ -337,9 +331,12 @@ func _on_request_completed(_request_id: String, response: Dictionary) -> void:
 	# 此时我们可以把阶段性文本展示给前端，但不要结束 agent 的 busyness
 	if not has_tool_calls:
 		_is_busy = false
-		
-	if not content.is_empty() or not has_tool_calls:
-		message_completed.emit(_request_id, content)
+		# 最终完成：没有 tool_calls，发出 message_completed
+		if not content.is_empty():
+			message_completed.emit(_request_id, content)
+		else:
+			message_completed.emit(_request_id, "")
+	# 有 tool_calls 时不发 message_completed，等工具执行完后 AIService 会再次回调
 
 
 func _on_request_failed(_request_id: String, error: String, _error_code: int) -> void:

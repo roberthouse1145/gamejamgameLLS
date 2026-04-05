@@ -1,0 +1,46 @@
+chapter: test_brief
+name: 测试 - 企划卡提交
+desc: 测试用章节，跳过day1流程，直接进入企划卡页面，等待玩家填写并提交
+next_chapter:
+
+=== test_brief_01_init ===
+# 跳过报名流程，直接设置基础变量，开放浏览器
+
+[set_phase]
+day: 2
+phase: MORNING
+
+[set_variable]
+key: player_name
+value: 测试玩家
+
+[set_variable]
+key: player_real_name
+value: 张三
+
+[set_variable]
+key: team_name
+value: 彩虹小队
+
+[set_variable]
+key: player_college
+value: 蓝鲸大学计算机学院
+
+[set_variable]
+key: signup_completed
+value: true
+
+wait: immediate
+-> test_brief_02_open_brief
+
+=== test_brief_02_open_brief ===
+# 开放APP权限，打开企划卡页面，等待玩家提交
+
+
+[open_browser]
+url: gamejam://brief
+
+wait: variable_equals
+  key: creative_brief_submitted
+  value: true
+->

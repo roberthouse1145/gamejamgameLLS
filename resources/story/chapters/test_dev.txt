@@ -1,0 +1,46 @@
+chapter: test_dev
+name: 测试 - 讨论游戏主题
+desc: 测试用章节，跳过 day1 前置流程，直接进入讨论游戏主题环节
+next_chapter:
+
+=== test_dev_01_init ===
+# 初始化测试环境：设置基础变量
+
+[set_phase]
+day: 1
+phase: NIGHT
+
+[set_variable]
+key: player_name
+value: 测试玩家
+
+[set_variable]
+key: player_real_name
+value: 张三
+
+[set_variable]
+key: team_name
+value: 测试小队
+
+[set_variable]
+key: player_college
+value: 蓝鲸大学计算机学院
+
+[set_variable]
+key: signup_completed
+value: true
+
+wait: immediate
+-> test_dev_02_discuss_theme
+
+=== test_dev_02_discuss_theme ===
+# 直接进入讨论游戏主题
+# 工单由 NPC 的 protocol action (generate_work_order) 在对话中自动触发
+
+[activate_topic]
+topic_path: res://resources/story/topics/test_discuss_theme.tres
+npc_speaks_first: true
+
+wait: topic_completed
+  topic_id: test_discuss_theme
+->

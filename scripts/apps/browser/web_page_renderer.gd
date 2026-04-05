@@ -269,7 +269,12 @@ static func _apply_panel_container_size_attrs(ctrl: Control, data: Dictionary) -
 		ctrl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		return
 
-	ctrl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	if has_width and not has_height:
+		ctrl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		ctrl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		return
+
+	ctrl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	ctrl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
 

@@ -1,10 +1,17 @@
 class_name SbeamApp
 extends Control
 
+const ActivityPreviewLayerClass = preload("res://scripts/ui/activity_preview/activity_preview_layer.gd")
+
 const DOWNLOAD_STAGES: Array[String] = [
-	"正在校验共享库...",
-	"正在从 SBEAM CDN 拉取内容...",
-	"正在解压并准备启动..."
+	"正在连接 SBEAM 内容服务器...",
+	"正在校验本地共享运行库...",
+	"正在下载游戏数据 (1/3)...",
+	"正在下载游戏数据 (2/3)...",
+	"正在下载游戏数据 (3/3)...",
+	"正在校验文件完整性...",
+	"正在解压并配置运行环境...",
+	"准备启动..."
 ]
 
 const MINI_GAME_2048_SCENE: PackedScene = preload("res://scenes/apps/sbeam/games/game_2048.tscn")
@@ -34,6 +41,8 @@ var _notice_label: Label = null
 var _store_content: Control = null
 var _library_content: Control = null
 var _game_list: ItemList = null
+var _preview_layer: Control = null
+var _hovered_game_id: String = ""
 
 var _detail_title: Label = null
 var _detail_pitch: Label = null
@@ -61,6 +70,7 @@ func _ready() -> void:
 	_library_games = _build_library_catalog()
 	_load_persisted_stats()
 	_build_ui()
+	_preview_layer = ActivityPreviewLayerClass.ensure_for(self)
 	_connect_signals()
 	_refresh_catalog()
 	_refresh_library_view()
@@ -117,6 +127,8 @@ func _build_ui() -> void:
 func _connect_signals() -> void:
 	if _game_list != null:
 		_game_list.item_selected.connect(_on_game_selected)
+		_game_list.gui_input.connect(_on_game_list_gui_input)
+		_game_list.mouse_exited.connect(_on_game_list_mouse_exited)
 	if _start_button != null:
 		_start_button.pressed.connect(_on_start_pressed)
 
@@ -216,6 +228,36 @@ func _on_game_selected(index: int) -> void:
 	var entry: Dictionary = _catalog_by_id[game_id]
 	SbeamStorePresenter.render_game_detail(_get_store_refs(), entry)
 	_update_store_action_state()
+
+
+func _on_game_list_gui_input(event: InputEvent) -> void:
+	if _game_list == null or _preview_layer == null:
+		return
+	if not event is InputEventMouseMotion:
+		return
+
+	var index: int = _game_list.get_item_at_position(_game_list.get_local_mouse_position(), true)
+	if index < 0 or index >= _game_list.item_count:
+		_hovered_game_id = ""
+		_preview_layer.hide_preview(_game_list)
+		return
+
+	var game_id: String = str(_game_list.get_item_metadata(index))
+	if game_id == _hovered_game_id and _preview_layer.visible:
+		return
+
+	_hovered_game_id = game_id
+	if not _catalog_by_id.has(game_id):
+		_preview_layer.hide_preview(_game_list)
+		return
+
+	_preview_layer.show_preview(_game_list, _build_sbeam_preview_payload(_catalog_by_id[game_id]))
+
+
+func _on_game_list_mouse_exited() -> void:
+	_hovered_game_id = ""
+	if _preview_layer != null:
+		_preview_layer.hide_preview(_game_list)
 
 
 func _build_tags(tags: Array) -> void:
@@ -768,6 +810,22 @@ func _update_store_action_state() -> void:
 
 	_start_button.disabled = _selected_game_id.is_empty() or not _active_session_id.is_empty()
 	_start_button.text = "正在下载..." if not _active_session_id.is_empty() else "一起开玩"
+
+
+func _build_sbeam_preview_payload(entry: Dictionary) -> Dictionary:
+	var meta_parts: Array[String] = []
+	var genre: String = str(entry.get("genre", "")).strip_edges()
+	if not genre.is_empty():
+		meta_parts.append(genre)
+	var review_summary: String = str(entry.get("recent_reviews_summary", "")).strip_edges()
+	if not review_summary.is_empty():
+		meta_parts.append(review_summary)
+
+	return {
+		"title": str(entry.get("title", "SBEAM")),
+		"rewards": (entry.get("rewards", {}) as Dictionary).duplicate(true),
+		"text": " / ".join(meta_parts),
+	}
 
 
 func _set_active_view(view_id: String) -> void:

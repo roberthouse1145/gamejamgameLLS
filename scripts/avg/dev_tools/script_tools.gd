@@ -1,7 +1,9 @@
-﻿class_name AVGDevScriptTools extends RefCounted
+class_name AVGDevScriptTools extends RefCounted
 ## AVG Dev AI — 脚本工具集
 ## 提供 get_scene_script / set_scene_script
 ## 所有操作通过 DSLSerializer/DSLParser 读写 Root 节点 command_tab
+
+const AVGDSLValidatorClass = preload("res://scripts/avg/dsl/avg_dsl_validator.gd")
 
 
 # =============================================================================
@@ -109,7 +111,19 @@ static func _set_script_replace(root: Resource, args: Dictionary) -> Dictionary:
 		return {"success": false, "error": "DSL 解析失败: " + str(result.errors)}
 
 	root.command_tabs = [ {"mode": 0, "condition_type": 0, "commands": result.commands, "condition_commands": []}]
-	return {"success": true, "message": "脚本已替换（%d 条命令）" % result.commands.size()}
+
+	# 语义验证：检查资产引用是否存在
+	var validation: Dictionary = _run_semantic_validation(result.commands)
+	var msg: String = "脚本已替换（%d 条命令）" % result.commands.size()
+	if not validation.errors.is_empty():
+		msg += "\n\n⚠️ 语义验证发现 %d 个问题（脚本已保存，建议用 patch 模式修复）：" % validation.errors.size()
+		for e in validation.errors:
+			msg += "\n- " + e
+	if not validation.warnings.is_empty():
+		msg += "\n\n⚠ 警告："
+		for w in validation.warnings:
+			msg += "\n- " + w
+	return {"success": true, "message": msg}
 
 
 static func _set_script_patch(root: Resource, args: Dictionary) -> Dictionary:
@@ -150,7 +164,19 @@ static func _set_script_patch(root: Resource, args: Dictionary) -> Dictionary:
 		return {"success": false, "error": "Patch 后 DSL 解析失败: " + str(result.errors)}
 
 	root.command_tabs = [ {"mode": 0, "condition_type": 0, "commands": result.commands, "condition_commands": []}]
-	return {"success": true, "message": "脚本已 patch（%d 条命令）" % result.commands.size()}
+
+	# 语义验证
+	var validation: Dictionary = _run_semantic_validation(result.commands)
+	var msg: String = "脚本已 patch（%d 条命令）" % result.commands.size()
+	if not validation.errors.is_empty():
+		msg += "\n\n⚠️ 语义验证发现 %d 个问题（脚本已保存，建议用 patch 模式修复）：" % validation.errors.size()
+		for e in validation.errors:
+			msg += "\n- " + e
+	if not validation.warnings.is_empty():
+		msg += "\n\n⚠ 警告："
+		for w in validation.warnings:
+			msg += "\n- " + w
+	return {"success": true, "message": msg}
 
 
 # =============================================================================
@@ -213,3 +239,16 @@ static func _patch_by_lines(current_dsl: String, old_dsl: String, new_dsl: Strin
 				return "\n".join(result_lines)
 
 	return current_dsl
+
+
+## 运行语义验证（检查资产引用、角色、情绪等是否存在）
+static func _run_semantic_validation(commands: Array) -> Dictionary:
+	var project: Resource = AVGDevDBTools.get_project()
+	if project == null:
+		return {"errors": [], "warnings": ["无法获取项目信息，跳过语义验证"]}
+
+	var validator = AVGDSLValidatorClass.new()
+	var project_root: String = AVGDSLValidatorClass.AVGAssetManifestClass.get_project_root_from_project(project)
+	var result: Dictionary = validator.validate_commands(commands, project, project_root)
+
+	return {"errors": result.get("errors", []), "warnings": result.get("warnings", [])}

@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name CharacterEffectHandler
 ## Handler for CHARACTER_EFFECT command
 ## Plays animation effects on a character (jump, shake, nod, bounce).

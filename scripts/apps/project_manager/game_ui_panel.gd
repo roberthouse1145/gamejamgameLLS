@@ -359,6 +359,10 @@ func _rebuild_preview_buttons() -> void:
 			btn_data.norm_position.y * _project_resolution.y - btn_data.size.y / 2.0
 		)
 		
+		# 应用按钮样式四状态
+		if _config != null and "button_style" in _config and _config.button_style != null and _config.button_style.has_method("apply_to_button"):
+			_config.button_style.apply_to_button(btn)
+		
 		if not btn_data.visible_default:
 			btn.modulate = Color(1, 1, 1, 0.35)
 		

@@ -26,6 +26,14 @@ var _selected_expression: String = ""
 @onready var select_image_button: Button = %SelectImageButton
 @onready var preview_texture: TextureRect = %PreviewTexture
 @onready var preview_info_label: Label = %PreviewInfoLabel
+# 显示调整控件
+@onready var scale_slider: HSlider = %ScaleSlider
+@onready var scale_value_label: Label = %ScaleValue
+@onready var offset_x_slider: HSlider = %OffsetXSlider
+@onready var offset_x_value_label: Label = %OffsetXValue
+@onready var offset_y_slider: HSlider = %OffsetYSlider
+@onready var offset_y_value_label: Label = %OffsetYValue
+@onready var reset_display_button: Button = %ResetDisplayButton
 # 资源选择器弹窗
 @onready var resource_picker_dialog: Window = %ResourcePickerDialog
 var _resource_picker_panel: Control = null
@@ -50,6 +58,14 @@ func _setup_connections() -> void:
 		expression_list.item_selected.connect(_on_expression_selected)
 	if select_image_button:
 		select_image_button.pressed.connect(_on_select_image_pressed)
+	if scale_slider:
+		scale_slider.value_changed.connect(_on_scale_changed)
+	if offset_x_slider:
+		offset_x_slider.value_changed.connect(_on_offset_x_changed)
+	if offset_y_slider:
+		offset_y_slider.value_changed.connect(_on_offset_y_changed)
+	if reset_display_button:
+		reset_display_button.pressed.connect(_on_reset_display_pressed)
 
 
 func _setup_resource_picker() -> void:
@@ -176,6 +192,7 @@ func _on_item_selected(index: int) -> void:
 			property_editor.set_target(character)
 		_refresh_expression_list()
 		_update_preview_for_expression()
+		_update_display_tuning_sliders()
 		character_selected.emit(character)
 	_update_buttons()
 
@@ -350,8 +367,12 @@ func _on_resource_picker_cancel() -> void:
 func _clear_preview() -> void:
 	if preview_texture:
 		preview_texture.texture = null
+		preview_texture.pivot_offset = Vector2.ZERO
+		preview_texture.scale = Vector2.ONE
+		preview_texture.position = Vector2.ZERO
 	if preview_info_label:
 		preview_info_label.text = ""
+	_reset_display_sliders_ui()
 
 
 func _update_preview_for_expression() -> void:
@@ -400,6 +421,112 @@ func _update_buttons() -> void:
 		remove_expression_button.disabled = not has_expr
 	if select_image_button:
 		select_image_button.disabled = not has_expr
+	if reset_display_button:
+		reset_display_button.disabled = not has_char
+
+
+# =============================================================================
+# Display Tuning (Offset / Scale)
+# =============================================================================
+
+## 更新显示调整滑块为当前角色的值
+func _update_display_tuning_sliders() -> void:
+	var character: Resource = get_selected_character()
+	if character == null:
+		_reset_display_sliders_ui()
+		return
+	var ds: float = character.display_scale if "display_scale" in character else 1.0
+	var do_vec: Vector2 = character.display_offset if "display_offset" in character else Vector2.ZERO
+	if scale_slider:
+		scale_slider.set_value_no_signal(ds)
+	if scale_value_label:
+		scale_value_label.text = "%.2f" % ds
+	if offset_x_slider:
+		offset_x_slider.set_value_no_signal(do_vec.x)
+	if offset_x_value_label:
+		offset_x_value_label.text = "%.2f" % do_vec.x
+	if offset_y_slider:
+		offset_y_slider.set_value_no_signal(do_vec.y)
+	if offset_y_value_label:
+		offset_y_value_label.text = "%.2f" % do_vec.y
+	_apply_display_tuning_preview(ds, do_vec)
+
+
+func _reset_display_sliders_ui() -> void:
+	if scale_slider:
+		scale_slider.set_value_no_signal(1.0)
+	if scale_value_label:
+		scale_value_label.text = "1.00"
+	if offset_x_slider:
+		offset_x_slider.set_value_no_signal(0.0)
+	if offset_x_value_label:
+		offset_x_value_label.text = "0.00"
+	if offset_y_slider:
+		offset_y_slider.set_value_no_signal(0.0)
+	if offset_y_value_label:
+		offset_y_value_label.text = "0.00"
+	if preview_texture:
+		preview_texture.pivot_offset = Vector2.ZERO
+		preview_texture.scale = Vector2.ONE
+		preview_texture.position = Vector2.ZERO
+
+
+func _on_scale_changed(value: float) -> void:
+	var character: Resource = get_selected_character()
+	if character == null:
+		return
+	character.display_scale = value
+	if scale_value_label:
+		scale_value_label.text = "%.2f" % value
+	var offset: Vector2 = character.display_offset if "display_offset" in character else Vector2.ZERO
+	_apply_display_tuning_preview(value, offset)
+	StorageManager.notify_content_changed()
+
+
+func _on_offset_x_changed(value: float) -> void:
+	var character: Resource = get_selected_character()
+	if character == null:
+		return
+	character.display_offset.x = value
+	if offset_x_value_label:
+		offset_x_value_label.text = "%.2f" % value
+	var ds: float = character.display_scale if "display_scale" in character else 1.0
+	_apply_display_tuning_preview(ds, character.display_offset)
+	StorageManager.notify_content_changed()
+
+
+func _on_offset_y_changed(value: float) -> void:
+	var character: Resource = get_selected_character()
+	if character == null:
+		return
+	character.display_offset.y = value
+	if offset_y_value_label:
+		offset_y_value_label.text = "%.2f" % value
+	var ds: float = character.display_scale if "display_scale" in character else 1.0
+	_apply_display_tuning_preview(ds, character.display_offset)
+	StorageManager.notify_content_changed()
+
+
+func _on_reset_display_pressed() -> void:
+	var character: Resource = get_selected_character()
+	if character == null:
+		return
+	character.display_scale = 1.0
+	character.display_offset = Vector2.ZERO
+	_update_display_tuning_sliders()
+	StorageManager.notify_content_changed()
+
+
+## 在预览区域近似展示 offset/scale 效果
+func _apply_display_tuning_preview(ds: float, offset: Vector2) -> void:
+	if preview_texture == null:
+		return
+	# 使用缩放和位移近似展示效果
+	preview_texture.pivot_offset = preview_texture.size / 2.0
+	preview_texture.scale = Vector2(ds, ds)
+	# offset 映射到预览区域的像素偏移（预览区域宽度的比例）
+	var parent_size: Vector2 = preview_texture.get_parent_area_size()
+	preview_texture.position = Vector2(offset.x * parent_size.x, offset.y * parent_size.y)
 
 
 func _resolve_project_root(project: Resource) -> String:

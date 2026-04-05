@@ -17,5 +17,12 @@ ai_config.cfg
 NVIDIA Corporation/
 nul
 *.log
+__pycache__/
+output*.txt
+_*.py
+all_emotions.txt
+*.bak
 
 # 保留 web 导出文件用于部署
+
+.env

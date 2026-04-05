@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name MoveCharacterHandler
 ## Handler for MOVE_CHARACTER command
 ## Moves a character to a predefined position or custom normalized coords.

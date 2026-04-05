@@ -1,72 +1,5 @@
 [
 	{
-		"activity_id": "chat_casual",
-		"title": "和她聊聊",
-		"category": "chat",
-		"ap_cost": 1,
-		"available_phases": ["MORNING", "AFTERNOON", "NIGHT"],
-		"prerequisites": {},
-		"stat_effects": {"affection": 1, "stress": -1},
-		"description": "坐在家里，随口聊点什么。",
-		"moment_chance": 0.2,
-		"icon_hint": "chat_bubble",
-		"can_trigger_events": false
-	},
-	{
-		"activity_id": "chat_deep",
-		"title": "认真谈谈",
-		"category": "chat",
-		"ap_cost": 1,
-		"available_phases": ["AFTERNOON", "NIGHT"],
-		"prerequisites": {"min_affection": 20},
-		"stat_effects": {"affection": 2, "stress": -1},
-		"description": "有些话，只有坐下来才说得出口。",
-		"moment_chance": 0.5,
-		"icon_hint": "heart",
-		"can_trigger_events": true
-	},
-	{
-		"activity_id": "personal",
-		"title": "各自忙各自的",
-		"category": "personal",
-		"ap_cost": 1,
-		"available_phases": ["MORNING", "AFTERNOON", "NIGHT"],
-		"prerequisites": {},
-		"stat_effects": {"stress": -2},
-		"description": "有时候安静地一起待着，也算一种陪伴。",
-		"moment_chance": 0.0,
-		"icon_hint": "headphones",
-		"can_trigger_events": false,
-		"overuse_penalty": {"threshold": 3, "affection_delta": -1}
-	},
-	{
-		"activity_id": "watch",
-		"title": "一起看点什么",
-		"category": "watch",
-		"ap_cost": 1,
-		"available_phases": ["AFTERNOON", "NIGHT"],
-		"prerequisites": {},
-		"stat_effects": {"affection": 1, "stress": -2},
-		"description": "找个东西一起看，让脑子歇一会儿。",
-		"moment_chance": 0.2,
-		"icon_hint": "monitor",
-		"can_trigger_events": false,
-		"requires_choice": true
-	},
-	{
-		"activity_id": "review",
-		"title": "一起看看作品",
-		"category": "review",
-		"ap_cost": 1,
-		"available_phases": ["MORNING", "AFTERNOON", "NIGHT"],
-		"prerequisites": {"min_completion": 10},
-		"stat_effects": {"passion": 1},
-		"description": "打开项目，看看你们到底做出了什么。",
-		"moment_chance": 0.0,
-		"icon_hint": "code",
-		"can_trigger_events": true
-	},
-	{
 		"activity_id": "rest",
 		"title": "休息",
 		"category": "rest",
@@ -77,7 +10,6 @@
 		"description": "今天到此为止，先歇一歇。",
 		"moment_chance": 0.0,
 		"icon_hint": "moon",
-		"can_trigger_events": true,
-		"ends_day": true
+		"can_trigger_events": true
 	}
 ]

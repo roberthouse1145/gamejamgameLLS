@@ -6,14 +6,14 @@
 
 [sub_resource type="Resource" id="Resource_wc"]
 script = ExtResource("2_constraints")
-min_size = Vector2(960, 700)
-max_size = Vector2(0, 0)
-resizable = true
-default_size = Vector2(1320, 900)
+min_size = Vector2(460, 560)
+max_size = Vector2(600, 760)
+resizable = false
+default_size = Vector2(500, 640)
 
 [resource]
 script = ExtResource("1_app_def")
-app_id = "home"
-app_name = "Home"
+app_id = "sleep"
+app_name = "休息"
 entry_scene = ExtResource("3_entry_scene")
 window_constraints = SubResource("Resource_wc")

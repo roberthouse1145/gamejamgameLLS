@@ -1,0 +1,305 @@
+{
+	"version": 1,
+	"entries": [
+		{
+			"id": "geo_no_real_places_constraint",
+			"enabled": true,
+			"title": "禁止出现真实地名",
+			"scope": ["shared"],
+			"priority": 1100,
+			"group": "geography_safety",
+			"insert_position": "lore_constraints",
+			"trigger": {
+				"mode": "always",
+				"keys": [],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 50,
+				"max_scope_count": 4
+			},
+			"behavior": {
+				"kind": "constraint"
+			},
+			"content": "本作世界观中不存在任何现实地名。不要出现真实城市名（北京、上海、南京、东京等）或真实高校名（清华、北大、南大、复旦等）。两人所在城市叫澜京，学校叫蓝鲸大学。若不确定具体地名，用模糊说法即可。",
+			"tags": ["constraint", "canon", "geography"]
+		},
+		{
+			"id": "geo_city_lanjing",
+			"enabled": true,
+			"title": "所在城市：澜京",
+			"scope": ["shared"],
+			"priority": 900,
+			"group": "geography_city",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["澜京", "这座城", "我们市", "市中心", "南方还是北方", "天气好热", "天气好冷", "梅雨"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "两人生活的城市是澜京，一座长江下游的大型沿江城市，气候四季分明，夏热冬冷，有梅雨季。城市有完善的地铁系统，有老城区和新开发的大学城片区。饮食和生活习惯偏南方。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_university_lanjing",
+			"enabled": true,
+			"title": "蓝鲸大学",
+			"scope": ["shared"],
+			"priority": 800,
+			"group": "geography_university",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["蓝鲸大学", "蓝大", "蓝鲸", "咱学校", "数媒学院", "艺术与传媒"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "蓝鲸大学（蓝大）是本国 Top 3 综合性大学，位于澜京。百年名校，校园面积大，有老旧教学楼也有新建的数媒学院大楼。数字媒体艺术专业隶属于艺术与传媒学院。校园靠近城市主干道，周边有小吃街和大学城配套商业区。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_top_universities",
+			"enabled": true,
+			"title": "全国高校梯队",
+			"scope": ["shared"],
+			"priority": 500,
+			"group": "geography_top3",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["白鲸大学", "白鲸", "青花大学", "青花", "名校", "排名", "别的学校"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 50,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "本国 Top 3 高校：白鲸大学（理工见长）、青花大学（综合/国际声誉最高）、蓝鲸大学（文科与交叉学科）。三校有良性竞争和调侃文化，AGJ 比赛里三校的队伍经常被观众比较。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_city_districts",
+			"enabled": true,
+			"title": "澜京城区分布",
+			"scope": ["shared"],
+			"priority": 400,
+			"group": "geography_districts",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["大学城", "老城区", "港口区", "中央商业", "几号线"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 50,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "澜京分区：大学城片区（蓝鲸大学，两人住这附近）、中央商业区（地铁1号线直达）、中央公园（大学城旁）、港口区（地铁4号线终点站，偏远有夜景）、老城区（有历史感的街巷小店）。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_apartment_location",
+			"enabled": true,
+			"title": "公寓地理位置",
+			"scope": ["shared"],
+			"priority": 600,
+			"group": "geography_home",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["公寓在哪", "离学校多远", "走路去学校", "骑车", "没有电梯", "楼下", "南门"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 40,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "公寓在大学城片区一栋老居民楼里，离蓝鲸大学南门步行约十分钟。附近有便利店和小吃街。楼龄老、没电梯，楼下马路偶尔吵。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_university_campus_life",
+			"enabled": true,
+			"title": "蓝鲸大学校园生活",
+			"scope": ["shared"],
+			"priority": 400,
+			"group": "geography_campus_life",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["校园", "图书馆", "食堂", "社团", "校庆", "南门", "操场"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "蓝鲸大学校训'嚼得菜根，办得大事'。校园地标：北大楼（百年老建筑，拍照打卡热门）、红星教堂（改建为学术报告厅，外观保留完好）。南门是学生日常出入口，门口老梧桐树下是约碰头的地标。校内三个食堂：一食堂（家常菜）、二食堂（小吃档口多，学生最爱）、桂园（教职工食堂但学生也能吃，菜品好但贵）。艺术与传媒学院是新建独栋，顶楼有小型放映厅和展览空间。每年秋天的'蓝鲸艺术周'是数媒学院传统活动，学生作品展+独立游戏试玩会。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_university_digital_media",
+			"enabled": true,
+			"title": "数字媒体艺术专业",
+			"scope": ["shared"],
+			"priority": 380,
+			"group": "geography_department",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["数媒", "数字媒体", "专业课", "课程", "导师", "毕设", "交互设计"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 60,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "蓝鲸大学数字媒体艺术专业23级约60人，分交互设计和数字影像两个方向。玩家和林夏都是交互设计方向。专业课涵盖游戏设计、UI/UX、数字叙事、创意编程等。大四下只剩毕设答辩。毕设可提交比赛作品作为成果，但需额外撰写学术论文部分。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_city_food_culture",
+			"enabled": true,
+			"title": "澜京美食与文化",
+			"scope": ["shared"],
+			"priority": 350,
+			"group": "geography_food",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["好吃", "吃什么", "特色菜", "小吃街", "美食", "夜市", "馆子", "鸭血粉丝"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 50,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "澜京饮食以淮扬系为基底，口味偏甜偏鲜。本地特色：盐水鸭、鸭血粉丝汤、皮肚面、小笼包。大学城南门小吃街有一家鸭血粉丝老店和一家开到凌晨的螺蛳粉。老城区有不少苍蝇馆子，味道好价格便宜。夏天热得出奇，冰粉和奶茶消耗量大。",
+			"tags": ["canon", "fact", "geography"]
+		},
+		{
+			"id": "geo_city_landmarks",
+			"enabled": true,
+			"title": "澜京地标与去处",
+			"scope": ["shared"],
+			"priority": 350,
+			"group": "geography_landmarks",
+			"insert_position": "lore_facts",
+			"trigger": {
+				"mode": "any",
+				"keys": ["逛街", "景点", "约会去哪", "周末去哪", "电影院", "书店", "游戏厅", "咖啡店"],
+				"secondary_mode": "none",
+				"secondary_keys": []
+			},
+			"filters": {
+				"character_ids": [],
+				"channel_ids": [],
+				"requires_topic": false,
+				"requires_no_topic": false
+			},
+			"budget": {
+				"cost": 50,
+				"max_scope_count": 2
+			},
+			"behavior": {
+				"kind": "fact"
+			},
+			"content": "中央商业区有大型商场（地铁1号线'中央广场站'），有电影院和游戏厅。中央公园适合散步，傍晚有人在广场跳舞。港口区4号线终点站有江景步道和夜景咖啡馆，情侣约会热门点。老城区有独立书店'字里行间'和几家手工杂货店。大学城内有24小时便利店和常去的咖啡店'日常'。",
+			"tags": ["canon", "fact", "geography"]
+		}
+	]
+}

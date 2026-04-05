@@ -12,20 +12,6 @@ const PREVIEW_SOURCE_KEY: String = "date_scene_preview_source"
 const PREVIEW_ASSET_KEY: String = "date_scene_asset_manifest"
 const HEROINE_TEMPLATE_PATH: String = "res://templates/tutorial_project/characters/alice.tres"
 const MAX_GENERATION_ATTEMPTS: int = 3
-const PREVIEW_ALLOWED_COMMANDS: Array[String] = [
-	"DIALOGUE",
-	"CHOICE",
-	"CHANGE_BACKGROUND",
-	"SHOW_CHARACTER",
-	"CHANGE_EXPRESSION",
-	"CHANGE_OUTFIT",
-	"SCREEN_FADE",
-	"SET_TIME_OF_DAY",
-	"WAIT_TIME",
-	"CHARACTER_EFFECT",
-]
-const PREVIEW_ALLOWED_POSITIONS: Array[String] = ["left", "center", "right"]
-
 @export var auto_run_on_ready: bool = true
 @export var preferred_location_id: String = "park"
 
@@ -200,13 +186,15 @@ func _build_preview_prompt(session: Dictionary) -> String:
 		return ""
 
 	var prompt_manager: Node = get_node_or_null("/root/PromptManager")
-	if prompt_manager == null or not prompt_manager.has_method("register_prompt") or not prompt_manager.has_method("resolve"):
+	if prompt_manager == null or not prompt_manager.has_method("resolve_with_vars"):
 		return base_prompt
 
-	prompt_manager.register_prompt(PREVIEW_SOURCE_KEY, base_prompt)
-	prompt_manager.register_prompt(PREVIEW_ASSET_KEY, _build_asset_prompt_block())
+	var ctx: Dictionary = {
+		PREVIEW_SOURCE_KEY: base_prompt,
+		PREVIEW_ASSET_KEY: _build_asset_prompt_block(),
+	}
 	if prompt_manager.has_method("has_prompt") and prompt_manager.has_prompt(PREVIEW_PROMPT_KEY):
-		return str(prompt_manager.resolve(PREVIEW_PROMPT_KEY)).strip_edges()
+		return str(prompt_manager.resolve_with_vars(PREVIEW_PROMPT_KEY, ctx)).strip_edges()
 	return base_prompt
 
 
@@ -350,8 +338,6 @@ func _validate_semantics(commands: Array) -> Dictionary:
 		return {"ok": true, "errors": [], "summary": "validator unavailable"}
 
 	return _validator.validate_commands(commands, validation_project, project_root_path, {
-		"allowed_commands": PREVIEW_ALLOWED_COMMANDS,
-		"allowed_positions": PREVIEW_ALLOWED_POSITIONS,
 		"min_choice_count": 0,
 		"max_choice_count": 0,
 	})

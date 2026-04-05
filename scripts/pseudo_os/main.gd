@@ -4,7 +4,7 @@ class_name Main extends Control
 const SplashScreenScene: PackedScene = preload("res://scenes/pseudo_os/splash_screen.tscn")
 const BootScreenScene: PackedScene = preload("res://scenes/pseudo_os/boot_screen.tscn")
 const LoginScreenScene: PackedScene = preload("res://scenes/pseudo_os/login_screen.tscn")
-const DesktopScene: PackedScene = preload("res://scenes/pseudo_os/desktop.tscn")
+const DesktopScene: PackedScene = preload("res://scenes/pseudo_os/game_desktop.tscn")
 
 enum State { SPLASH, BOOT, LOGIN, DESKTOP }
 
@@ -69,6 +69,10 @@ func _enter_login() -> void:
 
 func _on_login_requested(player_name: String, is_new_game: bool) -> void:
 	_save_player_name(player_name)
+	# 将网名存入 StoryDirector，供 prompt 系统使用
+	var story_director: Node = get_node_or_null("/root/StoryDirector")
+	if story_director != null and story_director.has_method("set_variable"):
+		story_director.set_variable("player_name", player_name)
 	if is_new_game:
 		_transition_to(func() -> void: _start_new_game(player_name))
 	else:
@@ -97,6 +101,8 @@ func _enter_desktop() -> void:
 
 
 func _on_quit_requested() -> void:
+	# 恢复系统鼠标
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 	get_tree().quit()
 
 

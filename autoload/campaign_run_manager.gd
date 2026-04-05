@@ -339,8 +339,11 @@ func _connect_state_sources() -> void:
 		_connect_signal(browser, "search_failed", Callable(self, "_on_state_changed"))
 		_connect_signal(browser, "page_generated", Callable(self, "_on_state_changed"))
 		_connect_signal(browser, "page_failed", Callable(self, "_on_state_changed"))
-		_connect_signal(browser, "browser_action_completed", Callable(self, "_on_state_changed"))
-		_connect_signal(browser, "browser_action_failed", Callable(self, "_on_state_changed"))
+
+	var community: Node = _get_autoload("CommunityActionManager")
+	if community != null:
+		_connect_signal(community, "community_action_completed", Callable(self, "_on_state_changed"))
+		_connect_signal(community, "community_action_failed", Callable(self, "_on_state_changed"))
 
 	var shop: Node = _get_autoload("ShopManager")
 	if shop != null:
@@ -659,6 +662,7 @@ func _reset_all_runtime_state() -> void:
 	_reset_manager_state("GameLoopManager")
 	_reset_manager_state("GameManager")
 	_reset_manager_state("StoryDirector")
+	_reset_manager_state("WorkOrderManager")
 	_reset_manager_state("ChatManager", [true])
 	_reset_manager_state("BrowserManager", [true])
 	_reset_manager_state("ShopManager")

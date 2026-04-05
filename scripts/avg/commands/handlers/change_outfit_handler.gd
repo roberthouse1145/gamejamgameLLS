@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ChangeOutfitHandler
 ## Handler for CHANGE_OUTFIT command.
 

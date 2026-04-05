@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_010"
+character_name = "Heroine10"
+display_name = "Heroine10"
+sprites = {
+"angry": "assets/images/character/heroine10/heroine10_cos13.png",
+"default": "assets/images/character/heroine10/heroine10_cos03.png",
+"happy": "assets/images/character/heroine10/heroine10_cos04.png",
+"laugh": "assets/images/character/heroine10/heroine10_cos08.png",
+"sad": "assets/images/character/heroine10/heroine10_cos15.png",
+"shy": "assets/images/character/heroine10/heroine10_cos16.png",
+"surprised": "assets/images/character/heroine10/heroine10_cos18.png",
+"thinking": "assets/images/character/heroine10/heroine10_cos09.png",
+"worried": "assets/images/character/heroine10/heroine10_cos06.png"
+}
+default_outfit = "cos"
+available_outfits = ["cos"]
+emotion_slots = {
+"angry": "13",
+"default": "03",
+"happy": "04",
+"laugh": "08",
+"sad": "15",
+"shy": "16",
+"surprised": "18",
+"thinking": "09",
+"worried": "06"
+}
+profile = "灵动可爱的森林花仙子，淡绿渐变长发紫眸，戴扶桑花饰，身着花瓣短裙，背后有大型彩色透明翅膀"
+

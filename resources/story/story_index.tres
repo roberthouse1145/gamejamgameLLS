@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="StoryChapterIndex" format=3]
+
+[ext_resource type="Resource" path="res://resources/story/generated/day1.tres" id="1_pytuj"]
+[ext_resource type="Resource" path="res://resources/story/generated/test_brief.tres" id="2_x12l7"]
+[ext_resource type="Resource" path="res://resources/story/generated/test_dev.tres" id="3_oy0wn"]
+[ext_resource type="Script" path="res://scripts/story/resources/story_chapter_index.gd" id="4_04u0k"]
+
+[resource]
+script = ExtResource("4_04u0k")
+chapters = Array[Resource]([ExtResource("1_pytuj"), ExtResource("2_x12l7"), ExtResource("3_oy0wn")])
+chapter_sources = {
+"day1": "res://resources/story/chapters/day1.txt",
+"test_brief": "res://resources/story/chapters/test_brief.txt",
+"test_dev": "res://resources/story/chapters/test_dev.txt"
+}
+compiled_paths = {
+"day1": "res://resources/story/generated/day1.tres",
+"test_brief": "res://resources/story/generated/test_brief.tres",
+"test_dev": "res://resources/story/generated/test_dev.tres"
+}

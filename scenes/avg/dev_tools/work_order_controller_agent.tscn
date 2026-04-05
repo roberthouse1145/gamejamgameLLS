@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/dev_tools/work_order_controller_agent.gd" id="1_controller"]
+[ext_resource type="Script" path="res://scripts/llm/AIService.gd" id="2_ai_service"]
+
+[node name="WorkOrderControllerAgent" type="Node"]
+script = ExtResource("1_controller")
+role = "work_order_controller"
+prompt_key = "work_order_controller"
+
+[node name="AIService" type="Node" parent="."]
+script = ExtResource("2_ai_service")
+auto_execute_tools = true
+max_tool_iterations = 15
+default_max_tokens = 8192

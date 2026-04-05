@@ -6,6 +6,7 @@ signal scene_failed(session_id: String, error: String)
 
 const AVGScenePromptBuilderClass = preload("res://scripts/activity/avg_scene_prompt_builder.gd")
 const AVGDSLSerializerClass = preload("res://scripts/avg/dsl/avg_dsl_serializer.gd")
+const DSLRepairAgentClass = preload("res://scripts/activity/dsl_repair_agent.gd")
 const ParserClass = preload("res://scripts/avg/dsl/avg_dsl_parser_v2.gd")
 const ValidatorClass = preload("res://scripts/avg/dsl/avg_dsl_validator.gd")
 const AVGProjectClass = preload("res://scripts/avg/resources/avg_project.gd")
@@ -20,21 +21,7 @@ const PREVIEW_ASSET_KEY: String = "date_scene_asset_manifest"
 const WRITER_ROLE: String = "date_scene_writer"
 const MAX_GENERATION_ATTEMPTS: int = 3
 const NORMAL_CHOICE_VAR_ID: String = "var_001"
-const ALLOWED_COMMANDS: Array[String] = [
-	"DIALOGUE",
-	"CHOICE",
-	"CHANGE_BACKGROUND",
-	"SHOW_CHARACTER",
-	"CHANGE_EXPRESSION",
-	"CHANGE_OUTFIT",
-	"SHOW_IMAGE",
-	"HIDE_IMAGE",
-	"SCREEN_FADE",
-	"SET_TIME_OF_DAY",
-	"WAIT_TIME",
-	"CHARACTER_EFFECT",
-]
-const ALLOWED_POSITIONS: Array[String] = ["left", "center", "right"]
+
 const OUTLINE_COMMAND_TYPES: PackedStringArray = [
 	"DIALOGUE",
 	"CHOICE",
@@ -45,16 +32,17 @@ const OUTLINE_COMMAND_TYPES: PackedStringArray = [
 	"CALL_EVENT",
 ]
 
-var _builder: RefCounted = AVGScenePromptBuilderClass.new()
 var _parser: RefCounted = ParserClass.new()
 var _validator: RefCounted = ValidatorClass.new()
 var _writer_service: AIService = null
 var _writer_ready: bool = false
+var _repair_agent: Node = null
 var _request_context_by_id: Dictionary = {}
 
 
 func _ready() -> void:
 	_setup_ai_services()
+	_setup_repair_agent()
 
 
 func is_available() -> bool:
@@ -89,10 +77,7 @@ func _setup_ai_services() -> void:
 	_writer_service.request_completed.connect(_on_writer_completed)
 	_writer_service.request_failed.connect(_on_writer_failed)
 
-	var config_mgr := AIConfigManager.new()
-	if not config_mgr.load_config():
-		return
-
+	var config_mgr := AIConfigManager.get_instance()
 	_writer_ready = config_mgr.apply_to_service(_writer_service, WRITER_ROLE)
 	if not _writer_ready:
 		_writer_ready = config_mgr.apply_to_service(_writer_service, "avg_dev_writer")
@@ -100,16 +85,27 @@ func _setup_ai_services() -> void:
 		_writer_ready = config_mgr.apply_to_service(_writer_service, "chat_default")
 
 
-func _build_prompt(session: Dictionary) -> String:
-	if _builder == null or not _builder.has_method("build_normal_date_prompt_from_session"):
-		return ""
+func _setup_repair_agent() -> void:
+	_repair_agent = DSLRepairAgentClass.new()
+	_repair_agent.name = "DSLRepairAgent"
+	add_child(_repair_agent)
+	_repair_agent.repair_completed.connect(_on_repair_completed)
+	_repair_agent.repair_failed.connect(_on_repair_failed)
 
-	var base_prompt: String = str(_builder.build_normal_date_prompt_from_session(session)).strip_edges()
+
+func _build_prompt(session: Dictionary) -> String:
+	var builder := AVGScenePromptBuilderClass.create_for_session(session)
+	var base_prompt: String = str(builder.build_prompt_from_session(session)).strip_edges()
 	if base_prompt.is_empty():
 		return ""
 
+	print("[AVGSceneGenerator] === DEBUG: session phase_after_action = '%s', start_day = %s ===" % [
+		str(session.get("phase_after_action", "N/A")),
+		str(session.get("start_day", "N/A")),
+	])
+
 	var prompt_manager: Node = _get_autoload("PromptManager")
-	if prompt_manager == null or not prompt_manager.has_method("register_prompt") or not prompt_manager.has_method("resolve"):
+	if prompt_manager == null or not prompt_manager.has_method("resolve_with_vars"):
 		return base_prompt
 
 	var preview_source_key: String = str(session.get("scene_preview_source_key", PREVIEW_SOURCE_KEY)).strip_edges()
@@ -122,10 +118,12 @@ func _build_prompt(session: Dictionary) -> String:
 	if preview_prompt_key.is_empty():
 		preview_prompt_key = PREVIEW_PROMPT_KEY
 
-	prompt_manager.register_prompt(preview_source_key, base_prompt)
-	prompt_manager.register_prompt(preview_asset_key, _build_asset_prompt_block())
+	var ctx: Dictionary = {
+		preview_source_key: base_prompt,
+		preview_asset_key: _build_asset_prompt_block(),
+	}
 	if prompt_manager.has_method("has_prompt") and prompt_manager.has_prompt(preview_prompt_key):
-		return str(prompt_manager.resolve(preview_prompt_key)).strip_edges()
+		return str(prompt_manager.resolve_with_vars(preview_prompt_key, ctx)).strip_edges()
 	return base_prompt
 
 
@@ -159,6 +157,7 @@ func _request_generation(context: Dictionary) -> bool:
 		str(updated_context.get("session_id", "")),
 		int(updated_context.get("attempt", 0))
 	])
+	print("[AVGSceneGenerator] === DEBUG FULL PROMPT ===\n%s\n=== END DEBUG PROMPT ===" % prompt_text)
 	return true
 
 
@@ -176,7 +175,8 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 	var reasoning_text: String = AIService.extract_reasoning_content(response).strip_edges()
 	if not reasoning_text.is_empty():
 		print("[AVGSceneGenerator] Writer reasoning: %s" % reasoning_text)
-	var validation: Dictionary = _validate_dsl(raw_text)
+	var sanitized_text: String = _strip_code_fences(raw_text)
+	var validation: Dictionary = _validate_dsl(sanitized_text)
 	print("[AVGSceneGenerator] Writer response: %s | ok=%s | %s" % [
 		str(context.get("session_id", "")),
 		str(bool(validation.get("ok", false))),
@@ -186,6 +186,30 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 		_emit_scene_generated(str(context.get("session_id", "")), validation.get("commands", []), context.get("session", {}))
 		return
 
+	# 尝试使用 Repair Agent 修复（而非直接全量重试）
+	if _repair_agent != null and _repair_agent.is_available():
+		var session_id: String = str(context.get("session_id", ""))
+		var attempt: int = int(context.get("attempt", 0))
+		# 保存上下文供 repair 完成/失败后继续流程
+		_request_context_by_id["repair_" + session_id] = {
+			"session_id": session_id,
+			"session": context.get("session", {}),
+			"base_prompt": str(context.get("base_prompt", "")),
+			"attempt": attempt,
+			"raw_dsl": sanitized_text,
+		}
+		print("[AVGSceneGenerator] Attempting DSL repair for %s (attempt %d)" % [session_id, attempt])
+		_repair_agent.attempt_repair(
+			session_id,
+			sanitized_text,
+			validation,
+			_build_runtime_project(),
+			_get_project_root_path(),
+			_build_asset_prompt_block(),
+		)
+		return
+
+	# Repair Agent 不可用，回退到传统全量重试
 	var attempt: int = int(context.get("attempt", 0))
 	if attempt < MAX_GENERATION_ATTEMPTS:
 		var retry_context: Dictionary = context.duplicate(true)
@@ -194,6 +218,46 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 			return
 
 	scene_failed.emit(str(context.get("session_id", "")), str(validation.get("summary", "dsl_validation_failed")))
+
+
+func _on_repair_completed(session_id: String, repaired_dsl: String) -> void:
+	var repair_key: String = "repair_" + session_id
+	var context: Dictionary = _request_context_by_id.get(repair_key, {})
+	_request_context_by_id.erase(repair_key)
+
+	# 重新解析修复后的 DSL 以获取 commands
+	var validation: Dictionary = _validate_dsl(repaired_dsl)
+	if bool(validation.get("ok", false)):
+		print("[AVGSceneGenerator] Repair succeeded, emitting scene for %s" % session_id)
+		_emit_scene_generated(session_id, validation.get("commands", []), context.get("session", {}))
+	else:
+		# 修复后仍然不通过（理论上不应发生），回退到全量重试
+		print("[AVGSceneGenerator] Repair output still invalid for %s, falling back" % session_id)
+		_fallback_after_repair(session_id, context, validation)
+
+
+func _on_repair_failed(session_id: String, error: String) -> void:
+	var repair_key: String = "repair_" + session_id
+	var context: Dictionary = _request_context_by_id.get(repair_key, {})
+	_request_context_by_id.erase(repair_key)
+	print("[AVGSceneGenerator] Repair failed for %s: %s, falling back to full retry" % [session_id, error])
+	_fallback_after_repair(session_id, context, {})
+
+
+func _fallback_after_repair(session_id: String, context: Dictionary, validation: Dictionary) -> void:
+	var attempt: int = int(context.get("attempt", 0))
+	if attempt < MAX_GENERATION_ATTEMPTS:
+		var retry_context: Dictionary = {
+			"session_id": session_id,
+			"session": context.get("session", {}),
+			"base_prompt": str(context.get("base_prompt", "")),
+			"attempt": attempt,
+		}
+		if not validation.is_empty():
+			retry_context["base_prompt"] = _build_retry_prompt(str(context.get("base_prompt", "")), validation)
+		if _request_generation(retry_context):
+			return
+	scene_failed.emit(session_id, "dsl_repair_and_retry_exhausted")
 
 
 func _on_writer_failed(request_id: String, error: String, _error_code: int) -> void:
@@ -229,8 +293,6 @@ func _validate_dsl(raw_text: String) -> Dictionary:
 		_build_runtime_project(),
 		_get_project_root_path(),
 		{
-			"allowed_commands": ALLOWED_COMMANDS,
-			"allowed_positions": ALLOWED_POSITIONS,
 			"min_choice_count": 0,
 			"max_choice_count": 0,
 		}
@@ -261,8 +323,121 @@ func _build_retry_prompt(base_prompt: String, result: Dictionary) -> String:
 	else:
 		for entry in error_lines:
 			retry_lines.append("- %s" % str(entry))
+
+	# Extract character IDs from error messages and provide valid options
+	var hint_lines: Array[String] = _build_asset_correction_hints(error_lines)
+	if not hint_lines.is_empty():
+		retry_lines.append("")
+		retry_lines.append("VALID ASSETS (use ONLY these names):")
+		retry_lines.append_array(hint_lines)
+
+	retry_lines.append("")
 	retry_lines.append("Still output only DSL.")
 	return "\n".join(retry_lines).strip_edges()
+
+
+## Parse error messages and build correction hints with valid emotion/outfit lists
+func _build_asset_correction_hints(error_lines: Array) -> Array[String]:
+	var hints: Array[String] = []
+	var project: Resource = _build_runtime_project()
+	if project == null or not "characters" in project:
+		return hints
+
+	# Collect character IDs mentioned in errors
+	var mentioned_char_ids: Dictionary = {}
+	var has_bg_error: bool = false
+	var has_bgm_error: bool = false
+	var has_sfx_error: bool = false
+	for entry in error_lines:
+		var line: String = str(entry)
+		# Match patterns like "missing emotion on char_001" or "missing outfit on char_001"
+		if "missing emotion on " in line or "missing outfit on " in line:
+			var after_on: String = ""
+			if "missing emotion on " in line:
+				after_on = line.substr(line.find("missing emotion on ") + 19)
+			else:
+				after_on = line.substr(line.find("missing outfit on ") + 18)
+			var colon_pos: int = after_on.find(":")
+			if colon_pos > 0:
+				var char_id: String = after_on.substr(0, colon_pos).strip_edges()
+				mentioned_char_ids[char_id] = true
+		if "missing background" in line or "missing bg" in line.to_lower():
+			has_bg_error = true
+		if "missing bgm" in line.to_lower():
+			has_bgm_error = true
+		if "missing sfx" in line.to_lower():
+			has_sfx_error = true
+
+	# Build hints for mentioned characters
+	for character in project.characters:
+		if character == null:
+			continue
+		var char_id: String = (character.character_id if "character_id" in character else "").strip_edges()
+		if char_id.is_empty() or not mentioned_char_ids.has(char_id):
+			continue
+		var emotions: Array[String] = _collect_character_emotions(character)
+		var outfits: Array[String] = _collect_character_outfits(character)
+		if not emotions.is_empty():
+			hints.append("- %s valid emotions: %s" % [char_id, ", ".join(PackedStringArray(emotions))])
+		if not outfits.is_empty():
+			hints.append("- %s valid outfits: %s" % [char_id, ", ".join(PackedStringArray(outfits))])
+
+	# Add background/audio hints if those had errors
+	if has_bg_error or has_bgm_error or has_sfx_error:
+		var manifest_block: String = _build_asset_prompt_block()
+		if not manifest_block.is_empty():
+			hints.append("")
+			hints.append(manifest_block)
+
+	return hints
+
+
+func _collect_character_emotions(character: Resource) -> Array[String]:
+	var emotions: Array[String] = []
+	if character == null:
+		return emotions
+	var sprites: Dictionary = character.sprites if "sprites" in character else {}
+	for key in sprites.keys():
+		var emotion_name: String = str(key).strip_edges()
+		if emotion_name.is_empty():
+			continue
+		if "__" in emotion_name:
+			var parts: PackedStringArray = emotion_name.split("__", false, 1)
+			if parts.size() == 2:
+				emotion_name = str(parts[1]).strip_edges()
+		if emotion_name.is_empty() or emotions.has(emotion_name):
+			continue
+		emotions.append(emotion_name)
+	if "emotion_slots" in character and character.emotion_slots is Dictionary:
+		for key in character.emotion_slots.keys():
+			var slot_emotion: String = str(key).strip_edges()
+			if slot_emotion.is_empty() or emotions.has(slot_emotion):
+				continue
+			emotions.append(slot_emotion)
+	emotions.sort()
+	return emotions
+
+
+func _collect_character_outfits(character: Resource) -> Array[String]:
+	var outfits: Array[String] = []
+	if character == null:
+		return outfits
+	var sprites: Dictionary = character.sprites if "sprites" in character else {}
+	for key in sprites.keys():
+		var outfit_name: String = str(key).strip_edges()
+		if "__" in outfit_name:
+			var parts: PackedStringArray = outfit_name.split("__", false, 1)
+			if parts.size() == 2:
+				outfit_name = str(parts[0]).strip_edges()
+			else:
+				continue
+		else:
+			continue
+		if outfit_name.is_empty() or outfits.has(outfit_name):
+			continue
+		outfits.append(outfit_name)
+	outfits.sort()
+	return outfits
 
 
 func _emit_scene_generated(session_id: String, commands: Array, session: Dictionary = {}) -> void:

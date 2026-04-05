@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 url = "gamejam://signup"
-title = "AGJ 2025 - 新星赛道报名"
+title = "AGJ 2027 - 新星赛道报名"
 hint = "官方报名页。玩家会在这里锁定名字、学院和队伍名，作为 Day1 的初始化设定。"
 content = ""
 design_prompt = ""

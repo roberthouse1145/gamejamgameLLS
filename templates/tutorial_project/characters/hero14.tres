@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_035"
+character_name = "Hero14"
+display_name = "Hero14"
+sprites = {
+"angry": "assets/images/character/hero14/hero_14_cos04.png",
+"default": "assets/images/character/hero14/hero_14_cos01.png",
+"happy": "assets/images/character/hero14/hero_14_cos06.png",
+"laugh": "assets/images/character/hero14/hero_14_cos08.png",
+"sad": "assets/images/character/hero14/hero_14_cos18.png",
+"serious": "assets/images/character/hero14/hero_14_cos02.png",
+"shy": "assets/images/character/hero14/hero_14_cos19.png",
+"smug": "assets/images/character/hero14/hero_14_cos12.png",
+"surprised": "assets/images/character/hero14/hero_14_cos20.png",
+"thinking": "assets/images/character/hero14/hero_14_cos05.png",
+"worried": "assets/images/character/hero14/hero_14_cos10.png"
+}
+default_outfit = "cos"
+available_outfits = ["cos"]
+emotion_slots = {
+"angry": "04",
+"default": "01",
+"happy": "06",
+"laugh": "08",
+"sad": "18",
+"serious": "02",
+"shy": "19",
+"smug": "12",
+"surprised": "20",
+"thinking": "05",
+"worried": "10"
+}
+profile = "俏皮神秘的魔术师少年，粉蓝挑染短发，碧绿眼眸，身着黑紫色燕尾服，头戴骷髅高礼帽，手持拐杖"

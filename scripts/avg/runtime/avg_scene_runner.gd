@@ -1160,6 +1160,7 @@ func stop() -> void:
 	_pressed_nodes.clear()
 	if dialog_box != null and dialog_box.has_method("hide_box"):
 		dialog_box.hide_box()
+	_stop_runtime_audio()
 	# 关闭子界面
 	if _screen_manager != null and _screen_manager.is_showing():
 		_screen_manager.close_screen()
@@ -1217,6 +1218,15 @@ func reset() -> void:
 
 
 ## 从暂存的并行命令创建执行器（替代旧的 fire-and-forget）
+func _stop_runtime_audio() -> void:
+	if audio_manager == null:
+		return
+	if audio_manager.has_method("stop_all_audio"):
+		audio_manager.stop_all_audio()
+	elif audio_manager.has_method("stop_bgm"):
+		audio_manager.stop_bgm(0.0)
+
+
 func _setup_parallel_executors() -> void:
 	for node in _parallel_commands:
 		var commands: Array = _parallel_commands[node]
@@ -1419,11 +1429,10 @@ func _execute_single_command(cmd: Resource) -> void:
 		var speaker: String = cmd.params.get("speaker", "")
 		var text: String = cmd.params.get("text", "")
 		var scene_id: String = current_scene.scene_id if current_scene != null and "scene_id" in current_scene else ""
-		# 解析 character_id 为显示名
-		if not speaker.is_empty() and dialog_box != null and "_character_data" in dialog_box:
-			var char_data: Dictionary = dialog_box._character_data
-			if char_data.has(speaker):
-				var cd: Dictionary = char_data[speaker]
+		# 解析 character_id / character_name 为显示名
+		if not speaker.is_empty() and dialog_box != null and dialog_box.has_method("_find_character_data"):
+			var cd: Dictionary = dialog_box._find_character_data(speaker)
+			if not cd.is_empty():
 				if cd.has("display_name") and not cd["display_name"].is_empty():
 					speaker = cd["display_name"]
 				elif cd.has("character_name") and not cd["character_name"].is_empty():
@@ -2614,6 +2623,7 @@ func _build_title_screen() -> void:
 		start_norm_pos.x * _project_resolution.x - btn_size.x / 2.0,
 		start_norm_pos.y * _project_resolution.y - btn_size.y / 2.0
 	)
+	_apply_title_button_style(start_btn, config)
 	start_btn.pressed.connect(_on_title_start_pressed)
 	_title_screen.add_child(start_btn)
 
@@ -2631,6 +2641,7 @@ func _build_title_screen() -> void:
 		load_norm_pos.y * _project_resolution.y - btn_size.y / 2.0
 	)
 	load_btn.disabled = not load_enabled
+	_apply_title_button_style(load_btn, config)
 	load_btn.pressed.connect(_on_title_load_pressed)
 	_title_screen.add_child(load_btn)
 
@@ -2648,6 +2659,7 @@ func _build_title_screen() -> void:
 		settings_norm_pos.y * _project_resolution.y - btn_size.y / 2.0
 	)
 	settings_btn.disabled = not settings_enabled
+	_apply_title_button_style(settings_btn, config)
 	settings_btn.pressed.connect(_on_title_settings_pressed)
 	_title_screen.add_child(settings_btn)
 
@@ -2664,6 +2676,14 @@ func _on_title_start_pressed() -> void:
 		first_index = config.resolve_first_scene_index(current_project)
 	hide_title_screen()
 	title_start_requested.emit(first_index)
+
+
+## 将 title_config.button_style（AVGStyleBox）的四状态应用到按钮
+func _apply_title_button_style(btn: BaseButton, config: Resource) -> void:
+	if config == null:
+		return
+	if "button_style" in config and config.button_style != null and config.button_style.has_method("apply_to_button"):
+		config.button_style.apply_to_button(btn)
 
 
 ## 标题界面 "读档" 按钮回调
@@ -2751,6 +2771,8 @@ func _setup_game_ui_buttons() -> void:
 			btn_data.norm_position.x * _project_resolution.x - btn_data.size.x / 2.0,
 			btn_data.norm_position.y * _project_resolution.y - btn_data.size.y / 2.0
 		)
+		if "button_style" in config and config.button_style != null and config.button_style.has_method("apply_to_button"):
+			config.button_style.apply_to_button(btn)
 		var action: String = btn_data.action
 		btn.pressed.connect(_on_game_ui_button_pressed.bind(action))
 		_game_ui_container.add_child(btn)

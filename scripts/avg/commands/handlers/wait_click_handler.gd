@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name WaitClickHandler
 ## Handler for WAIT_CLICK command
 ## Waits for player click to continue.

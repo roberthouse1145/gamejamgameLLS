@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_033"
+character_name = "Hero12"
+display_name = "Hero12"
+sprites = {
+"angry": "assets/images/character/hero12/hero_12_cos11.png",
+"default": "assets/images/character/hero12/hero_12_cos02.png",
+"happy": "assets/images/character/hero12/hero_12_cos03.png",
+"laugh": "assets/images/character/hero12/hero_12_cos12.png",
+"serious": "assets/images/character/hero12/hero_12_cos13.png",
+"shy": "assets/images/character/hero12/hero_12_cos07.png",
+"smug": "assets/images/character/hero12/hero_12_cos09.png",
+"surprised": "assets/images/character/hero12/hero_12_cos20.png",
+"thinking": "assets/images/character/hero12/hero_12_cos06.png",
+"worried": "assets/images/character/hero12/hero_12_cos17.png"
+}
+default_outfit = "cos"
+available_outfits = ["cos"]
+emotion_slots = {
+"angry": "11",
+"default": "02",
+"happy": "03",
+"laugh": "12",
+"serious": "13",
+"shy": "07",
+"smug": "09",
+"surprised": "20",
+"thinking": "06",
+"worried": "17"
+}
+profile = "呆萌可爱的兽人少年，银发红瞳，身穿深色露脐短斗篷配宽松长裤，带有条纹大尾巴"

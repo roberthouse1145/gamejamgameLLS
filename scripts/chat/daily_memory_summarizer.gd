@@ -17,6 +17,9 @@ var _llm_ready: bool = false
 var _pending_day: int = -1
 var _system_prompt: String = ""
 
+## 只有在白名单中的频道才会被摘要。为空则跳过所有频道。
+var summary_channel_whitelist: Array[String] = []
+
 ## 并行请求追踪：request_id -> channel_info { channel_id, channel_name, members }
 var _pending_requests: Dictionary = {}
 ## 本轮累计存储的记忆数
@@ -33,11 +36,10 @@ func _ready() -> void:
 	_ai_service.request_completed.connect(_on_request_completed)
 	_ai_service.request_failed.connect(_on_request_failed)
 
-	var config_mgr := AIConfigManager.new()
-	if config_mgr.load_config():
-		_llm_ready = config_mgr.apply_to_service(_ai_service, SUMMARIZER_ROLE)
-		if not _llm_ready:
-			_llm_ready = config_mgr.apply_to_service(_ai_service, FALLBACK_ROLE)
+	var config_mgr := AIConfigManager.get_instance()
+	_llm_ready = config_mgr.apply_to_service(_ai_service, SUMMARIZER_ROLE)
+	if not _llm_ready:
+		_llm_ready = config_mgr.apply_to_service(_ai_service, FALLBACK_ROLE)
 
 	# 连接 day_changed 信号
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
@@ -108,6 +110,10 @@ func _collect_channel_tasks(day: int) -> Array[Dictionary]:
 		if channel == null:
 			continue
 
+		# 白名单过滤：只摘要白名单中的频道
+		if not summary_channel_whitelist.is_empty() and channel_id not in summary_channel_whitelist:
+			continue
+
 		var day_messages := _filter_messages_by_day(channel.messages, day)
 		if day_messages.is_empty():
 			continue
@@ -133,13 +139,20 @@ func _collect_channel_tasks(day: int) -> Array[Dictionary]:
 
 
 ## 格式化单个频道的聊天记录
-func _format_channel_log(channel: ChatChannel, day_messages: Array[Dictionary]) -> String:
+func _format_channel_log(_channel: ChatChannel, day_messages: Array[Dictionary]) -> String:
 	var lines: Array[String] = []
 	for msg in day_messages.slice(-MAX_MESSAGES_PER_CHANNEL):
 		var sender: String = msg.get("sender_name", msg.get("sender_id", "未知"))
 		var time_str: String = msg.get("time", "")
-		var content: String = msg.get("content", "")
-		if content.strip_edges().is_empty():
+		var content: String = str(msg.get("content", "")).strip_edges()
+		if msg.has("card") and msg["card"] is Dictionary:
+			var card_text := ChatPromptBuilder._summarize_card(msg["card"])
+			if not card_text.is_empty():
+				if content.is_empty():
+					content = card_text
+				else:
+					content += " " + card_text
+		if content.is_empty():
 			continue
 		if msg.get("sender_id", "") == "system":
 			continue

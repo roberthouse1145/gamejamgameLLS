@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name IfHandler
 ## Handler for IF command
 ## 条件分支 — condition_commands 是条件命令列表，由运行时评估

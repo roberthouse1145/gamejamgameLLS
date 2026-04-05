@@ -1,25 +1,21 @@
-extends Node
-
-signal session_started(session_id: String, payload: Dictionary)
-signal session_completed(session_id: String, payload: Dictionary)
-signal session_failed(error_message: String)
+extends "res://autoload/activity_session_manager.gd"
 
 signal activity_started(activity_id: String, payload: Dictionary)
 signal activity_completed(activity_id: String, payload: Dictionary)
+@warning_ignore("unused_signal")
 signal important_event_triggered(event_id: String, payload: Dictionary)  # P3: 条件触发 AVG
+@warning_ignore("unused_signal")
 signal initiative_presented(initiative: Dictionary)  # P2: 林夏主动发起
 signal initiative_responded(initiative_id: String, accepted: bool)
-
-const ActivityChatClass = preload("res://scripts/activity/activity_chat.gd")
-const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
-const ActivityUtilsClass = preload("res://scripts/activity/activity_utils.gd")
-const MomentGeneratorClass = preload("res://scripts/activity/moment_generator.gd")
 
 const HOME_ACTIVITIES_PATH: String = "res://resources/data/home/home_activities.json"
 const HOME_IMPORTANT_EVENTS_PATH: String = "res://resources/data/home/home_important_events.json"
 const HOME_INITIATIVES_PATH: String = "res://resources/data/home/home_initiatives.json"
 const HOME_WATCH_POOL_PATH: String = "res://resources/data/home/home_watch_pool.json"
 const CHAT_STAGE: String = "interaction"
+const REST_BEDTIME_STAGE: String = "rest_bedtime"
+const REST_WAKEUP_STAGE: String = "rest_wakeup"
+const REST_DURATION: float = 5.0
 
 var _activity_catalog: Array[Dictionary] = []
 var _activities_by_id: Dictionary = {}
@@ -27,46 +23,31 @@ var _important_events: Array[Dictionary] = []
 var _initiative_pool: Array[Dictionary] = []
 var _watch_pool: Array[Dictionary] = []
 var _played_events: Dictionary = {}
-var _pending_sessions: Dictionary = {}
-var _session_counter: int = 0
 var _consecutive_personal_count: int = 0
 var _presented_initiative: Dictionary = {}
-var _pending_morning_message: String = ""
-
-var _chat: RefCounted = null
-var _moment_gen: Node = null
 
 
-func _ready() -> void:
+# =============================================================================
+# Virtual Method Overrides (ActivitySessionManager)
+# =============================================================================
+
+func _get_activity_type() -> String:
+	return "home"
+
+
+func _get_chat_stage_key() -> String:
+	return "home_stage"
+
+
+func _should_generate_scene_extra(_session: Dictionary) -> bool:
+	return false
+
+
+func _on_manager_ready() -> void:
 	_load_activity_catalog()
 	_load_important_events()
 	_load_initiatives()
 	_load_watch_pool()
-
-	_chat = ActivityChatClass.new("home", "home_stage")
-	_chat.stage_completed.connect(_on_chat_stage_completed)
-	_chat.stage_timeout.connect(_on_chat_stage_timeout)
-	call_deferred("_connect_chat_deferred")
-
-	_moment_gen = MomentGeneratorClass.new()
-	_moment_gen.name = "HomeMomentGenerator"
-	add_child(_moment_gen)
-	_moment_gen.moment_completed.connect(_on_moment_completed)
-
-	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if glm != null and glm.has_signal("day_changed") and not glm.day_changed.is_connected(_on_day_changed):
-		glm.day_changed.connect(_on_day_changed)
-
-	ActivityLockUtilsClass.register_busy_source(name, self)
-
-
-func _exit_tree() -> void:
-	ActivityLockUtilsClass.unregister_busy_source(name)
-
-
-func _connect_chat_deferred() -> void:
-	if _chat != null and _chat.has_method("connect_signals"):
-		_chat.connect_signals()
 
 
 # === 公开 API ===
@@ -110,6 +91,14 @@ func begin_activity(activity_id: String, context: Dictionary = {}) -> Dictionary
 	if not blocking_reason.is_empty():
 		ActivityLockUtilsClass.notify_blocked(self, blocking_reason)
 		return _fail(blocking_reason)
+
+	# 叙事锁：先检查 "life" 整体类型，再检查具体活动 ID
+	var narrative_reason := ActivityLockUtilsClass.get_narrative_blocking_reason("life")
+	if narrative_reason.is_empty():
+		narrative_reason = ActivityLockUtilsClass.get_narrative_blocking_reason(normalized_id)
+	if not narrative_reason.is_empty():
+		ActivityLockUtilsClass.notify_blocked(self, narrative_reason)
+		return _fail(narrative_reason)
 
 	var activity: Dictionary = _as_dictionary(_activities_by_id.get(normalized_id, {})).duplicate(true)
 	var availability: Dictionary = _evaluate_activity_availability(activity)
@@ -173,6 +162,20 @@ func begin_rest() -> Dictionary:
 	return begin_activity("rest")
 
 
+func get_activity_preview_rewards(activity_id: String) -> Dictionary:
+	var normalized_id: String = activity_id.strip_edges()
+	if normalized_id.is_empty():
+		return {}
+	if not _activities_by_id.has(normalized_id):
+		return {}
+
+	var activity: Dictionary = _as_dictionary(_activities_by_id.get(normalized_id, {}))
+	var rewards: Dictionary = _as_dictionary(activity.get("stat_effects", {})).duplicate(true)
+	if normalized_id == "rest":
+		rewards["stress"] = _build_rest_stress_delta()
+	return rewards
+
+
 func evaluate_initiative() -> Dictionary:
 	if not _presented_initiative.is_empty():
 		return _presented_initiative.duplicate(true)
@@ -193,14 +196,6 @@ func respond_to_initiative(initiative_id: String, accepted: bool) -> void:
 		begin_activity(activity_id)
 
 
-func has_pending_session(session_id: String) -> bool:
-	return _pending_sessions.has(session_id)
-
-
-func has_any_pending_sessions() -> bool:
-	return not _pending_sessions.is_empty()
-
-
 func get_run_state() -> Dictionary:
 	return {
 		"played_events": _played_events.duplicate(true),
@@ -216,19 +211,13 @@ func load_run_state(data: Dictionary) -> bool:
 	_consecutive_personal_count = int(data.get("consecutive_personal_count", 0))
 	_presented_initiative = _as_dictionary(data.get("presented_initiative", {})).duplicate(true)
 	_pending_sessions.clear()
-	_pending_morning_message = ""
 	return true
 
 
-func reset_runtime_state() -> void:
-	_pending_sessions.clear()
-	_session_counter = 0
+func _on_reset_runtime_state() -> void:
 	_played_events.clear()
 	_consecutive_personal_count = 0
 	_presented_initiative.clear()
-	_pending_morning_message = ""
-	if _moment_gen != null and _moment_gen.has_method("reset_runtime_state"):
-		_moment_gen.reset_runtime_state()
 
 
 # === 活动流程 ===
@@ -279,42 +268,117 @@ func _run_rest_flow(session_id: String) -> void:
 	if not _pending_sessions.has(session_id):
 		return
 
+	var session: Dictionary = _hydrate_session_context(
+		_as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
+	)
+	session["moment_done"] = true  # rest 不生成朋友圈
+	_pending_sessions[session_id] = session
+
+	# 自动唤起 LinkChat 让玩家看到对话
+	_open_linkchat_dm()
+
+	# 根据时段确定 topic 标签
+	var phase: String = str(session.get("start_phase", "")).strip_edges().to_lower()
+	var bedtime_label: String
+	match phase:
+		"morning":
+			bedtime_label = "补觉"
+		"afternoon":
+			bedtime_label = "早休"
+		_:
+			bedtime_label = "晚安"
+
+	# 睡前对话 topic（完成后启动进度条）
+	if bool(session.get("use_local_chat_fallback", false)):
+		_rest_bedtime_fallback(session_id)
+		return
+
+	var started: bool = _chat.start_topic(session_id, REST_BEDTIME_STAGE, {
+		"display_label": bedtime_label,
+		"system_prompt": _build_rest_bedtime_prompt(session),
+		"goal": "林夏发一条睡前消息",
+		"seed_message": "请发一条自然的睡前消息。",
+		"max_turns": 2,
+		"timeout_seconds": 30,
+		"extra_context": {"activity_id": "rest"},
+	})
+	if not started:
+		_rest_bedtime_fallback(session_id)
+
+
+## 睡前对话完成后启动休息进度条（使用 ActivitySessionManager 的弹性进度）
+func _start_rest_progress(session_id: String) -> void:
+	if not _pending_sessions.has(session_id):
+		return
+	var session: Dictionary = (_pending_sessions[session_id] as Dictionary).duplicate(true)
+	session["progress_duration"] = REST_DURATION
+	_pending_sessions[session_id] = session
+	_emit_progress_started(session_id)
+
+
+## 进度条完成后启动醒来对话 (override ActivitySessionManager hook)
+func _on_progress_completed_hook(session_id: String) -> bool:
+	if not _pending_sessions.has(session_id):
+		return false
+	var session: Dictionary = _pending_sessions[session_id]
+	var activity_id: String = str(session.get("activity_id", "")).strip_edges()
+	if activity_id != "rest":
+		return false
+	_start_rest_wakeup(session_id)
+	return true
+
+
+## 进度条完成后启动醒来对话
+func _start_rest_wakeup(session_id: String) -> void:
+	if not _pending_sessions.has(session_id):
+		return
+
+	var session: Dictionary = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
+
+	# 自动唤起 LinkChat
+	_open_linkchat_dm()
+
+	if bool(session.get("use_local_chat_fallback", false)):
+		_rest_wakeup_fallback(session_id)
+		return
+
+	var wakeup_prompt: String = _build_rest_wakeup_prompt(session)
+	var started: bool = _chat.start_topic(session_id, REST_WAKEUP_STAGE, {
+		"display_label": "醒来了",
+		"system_prompt": wakeup_prompt,
+		"goal": "林夏发一条自然的消息",
+		"seed_message": "请发一条自然的消息。",
+		"max_turns": 2,
+		"timeout_seconds": 30,
+		"extra_context": {"activity_id": "rest"},
+	})
+	if not started:
+		_rest_wakeup_fallback(session_id)
+
+
+func _rest_wakeup_fallback(session_id: String) -> void:
+	if not _pending_sessions.has(session_id):
+		return
+	var session: Dictionary = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
+	var wakeup_text: String = _build_rest_wakeup_message(session)
+	if not wakeup_text.is_empty():
+		_chat.send_local_message(wakeup_text)
+	_pending_sessions[session_id] = session
+	_finish_session(session_id)
+
+
+func _rest_bedtime_fallback(session_id: String) -> void:
+	if not _pending_sessions.has(session_id):
+		return
 	var session: Dictionary = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
 	var bedtime_text: String = _build_rest_bedtime_message(session)
 	if not bedtime_text.is_empty():
 		_chat.send_local_message(bedtime_text)
 		session["reply_text"] = bedtime_text
 	session["chat_done"] = true
-	session["moment_done"] = true
 	_pending_sessions[session_id] = session
-
-	# rest 流程：结算属性 → 推进到下一天
-	# 不使用 consume_ap，因为 consume_ap 在 NIGHT 会通过 _advance_phase 自动触发
-	# advance_to_next_day，导致重复推进。rest 直接跳到下一天即可。
-	var glm_ref: Node = get_node_or_null("/root/GameLoopManager")
-
-	_apply_session_settlement(session_id)
-	_pending_morning_message = _build_rest_morning_message(session)
-
-	if glm_ref != null and glm_ref.has_method("advance_to_next_day"):
-		glm_ref.advance_to_next_day()
-
-	# 直接完成 session，跳过 _finish_session 的 AP 消耗（已在上面处理）
-	session = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
-	var payload: Dictionary = {
-		"success": true,
-		"session_id": session_id,
-		"activity_id": "rest",
-		"activity_type": "life",
-		"context": _as_dictionary(session.get("context", {})).duplicate(true),
-		"reply": str(session.get("reply_text", "")),
-		"moment": {},
-		"phase": str(session.get("start_phase", "")),
-		"day": int(session.get("start_day", 1)),
-	}
-	_pending_sessions.erase(session_id)
-	session_completed.emit(session_id, payload)
-	activity_completed.emit("rest", payload)
+	# 对话结束后启动休息进度条
+	_start_rest_progress(session_id)
 
 
 func _run_review_flow(session_id: String) -> void:
@@ -406,7 +470,7 @@ func _start_moment(session_id: String) -> bool:
 
 	var activity: Dictionary = _as_dictionary(session.get("activity", {}))
 	return _moment_gen.start(session_id, {
-		"system_prompt": _build_moment_system_prompt(session),
+		"system_prompt": _build_home_moment_system_prompt(session),
 		"user_prompt": _build_moment_user_prompt(session),
 		"local_fallback_text": _build_local_moment_text(session),
 		"image_hint": str(activity.get("icon_hint", "")),
@@ -459,6 +523,7 @@ func _finish_session(session_id: String) -> void:
 		"moment": _as_dictionary(session.get("moment", {})).duplicate(true),
 		"phase": str(session.get("start_phase", "")),
 		"day": int(session.get("start_day", 1)),
+		"rewards": _as_dictionary(session.get("applied_rewards", {})).duplicate(true),
 	}
 
 	_pending_sessions.erase(session_id)
@@ -502,6 +567,7 @@ func _apply_session_settlement(session_id: String) -> void:
 	if gm != null and gm.has_method("modify_stats"):
 		gm.modify_stats(stat_effects)
 
+	session["applied_rewards"] = stat_effects.duplicate(true)
 	session["settlement_done"] = true
 	_pending_sessions[session_id] = session
 
@@ -849,12 +915,28 @@ func _build_personal_reply(session: Dictionary) -> String:
 	return replies[index]
 
 
-func _build_rest_bedtime_message(_session: Dictionary) -> String:
+func _build_rest_bedtime_message(session: Dictionary) -> String:
+	var phase: String = str(session.get("start_phase", "")).strip_edges().to_lower()
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
+		if phase == "morning":
+			return "去补觉呀？别睡太久。"
+		if phase == "afternoon":
+			return "这么早就睡？好吧，休息一下吧。"
 		return "晚安。明天见。"
 	var stress: int = int(gm.get("stress"))
 	var affection: int = int(gm.get("affection"))
+	if phase == "morning":
+		if stress >= 70:
+			return "你看起来很累……去睡会儿吧。"
+		return "上午就睡？你是不是昨晚没睡好？"
+	if phase == "afternoon":
+		if stress >= 70:
+			return "先休息一下吧，别硬撞了。"
+		if affection >= 70:
+			return "要休息了呀？我再弄一会儿。"
+		return "这么早就睡？好吧，明天见。"
+	# night
 	if stress >= 70:
 		return "我再缓一会儿，你先睡吧……晚安。"
 	if affection >= 70:
@@ -864,22 +946,94 @@ func _build_rest_bedtime_message(_session: Dictionary) -> String:
 	return "晚安。明天再说。"
 
 
-func _build_rest_morning_message(_session: Dictionary) -> String:
+func _build_rest_bedtime_prompt(session: Dictionary) -> String:
+	var glm: Node = get_node_or_null("/root/GameLoopManager")
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	var phase: String = str(session.get("start_phase", "")).strip_edges().to_lower()
+
+	# 时段感知的场景描述
+	var scene_desc: String
+	match phase:
+		"morning":
+			scene_desc = "现在是上午，玩家决定回去补觉。大白天就睡——可能是昨晚没睡好，也可能只是想偷懒。用对应的语气应答，不要说'晚安'。"
+		"afternoon":
+			scene_desc = "现在是下午，玩家打算提前休息。比正常睡觉时间早了不少。可以调侃、关心或者只是随口应答，不要说'晚安'。"
+		_:
+			scene_desc = "现在是晚上，两个人都准备睡觉了。正常的互道晚安时间。"
+
+	# 今日行动摘要
+	var today_summary: String = ""
+	if glm != null and glm.has_method("get_today_actions"):
+		var today_actions: Array = glm.get_today_actions()
+		if not today_actions.is_empty():
+			var action_descs: Array[String] = []
+			for a in today_actions:
+				var d: Dictionary = _as_dictionary(a)
+				action_descs.append("%s/%s" % [str(d.get("action_type", "")), str(d.get("detail", ""))])
+			today_summary = "今天做了: %s" % ", ".join(action_descs)
+
+	# 通过 PromptManager 加载模板（{{game_state}} 由 provider 自动注入）
+	if pm != null and pm.has_method("resolve_with_vars"):
+		var ctx: Dictionary = {
+			"rest_scene_desc": scene_desc,
+			"today_summary": today_summary if not today_summary.is_empty() else "（今天还没有做什么特别的事情）",
+		}
+		var resolved: String = str(pm.resolve_with_vars("rest_bedtime", ctx)).strip_edges()
+		if not resolved.is_empty():
+			return resolved
+
+	# fallback: PromptManager 不可用时的降级方案
+	var parts: Array[String] = [
+		scene_desc,
+		today_summary,
+		"发一条自然的消息。不要超过两句话。",
+	]
+	return "\n".join(parts)
+
+
+func _build_rest_wakeup_message(session: Dictionary) -> String:
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
-		return "早。新的一天开始了。"
+		return "醒了。继续吧。"
 	var stress: int = int(gm.get("stress"))
 	var affection: int = int(gm.get("affection"))
+	var phase: String = str(session.get("start_phase", "")).strip_edges().to_lower()
+	if phase == "morning" or phase == "afternoon":
+		if affection >= 50:
+			return "睡了一会儿，感觉好多了。继续干活？"
+		return "补了一觉。接下来呢？"
 	if affection >= 70:
 		return "早安。昨晚睡得还好吗？"
 	if stress >= 60:
 		return "早。今天也别一下子把自己逼太紧。"
-	return "早。今天开始前先慢慢来吧。"
+	return "醒了。新的一天，加油。"
+
+
+func _build_rest_wakeup_prompt(session: Dictionary) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	var phase: String = str(session.get("start_phase", "")).strip_edges().to_lower()
+
+	var scene_desc: String
+	match phase:
+		"morning":
+			scene_desc = "搭档刚刚补了个觉醒来了。用对应语气应答，不要说'早安'。"
+		"afternoon":
+			scene_desc = "搭档下午小睡了一会儿刚醒来。用自然语气应答。"
+		_:
+			scene_desc = "新的一天开始了，搭档刚刚醒来。可以说早安。"
+
+	if pm != null and pm.has_method("resolve_with_vars"):
+		var ctx: Dictionary = {"rest_wakeup_scene_desc": scene_desc}
+		var resolved: String = str(pm.resolve_with_vars("rest_wakeup", ctx)).strip_edges()
+		if not resolved.is_empty():
+			return resolved
+
+	return "%s\n发一条自然的消息。不要超过两句话。" % scene_desc
 
 
 # === Moment Prompt 构建 ===
 
-func _build_moment_system_prompt(session: Dictionary) -> String:
+func _build_home_moment_system_prompt(session: Dictionary) -> String:
 	var activity_id: String = str(session.get("activity_id", "")).strip_edges()
 	if activity_id == "watch":
 		return "你是林夏。你要发一条刚刚和同居搭档一起看完东西后的朋友圈。只返回一条自然的中文短句，不要 JSON，不要解释，不要超过 36 字。"
@@ -949,20 +1103,41 @@ func _build_local_moment_text(session: Dictionary) -> String:
 # === 信号回调 ===
 
 func _on_chat_stage_completed(session_id: String, stage: String, summary: String) -> void:
-	if stage != CHAT_STAGE or not _pending_sessions.has(session_id):
+	if not _pending_sessions.has(session_id):
 		return
-	var session: Dictionary = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
-	session["reply_text"] = summary
-	session["chat_done"] = true
-	_pending_sessions[session_id] = session
-	_after_chat_finished(session_id)
+
+	if stage == CHAT_STAGE:
+		var session: Dictionary = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
+		session["reply_text"] = summary
+		session["chat_done"] = true
+		_pending_sessions[session_id] = session
+		_after_chat_finished(session_id)
+	elif stage == REST_BEDTIME_STAGE:
+		var session: Dictionary = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
+		session["reply_text"] = summary
+		session["chat_done"] = true
+		_pending_sessions[session_id] = session
+		# 对话结束后启动休息进度条
+		_start_rest_progress(session_id)
+	elif stage == REST_WAKEUP_STAGE:
+		_finish_session(session_id)
+	else:
+		super._on_chat_stage_completed(session_id, stage, summary)
 
 
 func _on_chat_stage_timeout(session_id: String, stage: String) -> void:
-	if stage != CHAT_STAGE or not _pending_sessions.has(session_id):
+	if not _pending_sessions.has(session_id):
 		return
-	_store_local_chat_reply(session_id)
-	_after_chat_finished(session_id)
+
+	if stage == CHAT_STAGE:
+		_store_local_chat_reply(session_id)
+		_after_chat_finished(session_id)
+	elif stage == REST_BEDTIME_STAGE:
+		_rest_bedtime_fallback(session_id)
+	elif stage == REST_WAKEUP_STAGE:
+		_rest_wakeup_fallback(session_id)
+	else:
+		super._on_chat_stage_timeout(session_id, stage)
 
 
 func _on_moment_completed(session_id: String, moment: Dictionary) -> void:
@@ -975,15 +1150,34 @@ func _on_moment_completed(session_id: String, moment: Dictionary) -> void:
 	_finish_session(session_id)
 
 
-func _on_day_changed(_new_day: int) -> void:
-	if _pending_morning_message.is_empty():
-		return
-	if _chat != null and _chat.has_method("send_local_message"):
-		_chat.send_local_message(_pending_morning_message)
-	_pending_morning_message = ""
-
-
 # === 工具函数 ===
+
+
+## 自动唤起 LinkChat 并切到女主 DM 频道，让玩家看到对话
+func _open_linkchat_dm() -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("launch_app"):
+		return
+	var window: Control = null
+	if app_mgr.has_method("focus_app"):
+		window = app_mgr.focus_app("linkchat", true)
+	else:
+		window = app_mgr.launch_app("linkchat", true)
+	if window == null:
+		return
+	call_deferred("_select_linkchat_dm_channel", window)
+
+
+func _select_linkchat_dm_channel(window: Control) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+	var content: Variant = window.get("content")
+	if content != null and content is Node:
+		if content.has_method("open_topic_channel"):
+			content.open_topic_channel("dm_lin_xia")
+		elif content.has_method("select_channel"):
+			content.select_channel("dm_lin_xia")
+
 
 func _should_use_local_chat_fallback() -> bool:
 	var tree: SceneTree = get_tree()

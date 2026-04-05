@@ -288,7 +288,7 @@ theme_override_constants/separation = 24
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.9)
 theme_override_font_sizes/font_size = 26
-text = "你是谁？"
+text = "你的网名是？"
 horizontal_alignment = 1
 
 [node name="NameInput" type="LineEdit" parent="ContentCenter/MainVBox/NewUserPanel"]
@@ -296,7 +296,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(360, 52)
 layout_mode = 2
 size_flags_horizontal = 4
-placeholder_text = "输入你的名字..."
+placeholder_text = "输入你的网名..."
 alignment = 1
 max_length = 12
 

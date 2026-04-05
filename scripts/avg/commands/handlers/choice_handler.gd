@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ChoiceHandler
 ## Handler for CHOICE command
 ## Shows choice buttons for player selection.

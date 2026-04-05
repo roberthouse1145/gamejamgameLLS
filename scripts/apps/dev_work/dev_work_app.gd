@@ -1,23 +1,17 @@
 class_name DevWorkApp
 extends Control
-## 开发工作 APP — 玩家选择开发任务，消耗 AP 提升项目数值
-## 任务列表每周轮换，从 dev_work_tasks.json 中按权重和 min_day 筛选
+## 开发工作 APP — 玩家选择开发任务，通过 DevCycleManager 驱动开发循环
+## 任务从 chapter_plans.json 动态解锁，激活后自动派发隐藏工单
 
-const TASKS_DATA_PATH: String = "res://resources/data/dev_work_tasks.json"
-const TASKS_PER_PAGE: int = 4
+const ActivityPreviewHintClass = preload("res://scripts/ui/activity_preview/activity_preview_hint.gd")
 
 @onready var task_list: VBoxContainer = %TaskList
 @onready var status_label: Label = %StatusLabel
 @onready var stats_label: Label = %StatsLabel
 
-var _all_tasks: Array[Dictionary] = []
-var _current_tasks: Array[Dictionary] = []
-var _week_index: int = -1
-
 
 func _ready() -> void:
-	_load_all_tasks()
-	_refresh_tasks()
+	_render_task_list()
 	_update_stats_display()
 	_connect_signals()
 
@@ -26,59 +20,18 @@ func _connect_signals() -> void:
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm != null and gm.has_signal("stats_changed"):
 		gm.stats_changed.connect(_update_stats_display)
+
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm != null:
 		if glm.has_signal("ap_changed"):
 			glm.ap_changed.connect(func(_c: int, _m: int) -> void: _render_task_list())
-		if glm.has_signal("day_changed"):
-			glm.day_changed.connect(func(_d: int) -> void: _refresh_tasks())
 
-
-func _load_all_tasks() -> void:
-	_all_tasks.clear()
-	if not FileAccess.file_exists(TASKS_DATA_PATH):
-		push_warning("[DevWorkApp] Tasks data not found: %s" % TASKS_DATA_PATH)
-		return
-	var file := FileAccess.open(TASKS_DATA_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	if parsed is Array:
-		for item in parsed:
-			if item is Dictionary:
-				_all_tasks.append(item)
-	print("[DevWorkApp] Loaded %d task definitions" % _all_tasks.size())
-
-
-func _refresh_tasks() -> void:
-	var week: int = _get_current_week_index()
-	if week == _week_index and not _current_tasks.is_empty():
-		return
-	_week_index = week
-	_current_tasks = _build_weekly_tasks(week)
-	_render_task_list()
-
-
-func _build_weekly_tasks(week_index: int) -> Array[Dictionary]:
-	var day: int = _get_current_day()
-	var eligible: Array[Dictionary] = []
-	for task in _all_tasks:
-		if day >= int(task.get("min_day", 1)):
-			eligible.append(task)
-	if eligible.is_empty():
-		return []
-
-	# 按 weight 降序排列，然后用 week_index 做偏移轮换
-	eligible.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return int(a.get("weight", 0)) > int(b.get("weight", 0))
-	)
-	var result: Array[Dictionary] = []
-	var start: int = posmod(week_index * TASKS_PER_PAGE, eligible.size())
-	for i in range(mini(TASKS_PER_PAGE, eligible.size())):
-		var idx: int = posmod(start + i, eligible.size())
-		result.append(eligible[idx].duplicate(true))
-	return result
+	var dcm: Node = get_node_or_null("/root/DevCycleManager")
+	if dcm != null:
+		if dcm.has_signal("tasks_updated"):
+			dcm.tasks_updated.connect(_render_task_list)
+		if dcm.has_signal("task_status_changed"):
+			dcm.task_status_changed.connect(func(_id: String, _st: String) -> void: _render_task_list())
 
 
 func _render_task_list() -> void:
@@ -87,7 +40,12 @@ func _render_task_list() -> void:
 	for child in task_list.get_children():
 		child.queue_free()
 
-	if _current_tasks.is_empty():
+	var dcm: Node = get_node_or_null("/root/DevCycleManager")
+	var tasks: Array[Dictionary] = []
+	if dcm != null:
+		tasks = dcm.get_visible_tasks()
+
+	if tasks.is_empty():
 		var empty := Label.new()
 		empty.text = "暂无可用的开发任务"
 		empty.add_theme_font_size_override("font_size", 22)
@@ -96,16 +54,29 @@ func _render_task_list() -> void:
 		return
 
 	var can_act: bool = _can_consume_ap()
-	for task in _current_tasks:
+	for task in tasks:
 		var card := _create_task_card(task, can_act)
 		task_list.add_child(card)
 
 
 func _create_task_card(task: Dictionary, enabled: bool) -> PanelContainer:
+	var task_status: String = str(task.get("status", "available"))
 	var card := PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#1e2738")
+
+	# 根据任务状态设置不同的卡片样式
+	match task_status:
+		"active":
+			style.bg_color = Color("#1e3328")
+			style.border_color = Color("#2a5242")
+		"queued":
+			style.bg_color = Color("#2a2a1e")
+			style.border_color = Color("#52522a")
+		_:
+			style.bg_color = Color("#1e2738")
+			style.border_color = Color("#2a3a52")
+
 	style.corner_radius_top_left = 8
 	style.corner_radius_top_right = 8
 	style.corner_radius_bottom_left = 8
@@ -114,8 +85,13 @@ func _create_task_card(task: Dictionary, enabled: bool) -> PanelContainer:
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.border_color = Color("#2a3a52")
 	card.add_theme_stylebox_override("panel", style)
+
+	var hint := ActivityPreviewHintClass.new()
+	card.add_child(hint)
+	hint.set_payload_resolver(func() -> Dictionary:
+		return _build_task_preview_payload(task, enabled)
+	)
 
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 14)
@@ -134,7 +110,14 @@ func _create_task_card(task: Dictionary, enabled: bool) -> PanelContainer:
 	row.add_child(info)
 
 	var title := Label.new()
-	title.text = str(task.get("title", "未命名任务"))
+	var title_text: String = str(task.get("title", "未命名任务"))
+	# 状态标签
+	match task_status:
+		"active":
+			title_text = "⏳ " + title_text
+		"queued":
+			title_text = "📋 " + title_text
+	title.text = title_text
 	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", Color("#e8ecf5"))
 	info.add_child(title)
@@ -153,8 +136,17 @@ func _create_task_card(task: Dictionary, enabled: bool) -> PanelContainer:
 	info.add_child(effect)
 
 	var button := Button.new()
-	button.text = "执行"
-	button.disabled = not enabled
+	# 按钮文字和可用性根据状态变化
+	match task_status:
+		"active":
+			button.text = "进行中"
+			button.disabled = true
+		"queued":
+			button.text = "排队中"
+			button.disabled = true
+		_:
+			button.text = "执行"
+			button.disabled = not enabled
 	button.custom_minimum_size = Vector2(88, 40)
 	button.add_theme_font_size_override("font_size", 20)
 	button.pressed.connect(_on_task_pressed.bind(str(task.get("task_id", ""))))
@@ -164,66 +156,80 @@ func _create_task_card(task: Dictionary, enabled: bool) -> PanelContainer:
 
 
 func _on_task_pressed(task_id: String) -> void:
-	var task: Dictionary = _find_task(task_id)
-	if task.is_empty():
-		_set_status("任务不存在")
+	var dcm: Node = get_node_or_null("/root/DevCycleManager")
+	if dcm == null:
+		_set_status("DevCycleManager 不可用")
 		return
 
-	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if glm == null or not glm.can_consume_ap(1):
-		_set_status("当前无法执行工作")
+	if not dcm.activate_task(task_id):
+		_set_status("无法执行此任务")
 		return
 
-	var gm: Node = get_node_or_null("/root/GameManager")
-	if gm == null:
-		_set_status("GameManager 不可用")
-		return
+	var task: Dictionary = dcm.get_task(task_id)
+	var status: String = str(task.get("status", ""))
+	match status:
+		"active":
+			_set_status("任务进行中: %s" % str(task.get("title", "")))
+		"queued":
+			_set_status("已加入队列: %s" % str(task.get("title", "")))
+		"completed":
+			_set_status("完成: %s" % str(task.get("title", "")))
+		_:
+			_set_status("已启动: %s" % str(task.get("title", "")))
 
-	# 消耗 AP
-	if not glm.consume_ap(1, "work_order", task_id):
-		_set_status("行动消耗失败")
-		return
-
-	# 应用数值变化
-	var stat_changes: Dictionary = task.get("stat_changes", {})
-	gm.modify_stats(stat_changes)
-
-	# 压力增加
-	var stress_cost: int = int(task.get("stress_cost", 0))
-	if stress_cost > 0:
-		gm.modify_stat("stress", stress_cost)
-
-	_set_status("完成: %s" % str(task.get("title", "")))
-	print("[DevWorkApp] Task executed: %s | %s | stress+%d" % [task_id, str(stat_changes), stress_cost])
 	_render_task_list()
 	_update_stats_display()
 
 
-func _find_task(task_id: String) -> Dictionary:
-	for task in _current_tasks:
-		if str(task.get("task_id", "")) == task_id:
-			return task
-	return {}
-
-
 func _format_stat_changes(task: Dictionary) -> String:
 	var parts: PackedStringArray = []
-	var changes: Dictionary = task.get("stat_changes", {})
 	var label_map: Dictionary = {
+		"affection": "好感",
+		"stress": "压力",
+		"passion": "激情",
 		"completion": "完成度",
 		"quality": "质量",
 		"stability": "稳定",
 		"hype": "热度",
 	}
+	var changes: Dictionary = _get_task_reward_preview(task)
 	for key in changes:
 		var display: String = label_map.get(key, key)
 		var delta: int = int(changes[key])
+		if delta == 0:
+			continue
 		if delta > 0:
 			parts.append("%s+%d" % [display, delta])
-	var stress_cost: int = int(task.get("stress_cost", 0))
-	if stress_cost > 0:
-		parts.append("压力+%d" % stress_cost)
+		else:
+			parts.append("%s%d" % [display, delta])
 	return " · ".join(parts)
+
+
+func _build_task_preview_payload(task: Dictionary, enabled: bool) -> Dictionary:
+	var task_status: String = str(task.get("status", "available"))
+	var conditions: Array[String] = ["消耗 1 点行动力"]
+	match task_status:
+		"active":
+			conditions.append("当前状态：进行中")
+		"queued":
+			conditions.append("当前状态：排队中")
+		_:
+			conditions.append("当前状态：可执行" if enabled else "当前状态：行动力不足")
+
+	return {
+		"title": str(task.get("title", "开发任务")),
+		"text": "开发会明显消耗林夏的状态。连续埋头做活会快速提高压力，也会降低创作热情。",
+		"conditions": conditions,
+		"rewards": _get_task_reward_preview(task),
+		"disabled_reason": "" if enabled or task_status in ["active", "queued"] else "当前行动力不足，不能继续开发。",
+	}
+
+
+func _get_task_reward_preview(task: Dictionary) -> Dictionary:
+	var dcm: Node = get_node_or_null("/root/DevCycleManager")
+	if dcm != null and dcm.has_method("build_task_reward_preview"):
+		return dcm.build_task_reward_preview(task)
+	return task.get("stat_changes", {}).duplicate(true)
 
 
 func _update_stats_display() -> void:
@@ -249,14 +255,3 @@ func _set_status(text: String) -> void:
 func _can_consume_ap() -> bool:
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	return glm != null and glm.can_consume_ap(1)
-
-
-func _get_current_day() -> int:
-	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if glm != null:
-		return int(glm.get("current_day"))
-	return 1
-
-
-func _get_current_week_index() -> int:
-	return int((_get_current_day() - 1) / 7.0)

@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SetHudVisibleHandler
 ## Handler for SET_HUD_VISIBLE command
 ## 控制游戏内 HUD（存读档按钮层）的显示/隐藏。

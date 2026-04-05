@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ResizeNodeHandler
 ## Handler for RESIZE_NODE command
 ## 调整节点大小（归一化尺寸），支持动画

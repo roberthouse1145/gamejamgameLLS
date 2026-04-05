@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name ShowNotificationHandler
 ## Handler for SHOW_NOTIFICATION command
 ## 显示通知/提示信息。非阻塞 — 显示后自动消失。

@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://cursor_pseudo_001"]
+
+[ext_resource type="Script" uid="uid://b8n1wr5d2b6gf" path="res://scripts/pseudo_os/pseudo_cursor.gd" id="1_script"]
+
+[node name="PseudoCursor" type="Control"]
+z_index = 100
+layout_mode = 3
+anchors_preset = 0
+mouse_filter = 2
+script = ExtResource("1_script")

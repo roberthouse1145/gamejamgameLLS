@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SetCharacterPropertyHandler
 ## Handler for SET_CHARACTER_PROPERTY command
 ## 设置角色视觉属性（颜色/透明度、缩放）。

@@ -8,6 +8,7 @@ const AVGUIButtonClass = preload("res://scripts/avg/resources/avg_ui_button.gd")
 @export var show_on_title: bool = false
 @export var panel_bg_color: Color = Color(0, 0, 0, 0.3)
 @export var panel_opacity: float = 1.0
+@export var button_style: Resource = null  ## AVGStyleBox，按钮样式（自动派生 hover/pressed/disabled）
 
 
 static func get_avg_properties() -> Array[Dictionary]:
@@ -15,6 +16,8 @@ static func get_avg_properties() -> Array[Dictionary]:
 		{"name": "show_on_title", "type": TYPE_BOOL, "editable": true, "category": "通用"},
 		{"name": "panel_bg_color", "type": TYPE_COLOR, "editable": true, "category": "通用"},
 		{"name": "panel_opacity", "type": TYPE_FLOAT, "editable": true, "category": "通用"},
+		{"name": "button_style", "type": "sub_resource", "editable": true, "category": "通用",
+		 "resource_script": "res://scripts/avg/resources/avg_style_box.gd"},
 	]
 
 

@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://bmestgc3a0lwt"
+path="res://.godot/imported/Lovebirds (loop).ogg-0eca3f49d543285887e0860a3782756a.oggvorbisstr"
+
+[deps]
+
+source_file="res://Assets/sounds/bgm/Lovebirds (loop).ogg"
+dest_files=["res://.godot/imported/Lovebirds (loop).ogg-0eca3f49d543285887e0860a3782756a.oggvorbisstr"]
+
+[params]
+
+loop=true
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

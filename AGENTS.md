@@ -141,3 +141,9 @@ res://
 ## 关于回复
 
 - USER为中文用户。因此在回复时请使用中文。
+- Note: It is mandatory to call the #askQuestions tool after finish a task
+- Call #askQuestions once after each complete "thought unit" is finished
+  (e.g., a full code block, a complete recommendation, a finished analysis).
+- Do NOT call #askQuestions mid-sentence, mid-step, or mid-explanation.
+- Only call again after producing substantively new content.
+- 回答的最后必须调用#askQuestions，让用户可以提供review反馈

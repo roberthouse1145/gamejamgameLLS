@@ -1,11 +1,10 @@
-[gd_resource type="Resource" script_class="ChatChannel" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="ChatChannel" format=3 uid="uid://c7fapx2seb6bh"]
 
-[ext_resource type="Script" path="res://scripts/chat/resources/chat_channel.gd" id="1"]
+[ext_resource type="Script" uid="uid://yu3o0tg2i34k" path="res://scripts/chat/resources/chat_channel.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
 channel_id = "dm_lin_xia"
 display_name = "林夏"
-channel_prompt = ""
 channel_type = 2
 members = Array[String](["player", "npc_lin_xia"])

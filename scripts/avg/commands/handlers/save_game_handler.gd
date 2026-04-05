@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SaveGameHandler
 ## Handler for SAVE_GAME command
 ## TODO: 保存游戏。后续完善。

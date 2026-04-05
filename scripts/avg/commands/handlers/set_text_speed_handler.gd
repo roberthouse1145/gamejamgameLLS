@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SetTextSpeedHandler
 ## Handler for SET_TEXT_SPEED command
 ## 设置对话框打字机速度。非阻塞，立即生效。

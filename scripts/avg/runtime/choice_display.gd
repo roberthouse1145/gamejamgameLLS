@@ -228,13 +228,11 @@ func _create_choice_button(text: String, index: int) -> Button:
 		else:
 			button.custom_minimum_size = min_button_size
 
-		if _dialog_settings.has_method("get_choice_stylebox"):
+		if "choice_style" in _dialog_settings and _dialog_settings.choice_style != null and _dialog_settings.choice_style.has_method("apply_to_button"):
+			_dialog_settings.choice_style.apply_to_button(button)
+		elif _dialog_settings.has_method("get_choice_stylebox"):
 			var sb: StyleBox = _dialog_settings.get_choice_stylebox()
 			button.add_theme_stylebox_override("normal", sb)
-			var hover_sb: StyleBox = _dialog_settings.get_choice_stylebox()
-			if hover_sb is StyleBoxFlat:
-				hover_sb.bg_color = hover_sb.bg_color.lightened(0.15)
-			button.add_theme_stylebox_override("hover", hover_sb)
 
 		if "choice_font_size" in _dialog_settings and _dialog_settings.choice_font_size > 0:
 			var ref_scale: float = ref_size.y / _project_resolution.y

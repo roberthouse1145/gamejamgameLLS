@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "gamejam://brief"
+title = "AGJ 2027 - 项目立案"
+hint = "提交你的作品企划。包括作品名称、类型、基调标签和故事大纲。通过审核后正式开始开发。"
+content = ""
+design_prompt = ""
+searchable = true
+search_keywords = PackedStringArray("立案", "企划", "brief", "项目", "创意", "大纲")
+linked_urls = PackedStringArray("gamejam://signup", "gamejam://schedule")
+scene_path = "res://scenes/apps/browser/pages/creative_brief_page.tscn"

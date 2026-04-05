@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name HideImageHandler
 ## Handler for HIDE_IMAGE command
 ## 隐藏/移除图片层中的图片。非阻塞。

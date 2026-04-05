@@ -104,10 +104,29 @@ theme_override_constants/margin_bottom = 16
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/WorldPanel"]
+[node name="Header" type="HBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/WorldPanel"]
 layout_mode = 2
+
+[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/WorldPanel/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
 text = "🌍 世界观设定"
+
+[node name="AddWorldBtn" type="Button" parent="Background/VBoxContainer/MainLayout/ContentContainer/WorldPanel/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "+ 新增文档"
+
+[node name="WorldScroll" type="ScrollContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/WorldPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="WorldCanvas" type="Control" parent="Background/VBoxContainer/MainLayout/ContentContainer/WorldPanel/WorldScroll"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(4000, 4000)
+layout_mode = 2
 
 [node name="CharacterPanel" type="VBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer"]
 unique_name_in_owner = true
@@ -121,7 +140,7 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
-text = "👤 角色灵感便签"
+text = "👤 角色设定"
 
 [node name="AddCharacterBtn" type="Button" parent="Background/VBoxContainer/MainLayout/ContentContainer/CharacterPanel/Header"]
 unique_name_in_owner = true
@@ -150,13 +169,13 @@ layout_mode = 2
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
-text = "📖 剧情剧本卡"
+text = "📖 故事剧本"
 
 [node name="AddBeatBtn" type="Button" parent="Background/VBoxContainer/MainLayout/ContentContainer/BeatPanel/Header"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(100, 0)
 layout_mode = 2
-text = "+ 新增剧情"
+text = "+ 新增故事"
 
 [node name="BeatScroll" type="ScrollContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/BeatPanel"]
 layout_mode = 2
@@ -172,7 +191,26 @@ unique_name_in_owner = true
 visible = false
 layout_mode = 2
 
-[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/AssetPanel"]
+[node name="Header" type="HBoxContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/AssetPanel"]
 layout_mode = 2
+
+[node name="Label" type="Label" parent="Background/VBoxContainer/MainLayout/ContentContainer/AssetPanel/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 24
-text = "🎨 资产标签"
+text = "📝 灵感备忘"
+
+[node name="AddNoteBtn" type="Button" parent="Background/VBoxContainer/MainLayout/ContentContainer/AssetPanel/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(100, 0)
+layout_mode = 2
+text = "+ 新增备忘"
+
+[node name="NoteScroll" type="ScrollContainer" parent="Background/VBoxContainer/MainLayout/ContentContainer/AssetPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="NoteCanvas" type="Control" parent="Background/VBoxContainer/MainLayout/ContentContainer/AssetPanel/NoteScroll"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(4000, 4000)
+layout_mode = 2

@@ -7,6 +7,8 @@ const SbeamManagerScript = preload("res://autoload/sbeam_manager.gd")
 
 
 class TestActivityManager extends ActivitySessionManagerBase:
+	var minimize_requested_sessions: Array[String] = []
+
 	func _get_activity_type() -> String:
 		return "test_activity"
 
@@ -38,6 +40,34 @@ class TestActivityManager extends ActivitySessionManagerBase:
 		return get_session_snapshot(session_id)
 
 
+	func seed_scene_active_session(session_id: String) -> void:
+		var session: Dictionary = _build_base_session(
+			session_id,
+			"entry_01",
+			{"title": "Test Entry"},
+			false,
+			0.05
+		)
+		session["scene_active"] = true
+		session["scene_window"] = NodePath("/root/fake_window")
+		_pending_sessions[session_id] = session
+
+
+	func finish_scene(session_id: String) -> void:
+		_on_scene_playback_finished(session_id, {"summary": "done"})
+
+
+	func complete_minimize(session_id: String) -> void:
+		_on_scene_window_minimized(session_id)
+
+
+	func _schedule_scene_window_minimize(session_id: String) -> void:
+		minimize_requested_sessions.append(session_id)
+		var session: Dictionary = (_pending_sessions[session_id] as Dictionary).duplicate(true)
+		session["minimize_requested"] = true
+		_pending_sessions[session_id] = session
+
+
 	func _start_followup_phase(session_id: String) -> void:
 		if not _pending_sessions.has(session_id):
 			return
@@ -50,6 +80,7 @@ class TestActivityManager extends ActivitySessionManagerBase:
 func _ready() -> void:
 	print("=== Activity Session Race Test ===")
 	await _test_progress_completes_when_scene_ready_arrives_early()
+	await _test_followup_waits_for_minimize_completion()
 	_test_departure_prompt_is_not_polluted()
 	print("=== Activity Session Race Test Complete ===")
 
@@ -70,6 +101,37 @@ func _test_progress_completes_when_scene_ready_arrives_early() -> void:
 		print("[OK] scene_ready early completion works")
 	else:
 		print("[FAIL] scene_ready early completion stuck")
+
+	manager.queue_free()
+	await get_tree().process_frame
+
+
+func _test_followup_waits_for_minimize_completion() -> void:
+	var manager := TestActivityManager.new()
+	add_child(manager)
+	await get_tree().process_frame
+
+	var session_id := "test_activity_wait_minimize"
+	manager.seed_scene_active_session(session_id)
+	manager.finish_scene(session_id)
+	await get_tree().process_frame
+
+	var session: Dictionary = manager.get_session_data(session_id)
+	var followup_started_early: bool = bool(session.get("followup_done", false))
+	var minimize_requested: bool = bool(session.get("minimize_requested", false))
+	if not followup_started_early and minimize_requested:
+		print("[OK] followup waits for minimize completion")
+	else:
+		print("[FAIL] followup started before minimize completed")
+
+	manager.complete_minimize(session_id)
+	await get_tree().process_frame
+
+	session = manager.get_session_data(session_id)
+	if bool(session.get("followup_done", false)):
+		print("[OK] followup resumes after minimize completion")
+	else:
+		print("[FAIL] followup did not resume after minimize completion")
 
 	manager.queue_free()
 	await get_tree().process_frame

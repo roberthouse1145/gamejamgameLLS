@@ -1,0 +1,19 @@
+[remap]
+
+importer="oggvorbisstr"
+type="AudioStreamOggVorbis"
+uid="uid://d3iusivgj7qfu"
+path="res://.godot/imported/Sentiments (loop).ogg-ac15668c3c1fe12d17e7366dbfaed902.oggvorbisstr"
+
+[deps]
+
+source_file="res://Assets/sounds/bgm/Sentiments (loop).ogg"
+dest_files=["res://.godot/imported/Sentiments (loop).ogg-ac15668c3c1fe12d17e7366dbfaed902.oggvorbisstr"]
+
+[params]
+
+loop=true
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SetStyleHandler
 ## Handler for SET_STYLE command
 ## 设置节点样式（内联 flat 属性），用于 hover/press 视觉反馈

@@ -3,6 +3,20 @@ class_name MomentsPanel extends VBoxContainer
 ## 展示 NPC 发布的动态，玩家可以点赞
 
 const LCTheme := preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
+const HEADER_MARGIN_X := 26
+const HEADER_MARGIN_Y := 16
+const CARD_MARGIN_X := 26
+const CARD_MARGIN_Y := 16
+const HEADER_TITLE_FONT_SIZE := 24
+const EMPTY_FONT_SIZE := 18
+const AVATAR_SIZE := 72.0
+const AVATAR_FONT_SIZE := 26
+const NAME_FONT_SIZE := 22
+const TIME_FONT_SIZE := 17
+const BODY_FONT_SIZE := 22
+const IMAGE_HINT_HEIGHT := 132.0
+const IMAGE_HINT_FONT_SIZE := 18
+const ACTION_FONT_SIZE := 18
 
 var _scroll: ScrollContainer
 var _post_list: VBoxContainer
@@ -17,10 +31,10 @@ func _ready() -> void:
 func _build_ui() -> void:
 	# 头部
 	var header := MarginContainer.new()
-	header.add_theme_constant_override("margin_left", 18)
-	header.add_theme_constant_override("margin_top", 12)
-	header.add_theme_constant_override("margin_right", 18)
-	header.add_theme_constant_override("margin_bottom", 12)
+	header.add_theme_constant_override("margin_left", HEADER_MARGIN_X)
+	header.add_theme_constant_override("margin_top", HEADER_MARGIN_Y)
+	header.add_theme_constant_override("margin_right", HEADER_MARGIN_X)
+	header.add_theme_constant_override("margin_bottom", HEADER_MARGIN_Y)
 	add_child(header)
 
 	var header_panel := PanelContainer.new()
@@ -28,16 +42,16 @@ func _build_ui() -> void:
 	header.add_child(header_panel)
 
 	var header_margin := MarginContainer.new()
-	header_margin.add_theme_constant_override("margin_left", 18)
-	header_margin.add_theme_constant_override("margin_top", 10)
-	header_margin.add_theme_constant_override("margin_right", 18)
-	header_margin.add_theme_constant_override("margin_bottom", 10)
+	header_margin.add_theme_constant_override("margin_left", 22)
+	header_margin.add_theme_constant_override("margin_top", 12)
+	header_margin.add_theme_constant_override("margin_right", 22)
+	header_margin.add_theme_constant_override("margin_bottom", 12)
 	header_panel.add_child(header_margin)
 
 	var title := Label.new()
 	title.text = "朋友圈"
 	title.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_font_size_override("font_size", HEADER_TITLE_FONT_SIZE)
 	header_margin.add_child(title)
 
 	# 滚动区域
@@ -61,7 +75,7 @@ func _refresh() -> void:
 		var empty_label := Label.new()
 		empty_label.text = "暂无动态"
 		empty_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-		empty_label.add_theme_font_size_override("font_size", 16)
+		empty_label.add_theme_font_size_override("font_size", EMPTY_FONT_SIZE)
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var empty_margin := MarginContainer.new()
@@ -81,10 +95,10 @@ func _create_moment_card(moment: Dictionary) -> PanelContainer:
 	card.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 
 	var card_margin := MarginContainer.new()
-	card_margin.add_theme_constant_override("margin_left", 18)
-	card_margin.add_theme_constant_override("margin_right", 18)
-	card_margin.add_theme_constant_override("margin_top", 12)
-	card_margin.add_theme_constant_override("margin_bottom", 12)
+	card_margin.add_theme_constant_override("margin_left", CARD_MARGIN_X)
+	card_margin.add_theme_constant_override("margin_right", CARD_MARGIN_X)
+	card_margin.add_theme_constant_override("margin_top", CARD_MARGIN_Y)
+	card_margin.add_theme_constant_override("margin_bottom", CARD_MARGIN_Y)
 	card.add_child(card_margin)
 
 	var hbox := HBoxContainer.new()
@@ -92,7 +106,7 @@ func _create_moment_card(moment: Dictionary) -> PanelContainer:
 	card_margin.add_child(hbox)
 
 	# 头像
-	var avatar := _create_avatar(moment.get("npc_name", "?"))
+	var avatar := _create_avatar(moment)
 	hbox.add_child(avatar)
 
 	# 内容区
@@ -106,9 +120,9 @@ func _create_moment_card(moment: Dictionary) -> PanelContainer:
 	content_vbox.add_child(name_hbox)
 
 	var name_label := Label.new()
-	name_label.text = moment.get("npc_name", "")
+	name_label.text = _resolve_moment_display_name(moment)
 	name_label.add_theme_color_override("font_color", LCTheme.COLOR_ACCENT)
-	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_hbox.add_child(name_label)
 
@@ -119,14 +133,14 @@ func _create_moment_card(moment: Dictionary) -> PanelContainer:
 	else:
 		time_label.text = moment.get("time", "")
 	time_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-	time_label.add_theme_font_size_override("font_size", 13)
+	time_label.add_theme_font_size_override("font_size", TIME_FONT_SIZE)
 	name_hbox.add_child(time_label)
 
 	# 正文
 	var text_label := Label.new()
 	text_label.text = moment.get("content", "")
 	text_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
-	text_label.add_theme_font_size_override("font_size", 16)
+	text_label.add_theme_font_size_override("font_size", BODY_FONT_SIZE)
 	text_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content_vbox.add_child(text_label)
 
@@ -134,14 +148,14 @@ func _create_moment_card(moment: Dictionary) -> PanelContainer:
 	var image_hint: String = moment.get("image_hint", "")
 	if not image_hint.is_empty():
 		var img_panel := PanelContainer.new()
-		img_panel.custom_minimum_size = Vector2(0, 110)
+		img_panel.custom_minimum_size = Vector2(0, IMAGE_HINT_HEIGHT)
 		img_panel.add_theme_stylebox_override("panel", LCTheme.rounded_flat(Color("#E8E8EC"), LCTheme.RADIUS_SM))
 		content_vbox.add_child(img_panel)
 
 		var img_label := Label.new()
 		img_label.text = image_hint
 		img_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-		img_label.add_theme_font_size_override("font_size", 14)
+		img_label.add_theme_font_size_override("font_size", IMAGE_HINT_FONT_SIZE)
 		img_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		img_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		img_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -161,7 +175,7 @@ func _create_moment_card(moment: Dictionary) -> PanelContainer:
 	like_btn.flat = true
 	like_btn.add_theme_color_override("font_color", LCTheme.COLOR_UNREAD_BADGE if liked else LCTheme.COLOR_TEXT_SECONDARY)
 	like_btn.add_theme_color_override("font_hover_color", LCTheme.COLOR_UNREAD_BADGE)
-	like_btn.add_theme_font_size_override("font_size", 14)
+	like_btn.add_theme_font_size_override("font_size", ACTION_FONT_SIZE)
 	like_btn.pressed.connect(_on_like_pressed.bind(moment_id))
 	action_hbox.add_child(like_btn)
 
@@ -185,22 +199,85 @@ func _on_moment_posted(_moment: Dictionary) -> void:
 	_refresh()
 
 
-func _create_avatar(npc_name: String) -> PanelContainer:
+func _create_avatar(moment: Dictionary) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(48, 48)
+	panel.custom_minimum_size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
 	panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 
-	var hue := float(npc_name.hash() & 0xFFFF) / 65535.0
+	var author := _resolve_moment_author(moment)
+	var avatar_seed := str(author.get("avatar_seed", _resolve_moment_display_name(moment))).strip_edges()
+	var hue := float(avatar_seed.hash() & 0xFFFF) / 65535.0
 	var avatar_color := Color.from_hsv(hue, 0.55, 0.95)
 	panel.add_theme_stylebox_override("panel", LCTheme.get_avatar_style(avatar_color))
 
-	var initial := Label.new()
-	initial.text = npc_name.substr(0, 1) if not npc_name.is_empty() else "?"
-	initial.add_theme_color_override("font_color", Color.WHITE)
-	initial.add_theme_font_size_override("font_size", 18)
-	initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	panel.add_child(initial)
+	var avatar_texture := _resolve_moment_avatar(moment)
+	if avatar_texture != null:
+		var tex_rect := TextureRect.new()
+		tex_rect.texture = avatar_texture
+		tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(tex_rect)
+	else:
+		var initial := Label.new()
+		var npc_name := _resolve_moment_display_name(moment)
+		initial.text = npc_name.substr(0, 1) if not npc_name.is_empty() else "?"
+		initial.add_theme_color_override("font_color", Color.WHITE)
+		initial.add_theme_font_size_override("font_size", AVATAR_FONT_SIZE)
+		initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		panel.add_child(initial)
 
 	return panel
+
+
+func _resolve_moment_display_name(moment: Dictionary) -> String:
+	var author := _resolve_moment_author(moment)
+	var display_name := str(author.get("display_name", "")).strip_edges()
+	if not display_name.is_empty():
+		return display_name
+	var moment_name := str(moment.get("npc_name", "")).strip_edges()
+	if not moment_name.is_empty() and not moment_name.begins_with("npc_"):
+		return moment_name
+	var npc_id := str(moment.get("npc_id", "")).strip_edges()
+	if npc_id.is_empty():
+		return moment_name if not moment_name.is_empty() else "未知角色"
+	return npc_id.trim_prefix("npc_").replace("_", " ")
+
+
+func _resolve_moment_avatar(moment: Dictionary) -> Texture2D:
+	var author := _resolve_moment_author(moment)
+	if str(author.get("avatar_mode", "")).strip_edges() != "npc_ref":
+		return null
+	var npc: Variant = _resolve_moment_npc(moment)
+	if npc == null:
+		return null
+	var avatar = npc.get("avatar")
+	return avatar as Texture2D if avatar != null else null
+
+
+func _resolve_moment_author(moment: Dictionary) -> Dictionary:
+	if moment.has("author") and moment["author"] is Dictionary:
+		return moment["author"] as Dictionary
+	return {
+		"id": str(moment.get("npc_id", "")).strip_edges(),
+		"display_name": str(moment.get("npc_name", "")).strip_edges(),
+		"avatar_mode": "seed",
+		"avatar_seed": str(moment.get("npc_id", moment.get("npc_name", ""))).strip_edges(),
+	}
+
+
+func _resolve_moment_npc(moment: Dictionary):
+	var author := _resolve_moment_author(moment)
+	if str(author.get("avatar_mode", "")).strip_edges() != "npc_ref":
+		return null
+	var npc_id := str(author.get("avatar_id", moment.get("npc_id", ""))).strip_edges()
+	if npc_id.is_empty():
+		return null
+	var chat_manager := get_node_or_null("/root/ChatManager")
+	if chat_manager == null or not chat_manager.has_method("get_npc"):
+		return null
+	return chat_manager.call("get_npc", npc_id)

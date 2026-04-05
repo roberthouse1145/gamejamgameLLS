@@ -148,6 +148,6 @@ func _on_clear_pressed() -> void:
 	_update_buttons()
 
 
-func _on_property_changed(prop_name: String, _old_val: Variant, _new_val: Variant) -> void:
+func _on_property_changed(_prop_name: String, _old_val: Variant, _new_val: Variant) -> void:
 	# 变量类型已统一为 int，不再需要复杂的类型转换逻辑
 	_refresh_list()

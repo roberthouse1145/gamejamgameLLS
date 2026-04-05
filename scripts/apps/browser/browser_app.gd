@@ -4,7 +4,6 @@ extends Control
 const BrowserTabDataClass = preload("res://scripts/apps/browser/browser_tab_data.gd")
 const BrowserThemeClass = preload("res://scripts/apps/browser/browser_theme.gd")
 const WebPageRendererClass = preload("res://scripts/apps/browser/web_page_renderer.gd")
-const DinoGameClass = preload("res://scripts/apps/browser/dino_game.gd")
 const HOMEPAGE_RES_PATH: String = "res://resources/data/browser_pages/homepage.tres"
 
 @onready var toolbar: PanelContainer = %ToolBar
@@ -25,11 +24,6 @@ var _tab_widgets: Dictionary = {}
 var _request_to_tab: Dictionary = {}
 var _current_tab_id: String = ""
 var _tab_counter: int = 0
-
-# 异步行动加载状态
-var _dino_game: Control = null
-var _loading_action_id: String = ""
-var _is_action_loading: bool = false
 
 
 func _ready() -> void:
@@ -144,19 +138,6 @@ func _connect_browser_manager() -> void:
 	var on_history_updated := Callable(self, "_on_browser_history_updated")
 	if not bm.is_connected("browser_history_updated", on_history_updated):
 		bm.connect("browser_history_updated", on_history_updated)
-
-	var on_action_started := Callable(self, "_on_action_started")
-	if not bm.is_connected("browser_action_started", on_action_started):
-		bm.connect("browser_action_started", on_action_started)
-
-	var on_action_completed := Callable(self, "_on_action_completed")
-	if not bm.is_connected("browser_action_completed", on_action_completed):
-		bm.connect("browser_action_completed", on_action_completed)
-
-	var on_action_failed := Callable(self, "_on_action_failed")
-	if not bm.is_connected("browser_action_failed", on_action_failed):
-		bm.connect("browser_action_failed", on_action_failed)
-
 
 func _create_blank_tab() -> void:
 	var tab = BrowserTabDataClass.new()
@@ -423,7 +404,6 @@ func _render_home_page() -> void:
 	if page.is_empty():
 		_render_error("主页 DSL 解析失败")
 		return
-
 	var on_action := Callable(self, "_on_page_action")
 	var rendered: Control = WebPageRendererClass.render(page, on_action, {"page_url": "browser://home"})
 	content_root.add_child(rendered)
@@ -520,7 +500,7 @@ func _render_page(page_content: Dictionary) -> void:
 	if not scene_path.is_empty():
 		var scene_page: Control = _instantiate_scene_page(scene_path, page_content, current_url)
 		if scene_page == null:
-			_render_error("鍔犺浇鍦烘櫙椤甸潰澶辫触: %s" % scene_path)
+			_render_error("加载场景页面失败: %s" % scene_path)
 			return
 		content_root.add_child(scene_page)
 		_configure_scene_page(scene_page, page_content, current_url)
@@ -627,8 +607,6 @@ func _find_tab_by_request(request_id: String):
 
 
 func _close_tab(tab_id: String) -> void:
-	if _is_action_loading:
-		return
 	var tab = _find_tab_by_id(tab_id)
 	if tab == null:
 		return
@@ -664,8 +642,6 @@ func _on_search_pressed() -> void:
 
 
 func _on_search_submitted(text: String) -> void:
-	if _is_action_loading:
-		return
 	var input_text: String = text.strip_edges()
 	if input_text.is_empty():
 		return
@@ -680,54 +656,15 @@ func _on_search_submitted(text: String) -> void:
 
 
 func _on_new_tab_pressed() -> void:
-	if _is_action_loading:
-		return
 	_create_blank_tab()
 
 
 func _on_tab_button_pressed(tab_id: String) -> void:
-	if _is_action_loading:
-		return
 	_switch_tab(tab_id)
 
 
 func _on_tab_close_pressed(tab_id: String) -> void:
 	_close_tab(tab_id)
-
-
-func _on_browser_action_pressed(action_id: String) -> void:
-	if _is_action_loading:
-		_set_status("正在加载中，请稍候...")
-		return
-	var bm: Node = get_node_or_null("/root/BrowserManager")
-	if bm == null:
-		_set_status("BrowserManager 不存在")
-		return
-	var result: Dictionary = bm.perform_action(action_id)
-	if not bool(result.get("success", false)):
-		_set_status(str(result.get("error", "行动失败")))
-		return
-
-	if bool(result.get("async", false)):
-		# 异步 LLM 生成 — 显示小恐龙加载页 + 锁定窗口
-		_loading_action_id = action_id
-		_is_action_loading = true
-		_show_dino_loading_page()
-		_lock_window()
-		_set_status("正在生成网页...")
-	else:
-		# 同步 fallback — 直接用 entry 渲染
-		var entry_id: String = str(result.get("entry_id", ""))
-		if not entry_id.is_empty():
-			var entry: Dictionary = bm.get_history_entry(entry_id)
-			if not entry.is_empty():
-				_show_action_result(entry)
-				return
-		# fallback: 用 url 打开
-		var current = _find_tab_by_id(_current_tab_id)
-		var reuse_id: String = current.tab_id if current != null and current.state == BrowserTabDataClass.TabState.IDLE else ""
-		_open_page(str(result.get("url", "")), "", reuse_id)
-		_set_status("行动完成")
 
 
 func _on_history_entry_pressed(entry_id: String) -> void:
@@ -813,14 +750,12 @@ func _on_url_open_requested(url: String, design_prompt: String, page_context: St
 # ── 统一页面动作路由 ──────────────────────────────────
 
 func _on_page_action(action_data: Dictionary) -> void:
-	if _is_action_loading:
-		return
 	var action: String = str(action_data.get("action", ""))
 	match action:
 		"open_url":
 			_open_page(str(action_data.get("url", "")), str(action_data.get("design_prompt", "")))
 		"perform_action":
-			_on_browser_action_pressed(str(action_data.get("action_id", "")))
+			_set_status("互联网行动已经迁移到 Community 应用。")
 		"search":
 			_start_search(str(action_data.get("keyword", "")))
 		"open_history":
@@ -908,8 +843,6 @@ func _parse_story_value(raw_value: Variant) -> Variant:
 
 
 func _on_home_button_pressed() -> void:
-	if _is_action_loading:
-		return
 	var current = _find_tab_by_id(_current_tab_id)
 	if current != null:
 		current.state = BrowserTabDataClass.TabState.IDLE
@@ -922,8 +855,6 @@ func _on_home_button_pressed() -> void:
 
 
 func _on_history_button_pressed() -> void:
-	if _is_action_loading:
-		return
 	_render_history_page()
 
 
@@ -1134,93 +1065,3 @@ func _build_history_item(entry: Dictionary) -> PanelContainer:
 	row.add_child(open_btn)
 
 	return item
-
-
-# ── 异步行动：小恐龙加载页 + 窗口锁定 ──────────────────
-
-func _show_dino_loading_page() -> void:
-	_clear_content_root()
-
-	var wrapper := VBoxContainer.new()
-	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wrapper.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	wrapper.add_theme_constant_override("separation", 12)
-	wrapper.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	content_root.add_child(wrapper)
-
-	var hint := Label.new()
-	hint.text = "正在加载网页... 玩个小游戏消磨时间吧"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.add_theme_font_size_override("font_size", 22)
-	hint.add_theme_color_override("font_color", BrowserThemeClass.COLOR_TEXT_DIM)
-	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrapper.add_child(hint)
-
-	_dino_game = DinoGameClass.new()
-	_dino_game.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_dino_game.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_dino_game.custom_minimum_size = Vector2(0, 200)
-	wrapper.add_child(_dino_game)
-
-
-func _lock_window() -> void:
-	if AppManager.has_method("lock_app_window"):
-		AppManager.lock_app_window("browser", true, true)
-
-
-func _unlock_window() -> void:
-	if AppManager.has_method("unlock_app_window"):
-		AppManager.unlock_app_window("browser")
-
-
-func _stop_dino_game() -> void:
-	if _dino_game != null and is_instance_valid(_dino_game):
-		_dino_game.stop_game()
-	_dino_game = null
-
-
-func _show_action_result(entry: Dictionary) -> void:
-	var snapshot: Dictionary = entry.get("page_snapshot", {})
-	if snapshot.is_empty():
-		_render_home_page()
-		return
-	var current = _find_tab_by_id(_current_tab_id)
-	if current != null:
-		current.state = BrowserTabDataClass.TabState.READY
-		current.display_url = str(entry.get("url", ""))
-		current.page_content = snapshot.duplicate(true)
-		current.title = str(entry.get("title", "网页"))
-		current.is_search_result = false
-		_update_tab_title(current)
-		if address_display:
-			address_display.text = current.display_url
-	_render_page(snapshot)
-	_set_status("网页已生成")
-
-
-# ── 异步行动信号回调 ──────────────────────────────────
-
-func _on_action_started(_action_id: String, _request_id: String) -> void:
-	# browser_action_started 已在 _on_browser_action_pressed 中处理
-	pass
-
-
-func _on_action_completed(action_id: String, entry: Dictionary) -> void:
-	if action_id != _loading_action_id:
-		return
-	_stop_dino_game()
-	_unlock_window()
-	_is_action_loading = false
-	_loading_action_id = ""
-	_show_action_result(entry)
-
-
-func _on_action_failed(action_id: String, _error: String) -> void:
-	if action_id != _loading_action_id:
-		return
-	_stop_dino_game()
-	_unlock_window()
-	_is_action_loading = false
-	_loading_action_id = ""
-	# action_failed 后 BrowserManager 会 fallback 并 emit browser_action_completed
-	# 所以这里只做状态清理，不渲染错误（等 completed 信号来渲染）

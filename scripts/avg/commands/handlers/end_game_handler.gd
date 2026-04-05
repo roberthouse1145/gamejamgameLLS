@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name EndGameHandler
 ## Handler for END_GAME command
 ## TODO: 结束游戏。后续完善。

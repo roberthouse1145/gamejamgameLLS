@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name LoadGameHandler
 ## Handler for LOAD_GAME command
 ## TODO: 加载游戏。后续完善。

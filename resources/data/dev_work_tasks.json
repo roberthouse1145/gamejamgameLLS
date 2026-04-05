@@ -9,7 +9,7 @@
 		"tags": ["script", "narrative"],
 		"weight": 10,
 		"min_day": 1,
-		"minigame_type": "fill_dialogue"
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "direct_scene",
@@ -21,7 +21,7 @@
 		"tags": ["direction", "scene"],
 		"weight": 9,
 		"min_day": 1,
-		"minigame_type": "arrange_scene"
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "fix_bugs",
@@ -33,7 +33,7 @@
 		"tags": ["debug", "fix"],
 		"weight": 10,
 		"min_day": 1,
-		"minigame_type": "find_bugs"
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "integration_test",
@@ -45,7 +45,7 @@
 		"tags": ["test", "integration"],
 		"weight": 9,
 		"min_day": 3,
-		"minigame_type": "whack_bugs"
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "rush_progress",
@@ -69,7 +69,7 @@
 		"tags": ["ui", "polish"],
 		"weight": 7,
 		"min_day": 5,
-		"minigame_type": "arrange_scene"
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "optimize_performance",
@@ -93,7 +93,7 @@
 		"tags": ["branch", "narrative"],
 		"weight": 8,
 		"min_day": 10,
-		"minigame_type": "fill_dialogue"
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "add_sound",
@@ -105,7 +105,7 @@
 		"tags": ["audio", "bgm"],
 		"weight": 6,
 		"min_day": 5,
-		"minigame_type": "match_bgm"
+		"minigame_type": "typing_code"
 	},
 	{
 		"task_id": "stress_test",
@@ -117,6 +117,66 @@
 		"tags": ["stress_test", "edge_case"],
 		"weight": 6,
 		"min_day": 15,
-		"minigame_type": "whack_bugs"
+		"minigame_type": "typing_code"
+	},
+	{
+		"task_id": "design_protagonist",
+		"title": "设计主角",
+		"description": "和搭档讨论游戏主角的性格、背景和形象，确定角色定位。",
+		"category": "quality",
+		"task_type": "chat_topic",
+		"stat_changes": { "quality": 6, "completion": 2 },
+		"stress_cost": 1,
+		"tags": ["character", "design", "creative"],
+		"weight": 9,
+		"min_day": 1,
+		"one_time": true,
+		"topic_config": {
+			"system_prompt": "你是林夏，{player_name}的 GameJam 搭档。你们正在讨论游戏的主角设计。\n\n你的角色：\n- 主动提出想法和建议\n- 对搭档的提议给出真实反应（喜欢就夸，觉得不行就委婉提出异议）\n- 关注角色的性格深度和叙事潜力\n\n讨论内容可以包括：角色名字、性格特点、背景故事、与其他角色的关系、外貌形象等。\n\n用1-2条简短消息回应每次讨论，像发微信一样自然。讨论几轮后觉得差不多了就在最后加 [TOPIC_COMPLETE]",
+			"goal_description": "与搭档讨论并确定游戏主角的设计",
+			"kb_category": "characters",
+			"kb_entry_id": "protagonist",
+			"max_turns": 8
+		}
+	},
+	{
+		"task_id": "design_heroine",
+		"title": "设计女主角",
+		"description": "和搭档讨论游戏女主角的人设，一起构思她的故事。",
+		"category": "quality",
+		"task_type": "chat_topic",
+		"stat_changes": { "quality": 6, "completion": 2 },
+		"stress_cost": 1,
+		"tags": ["character", "design", "creative"],
+		"weight": 9,
+		"min_day": 1,
+		"one_time": true,
+		"topic_config": {
+			"system_prompt": "你是林夏，{player_name}的 GameJam 搭档。你们正在讨论游戏的女主角设计。\n\n你的角色：\n- 作为同为女性的创作者，对女性角色有自己的审美和见解\n- 不喜欢刻板的「花瓶」或纯服务性的角色，偏好有深度的女性角色\n- 积极提出想法，但也尊重搭档的意见\n\n讨论内容：角色名字、性格、背景、动机、与主角的关系等。\n\n用1-2条简短消息回应，讨论几轮后觉得差不多了在最后加 [TOPIC_COMPLETE]",
+			"goal_description": "与搭档讨论并确定游戏女主角的设计",
+			"kb_category": "characters",
+			"kb_entry_id": "heroine",
+			"max_turns": 8
+		}
+	},
+	{
+		"task_id": "plan_story_outline",
+		"title": "规划剧情大纲",
+		"description": "和搭档讨论游戏的故事走向，确定主线剧情框架。",
+		"category": "quality",
+		"task_type": "chat_topic",
+		"stat_changes": { "quality": 5, "completion": 3 },
+		"stress_cost": 2,
+		"tags": ["story", "planning", "creative"],
+		"weight": 10,
+		"min_day": 2,
+		"one_time": true,
+		"topic_config": {
+			"system_prompt": "你是林夏，{player_name}的 GameJam 搭档。你们正在讨论游戏的剧情大纲。\n\n你的角色：\n- 关注故事的节奏感和情感张力\n- 偏好有意义的选择分支，而不是无意义的「选A还是B」\n- 会考虑GameJam的时间限制，建议控制剧情规模\n\n讨论内容：核心主题、开头/发展/高潮/结局、关键选择点、多结局设计等。\n\n用1-2条简短消息回应，讨论几轮后觉得差不多了在最后加 [TOPIC_COMPLETE]",
+			"goal_description": "与搭档讨论并确定游戏的剧情大纲",
+			"kb_category": "world",
+			"kb_entry_id": "story_outline",
+			"max_turns": 10
+		}
 	}
 ]

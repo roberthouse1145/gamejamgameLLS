@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_034"
+character_name = "Hero13"
+display_name = "Hero13"
+sprites = {
+"angry": "assets/images/character/hero13/hero_13_cos04.png",
+"default": "assets/images/character/hero13/hero_13_cos01.png",
+"happy": "assets/images/character/hero13/hero_13_cos09.png",
+"laugh": "assets/images/character/hero13/hero_13_cos08.png",
+"serious": "assets/images/character/hero13/hero_13_cos19.png",
+"shy": "assets/images/character/hero13/hero_13_cos16.png",
+"smug": "assets/images/character/hero13/hero_13_cos05.png",
+"surprised": "assets/images/character/hero13/hero_13_cos11.png",
+"thinking": "assets/images/character/hero13/hero_13_cos18.png",
+"worried": "assets/images/character/hero13/hero_13_cos17.png"
+}
+default_outfit = "cos"
+available_outfits = ["cos"]
+emotion_slots = {
+"angry": "04",
+"default": "01",
+"happy": "09",
+"laugh": "08",
+"serious": "19",
+"shy": "16",
+"smug": "05",
+"surprised": "11",
+"thinking": "18",
+"worried": "17"
+}
+profile = "沉稳冷峻的黑发少年，深灰色双眸，身着黑色武士装，单肩披甲，腰系红带"

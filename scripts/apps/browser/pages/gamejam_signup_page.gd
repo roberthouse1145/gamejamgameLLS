@@ -1,4 +1,4 @@
-﻿extends MarginContainer
+extends MarginContainer
 
 const AIServiceClass = preload("res://scripts/llm/AIService.gd")
 
@@ -25,6 +25,9 @@ const C_SUCCESS_BG := Color("#0A1810")
 const C_INFO_BG := Color("#0A0D1A")
 
 const UNIVERSITY_NAME: String = "蓝鲸大学"
+const BLOCKED_NAMES: PackedStringArray = [
+	"林夏",
+]
 const COLLEGE_OPTIONS: PackedStringArray = [
 	"交互媒体学院",
 	"计算机科学学院",
@@ -33,9 +36,51 @@ const COLLEGE_OPTIONS: PackedStringArray = [
 	"外国语学院",
 	"心理学院",
 	"商学院",
+	"法学院",
+	"历史学院",
+	"哲学系",
+	"社会学院",
+	"数学学院",
+	"物理学院",
+	"化学与材料学院",
+	"生命科学学院",
+	"电子信息学院",
+	"建筑与城规学院",
+	"环境科学学院",
+	"教育学院",
+	"医学院",
 ]
 
-const REVIEW_SYSTEM_PROMPT: String = """你负责审核大学 GameJam 报名页面中的选手名称和队伍名称。拒绝脏话、侮辱性词汇、色情内容、广告、网址、过长的玩笑或格式错误的名称。仅返回 JSON，包含 approved、reason、normalized_player_name、normalized_team_name。"""
+const REVIEW_SYSTEM_PROMPT: String = """你负责审核大学 GameJam 报名页面中的真实姓名和队伍名称。
+
+【审核原则】
+- 默认通过，只有明确违规才拒绝
+- 拿不准时一律通过，宁可漏审也不误杀正常报名
+
+【真实姓名审核标准】
+- 允许：任何看起来像正常人名的汉字组合，包括少数民族姓名（如"阿依古丽""扎西""乌兰"）
+- 允许：字数 2-6 个汉字均可
+- 拒绝（仅限以下明确情形）：
+  - 包含脏话、侮辱性词汇、色情词汇
+  - 全是完全相同的重复字（如"啊啊啊""哈哈哈哈"）
+  - 完全是乱码、纯数字、纯符号
+  - 与比赛工作人员"林夏"完全相同
+- 注意：名字与某明星、角色、历史人物重名，不是拒绝理由；只要输入者可能真的叫这个名字，就通过
+
+【队伍名称审核标准】
+- 允许：任何创意队名，包括谐音、缩写、英文混排、含任意人名或地名的队名
+- 特别说明：队伍名中出现任何人名（包括"林夏"在内）完全合规，不受姓名审核规则约束
+- 拒绝（仅限以下明确情形）：
+  - 包含脏话、侮辱性词汇、色情词汇
+  - 包含外链、广告、商业推广内容
+
+【reason 输出规范】
+- 你的身份是"比赛报名系统"，reason 必须以报名平台的口吻书写
+- 严禁在 reason 中提及"游戏""NPC""女主角""角色""虚构"等词汇
+- 拒绝与"林夏"重名时，reason 只说"该姓名与你的学号不匹配，请使用你自己的真实姓名"
+- 拒绝其他情形时，reason 简短说明违规原因即可
+
+仅返回 JSON，包含 approved、reason、normalized_player_name、normalized_team_name。"""
 
 var _browser_app: Node = null
 var _page_payload: Dictionary = {}
@@ -97,16 +142,17 @@ func _build_page() -> void:
 
 	var content_wrap := MarginContainer.new()
 	content_wrap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content_wrap.add_theme_constant_override("margin_left", 48)
-	content_wrap.add_theme_constant_override("margin_right", 48)
-	content_wrap.add_theme_constant_override("margin_top", 32)
+	content_wrap.add_theme_constant_override("margin_left", 60)
+	content_wrap.add_theme_constant_override("margin_right", 60)
+	content_wrap.add_theme_constant_override("margin_top", 40)
 	page_vbox.add_child(content_wrap)
 
 	var content_vbox := VBoxContainer.new()
 	content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content_vbox.add_theme_constant_override("separation", 28)
+	content_vbox.add_theme_constant_override("separation", 36)
 	content_wrap.add_child(content_vbox)
 
+	content_vbox.add_child(_build_about_section())
 	content_vbox.add_child(_build_requirements_section())
 	content_vbox.add_child(_build_form_section())
 	content_vbox.add_child(_build_status_bar())
@@ -120,10 +166,10 @@ func _build_navbar() -> Control:
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = C_PAGE_BG
-	style.content_margin_left = 48
-	style.content_margin_right = 48
-	style.content_margin_top = 12
-	style.content_margin_bottom = 12
+	style.content_margin_left = 60
+	style.content_margin_right = 60
+	style.content_margin_top = 14
+	style.content_margin_bottom = 14
 	navbar.add_theme_stylebox_override("panel", style)
 
 	var hbox := HBoxContainer.new()
@@ -132,20 +178,20 @@ func _build_navbar() -> Control:
 
 	var logo := Label.new()
 	logo.text = "AGJ"
-	logo.add_theme_font_size_override("font_size", 24)
+	logo.add_theme_font_size_override("font_size", 30)
 	logo.add_theme_color_override("font_color", C_WHITE)
 	hbox.add_child(logo)
 
 	var year := Label.new()
-	year.text = "2025"
-	year.add_theme_font_size_override("font_size", 13)
+	year.text = "2027"
+	year.add_theme_font_size_override("font_size", 16)
 	year.add_theme_color_override("font_color", C_ORANGE)
 	year.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hbox.add_child(year)
 
 	var sep := Label.new()
 	sep.text = "|"
-	sep.add_theme_font_size_override("font_size", 15)
+	sep.add_theme_font_size_override("font_size", 20)
 	sep.add_theme_color_override("font_color", C_MUTED)
 	sep.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hbox.add_child(sep)
@@ -153,7 +199,7 @@ func _build_navbar() -> Control:
 	# 当前页高亮，其他页可点击
 	var reg_label := Label.new()
 	reg_label.text = "REGISTRATION"
-	reg_label.add_theme_font_size_override("font_size", 13)
+	reg_label.add_theme_font_size_override("font_size", 16)
 	reg_label.add_theme_color_override("font_color", C_ACCENT_TEXT)
 	reg_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hbox.add_child(reg_label)
@@ -169,7 +215,7 @@ func _nav_link(text_value: String, url: String) -> Button:
 	var btn := Button.new()
 	btn.text = text_value
 	btn.flat = true
-	btn.add_theme_font_size_override("font_size", 13)
+	btn.add_theme_font_size_override("font_size", 16)
 	btn.add_theme_color_override("font_color", C_DIM)
 	btn.add_theme_color_override("font_hover_color", C_WHITE)
 	btn.add_theme_color_override("font_pressed_color", C_ACCENT_TEXT)
@@ -190,10 +236,10 @@ func _build_hero() -> Control:
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = C_HERO_BG
-	style.content_margin_left = 48
-	style.content_margin_right = 48
-	style.content_margin_top = 52
-	style.content_margin_bottom = 52
+	style.content_margin_left = 60
+	style.content_margin_right = 60
+	style.content_margin_top = 56
+	style.content_margin_bottom = 56
 	hero.add_theme_stylebox_override("panel", style)
 
 	var vbox := VBoxContainer.new()
@@ -204,19 +250,19 @@ func _build_hero() -> Control:
 	tag_row.add_theme_constant_override("separation", 8)
 	vbox.add_child(tag_row)
 	tag_row.add_child(_make_badge("新星赛道", C_ACCENT))
-	tag_row.add_child(_make_badge("2025 赛季", C_ORANGE))
+	tag_row.add_child(_make_badge("2027 赛季", C_ORANGE))
 
-	vbox.add_child(_spacer(20))
+	vbox.add_child(_spacer(24))
 
 	var title := Label.new()
 	title.text = "ARCADE GRAND JAM"
-	title.add_theme_font_size_override("font_size", 52)
+	title.add_theme_font_size_override("font_size", 56)
 	title.add_theme_color_override("font_color", C_WHITE)
 	vbox.add_child(title)
 
 	var subtitle := Label.new()
 	subtitle.text = "参赛报名"
-	subtitle.add_theme_font_size_override("font_size", 20)
+	subtitle.add_theme_font_size_override("font_size", 24)
 	subtitle.add_theme_color_override("font_color", C_ACCENT_TEXT)
 	vbox.add_child(subtitle)
 
@@ -227,9 +273,9 @@ func _build_hero() -> Control:
 	vbox.add_child(stats_row)
 	stats_row.add_child(_stat_block("奖金池", "¥50,000+"))
 	stats_row.add_child(_stat_divider())
-	stats_row.add_child(_stat_block("赛程", "60 天"))
+	stats_row.add_child(_stat_block("报名截止", "本周五 23:59"))
 	stats_row.add_child(_stat_divider())
-	stats_row.add_child(_stat_block("队伍规模", "2 人"))
+	stats_row.add_child(_stat_block("队伍规模", "2~5 人"))
 	stats_row.add_child(_stat_divider())
 	stats_row.add_child(_stat_block("状态", "报名中"))
 
@@ -241,15 +287,15 @@ func _build_hero() -> Control:
 
 	var cta := Button.new()
 	cta.text = "立即报名"
-	cta.add_theme_font_size_override("font_size", 16)
-	cta.custom_minimum_size = Vector2(160, 40)
+	cta.add_theme_font_size_override("font_size", 20)
+	cta.custom_minimum_size = Vector2(180, 46)
 	_style_primary_button(cta)
 	cta.pressed.connect(_scroll_to_form)
 	cta_row.add_child(cta)
 
 	var hint := Label.new()
 	hint.text = "提交前请仔细核对信息。"
-	hint.add_theme_font_size_override("font_size", 14)
+	hint.add_theme_font_size_override("font_size", 17)
 	hint.add_theme_color_override("font_color", C_MUTED)
 	hint.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	cta_row.add_child(hint)
@@ -265,6 +311,50 @@ func _build_divider_rule() -> Control:
 	return divider
 
 
+func _build_about_section() -> Control:
+	var card := _make_card()
+	var vbox := VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 20)
+	card.add_child(vbox)
+
+	vbox.add_child(_section_header("关于 AGJ", "ABOUT"))
+	vbox.add_child(_h_rule())
+
+	var intro := Label.new()
+	intro.text = "Arcade Grand Jam（AGJ）是一项面向全球高校学生的年度游戏创作大赛。自 2019 年创办以来已成功举办六届，累计吸引超过 12,000 名参赛者。"
+	intro.add_theme_font_size_override("font_size", 20)
+	intro.add_theme_color_override("font_color", C_DIM)
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	intro.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(intro)
+
+	var concept := Label.new()
+	concept.text = "本届新星·叙事赛道的核心理念：回归创意本身。比赛将采用统一规则和限制条件，让所有参赛者站在同一起跑线上——不比拼资源堆砌和工业能力，只比拼创意组织能力和叙事表达。"
+	concept.add_theme_font_size_override("font_size", 20)
+	concept.add_theme_color_override("font_color", C_DIM)
+	concept.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	concept.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(concept)
+
+	var format := Label.new()
+	format.text = "每支队伍由 2-5 人组成，在限定时间内共同完成一部原创作品。具体赛制（包括开发工具、素材要求、主题等）将在报名截止后统一公布。"
+	format.add_theme_font_size_override("font_size", 20)
+	format.add_theme_color_override("font_color", C_DIM)
+	format.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	format.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(format)
+
+	var awards := Label.new()
+	awards.text = "总奖金池超过 ¥50,000，涵盖最佳作品、最佳叙事、最佳视觉表现、社区人气等多个奖项。所有获奖作品将在 AGJ 官方平台进行展示。"
+	awards.add_theme_font_size_override("font_size", 20)
+	awards.add_theme_color_override("font_color", C_DIM)
+	awards.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	awards.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_child(awards)
+
+	return card
+
+
 func _build_requirements_section() -> Control:
 	var card := _make_card()
 	var vbox := VBoxContainer.new()
@@ -276,9 +366,8 @@ func _build_requirements_section() -> Control:
 
 	var rules: Array[String] = [
 		"仅限在校大学生参加。",
-		"队伍必须由两名成员组成。",
-		"必须使用官方 AVG 引擎和素材包。",
-		"禁止使用预制工程和商业素材。",
+		"每支队伍由 2-5 名成员组成。",
+		"主题及赛制详情将于报名截止后公布。",
 		"报名信息提交后不可修改。",
 	]
 
@@ -289,14 +378,14 @@ func _build_requirements_section() -> Control:
 
 		var num := Label.new()
 		num.text = "%02d" % (i + 1)
-		num.add_theme_font_size_override("font_size", 13)
+		num.add_theme_font_size_override("font_size", 16)
 		num.add_theme_color_override("font_color", C_ACCENT_TEXT)
-		num.custom_minimum_size.x = 24
+		num.custom_minimum_size.x = 28
 		row.add_child(num)
 
 		var rule := Label.new()
 		rule.text = rules[i]
-		rule.add_theme_font_size_override("font_size", 15)
+		rule.add_theme_font_size_override("font_size", 20)
 		rule.add_theme_color_override("font_color", C_DIM)
 		rule.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		rule.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -308,14 +397,14 @@ func _build_requirements_section() -> Control:
 func _build_form_section() -> Control:
 	var card := _make_card()
 	_form_container = VBoxContainer.new()
-	_form_container.add_theme_constant_override("separation", 22)
+	_form_container.add_theme_constant_override("separation", 28)
 	card.add_child(_form_container)
 
 	_form_container.add_child(_section_header("报名表", "填写信息"))
 	_form_container.add_child(_h_rule())
 
-	_player_name_input = _make_line_edit("请输入你的显示名称", 16)
-	_form_container.add_child(_field_group("选手名称", "PLAYER NAME", "比赛期间使用的公开身份。", _player_name_input))
+	_player_name_input = _make_line_edit("请输入你的真实姓名", 16)
+	_form_container.add_child(_field_group("真实姓名", "REAL NAME", "用于比赛报名的正式身份。请填写真实姓名。", _player_name_input))
 
 	var uni_field := _make_line_edit(UNIVERSITY_NAME, 0)
 	uni_field.editable = false
@@ -324,7 +413,7 @@ func _build_form_section() -> Control:
 
 	_college_select = OptionButton.new()
 	_college_select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_college_select.custom_minimum_size.y = 38
+	_college_select.custom_minimum_size.y = 46
 	_style_option_button(_college_select)
 	_form_container.add_child(_field_group("所属学院", "COLLEGE", "选择你当前就读的学院。", _college_select))
 
@@ -334,8 +423,8 @@ func _build_form_section() -> Control:
 	_submit_button = Button.new()
 	_submit_button.text = "提交报名"
 	_submit_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_submit_button.custom_minimum_size.y = 44
-	_submit_button.add_theme_font_size_override("font_size", 16)
+	_submit_button.custom_minimum_size.y = 50
+	_submit_button.add_theme_font_size_override("font_size", 20)
 	_style_primary_button(_submit_button)
 	_submit_button.pressed.connect(_on_submit_clicked)
 	_form_container.add_child(_submit_button)
@@ -364,13 +453,13 @@ func _build_status_bar() -> Control:
 
 	_status_dot = Label.new()
 	_status_dot.text = "-"
-	_status_dot.add_theme_font_size_override("font_size", 15)
+	_status_dot.add_theme_font_size_override("font_size", 20)
 	_status_dot.add_theme_color_override("font_color", C_ACCENT_TEXT)
 	hbox.add_child(_status_dot)
 
 	_status_label = Label.new()
 	_status_label.text = ""
-	_status_label.add_theme_font_size_override("font_size", 14)
+	_status_label.add_theme_font_size_override("font_size", 17)
 	_status_label.add_theme_color_override("font_color", C_DIM)
 	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -388,15 +477,15 @@ func _build_footer() -> Control:
 	vbox.add_child(row)
 
 	var left := Label.new()
-	left.text = "ARCADE GRAND JAM 2025"
-	left.add_theme_font_size_override("font_size", 13)
+	left.text = "ARCADE GRAND JAM 2027"
+	left.add_theme_font_size_override("font_size", 16)
 	left.add_theme_color_override("font_color", C_MUTED)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(left)
 
 	var right := Label.new()
 	right.text = "support@arcadegrandjam.com"
-	right.add_theme_font_size_override("font_size", 13)
+	right.add_theme_font_size_override("font_size", 16)
 	right.add_theme_color_override("font_color", C_MUTED)
 	row.add_child(right)
 
@@ -406,17 +495,17 @@ func _build_footer() -> Control:
 func _stat_block(label_text: String, value_text: String) -> Control:
 	var vbox := VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
-	vbox.custom_minimum_size.x = 110
+	vbox.custom_minimum_size.x = 130
 
 	var value_label := Label.new()
 	value_label.text = value_text
-	value_label.add_theme_font_size_override("font_size", 22)
+	value_label.add_theme_font_size_override("font_size", 26)
 	value_label.add_theme_color_override("font_color", C_WHITE)
 	vbox.add_child(value_label)
 
 	var label := Label.new()
 	label.text = label_text
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", 15)
 	label.add_theme_color_override("font_color", C_MUTED)
 	vbox.add_child(label)
 
@@ -462,14 +551,14 @@ func _section_header(en_label: String, short_label: String) -> Control:
 
 	var en := Label.new()
 	en.text = en_label
-	en.add_theme_font_size_override("font_size", 13)
+	en.add_theme_font_size_override("font_size", 16)
 	en.add_theme_color_override("font_color", C_ACCENT_TEXT)
 	en.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(en)
 
 	var short_text := Label.new()
 	short_text.text = "  " + short_label
-	short_text.add_theme_font_size_override("font_size", 18)
+	short_text.add_theme_font_size_override("font_size", 22)
 	short_text.add_theme_color_override("font_color", C_WHITE)
 	short_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(short_text)
@@ -492,7 +581,7 @@ func _make_badge(text_value: String, color: Color) -> PanelContainer:
 
 	var label := Label.new()
 	label.text = text_value
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", 15)
 	label.add_theme_color_override("font_color", color)
 	panel.add_child(label)
 	return panel
@@ -507,10 +596,10 @@ func _make_card() -> PanelContainer:
 	style.border_color = C_CARD_BORDER
 	style.set_border_width_all(1)
 	style.set_corner_radius_all(6)
-	style.content_margin_left = 28
-	style.content_margin_right = 28
-	style.content_margin_top = 24
-	style.content_margin_bottom = 24
+	style.content_margin_left = 36
+	style.content_margin_right = 36
+	style.content_margin_top = 30
+	style.content_margin_bottom = 30
 	card.add_theme_stylebox_override("panel", style)
 
 	return card
@@ -520,7 +609,7 @@ func _make_line_edit(placeholder: String, max_len: int) -> LineEdit:
 	var field := LineEdit.new()
 	field.placeholder_text = placeholder
 	field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	field.custom_minimum_size.y = 38
+	field.custom_minimum_size.y = 46
 	if max_len > 0:
 		field.max_length = max_len
 	_style_line_edit(field)
@@ -537,13 +626,13 @@ func _field_group(primary_label: String, secondary_label: String, hint: String, 
 
 	var primary := Label.new()
 	primary.text = primary_label
-	primary.add_theme_font_size_override("font_size", 15)
+	primary.add_theme_font_size_override("font_size", 20)
 	primary.add_theme_color_override("font_color", C_WHITE)
 	label_row.add_child(primary)
 
 	var secondary := Label.new()
 	secondary.text = secondary_label
-	secondary.add_theme_font_size_override("font_size", 12)
+	secondary.add_theme_font_size_override("font_size", 15)
 	secondary.add_theme_color_override("font_color", C_MUTED)
 	secondary.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	label_row.add_child(secondary)
@@ -551,7 +640,7 @@ func _field_group(primary_label: String, secondary_label: String, hint: String, 
 	if not hint.is_empty():
 		var hint_label := Label.new()
 		hint_label.text = hint
-		hint_label.add_theme_font_size_override("font_size", 13)
+		hint_label.add_theme_font_size_override("font_size", 16)
 		hint_label.add_theme_color_override("font_color", C_MUTED)
 		group.add_child(hint_label)
 
@@ -576,7 +665,7 @@ func _style_line_edit(field: LineEdit) -> void:
 	field.add_theme_stylebox_override("focus", focus)
 	field.add_theme_color_override("font_color", C_FIELD_TEXT)
 	field.add_theme_color_override("font_placeholder_color", C_FIELD_PH)
-	field.add_theme_font_size_override("font_size", 16)
+	field.add_theme_font_size_override("font_size", 20)
 
 
 func _style_option_button(button: OptionButton) -> void:
@@ -599,7 +688,7 @@ func _style_option_button(button: OptionButton) -> void:
 	pressed.border_color = C_ACCENT
 	button.add_theme_stylebox_override("pressed", pressed)
 	button.add_theme_color_override("font_color", C_FIELD_TEXT)
-	button.add_theme_font_size_override("font_size", 16)
+	button.add_theme_font_size_override("font_size", 20)
 
 
 func _style_primary_button(button: Button) -> void:
@@ -641,20 +730,19 @@ func _populate_college_options() -> void:
 
 
 func _ensure_review_service() -> void:
-	var ai_manager: Node = get_node_or_null("/root/AIManager")
-	if ai_manager == null or not ai_manager.has_method("get_profile_config"):
-		_review_enabled = false
-		return
-
-	var config: Dictionary = ai_manager.get_profile_config("doubao-mini")
+	var config_mgr := AIConfigManager.get_instance()
+	# 优先用 signup_review 角色（doubao-lite），回退到 input_guard
+	var review_role: String = "signup_review" if not config_mgr.get_config_for_role("signup_review").is_empty() else "input_guard"
+	var config: Dictionary = config_mgr.get_config_for_role(review_role)
 	if config.is_empty():
 		_review_enabled = false
 		return
 
 	_review_service = AIServiceClass.new()
-	_review_service.api_base_url = str(config.get("base_url", ""))
-	_review_service.api_key = str(config.get("api_key", ""))
-	_review_service.model = str(config.get("model", ""))
+	if not config_mgr.apply_to_service(_review_service, review_role):
+		_review_enabled = false
+		return
+
 	_review_service.default_temperature = 0.3
 	_review_service.default_max_tokens = 512
 	_review_service.request_completed.connect(_on_review_completed)
@@ -669,7 +757,7 @@ func _load_existing_values() -> void:
 		var completed: Variant = story_director.get_variable("signup_completed")
 		if str(completed) == "true":
 			_submission_locked = true
-			var player_name: Variant = story_director.get_variable("player_name")
+			var player_name: Variant = story_director.get_variable("player_real_name")
 			var college_name: Variant = story_director.get_variable("player_college")
 			var team_name: Variant = story_director.get_variable("team_name")
 			if player_name != null and _player_name_input != null:
@@ -686,8 +774,8 @@ func _load_existing_values() -> void:
 			return
 
 	var defaults: Dictionary = _page_payload.get("defaults", {})
-	if defaults.has("player_name") and _player_name_input != null:
-		_player_name_input.text = str(defaults["player_name"])
+	if defaults.has("player_real_name") and _player_name_input != null:
+		_player_name_input.text = str(defaults["player_real_name"])
 	if defaults.has("team_name") and _team_name_input != null:
 		_team_name_input.text = str(defaults["team_name"])
 
@@ -714,7 +802,12 @@ func _on_submit_clicked() -> void:
 	var college_idx: int = _college_select.selected if _college_select else 0
 
 	if player_name.is_empty():
-		_set_status("error", "请输入选手名称。")
+		_set_status("error", "请输入真实姓名。")
+		if _player_name_input:
+			_player_name_input.grab_focus()
+		return
+	if player_name in BLOCKED_NAMES:
+		_set_status("error", "这个名字不可用。请填写你自己的真实姓名。")
 		if _player_name_input:
 			_player_name_input.grab_focus()
 		return
@@ -803,7 +896,7 @@ func _submit_directly(player_name: String, team_name: String, college_idx: int) 
 func _do_submit(player_name: String, team_name: String, college_idx: int) -> void:
 	var college_name: String = _college_select.get_item_text(college_idx) if _college_select else ""
 	var form_data := {
-		"player_name": player_name,
+		"player_real_name": player_name,
 		"player_university": UNIVERSITY_NAME,
 		"player_college": college_name,
 		"team_name": team_name,
@@ -822,7 +915,7 @@ func _do_submit(player_name: String, team_name: String, college_idx: int) -> voi
 
 	var story_director: Node = get_node_or_null("/root/StoryDirector")
 	if story_director != null and story_director.has_method("set_variable"):
-		story_director.set_variable("player_name", player_name)
+		story_director.set_variable("player_real_name", player_name)
 		story_director.set_variable("player_university", UNIVERSITY_NAME)
 		story_director.set_variable("player_college", college_name)
 		story_director.set_variable("team_name", team_name)

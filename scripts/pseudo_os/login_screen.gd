@@ -1,6 +1,6 @@
 class_name LoginScreen extends Control
 ## 日式风格登录界面
-## 新游戏：输入用户名 → 登录
+## 新游戏：输入网名 → AI审核 → 登录
 ## 继续游戏：显示已有存档用户 → 点击登录
 ## 右下角：设置、退出
 
@@ -8,9 +8,16 @@ signal login_requested(player_name: String, is_new_game: bool)
 signal quit_requested
 signal settings_requested
 
+const AIServiceClass = preload("res://scripts/llm/AIService.gd")
+
 const MIN_NAME_LENGTH: int = 1
 const MAX_NAME_LENGTH: int = 12
 const PANEL_ANIM_DURATION: float = 0.3
+
+const REVIEW_SYSTEM_PROMPT: String = """你负责审核一个游戏中的玩家网名。
+拒绝以下情况：脏话、侮辱性词汇、色情内容、广告、网址、纯乱码。
+允许以下情况：有创意的昵称、二次元风格名称、中英文混合、带数字的名字、真实姓名。
+仅返回 JSON：{"approved": true/false, "reason": "...", "normalized_name": "..."}"""
 
 @onready var user_list: VBoxContainer = %UserList
 @onready var new_user_panel: Control = %NewUserPanel
@@ -25,6 +32,10 @@ const PANEL_ANIM_DURATION: float = 0.3
 
 var _selected_save: String = ""
 var _new_user_mode: bool = false
+var _review_service: Node = null
+var _review_enabled: bool = false
+var _pending_review_id: String = ""
+var _status_label: Label = null
 
 
 func _ready() -> void:
@@ -34,6 +45,8 @@ func _ready() -> void:
 	_check_saves()
 	_fade_in()
 	_setup_button_animations()
+	_ensure_review_service()
+	_create_status_label()
 
 
 func _process(_delta: float) -> void:
@@ -263,11 +276,10 @@ func _on_login_pressed() -> void:
 		var player_name: String = name_input.text.strip_edges()
 		if player_name.length() < MIN_NAME_LENGTH:
 			return
-		# 按钮缩放后登录
-		var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		tw.tween_property(login_button, "scale", Vector2(0.95, 0.95), 0.08)
-		tw.tween_property(login_button, "scale", Vector2.ONE, 0.1)
-		tw.tween_callback(func() -> void: login_requested.emit(player_name, true))
+		if _review_enabled and _review_service != null:
+			_submit_with_review(player_name)
+		else:
+			_do_login(player_name)
 	else:
 		if not _selected_save.is_empty():
 			login_requested.emit(_selected_save, false)
@@ -298,3 +310,118 @@ func _update_clock() -> void:
 		var weekdays: Array[String] = ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"]
 		var weekday: int = Time.get_date_dict_from_system().get("weekday", 0)
 		date_label.text = "%d月%d日 %s" % [date.get("month", 1), date.get("day", 1), weekdays[weekday]]
+
+
+func _do_login(player_name: String) -> void:
+	var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(login_button, "scale", Vector2(0.95, 0.95), 0.08)
+	tw.tween_property(login_button, "scale", Vector2.ONE, 0.1)
+	tw.tween_callback(func() -> void: login_requested.emit(player_name, true))
+
+
+func _create_status_label() -> void:
+	_status_label = Label.new()
+	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_status_label.add_theme_font_size_override("font_size", 14)
+	_status_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label.visible = false
+	new_user_panel.add_child(_status_label)
+	# 将状态标签移到 NameInput 后面
+	new_user_panel.move_child(_status_label, name_input.get_index() + 1)
+
+
+func _set_status(text: String, color: Color = Color(1, 1, 1, 0.6)) -> void:
+	if _status_label == null:
+		return
+	_status_label.text = text
+	_status_label.add_theme_color_override("font_color", color)
+	_status_label.visible = not text.is_empty()
+
+
+func _ensure_review_service() -> void:
+	var config_mgr := AIConfigManager.get_instance()
+	var config: Dictionary = config_mgr.get_config_for_role("input_guard")
+	if config.is_empty():
+		_review_enabled = false
+		return
+
+	_review_service = AIServiceClass.new()
+	if not config_mgr.apply_to_service(_review_service, "input_guard"):
+		_review_enabled = false
+		return
+
+	_review_service.default_temperature = 0.3
+	_review_service.default_max_tokens = 256
+	_review_service.request_completed.connect(_on_review_completed)
+	_review_service.request_failed.connect(_on_review_failed)
+	add_child(_review_service)
+	_review_enabled = true
+
+
+func _submit_with_review(player_name: String) -> void:
+	login_button.disabled = true
+	login_button.text = "审核中..."
+	name_input.editable = false
+	_set_status("正在审核网名...", Color(1, 1, 1, 0.5))
+
+	var messages: Array = [
+		{"role": "system", "content": REVIEW_SYSTEM_PROMPT},
+		{"role": "user", "content": "网名：%s" % player_name},
+	]
+	_pending_review_id = _review_service.chat(messages, {"temperature": 0.3, "max_tokens": 256})
+
+
+func _on_review_completed(request_id: String, response: Dictionary) -> void:
+	if request_id != _pending_review_id:
+		return
+	_pending_review_id = ""
+
+	var content: String = ""
+	var choices: Array = response.get("choices", [])
+	if choices.size() > 0:
+		content = str(choices[0].get("message", {}).get("content", ""))
+
+	var clean := content.strip_edges()
+	if clean.begins_with("```"):
+		var first_newline := clean.find("\n")
+		if first_newline >= 0:
+			clean = clean.substr(first_newline + 1)
+		if clean.ends_with("```"):
+			clean = clean.substr(0, clean.length() - 3).strip_edges()
+
+	var json := JSON.new()
+	if json.parse(clean) != OK or not (json.data is Dictionary):
+		# 解析失败，直接通过
+		_finish_review(name_input.text.strip_edges())
+		return
+
+	var result: Dictionary = json.data
+	if not bool(result.get("approved", true)):
+		_set_status("网名不合适：%s" % str(result.get("reason", "请换一个")), Color(1.0, 0.4, 0.4))
+		login_button.disabled = false
+		login_button.text = "登 录"
+		name_input.editable = true
+		name_input.grab_focus()
+		return
+
+	var final_name: String = str(result.get("normalized_name", name_input.text.strip_edges()))
+	if final_name.is_empty():
+		final_name = name_input.text.strip_edges()
+	name_input.text = final_name
+	_finish_review(final_name)
+
+
+func _on_review_failed(request_id: String, _error: String, _error_code: int) -> void:
+	if request_id != _pending_review_id:
+		return
+	_pending_review_id = ""
+	# 审核失败，直接通过
+	_finish_review(name_input.text.strip_edges())
+
+
+func _finish_review(player_name: String) -> void:
+	_set_status("")
+	login_button.text = "登 录"
+	name_input.editable = true
+	_do_login(player_name)

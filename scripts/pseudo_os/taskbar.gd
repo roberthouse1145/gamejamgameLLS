@@ -1,71 +1,109 @@
 class_name Taskbar extends Panel
-## 任务栏组件，显示运行中的应用窗口按钮
+## Taskbar component showing running application window buttons.
 
-# Theme colors (与 PseudoWindow 统一的现代浅色调色板)
-const T_SURFACE: Color    = Color("#FFFFFF")
-const T_SURFACE_ALT: Color = Color("#F7F8FA")
-const T_BORDER: Color     = Color("#E2E4EA")
-const T_TEXT: Color       = Color("#1A1D27")
-const T_TEXT_DIM: Color   = Color("#6B7086")
-const T_TEXT_MUTED: Color = Color("#9EA2B5")
-const T_ACCENT: Color     = Color("#4A7CFF")
+const T_SURFACE: Color = Color("#FFFFFF")
+const T_SURFACE_ALT: Color = Color("#EEF2F8")
+const T_TEXT: Color = Color("#1A1D27")
+const T_TEXT_DIM: Color = Color("#6B7086")
+const T_ACCENT: Color = Color("#4A7CFF")
+const T_TOP_EDGE: Color = Color("#B8C4D8")
 
-# Signals
+const TASKBAR_HEIGHT: float = 76.0
+const START_BUTTON_MIN_WIDTH: float = 72.0
+const PHASE_FONT_SIZE: int = 24
+const CLOCK_MIN_WIDTH: float = 240.0
+
 signal window_button_clicked(window: Control)
+signal start_button_clicked
 
-# Node references
 @onready var button_container: HBoxContainer = %ButtonContainer
 
-# Window to button mapping
-var _window_buttons: Dictionary = {}  # window -> Button
+var _window_buttons: Dictionary = {}
+var _game_loop: Node = null
 
-# Button settings
 @export var button_min_width: float = 160.0
 @export var button_max_width: float = 240.0
 
 
 func _ready() -> void:
-	if not button_container:
+	if button_container == null:
 		push_error("Taskbar: ButtonContainer not found")
+		return
 	_apply_theme()
+	_bind_game_loop()
+	_update_phase_label()
+	_bind_start_button()
+
+
+func _bind_start_button() -> void:
+	var start_btn := get_node_or_null("HBoxContainer/StartButton") as Button
+	if start_btn and not start_btn.pressed.is_connected(_on_start_button_pressed):
+		start_btn.pressed.connect(_on_start_button_pressed)
+
+
+func _on_start_button_pressed() -> void:
+	start_button_clicked.emit()
+
+
+## 获取 StartButton 的全局位置（供开始菜单定位）
+func get_start_button_global_position() -> Vector2:
+	var start_btn := get_node_or_null("HBoxContainer/StartButton") as Button
+	if start_btn:
+		return start_btn.global_position
+	return global_position
 
 
 func _apply_theme() -> void:
-	# Panel panel style — 由 pseudo_os_light.tres Theme 提供，无需 override
+	custom_minimum_size.y = TASKBAR_HEIGHT
 
-	# StartButton — 专属颜色（hover 变 accent），与普通 window button 不同，保留
-	var start_btn: Button = get_node_or_null("HBoxContainer/StartButton")
-	if start_btn:
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = T_SURFACE_ALT
+	panel_style.border_width_top = 2
+	panel_style.border_color = T_TOP_EDGE
+	panel_style.shadow_color = Color(0.44, 0.49, 0.58, 0.16)
+	panel_style.shadow_size = 10
+	panel_style.content_margin_left = 12
+	panel_style.content_margin_right = 12
+	add_theme_stylebox_override("panel", panel_style)
+
+	var root := get_node_or_null("HBoxContainer") as HBoxContainer
+	if root != null:
+		root.add_theme_constant_override("separation", 10)
+
+	var start_btn := get_node_or_null("HBoxContainer/StartButton") as Button
+	if start_btn != null:
+		start_btn.custom_minimum_size.x = START_BUTTON_MIN_WIDTH
 		start_btn.flat = false
-		var sn := StyleBoxFlat.new()
-		sn.bg_color = Color.TRANSPARENT
-		sn.content_margin_left = 12
-		sn.content_margin_right = 12
-		sn.content_margin_top = 4
-		sn.content_margin_bottom = 4
-		var sh := sn.duplicate() as StyleBoxFlat
-		sh.bg_color = Color("#E8E9ED")
-		start_btn.add_theme_stylebox_override("normal", sn)
-		start_btn.add_theme_stylebox_override("hover", sh)
-		start_btn.add_theme_stylebox_override("pressed", sh)
+		var normal := StyleBoxFlat.new()
+		normal.bg_color = Color.TRANSPARENT
+		normal.corner_radius_top_left = 10
+		normal.corner_radius_top_right = 10
+		normal.corner_radius_bottom_left = 10
+		normal.corner_radius_bottom_right = 10
+		normal.content_margin_left = 14
+		normal.content_margin_right = 14
+		normal.content_margin_top = 8
+		normal.content_margin_bottom = 8
+		var hover := normal.duplicate() as StyleBoxFlat
+		hover.bg_color = Color("#DFE6F1")
+		start_btn.add_theme_stylebox_override("normal", normal)
+		start_btn.add_theme_stylebox_override("hover", hover)
+		start_btn.add_theme_stylebox_override("pressed", hover)
 		start_btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 		start_btn.add_theme_color_override("font_color", T_TEXT)
 		start_btn.add_theme_color_override("font_hover_color", T_ACCENT)
 		start_btn.add_theme_color_override("font_pressed_color", T_ACCENT)
 		start_btn.add_theme_color_override("font_focus_color", T_TEXT)
 		start_btn.add_theme_color_override("font_hover_pressed_color", T_ACCENT)
-		start_btn.add_theme_font_size_override("font_size", 24)
+		start_btn.add_theme_font_size_override("font_size", 26)
 
-	# Separator — 由 Theme VSeparator/styles/separator 提供，无需 override
+	var phase_label := get_node_or_null("HBoxContainer/Clock") as Label
+	if phase_label != null:
+		phase_label.add_theme_color_override("font_color", T_TEXT_DIM)
+		phase_label.add_theme_font_size_override("font_size", PHASE_FONT_SIZE)
+		phase_label.custom_minimum_size.x = CLOCK_MIN_WIDTH
 
-	# Clock — font_color 是特殊 dim 色，保留；font_size 由 Theme Label 提供，删除
-	var clock: Label = get_node_or_null("HBoxContainer/Clock")
-	if clock:
-		clock.add_theme_color_override("font_color", T_TEXT_DIM)
-
-	# ButtonContainer spacing — HBoxContainer constant，Theme 未定义，保留
-	if button_container:
-		button_container.add_theme_constant_override("separation", 6)
+	button_container.add_theme_constant_override("separation", 8)
 
 
 func _style_window_button(button: Button) -> void:
@@ -75,15 +113,14 @@ func _style_window_button(button: Button) -> void:
 	normal_style.corner_radius_top_right = 6
 	normal_style.corner_radius_bottom_left = 6
 	normal_style.corner_radius_bottom_right = 6
-	normal_style.content_margin_left = 10
-	normal_style.content_margin_right = 10
-	normal_style.content_margin_top = 4
-	normal_style.content_margin_bottom = 4
+	normal_style.content_margin_left = 12
+	normal_style.content_margin_right = 12
+	normal_style.content_margin_top = 8
+	normal_style.content_margin_bottom = 8
 
 	var hover_style := normal_style.duplicate() as StyleBoxFlat
-	hover_style.bg_color = Color("#E8E9ED")
+	hover_style.bg_color = Color("#DFE6F1")
 
-	# pressed = focused 状态（toggle_mode），用底部 accent 条表示激活
 	var pressed_style := normal_style.duplicate() as StyleBoxFlat
 	pressed_style.bg_color = T_SURFACE
 	pressed_style.border_width_bottom = 2
@@ -98,25 +135,18 @@ func _style_window_button(button: Button) -> void:
 	button.add_theme_color_override("font_pressed_color", T_TEXT)
 	button.add_theme_color_override("font_focus_color", T_TEXT)
 	button.add_theme_color_override("font_hover_pressed_color", T_TEXT)
-	button.add_theme_font_size_override("font_size", 22)
+	button.add_theme_font_size_override("font_size", 24)
 	button.toggle_mode = true
 
 
-## Add a button for a window
-## @param window: The PseudoWindow to add a button for
-## @param title: The title to display on the button
-## @param icon: Optional icon texture for the button
 func add_window_button(window: Control, title: String, icon: Texture2D = null) -> void:
-	if not window or not is_instance_valid(window):
+	if window == null or not is_instance_valid(window):
 		push_warning("Taskbar: Cannot add button for invalid window")
 		return
-	
-	# Check if button already exists
 	if _window_buttons.has(window):
 		push_warning("Taskbar: Button for window already exists")
 		return
-	
-	# Create button
+
 	var button := Button.new()
 	button.text = title
 	button.custom_minimum_size.x = button_min_width
@@ -125,100 +155,68 @@ func add_window_button(window: Control, title: String, icon: Texture2D = null) -
 	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	_style_window_button(button)
 
-	# Set icon if provided
-	if icon:
+	if icon != null:
 		button.icon = icon
 
-	# Connect button press signal
 	button.pressed.connect(_on_window_button_pressed.bind(window))
 
-	# Add to container
-	if button_container:
-		button_container.add_child(button)
-	
-	# Track mapping
+	button_container.add_child(button)
 	_window_buttons[window] = button
-	
-	# Update button widths
 	_update_button_widths()
 
 
-## Remove a button for a window
-## @param window: The PseudoWindow whose button to remove
 func remove_window_button(window: Control) -> void:
 	if not _window_buttons.has(window):
 		return
-	
+
 	var button: Button = _window_buttons[window]
 	if is_instance_valid(button):
 		button.queue_free()
-	
+
 	_window_buttons.erase(window)
-	
-	# Update button widths
 	_update_button_widths()
 
 
-## Update a window button's title
-## @param window: The PseudoWindow whose button to update
-## @param title: The new title
 func update_window_button_title(window: Control, title: String) -> void:
 	if not _window_buttons.has(window):
 		return
-	
+
 	var button: Button = _window_buttons[window]
 	if is_instance_valid(button):
 		button.text = title
 
 
-## Update a window button's icon
-## @param window: The PseudoWindow whose button to update
-## @param icon: The new icon texture
 func update_window_button_icon(window: Control, icon: Texture2D) -> void:
 	if not _window_buttons.has(window):
 		return
-	
+
 	var button: Button = _window_buttons[window]
 	if is_instance_valid(button):
 		button.icon = icon
 
 
-## Set the visual state of a window button (focused/unfocused)
-## @param window: The PseudoWindow whose button to update
-## @param focused: Whether the window is focused
 func set_window_button_focused(window: Control, focused: bool) -> void:
 	if not _window_buttons.has(window):
 		return
-	
+
 	var button: Button = _window_buttons[window]
 	if is_instance_valid(button):
-		# Use button_pressed to indicate focused state
 		button.button_pressed = focused
 
 
-## Set the visual state of a window button (minimized)
-## @param window: The PseudoWindow whose button to update
-## @param minimized: Whether the window is minimized
 func set_window_button_minimized(window: Control, minimized: bool) -> void:
 	if not _window_buttons.has(window):
 		return
-	
+
 	var button: Button = _window_buttons[window]
 	if is_instance_valid(button):
-		# Dim the button when minimized
 		button.modulate.a = 0.7 if minimized else 1.0
 
 
-## Check if a window has a button
-## @param window: The window to check
-## @return: True if the window has a button
 func has_window_button(window: Control) -> bool:
 	return _window_buttons.has(window)
 
 
-## Get the button for a window
-## @param window: The window to get the button for
-## @return: The Button or null
 func get_window_button(window: Control) -> Button:
 	if _window_buttons.has(window):
 		return _window_buttons[window]
@@ -237,40 +235,62 @@ func pulse_window_button(window: Control) -> void:
 	tween.tween_property(button, "scale", Vector2.ONE, 0.1)
 
 
-## Get all tracked windows
-## @return: Array of windows
 func get_tracked_windows() -> Array:
 	return _window_buttons.keys()
 
 
-## Clear all window buttons
 func clear_all_buttons() -> void:
 	for window in _window_buttons.keys():
 		remove_window_button(window)
 
 
-## Update button widths based on available space
 func _update_button_widths() -> void:
-	if not button_container:
+	if button_container == null:
 		return
-	
+
 	var button_count := _window_buttons.size()
 	if button_count == 0:
 		return
-	
-	# Calculate available width
+
 	var available_width := button_container.size.x
 	var ideal_width := available_width / button_count
-	
-	# Clamp to min/max
 	var button_width := clampf(ideal_width, button_min_width, button_max_width)
-	
-	# Apply to all buttons
+
 	for button in _window_buttons.values():
 		if is_instance_valid(button):
 			button.custom_minimum_size.x = button_width
 
 
-## Handle window button press
 func _on_window_button_pressed(window: Control) -> void:
 	window_button_clicked.emit(window)
+
+
+func _bind_game_loop() -> void:
+	_game_loop = get_node_or_null("/root/GameLoopManager")
+	if _game_loop != null and _game_loop.has_signal("phase_changed"):
+		if not _game_loop.phase_changed.is_connected(_on_phase_changed):
+			_game_loop.phase_changed.connect(_on_phase_changed)
+	if _game_loop != null and _game_loop.has_signal("day_changed"):
+		if not _game_loop.day_changed.is_connected(_on_day_changed):
+			_game_loop.day_changed.connect(_on_day_changed)
+
+
+func _update_phase_label() -> void:
+	var phase_label := get_node_or_null("HBoxContainer/Clock") as Label
+	if phase_label == null:
+		return
+	var day_text := "第1天"
+	var phase_text := "上午"
+	if _game_loop != null:
+		day_text = "第%d天" % int(_game_loop.get("current_day"))
+		if _game_loop.has_method("get_phase_display_name"):
+			phase_text = str(_game_loop.call("get_phase_display_name", _game_loop.get("time_phase")))
+	phase_label.text = "%s · %s" % [day_text, phase_text]
+
+
+func _on_phase_changed(_phase: int) -> void:
+	_update_phase_label()
+
+
+func _on_day_changed(_day: int) -> void:
+	_update_phase_label()

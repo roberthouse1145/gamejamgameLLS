@@ -1,0 +1,188 @@
+{
+	"documents": [
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "char_ash",
+			"position_x": 100.0,
+			"position_y": 550.0,
+			"tags": [
+				"平民",
+				"男",
+				"可攻略"
+			],
+			"title": "阿修（Ash）",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "char_celine",
+			"position_x": 350.0,
+			"position_y": 300.0,
+			"tags": [
+				"王族",
+				"女",
+				"可攻略"
+			],
+			"title": "席琳（Celine）",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "char_julian",
+			"position_x": 100.0,
+			"position_y": 300.0,
+			"tags": [
+				"王族",
+				"男",
+				"可攻略"
+			],
+			"title": "尤里安（Julian）",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "char_mel",
+			"position_x": 350.0,
+			"position_y": 550.0,
+			"tags": [
+				"平民",
+				"女",
+				"可攻略"
+			],
+			"title": "梅露（Mel）",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "char_ren",
+			"position_x": 600.0,
+			"position_y": 300.0,
+			"tags": [
+				"贵族",
+				"男",
+				"可攻略"
+			],
+			"title": "雷恩（Ren）",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "char_rosalyn",
+			"position_x": 850.0,
+			"position_y": 300.0,
+			"tags": [
+				"贵族",
+				"女",
+				"可攻略"
+			],
+			"title": "罗莎琳（Rosalyn）",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "player",
+			"category": "creative_brief",
+			"doc_id": "creative_brief",
+			"position_x": 362.743432861655,
+			"position_y": 318.23679898345,
+			"tags": [
+				"brief",
+				"direction",
+				"恋爱 Gal"
+			],
+			"title": "项目企划书",
+			"updated_at": "2026-04-05T11:42:06"
+		},
+		{
+			"author": "lin_xia",
+			"category": "world",
+			"doc_id": "creative_core",
+			"position_x": 312.792541503906,
+			"position_y": 25.3873291015625,
+			"tags": [],
+			"title": "创作基点",
+			"updated_at": "2026-04-05T11:42:59"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "npc_headmaster",
+			"position_x": 600.0,
+			"position_y": 550.0,
+			"tags": [
+				"NPC",
+				"功能角色"
+			],
+			"title": "格兰特院长",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "npc_maid",
+			"position_x": 100.0,
+			"position_y": 750.0,
+			"tags": [
+				"NPC",
+				"功能角色"
+			],
+			"title": "菲娜",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "characters",
+			"doc_id": "npc_teacher",
+			"position_x": 850.0,
+			"position_y": 550.0,
+			"tags": [
+				"NPC",
+				"功能角色"
+			],
+			"title": "艾拉老师",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "lin_xia",
+			"category": "notes",
+			"doc_id": "open_design_questions",
+			"position_x": 205.341394815878,
+			"position_y": 315.298462438129,
+			"tags": [],
+			"title": "待讨论设计问题",
+			"updated_at": "2026-04-05T11:43:42"
+		},
+		{
+			"author": "dev",
+			"category": "story",
+			"doc_id": "story_outline",
+			"position_x": 350.0,
+			"position_y": 750.0,
+			"tags": [
+				"主线",
+				"大纲"
+			],
+			"title": "主线剧情大纲",
+			"updated_at": "2026-03-30T00:00:00"
+		},
+		{
+			"author": "dev",
+			"category": "world",
+			"doc_id": "world_academy",
+			"position_x": 100.0,
+			"position_y": 100.0,
+			"tags": [
+				"世界观",
+				"学院",
+				"阶级"
+			],
+			"title": "塞拉菲娜王立魔法学院",
+			"updated_at": "2026-03-30T00:00:00"
+		}
+	]
+}

@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SetTextHandler
 ## Handler for SET_TEXT command
 ## 设置节点文本内容，支持 {{var_001}} 变量插值

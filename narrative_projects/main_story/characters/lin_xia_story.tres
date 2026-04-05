@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+[gd_resource type="Resource" script_class="AVGCharacter" format=3 uid="uid://dv7qin0g1do8"]
 
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://bd5m8bxlu7jrv" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
 
 [resource]
 script = ExtResource("1_script")
@@ -47,8 +47,11 @@ emotion_slots = {
 "soft_smile": "08",
 "sparkle": "09",
 "surprised": "11",
-"teasing": "06"
+"teasing": "06",
+"thoughtful": "23"
 }
 sprite_prefix = "mirai"
 sprite_base_dir = "res://narrative_projects/main_story/Assets/girl_friend"
 profile = "Main story portrait set for 林夏. Use outfit + emotion slot naming: mirai_<outfit><slot>.png. Available outfits: casual, loungewear, maid."
+display_offset = Vector2(0, 0.15)
+display_scale = 1.3

@@ -45,8 +45,8 @@ func store_memory(entry: MemoryEntry) -> void:
 	# 更新索引
 	_index_memory(entry)
 
-	# 持久化
-	_save_memory_to_disk(entry)
+	# TODO: 存档系统完成前禁用磁盘持久化，避免新游戏污染
+	# _save_memory_to_disk(entry)
 
 
 ## 从Topic对话中提取并存储记忆（由TopicManager调用）
@@ -233,7 +233,9 @@ func _unindex_memory(entry: MemoryEntry) -> void:
 func _ensure_loaded(npc_id: String) -> void:
 	if _memory_cache.has(npc_id):
 		return
-	_load_memories_from_disk(npc_id)
+	# TODO: 存档系统完成前禁用磁盘加载，避免遗留文件污染新游戏
+	# _load_memories_from_disk(npc_id)
+	_memory_cache[npc_id] = []
 
 
 func _load_memories_from_disk(npc_id: String) -> void:

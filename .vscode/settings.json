@@ -1,6 +1,8 @@
 {
   "files.encoding": "utf8",
-  "files.autoGuessEncoding": true,
+  "files.autoGuessEncoding": false,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
   "terminal.integrated.defaultProfile.windows": "PowerShell UTF-8",
   "terminal.integrated.profiles.windows": {
     "PowerShell UTF-8": {
@@ -14,5 +16,6 @@
       ],
       "icon": "terminal-powershell"
     }
-  }
+  },
+  "godotTools.editorPath.godot4": "e:\\SteamLibrary\\steamapps\\common\\Godot Engine\\godot.windows.opt.tools.64.exe"
 }

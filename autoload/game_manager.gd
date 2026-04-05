@@ -3,6 +3,9 @@ extends Node
 ## 管理全局游戏状态：林夏三维数值、项目四维数值、玩家金钱等
 ## 被 GameLoopManager 的动作消耗、夜间结算等环节读写
 
+const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
+
 # =============================================================================
 # Signals
 # =============================================================================
@@ -27,8 +30,8 @@ const STAT_MIN: int = 0
 const STAT_MAX: int = 100
 
 ## 初始数值 — 林夏三维
-const DEFAULT_AFFECTION: int = 30
-const DEFAULT_STRESS: int = 20
+const DEFAULT_AFFECTION: int = 80
+const DEFAULT_STRESS: int = 30
 const DEFAULT_PASSION: int = 60
 const DEFAULT_MONEY: int = 500
 
@@ -44,6 +47,9 @@ const MILESTONE_THRESHOLDS: Dictionary = {
 	30: 50,
 	45: 80,
 }
+const STRESS_DANGER_THRESHOLD: int = 80
+const PASSION_DANGER_THRESHOLD: int = 20
+const STATUS_WARNING_CHANNEL_ID: String = "dm_lin_xia"
 
 # =============================================================================
 # State Variables — 林夏三维
@@ -146,6 +152,14 @@ var game_completion: float:
 
 var _game_loop: Node = null
 var _work_order_manager: Node = null
+var _chat_manager: Node = null
+var _story_director: Node = null
+var _status_warning_eval_queued: bool = false
+var _status_warning_checks_suppressed: bool = true
+var _pending_status_warning_type: String = ""
+var _last_status_warning_type_sent: String = ""
+
+@export var auto_request_status_warning_reply: bool = true
 
 func _ready() -> void:
 	call_deferred("_init_connections")
@@ -157,12 +171,33 @@ func _ready() -> void:
 func _init_connections() -> void:
 	_game_loop = get_node_or_null("/root/GameLoopManager")
 	_work_order_manager = get_node_or_null("/root/WorkOrderManager")
+	_chat_manager = get_node_or_null("/root/ChatManager")
+	_story_director = get_node_or_null("/root/StoryDirector")
 
 	if _work_order_manager and _work_order_manager.has_signal("order_status_changed"):
 		_work_order_manager.order_status_changed.connect(_on_order_completed)
 
 	if _game_loop and _game_loop.has_signal("milestone_reached"):
 		_game_loop.milestone_reached.connect(_on_milestone_reached)
+	if _game_loop and _game_loop.has_signal("day_changed"):
+		_game_loop.day_changed.connect(_on_status_warning_timing_changed)
+	if _game_loop and _game_loop.has_signal("phase_changed"):
+		_game_loop.phase_changed.connect(_on_status_warning_timing_changed)
+	if stress_changed.is_connected(_on_stress_changed) == false:
+		stress_changed.connect(_on_stress_changed)
+	if passion_changed.is_connected(_on_passion_changed) == false:
+		passion_changed.connect(_on_passion_changed)
+	if _chat_manager and _chat_manager.has_signal("topic_completed"):
+		_chat_manager.topic_completed.connect(_on_chat_topic_released)
+	if _chat_manager and _chat_manager.has_signal("topic_timeout"):
+		_chat_manager.topic_timeout.connect(_on_chat_topic_timeout)
+	if _story_director and _story_director.has_signal("chapter_completed"):
+		_story_director.chapter_completed.connect(_on_story_released)
+	if _story_director and _story_director.has_signal("all_chapters_completed"):
+		_story_director.all_chapters_completed.connect(_on_story_released)
+
+	_status_warning_checks_suppressed = false
+	_queue_status_warning_evaluation()
 
 # =============================================================================
 # Public API — 直接修改数值（供其他系统调用）
@@ -232,7 +267,18 @@ func get_mood_summary() -> String:
 
 
 func get_llm_state_prompt() -> String:
-	return "林夏和玩家当前的关系状态：%s 当前精神状态：%s 当前创作状态：%s 当前生活条件：%s 项目整体状态：%s" % [
+	return """## 林夏当前内心状态与属性（非常重要）
+作为LLM，你必须将以下这些属性**融合在一起**来塑造林夏的反应，而不是孤立地看待它们。
+例如：即使【压力极高】，如果【好感度也极高】，她表现出的绝不是对玩家的攻击性，而是极度的脆弱、向玩家哭诉求安慰；
+又例如：如果【没钱】但【好感高】，她会跟你半撒娇地诉苦，而不是冷冰冰地指责。
+请像调色板一样将以下状态混合，计算出一个整体的情绪色彩：
+
+%s
+%s
+%s
+%s
+%s
+""" % [
 		_describe_relationship(),
 		_describe_stress_prompt(),
 		_describe_passion_prompt(),
@@ -243,56 +289,56 @@ func get_llm_state_prompt() -> String:
 
 func _describe_relationship() -> String:
 	if affection >= 85:
-		return "两人已经非常亲密，默契很强，很多话不用说透也能互相接住。"
+		return "- 【核心羁绊】亲密度 %d/100（极高）：热恋且极度依赖。不论她此时多有压力或多缺钱，底色都是爱你的。她会对你撒娇，哪怕发脾气也是想让你哄，遇到困难第一反应是抱紧你。" % affection
 	if affection >= 65:
-		return "两人关系稳定亲近，相处自然，已经能在约会和创作之间找到舒服的节奏。"
+		return "- 【核心羁绊】亲密度 %d/100（高）：感情很好且有默契。大部分时候相处自然，把你当自己人，吐槽也是透着亲昵的。" % affection
 	if affection >= 45:
-		return "两人已经熟悉，也有明确好感，但偶尔还是会在表达和节奏上小心试探。"
+		return "- 【核心羁绊】亲密度 %d/100（中）：普通的交往状态。态度温和但有些收敛，在压力大时可能顾不上关心你。" % affection
 	if affection >= 25:
-		return "两人刚进入恋爱关系不久，彼此有好感，但还在摸索怎么更自然地相处。"
-	return "两人虽然在交往，但关系还偏生涩，很多相处方式都没有真正稳定下来。"
+		return "- 【核心羁绊】亲密度 %d/100（低）：关系处于冷战边缘。她对你很有防备，说话客气生硬。此时如果压力大或没钱，她可能会直接把火撒在你身上，或者表现出明显的失望。" % affection
+	return "- 【核心羁绊】亲密度 %d/100（很低）：严重危机。她现在极度失望，态度冷漠抗拒。哪怕别的属性再好，她也不想给你好脸色。" % affection
 
 
 func _describe_stress_prompt() -> String:
 	if stress >= 80:
-		return "她正处在很强的焦虑和消耗中，稍微一点压力都可能让她情绪绷紧。"
+		return "- 【当前压力】%d/100（极高）：处于崩溃和极度疲惫状态。她像被抽干了所有精力，**不可能表现出任何元气、活泼或开心**。高亲密下她极度脆弱、疯狂向你撒娇喊累（例如“呜呜好累站不起来了”、“真的要去吗我不想动…”）；低亲密下是易怒的火药桶，对任何要求都很不耐烦。" % stress
 	if stress >= 60:
-		return "她最近压力明显偏高，容易疲惫，也容易对比赛和进度变得敏感。"
+		return "- 【当前压力】%d/100（高）：明显焦虑疲惫。精神状态不佳，经常叹气，容易烦躁。此时她非常需要你来分担工作或者哄她放松，不会像平时那样活跃。" % stress
 	if stress >= 40:
-		return "她有一些疲惫和压迫感，但还在努力维持状态，不至于立刻失控。"
+		return "- 【当前压力】%d/100（中等）：能感觉到压力但不致命。工作时偏严肃，偶尔流露疲惫，但还能理智沟通。" % stress
 	if stress >= 20:
-		return "她整体状态还算稳定，虽然有比赛压力，但暂时还能正常消化。"
-	return "她现在相当放松，精神上没有太重的负担。"
+		return "- 【当前压力】%d/100（低）：状态还算轻松。情绪稳定，理智且有耐心应对一切。" % stress
+	return "- 【当前压力】%d/100（很低）：完全没有任何压力。心情大好，思维活跃，充满活力。" % stress
 
 
 func _describe_passion_prompt() -> String:
 	if passion >= 80:
-		return "她对共同创作这件事很有冲劲，容易被新的点子和交流点燃。"
+		return "- 【创作热情】%d/100（极高）：对你们的游戏极度兴奋，像打了鸡血，满脑子都是好点子和表达欲。" % passion
 	if passion >= 50:
-		return "她对项目仍然有稳定热情，只要节奏别太糟，状态就能维持住。"
+		return "- 【创作热情】%d/100（较高）：态度积极，很愿意深入探讨游戏细节，对项目有信心。" % passion
 	if passion >= 20:
-		return "她还没有完全失去动力，但已经有点提不起劲，需要被带动。"
-	return "她对项目明显有些倦，容易把创作当成负担而不是期待。"
+		return "- 【创作热情】%d/100（低迷）：对项目开始怀疑，讨论时兴致缺缺敷衍了事。如果此时压力也很大，她会把做这游戏当成纯粹的折磨。" % passion
+	return "- 【创作热情】%d/100（很低）：极其厌恶当前的项目，极度消极且回避所有干活的提议。" % passion
 
 
 func _describe_money_prompt() -> String:
 	if money >= 1200:
-		return "你们手头比较宽裕，普通外出和日常花销不会形成明显压力。"
+		return "- 【团队资金】%d 元（富裕）：算是小富婆状态。完全不担心钱，爽快答应各种消费提议。" % money
 	if money >= 500:
-		return "你们的花销还算能撑住，但不会毫无顾忌地乱花。"
+		return "- 【团队资金】%d 元（一般）：日常够用，但遇到大额开销会犹豫。" % money
 	if money >= 200:
-		return "你们手头有点紧，外出和消费会下意识考虑成本。"
-	return "你们手头相当拮据，很多约会和日常安排都会被花销影响。"
+		return "- 【团队资金】%d 元（紧张）：觉得穷了。会变得精打细算，根据好感度她可能会温柔提醒你省点花，或者刻薄地吐槽你乱花钱。" % money
+	return "- 【团队资金】%d 元（吃土）：极度缺钱。经常为此焦虑，暗示或明示需要搞点钱，严重影响她的安全感。" % money
 
 
 func _describe_project_progress_prompt() -> String:
 	if completion >= 80:
-		return "项目已经接近完成（完成度%d%%，质量%d，稳定%d，热度%d），主要压力来自收尾和最终呈现。" % [completion, quality, stability, hype]
+		return "【项目进度】：即将大功告成（完成度%d%%，质量%d，稳定%d，热度%d）。她可能在纠结收尾细节，或憧憬发布后的成功。" % [completion, quality, stability, hype]
 	if completion >= 50:
-		return "项目已经进入中后段（完成度%d%%，质量%d，稳定%d，热度%d），成果开始变得可见。" % [completion, quality, stability, hype]
+		return "【项目进度】：开发中局（完成度%d%%，质量%d，稳定%d，热度%d）。游戏能看出大概，正在攻坚具体的实现。" % [completion, quality, stability, hype]
 	if completion >= 20:
-		return "项目还在搭主体的阶段（完成度%d%%，质量%d，稳定%d，热度%d），方向逐渐清晰。" % [completion, quality, stability, hype]
-	return "项目仍处在早期阶段（完成度%d%%，质量%d，稳定%d，热度%d），很多内容还只是雏形。" % [completion, quality, stability, hype]
+		return "【项目进度】：刚起步没多久（完成度%d%%，质量%d，稳定%d，热度%d）。还在搭框架、讨论概念方向的阶段。" % [completion, quality, stability, hype]
+	return "【项目进度】：一张白纸（完成度%d%%，质量%d，稳定%d，热度%d）。基本上啥也没做，只有初步的想法。" % [completion, quality, stability, hype]
 
 # =============================================================================
 # Event Handlers
@@ -313,6 +359,148 @@ func _on_milestone_reached(day: int) -> void:
 		if glm != null and glm.has_signal("game_over"):
 			print("[GameManager] 里程碑未达标，触发游戏结束")
 			glm.game_over.emit()
+
+
+func _on_stress_changed(_old_val: int, _new_val: int) -> void:
+	_queue_status_warning_evaluation()
+
+
+func _on_passion_changed(_old_val: int, _new_val: int) -> void:
+	_queue_status_warning_evaluation()
+
+
+func _on_status_warning_timing_changed(_value: Variant = null) -> void:
+	_queue_status_warning_evaluation()
+
+
+func _on_chat_topic_released(_topic: Resource, _result: Dictionary) -> void:
+	_queue_status_warning_evaluation()
+
+
+func _on_chat_topic_timeout(_topic: Resource) -> void:
+	_queue_status_warning_evaluation()
+
+
+func _on_story_released(_value: Variant = null) -> void:
+	_queue_status_warning_evaluation()
+
+
+func _queue_status_warning_evaluation() -> void:
+	if _status_warning_checks_suppressed or _status_warning_eval_queued:
+		return
+	_status_warning_eval_queued = true
+	call_deferred("_evaluate_status_warning_state")
+
+
+func _evaluate_status_warning_state() -> void:
+	_status_warning_eval_queued = false
+	if _status_warning_checks_suppressed:
+		return
+
+	var warning_type := _get_current_status_warning_type()
+	if warning_type.is_empty():
+		_pending_status_warning_type = ""
+		_last_status_warning_type_sent = ""
+		return
+
+	if warning_type == _last_status_warning_type_sent and _pending_status_warning_type.is_empty():
+		return
+
+	if not _can_trigger_status_warning_topic():
+		_pending_status_warning_type = warning_type
+		return
+
+	if _trigger_status_warning_topic(warning_type):
+		_last_status_warning_type_sent = warning_type
+		_pending_status_warning_type = ""
+
+
+func _get_current_status_warning_type() -> String:
+	var stress_danger := stress >= STRESS_DANGER_THRESHOLD
+	var passion_danger := passion <= PASSION_DANGER_THRESHOLD
+	if stress_danger and passion_danger:
+		return "both"
+	if stress_danger:
+		return "stress"
+	if passion_danger:
+		return "passion"
+	return ""
+
+
+func _can_trigger_status_warning_topic() -> bool:
+	if not _is_free_period_for_status_warning():
+		return false
+	if _chat_manager == null:
+		_chat_manager = get_node_or_null("/root/ChatManager")
+	if _chat_manager == null:
+		return false
+	if _chat_manager.has_method("has_active_topic") and _chat_manager.has_active_topic(STATUS_WARNING_CHANNEL_ID):
+		return false
+	return true
+
+
+func _is_free_period_for_status_warning() -> bool:
+	return ActivityLockUtilsClass.is_free_period()
+
+
+func _trigger_status_warning_topic(warning_type: String) -> bool:
+	if _chat_manager == null:
+		return false
+
+	var topic := ChatTopicClass.new()
+	topic.topic_id = "status_warning_%s_%d" % [warning_type, int(Time.get_unix_time_from_system())]
+	topic.topic_type = "casual_interaction"
+	topic.display_title = "林夏有点撑不住了"
+	topic.npc_id = "npc_lin_xia"
+	topic.channel_id = STATUS_WARNING_CHANNEL_ID
+	topic.system_prompt = _build_status_warning_prompt(warning_type)
+	topic.goal_description = "提醒玩家当前开发安排已经让林夏进入危险状态"
+	topic.context_data = {
+		"linkchat_open_mode": "force",
+		"complete_after_first_reply": true,
+		"suppress_system_notice": true,
+		"status_warning_type": warning_type,
+		"free_period_warning": true,
+	}
+	topic.max_turns = 3
+	topic.timeout_seconds = 0
+
+	if not _chat_manager.activate_topic(topic):
+		return false
+
+	if auto_request_status_warning_reply and _chat_manager.has_method("request_topic_npc_reply"):
+		_chat_manager.request_topic_npc_reply(topic.channel_id, "", false, true)
+	return true
+
+
+func _build_status_warning_prompt(warning_type: String) -> String:
+	var warning_desc := ""
+	match warning_type:
+		"stress":
+			warning_desc = "你的压力已经高到危险值了。你想认真提醒搭档，别再一直安排开发了，你真的有点扛不住。"
+		"passion":
+			warning_desc = "你的创作激情已经掉到危险值了。你想提醒搭档，再这样一直开发下去，你会越来越提不起劲。"
+		"both":
+			warning_desc = "你的压力和创作激情都到了危险值。你既累又没劲，真的需要搭档意识到问题，别再一味推进开发。"
+		_:
+			warning_desc = "你现在的状态很危险，需要提醒搭档先缓一缓。"
+
+	return """你是林夏，现在是在 LinkChat 私聊里主动找搭档说话。
+这不是剧情强制事件，而是自由时段里的状态提醒。
+
+【提醒原因】
+%s
+
+【当前状态】
+%s
+
+【要求】
+- 主动发送 1-2 条短消息，像平时聊天一样自然
+- 语气要像真实的抱怨和提醒，不要像系统公告
+- 重点是让玩家意识到：继续一味开发，会让你更难受
+- 可以表达累、烦、没灵感、想休息、想换换脑子，但不要直接替玩家做完整规划
+- 不要开启新工单，不要谈底层工具，不要写成长篇分析
+- 最后一条消息末尾必须加 [TOPIC_COMPLETE]""" % [warning_desc, get_mood_summary()]
 
 # =============================================================================
 # Persistence (save/load)
@@ -350,9 +538,19 @@ func get_run_state() -> Dictionary:
 
 
 func load_run_state(data: Dictionary) -> bool:
+	_status_warning_checks_suppressed = true
 	from_dict(data)
+	_pending_status_warning_type = ""
+	_last_status_warning_type_sent = ""
+	_status_warning_eval_queued = false
+	_status_warning_checks_suppressed = false
 	return true
 
 
 func reset_runtime_state() -> void:
+	_status_warning_checks_suppressed = true
 	from_dict({})
+	_pending_status_warning_type = ""
+	_last_status_warning_type_sent = ""
+	_status_warning_eval_queued = false
+	_status_warning_checks_suppressed = false

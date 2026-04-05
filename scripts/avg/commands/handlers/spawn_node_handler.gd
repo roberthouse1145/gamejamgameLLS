@@ -1,4 +1,4 @@
-extends "res://scripts/avg/commands/command_handler.gd"
+extends CommandHandler
 class_name SpawnNodeHandler
 ## Handler for SPAWN_NODE command
 ## 运行时生成公共节点实例

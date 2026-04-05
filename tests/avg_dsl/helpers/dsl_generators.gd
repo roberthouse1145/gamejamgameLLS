@@ -70,7 +70,7 @@ const POSITIONAL_PARAMS: Dictionary = {
 	"SCREEN_FADE": ["direction"],
 	"SCREEN_FLASH": [],
 	"SCREEN_SHAKE": [],
-	"CAMERA_ZOOM": ["zoom_level"],
+	"CAMERA_ZOOM": ["zoom"],
 	"CAMERA_PAN": [],
 	"CAMERA_RESET": [],
 	"SPAWN_NODE": ["shared_node_id"],
@@ -141,7 +141,7 @@ static func _generate_param_value(rng: RandomNumberGenerator, param_name: String
 			return "char_%03d" % rng.randi_range(1, 20)
 		"expression":
 			return _pick_str(rng, EXPRESSION_POOL)
-		"duration", "speed", "zoom_level":
+		"duration", "speed", "zoom_level", "zoom":
 			return _random_positive_value(rng)
 		"direction":
 			return _pick(rng, ["in", "out"])
