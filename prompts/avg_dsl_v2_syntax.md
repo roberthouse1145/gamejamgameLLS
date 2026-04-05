@@ -9,6 +9,15 @@
 
 ## 角色管理
 
+- 多角色自动排位：`stage.set("LinXia", "Shopkeeper")`
+  - 1 人时自动站 `center`
+  - 2 人时自动排成左/右
+  - 3 人时自动排成左/中/右
+  - 4~5 人时自动均匀摊开，避免明显空位
+  - 已经在场的角色会自动补位；不在名单里的角色会自动离场
+  - 可选表情列表：`stage.set("LinXia", "Shopkeeper", emotions="happy,neutral")`
+  - 可选服装列表：`stage.set("LinXia", "Shopkeeper", outfits="casual,_")`
+  - `emotions` 和 `outfits` 按角色顺序一一对应，`_` 表示保持当前状态或使用默认值
 - 角色出场：`LinXia.show(position="center", outfit="casual", emotion="happy")`
   - position 可选值：`left` / `center` / `right` / `far_left` / `far_right`
   - 入场动画（可选）：`LinXia.show(position="right", emotion="happy", enter_effect="slide_from_right")`
@@ -103,7 +112,8 @@
 
 ## 关键执行规则
 
-- 角色第一次说话之前，必须先写 `角色名.show(...)`。不允许让角色在未出场时直接说话。
+- 角色第一次说话之前，必须先写 `角色名.show(...)` 或 `stage.set(...)`。不允许让角色在未出场时直接说话。
+- 如果场景里有 2 个或更多角色同时在场，优先使用 `stage.set(...)` 来交给系统自动排位。
 - 第一屏推荐顺序：`screen.fade(...)` → `bg.show(...)` → `bgm.play(...)` → `角色名.show(...)` → 第一段对白/旁白。
 - 若场景里出现 `角色名.expression = ...`、`角色名.outfit = ...` 或 `角色名.effect(...)`，该角色必须已经先出场。
 - 默认情况下整段场景是线性叙事，**不使用 ChoiceBlock**。但如果上方的场景要求中明确要求"生成分支选项"，则必须使用 `# => ChoiceBlock()` 语法生成选项，且选项数量为 2~3 个。

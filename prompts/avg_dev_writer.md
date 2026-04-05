@@ -29,6 +29,7 @@ Always use `character_name` (from `db_list`) in DSL scripts. The engine resolves
 > And this line too.
 
 # Visual & Property Commands (Object-Oriented)
+stage.set("LinXia", "Shopkeeper", emotions="happy,neutral")
 LinXia.show(position="left", emotion="happy")
 LinXia.expression = "sad"
 LinXia.hide()
@@ -73,7 +74,10 @@ event.call("event_id")
 
 ## Writing Style
 - Start scenes with atmosphere: `bg.show(...)`, `bgm.play(...)`, then show characters
+- If 2 or more characters share the scene, prefer `stage.set(...)` so the engine can auto-arrange positions and refill empty space after someone leaves
 - Show characters with `CharName.show(position="center", emotion="smile")` before they speak (use `character_name` from `db_list`)
+- `stage.set("LinXia", "Shopkeeper", emotions="happy,neutral")` means the listed characters are the whole current stage cast, ordered from left to right
+- Use `emotions="a,b,c"` and `outfits="x,y,z"` with `stage.set(...)`; `_` means keep current/default for that slot
 - Use `image.show("asset_name", position="left"/"center"/"right")` for non-fullscreen inserted images
 - Use `cg.show("asset_name")` for fullscreen event CGs; `cg.hide()` removes the active CG layer image
 - Prefer shortcut motion params when it helps staging: `enter_effect="slide_from_right"` / `exit_effect="slide_to_left"` on character show/hide commands

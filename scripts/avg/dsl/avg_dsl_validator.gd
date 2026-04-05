@@ -29,12 +29,19 @@ const DEFAULT_ALLOWED_EXIT_EFFECTS: Array[String] = [
 	"pop_out",
 	"none",
 ]
+const DEFAULT_ALLOWED_EASINGS: Array[String] = [
+	"linear",
+	"ease_in",
+	"ease_out",
+	"ease_in_out",
+]
+const MAX_STAGE_CHARACTERS: int = 5
 
 
 func validate_commands(commands: Array, project: Resource, project_root_path: String, options: Dictionary = {}) -> Dictionary:
 	var errors: Array[String] = []
 	var warnings: Array[String] = []
-	var allowed_commands: Array[String] = _to_string_array(options.get("allowed_commands", []))
+	var _allowed_commands: Array[String] = _to_string_array(options.get("allowed_commands", []))
 	var allowed_positions: Array[String] = _to_string_array(options.get("allowed_positions", DEFAULT_ALLOWED_POSITIONS))
 	var min_choices: int = int(options.get("min_choice_count", 0))
 	var max_choices: int = int(options.get("max_choice_count", 0))
@@ -62,6 +69,8 @@ func validate_commands(commands: Array, project: Resource, project_root_path: St
 				_validate_show_character(index, params, character_map, allowed_positions, errors)
 			"HIDE_CHARACTER":
 				_validate_hide_character(index, params, character_map, errors)
+			"STAGE_SET":
+				_validate_stage_set(index, params, character_map, errors)
 			"CHANGE_EXPRESSION":
 				_validate_change_expression(index, params, character_map, errors)
 			"CHANGE_OUTFIT":
@@ -158,6 +167,71 @@ func _validate_hide_character(index: int, params: Dictionary, character_map: Dic
 		exit_effect = "fade"
 	if not DEFAULT_ALLOWED_EXIT_EFFECTS.has(exit_effect):
 		errors.append("HIDE_CHARACTER %d uses unsupported exit_effect: %s" % [index + 1, exit_effect])
+
+
+func _validate_stage_set(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
+	var stage_characters: Array[String] = _extract_stage_characters(params)
+	if stage_characters.size() > MAX_STAGE_CHARACTERS:
+		errors.append("STAGE_SET %d supports at most %d characters, got %d" % [index + 1, MAX_STAGE_CHARACTERS, stage_characters.size()])
+
+	var resolved_character_entries: Array[Dictionary] = []
+	var seen_character_ids: Dictionary = {}
+	for character_ref in stage_characters:
+		if character_ref.is_empty():
+			errors.append("STAGE_SET %d contains an empty character reference" % (index + 1))
+			continue
+		var character_entry: Dictionary = _resolve_character_entry(character_map, character_ref)
+		if character_entry.is_empty():
+			errors.append("STAGE_SET %d references missing character: %s" % [index + 1, character_ref])
+			continue
+		var resolved_character_id: String = str(character_entry.get("character_id", character_ref))
+		if seen_character_ids.has(resolved_character_id):
+			errors.append("STAGE_SET %d repeats character: %s" % [index + 1, resolved_character_id])
+			continue
+		seen_character_ids[resolved_character_id] = true
+		resolved_character_entries.append(character_entry)
+
+	var emotion_overrides: Array[String] = _parse_stage_override_list(params.get("emotions", ""))
+	var outfit_overrides: Array[String] = _parse_stage_override_list(params.get("outfits", ""))
+
+	if not emotion_overrides.is_empty() and emotion_overrides.size() != stage_characters.size():
+		errors.append("STAGE_SET %d emotions count must match characters count" % (index + 1))
+	if not outfit_overrides.is_empty() and outfit_overrides.size() != stage_characters.size():
+		errors.append("STAGE_SET %d outfits count must match characters count" % (index + 1))
+
+	var enter_effect: String = _normalize_token(params.get("enter_effect", "fade")).to_lower()
+	if enter_effect.is_empty():
+		enter_effect = "fade"
+	if not DEFAULT_ALLOWED_ENTER_EFFECTS.has(enter_effect):
+		errors.append("STAGE_SET %d uses unsupported enter_effect: %s" % [index + 1, enter_effect])
+
+	var exit_effect: String = _normalize_token(params.get("exit_effect", "fade")).to_lower()
+	if exit_effect.is_empty():
+		exit_effect = "fade"
+	if not DEFAULT_ALLOWED_EXIT_EFFECTS.has(exit_effect):
+		errors.append("STAGE_SET %d uses unsupported exit_effect: %s" % [index + 1, exit_effect])
+
+	for easing_param in ["move_easing", "enter_easing", "exit_easing"]:
+		var easing_name: String = _normalize_token(params.get(easing_param, ""))
+		if easing_name.is_empty():
+			continue
+		if not DEFAULT_ALLOWED_EASINGS.has(easing_name):
+			errors.append("STAGE_SET %d uses unsupported %s: %s" % [index + 1, easing_param, easing_name])
+
+	for character_index in range(resolved_character_entries.size()):
+		var character_entry: Dictionary = resolved_character_entries[character_index]
+		var character_label: String = str(character_entry.get("character_id", stage_characters[character_index]))
+
+		if character_index < emotion_overrides.size():
+			var emotion_name: String = emotion_overrides[character_index]
+			if not emotion_name.is_empty():
+				var emotions: Array[String] = character_entry.get("emotions", [])
+				if not emotions.has(emotion_name):
+					errors.append("STAGE_SET %d uses missing emotion on %s: %s" % [index + 1, character_label, emotion_name])
+
+		if character_index < outfit_overrides.size():
+			var outfit_name: String = outfit_overrides[character_index]
+			_validate_outfit_name(index, character_entry, character_label, outfit_name, "STAGE_SET", errors)
 
 
 func _validate_change_expression(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
@@ -437,6 +511,36 @@ func _validate_dynamic_sprite(index: int, character_entry: Dictionary, emotion: 
 		return
 	if not _resource_ref_exists(dynamic_path):
 		errors.append("%s %d needs missing sprite: %s" % [command_type, index + 1, dynamic_path])
+
+
+func _extract_stage_characters(params: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	var raw_characters: Variant = params.get("characters", [])
+	if raw_characters is Array:
+		for entry in raw_characters:
+			var character_ref: String = _normalize_token(entry)
+			if character_ref.is_empty():
+				continue
+			result.append(character_ref)
+		if not result.is_empty():
+			return result
+
+	return _parse_stage_override_list(params.get("characters_csv", ""))
+
+
+func _parse_stage_override_list(value: Variant) -> Array[String]:
+	var raw_text: String = _normalize_token(value)
+	var result: Array[String] = []
+	if raw_text.is_empty():
+		return result
+
+	for entry in raw_text.split(","):
+		var trimmed: String = entry.strip_edges()
+		if trimmed == "_":
+			result.append("")
+			continue
+		result.append(trimmed)
+	return result
 
 
 func _to_string_array(value: Variant) -> Array[String]:

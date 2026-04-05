@@ -10,6 +10,7 @@ const CommandRegistryClass = preload("res://scripts/avg/commands/command_registr
 const _DialogueHandler = preload("res://scripts/avg/commands/handlers/dialogue_handler.gd")
 const _ShowCharacterHandler = preload("res://scripts/avg/commands/handlers/show_character_handler.gd")
 const _HideCharacterHandler = preload("res://scripts/avg/commands/handlers/hide_character_handler.gd")
+const _StageSetHandler = preload("res://scripts/avg/commands/handlers/stage_set_handler.gd")
 const _WaitClickHandler = preload("res://scripts/avg/commands/handlers/wait_click_handler.gd")
 const _WaitTimeHandler = preload("res://scripts/avg/commands/handlers/wait_time_handler.gd")
 const _ChoiceHandler = preload("res://scripts/avg/commands/handlers/choice_handler.gd")
@@ -72,6 +73,7 @@ static func register_all_commands(registry: RefCounted) -> void:
 	# Character commands
 	registry.register_handler(_ShowCharacterHandler.new())
 	registry.register_handler(_HideCharacterHandler.new())
+	registry.register_handler(_StageSetHandler.new())
 	registry.register_handler(_ChangeExpressionHandler.new())
 	registry.register_handler(_ChangeOutfitHandler.new())
 	registry.register_handler(_MoveCharacterHandler.new())
@@ -160,6 +162,7 @@ static func get_all_command_types() -> Array[String]:
 		"DIALOGUE",
 		"SHOW_CHARACTER",
 		"HIDE_CHARACTER",
+		"STAGE_SET",
 		"CHANGE_EXPRESSION",
 		"CHANGE_OUTFIT",
 		"MOVE_CHARACTER",

@@ -23,6 +23,14 @@ const POSITIONS: Dictionary = {
 	"far_left": Vector2(0.1, 0.5),
 	"far_right": Vector2(0.9, 0.5),
 }
+const STAGE_LAYOUTS: Dictionary = {
+	0: [],
+	1: [Vector2(0.5, 0.5)],
+	2: [Vector2(0.33, 0.5), Vector2(0.67, 0.5)],
+	3: [Vector2(0.2, 0.5), Vector2(0.5, 0.5), Vector2(0.8, 0.5)],
+	4: [Vector2(0.12, 0.5), Vector2(0.37, 0.5), Vector2(0.63, 0.5), Vector2(0.88, 0.5)],
+	5: [Vector2(0.08, 0.5), Vector2(0.28, 0.5), Vector2(0.5, 0.5), Vector2(0.72, 0.5), Vector2(0.92, 0.5)],
+}
 
 ## Expression transition modes
 const TRANSITION_CROSSFADE: int = 0
@@ -145,6 +153,61 @@ func hide_character(character_id: String, fade_duration: float = 0.3, exit_effec
 func hide_all(fade_duration: float = 0.3) -> void:
 	for character_id in _active_characters.keys():
 		hide_character(character_id, fade_duration)
+
+
+## 根据传入顺序自动排位舞台角色，并补齐登场/离场/补位逻辑。
+func stage_set(character_refs: Array, emotions_spec: String = "", outfits_spec: String = "", duration: float = 0.35, enter_effect: String = "fade", exit_effect: String = "fade", enter_distance: float = 0.08, exit_distance: float = 0.08, enter_easing: String = "ease_out", exit_easing: String = "ease_in", move_easing: String = "ease_in_out") -> void:
+	var target_ids: Array[String] = _resolve_stage_character_ids(character_refs)
+	if not STAGE_LAYOUTS.has(target_ids.size()):
+		push_warning("CharacterDisplay: stage_set supports up to 5 characters, got %d" % target_ids.size())
+		return
+
+	var safe_duration: float = maxf(duration, 0.0)
+	var target_layout: Array = STAGE_LAYOUTS.get(target_ids.size(), [])
+	var emotion_overrides: Array[String] = _parse_stage_override_list(emotions_spec, target_ids.size())
+	var outfit_overrides: Array[String] = _parse_stage_override_list(outfits_spec, target_ids.size())
+	var target_lookup: Dictionary = {}
+	for character_id in target_ids:
+		target_lookup[character_id] = true
+
+	for visible_id in get_visible_character_ids():
+		if target_lookup.has(visible_id):
+			continue
+		hide_character(visible_id, safe_duration, exit_effect, exit_distance, exit_easing)
+
+	for index in range(target_ids.size()):
+		var target_id: String = target_ids[index]
+		var target_ratio: Vector2 = target_layout[index]
+		var target_position: String = _format_stage_position(target_ratio)
+		var emotion_override: String = emotion_overrides[index]
+		var outfit_override: String = outfit_overrides[index]
+
+		if is_character_visible(target_id):
+			_apply_stage_visual_overrides(target_id, emotion_override, outfit_override)
+			var state: Dictionary = _character_state.get(target_id, {})
+			var current_ratio: Variant = state.get("position_ratio", POSITIONS.get("center", Vector2(0.5, 0.5)))
+			if current_ratio is Vector2 and current_ratio.is_equal_approx(target_ratio):
+				continue
+			move_character(target_id, target_position, safe_duration, move_easing)
+			continue
+
+		var stage_state: Dictionary = _character_state.get(target_id, {})
+		var flip: bool = bool(stage_state.get("flip", false))
+		var char_scale: float = float(stage_state.get("scale_factor", 1.0))
+		var opacity: float = float(stage_state.get("opacity", 1.0))
+		show_character(
+			target_id,
+			target_position,
+			emotion_override,
+			safe_duration,
+			flip,
+			char_scale,
+			opacity,
+			outfit_override,
+			enter_effect,
+			enter_distance,
+			enter_easing
+		)
 
 
 # =============================================================================
@@ -293,6 +356,57 @@ func _cancel_crossfade(character_id: String) -> void:
 			overlay.queue_free()
 		_crossfade_overlays.erase(character_id)
 	_cancel_tween(_get_crossfade_tween_key(character_id))
+
+
+func _resolve_stage_character_ids(character_refs: Array) -> Array[String]:
+	var result: Array[String] = []
+	var seen: Dictionary = {}
+	for entry in character_refs:
+		var trimmed_ref: String = str(entry).strip_edges()
+		if trimmed_ref.is_empty():
+			continue
+		var resolved_id: String = _resolve_character_reference(trimmed_ref)
+		if resolved_id.is_empty() or seen.has(resolved_id):
+			continue
+		seen[resolved_id] = true
+		result.append(resolved_id)
+	return result
+
+
+func _parse_stage_override_list(raw_spec: String, expected_size: int) -> Array[String]:
+	var result: Array[String] = []
+	var trimmed_spec: String = raw_spec.strip_edges()
+	if trimmed_spec.is_empty():
+		for _index in range(expected_size):
+			result.append("")
+		return result
+
+	for entry in trimmed_spec.split(","):
+		var trimmed: String = entry.strip_edges()
+		if trimmed == "_":
+			trimmed = ""
+		result.append(trimmed)
+
+	while result.size() < expected_size:
+		result.append("")
+	if result.size() > expected_size:
+		result.resize(expected_size)
+	return result
+
+
+func _apply_stage_visual_overrides(character_id: String, emotion_override: String, outfit_override: String) -> void:
+	var trimmed_emotion: String = emotion_override.strip_edges()
+	var trimmed_outfit: String = outfit_override.strip_edges()
+	if trimmed_outfit.is_empty() and trimmed_emotion.is_empty():
+		return
+	if not trimmed_outfit.is_empty():
+		change_outfit(character_id, trimmed_outfit, "", -1.0, trimmed_emotion)
+		return
+	change_expression(character_id, trimmed_emotion, "", -1.0)
+
+
+func _format_stage_position(position_ratio: Vector2) -> String:
+	return "%0.4f,%0.4f" % [position_ratio.x, position_ratio.y]
 
 
 # =============================================================================
@@ -584,6 +698,15 @@ func is_character_visible(character_id: String) -> bool:
 	if _active_characters.has(resolved_character_id):
 		return _active_characters[resolved_character_id].visible
 	return false
+
+
+func get_visible_character_ids() -> Array[String]:
+	var result: Array[String] = []
+	for character_id in _active_characters.keys():
+		if not is_character_visible(character_id):
+			continue
+		result.append(character_id)
+	return result
 
 
 func get_character_state(character_id: String) -> Dictionary:

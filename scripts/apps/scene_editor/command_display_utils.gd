@@ -16,6 +16,7 @@ const COMMAND_TYPES: Array = [
 	# 角色
 	{"id": "SHOW_CHARACTER", "name": "显示角色", "category": "角色"},
 	{"id": "HIDE_CHARACTER", "name": "隐藏角色", "category": "角色"},
+	{"id": "STAGE_SET", "name": "舞台排位", "category": "角色"},
 	{"id": "CHANGE_EXPRESSION", "name": "切换表情", "category": "角色"},
 	{"id": "MOVE_CHARACTER", "name": "移动角色", "category": "角色"},
 	{"id": "MOVE_CHARACTER_BY", "name": "相对移动", "category": "角色"},
@@ -84,6 +85,29 @@ static func _format_screen_shake_intensity(value: Variant) -> String:
 		return text
 
 	return str(value)
+
+
+static func _extract_stage_characters(params: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	var raw_characters: Variant = params.get("characters", [])
+	if raw_characters is Array:
+		for entry in raw_characters:
+			var trimmed: String = str(entry).strip_edges()
+			if trimmed.is_empty():
+				continue
+			result.append(trimmed)
+		if not result.is_empty():
+			return result
+
+	var raw_csv: String = str(params.get("characters_csv", "")).strip_edges()
+	if raw_csv.is_empty():
+		return result
+	for entry in raw_csv.split(","):
+		var trimmed_csv: String = entry.strip_edges()
+		if trimmed_csv.is_empty():
+			continue
+		result.append(trimmed_csv)
+	return result
 
 
 ## 解析变量显示名称：优先用 variable_id 查找名称，显示为 "ID(名称)" 格式
@@ -172,6 +196,11 @@ static func get_command_display(cmd: Variant) -> String:
 			return "显示角色 %s %s%s" % [char_id, expression, flip_str]
 		"HIDE_CHARACTER":
 			return "隐藏角色 %s" % params.get("character_id", "")
+		"STAGE_SET":
+			var stage_characters: Array[String] = _extract_stage_characters(params)
+			if stage_characters.is_empty():
+				return "舞台清场"
+			return "舞台排位 [%s]" % " / ".join(PackedStringArray(stage_characters))
 		"CHANGE_EXPRESSION":
 			var char_id: String = params.get("character_id", "")
 			var expr: String = params.get("expression", "")
@@ -384,6 +413,8 @@ static func init_command_params(cmd: Resource) -> void:
 			cmd.params = {"character_id": "", "position": "center", "custom_x": 0.5, "custom_y": 0.5, "emotion": "", "fade_duration": 0.3, "flip": false, "scale": 1.0, "opacity": 1.0}
 		"HIDE_CHARACTER":
 			cmd.params = {"character_id": "", "fade_duration": 0.3}
+		"STAGE_SET":
+			cmd.params = {"characters_csv": "", "emotions": "", "outfits": "", "duration": 0.35, "enter_effect": "fade", "exit_effect": "fade"}
 		"CHANGE_EXPRESSION":
 			cmd.params = {"character_id": "", "expression": "", "transition": "", "duration": -1.0}
 		"MOVE_CHARACTER":

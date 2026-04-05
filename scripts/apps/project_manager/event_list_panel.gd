@@ -337,6 +337,26 @@ func _get_command_display(cmd: Variant) -> String:
 			return "对话 %s: \"%s\"" % [s, t]
 		"SHOW_CHARACTER": return "显示角色 %s" % p.get("character_id", "")
 		"HIDE_CHARACTER": return "隐藏角色 %s" % p.get("character_id", "")
+		"STAGE_SET":
+			var raw_stage_characters: Variant = p.get("characters", [])
+			var stage_characters: Array[String] = []
+			if raw_stage_characters is Array:
+				for entry in raw_stage_characters:
+					var trimmed: String = str(entry).strip_edges()
+					if trimmed.is_empty():
+						continue
+					stage_characters.append(trimmed)
+			if stage_characters.is_empty():
+				var characters_csv: String = str(p.get("characters_csv", "")).strip_edges()
+				if not characters_csv.is_empty():
+					for entry in characters_csv.split(","):
+						var trimmed_csv: String = entry.strip_edges()
+						if trimmed_csv.is_empty():
+							continue
+						stage_characters.append(trimmed_csv)
+			if stage_characters.is_empty():
+				return "舞台清场"
+			return "舞台排位 [%s]" % " / ".join(PackedStringArray(stage_characters))
 		"WAIT_CLICK": return "等待点击"
 		"WAIT_TIME": return "等待 %.1f秒" % p.get("duration", 1.0)
 		"CHOICE": return "选项 (%d个)" % p.get("choices", []).size()
@@ -474,6 +494,7 @@ func _init_command_params(cmd: Resource) -> void:
 		"DIALOGUE": cmd.params = {"text": "", "speaker": "", "emotion": "", "text_speed": -1.0, "position": "default", "transparent": false}
 		"SHOW_CHARACTER": cmd.params = {"character_id": "", "position": "center", "emotion": "", "fade_duration": 0.3}
 		"HIDE_CHARACTER": cmd.params = {"character_id": "", "fade_duration": 0.3}
+		"STAGE_SET": cmd.params = {"characters_csv": "", "emotions": "", "outfits": "", "duration": 0.35, "enter_effect": "fade", "exit_effect": "fade"}
 		"WAIT_CLICK": cmd.params = {}
 		"WAIT_TIME": cmd.params = {"duration": 1.0}
 		"CHOICE": cmd.params = {"choices": []}

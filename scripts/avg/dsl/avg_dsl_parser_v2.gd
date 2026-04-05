@@ -550,6 +550,9 @@ func _build_method_command(obj: String, method: String, kwargs_str: String, line
 	var parsed_args: Dictionary = _parse_target_args(kwargs_str)
 	var pos_args: Array = parsed_args.get("positional", [])
 	var kw: Dictionary = parsed_args.get("kwargs", {})
+
+	if obj == "stage":
+		return _build_stage_command(method, pos_args, kw, line_num, errors)
 	
 	# 检查系统魔法映射
 	if MAGIC_MAPPINGS.has(obj):
@@ -585,6 +588,35 @@ func _build_method_command(obj: String, method: String, kwargs_str: String, line
 	errors.append({"line": line_num, "message": "Undefined object or method: %s.%s()" % [obj, method]})
 	return null
 
+
+func _build_stage_command(method: String, pos_args: Array, kw: Dictionary, line_num: int, errors: Array[Dictionary]) -> AVGCommand:
+	if method != "set" and method != "clear":
+		errors.append({"line": line_num, "message": "Undefined object or method: stage.%s()" % method})
+		return null
+
+	var cmd: AVGCommand = AVGCommand.new()
+	cmd.command_type = "STAGE_SET"
+
+	var characters: Array[String] = []
+	if method == "set":
+		for entry in pos_args:
+			var character_ref: String = str(entry).strip_edges()
+			if character_ref.is_empty():
+				continue
+			characters.append(character_ref)
+
+		var raw_characters: String = str(kw.get("characters", "")).strip_edges()
+		if not raw_characters.is_empty():
+			characters.append_array(_parse_stage_csv_string(raw_characters))
+
+	cmd.params["characters"] = characters
+	cmd.params["characters_csv"] = ",".join(PackedStringArray(characters))
+
+	var kw_copy: Dictionary = kw.duplicate(true)
+	kw_copy.erase("characters")
+	cmd.params.merge(kw_copy)
+	return cmd
+
 ## 辅助解析函数：将 args 尝试分类为 position 和 kwargs
 func _parse_target_args(s: String) -> Dictionary:
 	var pos: Array = []
@@ -593,11 +625,12 @@ func _parse_target_args(s: String) -> Dictionary:
 	if s.strip_edges().is_empty():
 		return {"positional": pos, "kwargs": kw}
 		
-	# 简陋解析法：通过正则提取或者 Split
-	var arr: PackedStringArray = s.split(",")
+	var arr: Array[String] = _split_call_arguments(s)
 	var found_kw: bool = false
 	for p_raw in arr:
 		var p: String = p_raw.strip_edges()
+		if p.is_empty():
+			continue
 		if "=" in p:
 			found_kw = true
 			var parts: PackedStringArray = p.split("=", false, 1)
@@ -609,6 +642,47 @@ func _parse_target_args(s: String) -> Dictionary:
 				pos.append(_safe_convert_value(_strip_quotes(p)))
 	
 	return {"positional": pos, "kwargs": kw}
+
+
+func _split_call_arguments(s: String) -> Array[String]:
+	var parts: Array[String] = []
+	var current: String = ""
+	var quote_char: String = ""
+
+	for i in range(s.length()):
+		var ch: String = s.substr(i, 1)
+		if not quote_char.is_empty():
+			current += ch
+			if ch == quote_char:
+				quote_char = ""
+			continue
+
+		if ch == "\"" or ch == "'":
+			quote_char = ch
+			current += ch
+			continue
+
+		if ch == ",":
+			parts.append(current.strip_edges())
+			current = ""
+			continue
+
+		current += ch
+
+	if not current.strip_edges().is_empty():
+		parts.append(current.strip_edges())
+
+	return parts
+
+
+func _parse_stage_csv_string(raw_value: String) -> Array[String]:
+	var result: Array[String] = []
+	for entry in raw_value.split(","):
+		var trimmed: String = entry.strip_edges()
+		if trimmed.is_empty():
+			continue
+		result.append(trimmed)
+	return result
 
 func _apply_positional_args(cmd: AVGCommand, expected: Array, provided: Array, line_num: int, errors: Array[Dictionary]) -> void:
 	if provided.size() > expected.size():
