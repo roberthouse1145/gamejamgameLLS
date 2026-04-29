@@ -16,7 +16,7 @@
 ## var ai = AIService.new()
 ## ai.api_base_url = "https://api.deepseek.com"
 ## ai.api_key = "your-api-key"
-## ai.model = "deepseek-chat"
+## ai.model = "deepseek-v4-flash"
 ## ai.request_completed.connect(_on_response)
 ## add_child(ai)
 ## ai.chat([{"role": "user", "content": "Hello!"}])
@@ -52,12 +52,12 @@ signal conversation_updated(conversation_id: String, messages: Array)
 
 #region 导出配置
 @export_group("API Configuration")
-## API基础URL（不含端点路径）
+## API基础URL。可传纯域名、带版本前缀的路径，或完整端点。
 @export var api_base_url: String = "https://api.deepseek.com"
 ## API密钥
 @export var api_key: String = ""
 ## 使用的模型名称
-@export var model: String = "deepseek-chat"
+@export var model: String = "deepseek-v4-flash"
 
 @export_group("Request Settings")
 ## 请求超时时间（秒）
@@ -75,9 +75,15 @@ signal conversation_updated(conversation_id: String, messages: Array)
 ## 默认温度参数
 @export_range(0.0, 2.0) var default_temperature: float = 1.0
 ## 默认最大token数
-@export var default_max_tokens: int = 8192
+@export var default_max_tokens: int = 16384
 ## 默认top_p参数
 @export_range(0.0, 1.0) var default_top_p: float = 1.0
+## 默认思考模式: "disabled" 或 "enabled"
+@export var default_thinking: String = "disabled"
+## 兼容部分 OpenAI-compatible provider 的思考开关
+@export var default_enable_thinking: bool = false
+## 思考强度，留空则不发送。DeepSeek 支持 "high" / "max"
+@export var default_reasoning_effort: String = ""
 
 @export_group("Conversation Settings")
 ## 是否自动管理对话历史
@@ -94,6 +100,13 @@ signal conversation_updated(conversation_id: String, messages: Array)
 @export var max_tool_iterations: int = 10
 ## 是否输出完整响应与逐步工具调用日志（默认关闭，避免刷屏）
 @export var verbose_debug_logging: bool = false
+const TERMINAL_TOOL_NAMES: PackedStringArray = ["finish"]
+
+@export_group("Debug Metadata")
+## 由 AIConfigManager 写入的业务 role，用于定位缓存命中日志来源。
+@export var service_role: String = ""
+## 可选的业务来源标签；为空时使用节点名。
+@export var debug_source: String = ""
 #endregion
 
 #region 内部变量
@@ -121,6 +134,12 @@ var _tool_iteration_counts: Dictionary = {}
 var _original_request_ids: Dictionary = {}
 # 请求的工具调用累积记录 {request_id: Array[{name, args, result}]}
 var _tool_call_history: Dictionary = {}
+# 单次请求调试元数据 {request_id: {source, role, prompt_key}}
+var _request_debug_meta: Dictionary = {}
+# DeepSeek 上下文缓存命中统计（本进程累计），便于调优 prompt 前缀稳定性
+var _cache_session_hit_tokens: int = 0
+var _cache_session_miss_tokens: int = 0
+var _cache_session_request_count: int = 0
 #endregion
 
 #region 生命周期
@@ -170,7 +189,7 @@ func complete(prompt: String, options: Dictionary = {}) -> String:
 	if options.has("suffix"):
 		body["suffix"] = options["suffix"]
 	
-	var url = options.get("api_url", api_base_url) + "/v1/completions"
+	var url = _resolve_completion_api_url(options)
 	_request_queue.append({
 		"id": request_id,
 		"body": body,
@@ -178,6 +197,7 @@ func complete(prompt: String, options: Dictionary = {}) -> String:
 		"url": url,
 		"type": "completion"
 	})
+	_request_debug_meta[request_id] = _build_request_debug_meta(options)
 	_retry_counts[request_id] = 0
 	return request_id
 #endregion
@@ -296,7 +316,11 @@ func _trim_history(conversation_id: String) -> void:
 ## [param description] 函数描述
 ## [param parameters] JSON Schema格式的参数定义
 ## [param callback] 可选的回调函数，签名: func(args: Dictionary) -> Variant
-func register_tool(tool_name: String, description: String, parameters: Dictionary, callback: Callable = Callable()) -> void:
+## [param llm_view] 可选。定义该工具执行后喂回 LLM 的可见结果。
+##   - Array[String]: 按 dotted path 选择返回字段，如 ["success", "data.scene_id", "data.dsl"]
+##   - Dictionary: {"fields": [...]} 或 {"raw": true}
+##   - Callable: func(result) -> Variant，自定义投影
+func register_tool(tool_name: String, description: String, parameters: Dictionary, callback: Callable = Callable(), llm_view: Variant = null) -> void:
 	_registered_tools[tool_name] = {
 		"type": "function",
 		"function": {
@@ -304,14 +328,16 @@ func register_tool(tool_name: String, description: String, parameters: Dictionar
 			"description": description,
 			"parameters": parameters
 		},
-		"callback": callback
+		"callback": callback,
+		"llm_view": llm_view,
 	}
 
 ## 注册多个工具
 func register_tools(tools: Array[Dictionary]) -> void:
 	for tool in tools:
 		var cb = tool.get("callback", Callable())
-		register_tool(tool.name, tool.description, tool.parameters, cb)
+		var llm_view: Variant = tool.get("llm_view", null)
+		register_tool(tool.name, tool.description, tool.parameters, cb, llm_view)
 
 ## 取消注册工具
 func unregister_tool(tool_name: String) -> void:
@@ -380,6 +406,115 @@ func execute_tool_callback(function_name: String, arguments: Dictionary) -> Vari
 		return await callback.call(arguments)
 	return null
 
+
+func _summarize_tool_result_for_conversation(function_name: String, result: Variant, options: Dictionary) -> String:
+	var projected: Variant = _project_tool_result_for_llm(function_name, result)
+	if projected != null:
+		return _stringify_tool_result(projected, 0)
+
+	var summarizer: Variant = options.get("tool_result_summarizer", Callable())
+	if summarizer is Callable:
+		var cb: Callable = summarizer
+		if cb.is_valid():
+			var summarized: Variant = cb.call(function_name, result)
+			return str(summarized)
+
+	return _stringify_tool_result(result)
+
+
+func _project_tool_result_for_llm(function_name: String, result: Variant) -> Variant:
+	if not _registered_tools.has(function_name):
+		return null
+
+	var llm_view: Variant = (_registered_tools[function_name] as Dictionary).get("llm_view", null)
+	if llm_view == null:
+		return null
+
+	if llm_view is Callable:
+		var cb: Callable = llm_view
+		if cb.is_valid():
+			return cb.call(result)
+		return null
+
+	if llm_view is Dictionary:
+		var cfg: Dictionary = llm_view
+		if bool(cfg.get("raw", false)):
+			return result
+		var cfg_fields: Variant = cfg.get("fields", [])
+		if cfg_fields is Array:
+			return _pick_result_fields(result, cfg_fields)
+		return null
+
+	if llm_view is Array:
+		return _pick_result_fields(result, llm_view)
+
+	return null
+
+
+func _pick_result_fields(source: Variant, field_paths: Array) -> Variant:
+	if not (source is Dictionary):
+		return source
+	var projected: Dictionary = {}
+	for raw_path in field_paths:
+		var path: String = str(raw_path).strip_edges()
+		if path.is_empty():
+			continue
+		var value: Variant = _get_value_by_dotted_path(source, path)
+		if value == null:
+			continue
+		_set_value_by_dotted_path(projected, path, value)
+	return projected
+
+
+func _get_value_by_dotted_path(source: Variant, dotted_path: String) -> Variant:
+	var current: Variant = source
+	for segment in dotted_path.split("."):
+		var key: String = segment.strip_edges()
+		if key.is_empty():
+			return null
+		if current is Dictionary:
+			var current_dict: Dictionary = current
+			if not current_dict.has(key):
+				return null
+			current = current_dict.get(key)
+			continue
+		if current is Array and key.is_valid_int():
+			var current_array: Array = current
+			var idx: int = int(key)
+			if idx < 0 or idx >= current_array.size():
+				return null
+			current = current_array[idx]
+			continue
+		return null
+	return current
+
+
+func _set_value_by_dotted_path(target: Dictionary, dotted_path: String, value: Variant) -> void:
+	var parts: PackedStringArray = dotted_path.split(".")
+	if parts.is_empty():
+		return
+	var cursor: Dictionary = target
+	for i in range(parts.size()):
+		var key: String = parts[i].strip_edges()
+		if key.is_empty():
+			return
+		if i == parts.size() - 1:
+			cursor[key] = value
+			return
+		var next_value: Variant = cursor.get(key, null)
+		if not (next_value is Dictionary):
+			cursor[key] = {}
+		var child_dict: Dictionary = cursor.get(key, {})
+		cursor = child_dict
+
+
+func _stringify_tool_result(result: Variant, max_chars: int = 400) -> String:
+	var raw: String = JSON.stringify(result) if result != null else "null"
+	raw = raw.replace("\n", "\\n")
+	if max_chars > 0 and raw.length() > max_chars:
+		return raw.left(max_chars) + "..."
+	return raw
+
 ## 自动处理工具调用（执行回调并提交结果）
 ## [param conversation_id] 对话ID
 ## [param tool_calls] 工具调用数组
@@ -409,7 +544,7 @@ func auto_handle_tool_calls(conversation_id: String, tool_calls: Array, options:
 			args = json.data
 		
 		var result = await execute_tool_callback(func_name, args)
-		var result_str = JSON.stringify(result) if result != null else '{"error": "No callback registered"}'
+		var result_str = _summarize_tool_result_for_conversation(func_name, result, options)
 		
 		if _conversations.has(conversation_id):
 			_conversations[conversation_id].append({
@@ -579,11 +714,16 @@ func _build_chat_request(messages: Array, options: Dictionary) -> Dictionary:
 	if options.has("response_format"):
 		body["response_format"] = options["response_format"]
 	
-	# Thinking / Deep reasoning (火山引擎 doubao-seed 等模型)
+	# Thinking / Deep reasoning (DeepSeek/OpenAI 兼容模型)
 	# 默认 disabled，避免浪费 token（项目已通过 <think> 标签自行管理思维链）
-	var thinking_type: String = options.get("thinking", "disabled")
+	var thinking_type: String = str(options.get("thinking", default_thinking)).strip_edges()
+	if thinking_type.is_empty():
+		thinking_type = "disabled"
 	body["thinking"] = {"type": thinking_type}
-	body["enable_thinking"] = options.get("enable_thinking", false)
+	body["enable_thinking"] = options.get("enable_thinking", default_enable_thinking)
+	var reasoning_effort: String = str(options.get("reasoning_effort", default_reasoning_effort)).strip_edges()
+	if not reasoning_effort.is_empty():
+		body["reasoning_effort"] = reasoning_effort
 	
 	# Seed for reproducibility
 	if options.has("seed"):
@@ -596,6 +736,48 @@ func _build_headers() -> PackedStringArray:
 		"Content-Type: application/json",
 		"Authorization: Bearer " + api_key
 	])
+
+
+func _resolve_chat_api_url(options: Dictionary = {}) -> String:
+	return _normalize_api_endpoint(str(options.get("api_url", api_base_url)), "/chat/completions")
+
+
+func _resolve_completion_api_url(options: Dictionary = {}) -> String:
+	return _normalize_api_endpoint(str(options.get("api_url", api_base_url)), "/completions")
+
+
+func _normalize_api_endpoint(raw_url: String, required_suffix: String, default_version: String = "v1") -> String:
+	var normalized_url: String = raw_url.strip_edges().trim_suffix("/")
+	if normalized_url.is_empty():
+		var fallback_suffix: String = required_suffix.trim_prefix("/")
+		return "/%s/%s" % [default_version.trim_prefix("/"), fallback_suffix]
+
+	if normalized_url.ends_with(required_suffix):
+		return normalized_url
+
+	var has_version_segment: bool = false
+	var scheme_index: int = normalized_url.find("://")
+	var path_start: int = normalized_url.find("/", scheme_index + 3) if scheme_index != -1 else normalized_url.find("/")
+	if path_start != -1 and path_start + 1 < normalized_url.length():
+		var path_segments: PackedStringArray = normalized_url.substr(path_start + 1).split("/", false)
+		for segment in path_segments:
+			var normalized_segment: String = segment.strip_edges().to_lower()
+			if normalized_segment.length() > 1 \
+					and normalized_segment.begins_with("v") \
+					and _is_ascii_digit(normalized_segment.unicode_at(1)):
+				has_version_segment = true
+				break
+
+	if not has_version_segment:
+		normalized_url += "/%s" % default_version.trim_prefix("/")
+
+	if not normalized_url.ends_with(required_suffix):
+		normalized_url += required_suffix
+	return normalized_url
+
+
+func _is_ascii_digit(codepoint: int) -> bool:
+	return codepoint >= 48 and codepoint <= 57
 #endregion
 
 #region 内部方法 - 队列管理
@@ -606,10 +788,11 @@ func _enqueue_request(request_id: String, body: Dictionary, options: Dictionary)
 		"id": request_id,
 		"body": body,
 		"options": options,
-		"url": options.get("api_url", api_base_url) + "/v1/chat/completions",
+		"url": _resolve_chat_api_url(options),
 		"type": "chat",
 		"auto_tools": auto_tools
 	})
+	_request_debug_meta[request_id] = _build_request_debug_meta(options)
 	_retry_counts[request_id] = 0
 
 func _process_queue() -> void:
@@ -671,7 +854,8 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	
 	var response = _normalize_response_reasoning(json.data)
 	var original_id = _original_request_ids.get(request_id, request_id)
-	
+
+	_log_cache_stats(response, request_id, original_id)
 	_update_conversation_from_response(request_id, response)
 	
 	if _has_tool_calls(response):
@@ -969,6 +1153,7 @@ func _parse_tool_arguments(args_str: String) -> Dictionary:
 
 ## 自动执行工具调用并继续对话
 func _auto_execute_tool_calls(request_id: String, original_id: String, tool_calls: Array, original_request: Dictionary, assistant_content: String = "") -> void:
+	var debug_meta: Dictionary = _request_debug_meta.get(request_id, _request_debug_meta.get(original_id, {})).duplicate()
 	# 检查迭代次数
 	var iteration = _tool_iteration_counts.get(original_id, 0)
 	if iteration >= max_tool_iterations:
@@ -1005,6 +1190,7 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 		_conversations[conversation_id].append(assistant_msg)
 	
 	# 执行每个工具调用（支持异步）
+	var terminal_tool_response: Dictionary = {}
 	for tc in tool_calls:
 		var func_name = tc.function.name
 		var args = _parse_tool_arguments(tc.function.arguments)
@@ -1014,7 +1200,7 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 		
 		# 使用await支持异步回调
 		var result = await execute_tool_callback(func_name, args)
-		var result_str = JSON.stringify(result) if result != null else '{"error": "No callback registered for tool: ' + func_name + '"}'
+		var result_str = _summarize_tool_result_for_conversation(func_name, result, original_request.get("options", {}))
 		
 		# 记录工具调用历史
 		_tool_call_history[original_id].append({
@@ -1033,14 +1219,27 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 				"tool_call_id": tc.id,
 				"content": result_str
 			})
+
+		if TERMINAL_TOOL_NAMES.has(func_name) and _is_terminal_tool_success(result):
+			terminal_tool_response = _build_terminal_tool_response(result)
 	
 	# 清理当前请求
 	_cleanup_request(request_id)
+
+	if not terminal_tool_response.is_empty():
+		var tool_history = _tool_call_history.get(original_id, [])
+		if tool_history.size() > 0:
+			tool_calls_completed.emit(original_id, tool_history)
+		_cleanup_tool_tracking(original_id)
+		request_completed.emit(original_id, terminal_tool_response)
+		_check_queue_empty()
+		return
 	
 	# 继续对话 - 发送新请求
 	var new_request_id = _generate_request_id()
 	_original_request_ids[new_request_id] = original_id
 	_request_conversations[new_request_id] = conversation_id
+	_request_debug_meta[new_request_id] = debug_meta
 	
 	# 构建新请求，保持原有选项，但刷新 tools 定义
 	# （工具调用期间可能注册了新工具，如 skill 激活）
@@ -1057,11 +1256,32 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 		"id": new_request_id,
 		"body": new_body,
 		"options": new_options,
-		"url": original_request.get("url", api_base_url + "/v1/chat/completions"),
+		"url": original_request.get("url", _resolve_chat_api_url(new_options)),
 		"type": "chat",
 		"auto_tools": true
 	})
 	_retry_counts[new_request_id] = 0
+
+
+func _is_terminal_tool_success(result: Variant) -> bool:
+	if not (result is Dictionary):
+		return false
+	return bool((result as Dictionary).get("success", false))
+
+
+func _build_terminal_tool_response(result: Variant) -> Dictionary:
+	var summary: String = ""
+	if result is Dictionary:
+		summary = str((result as Dictionary).get("summary", "")).strip_edges()
+	var content: String = "<result>%s</result>" % summary
+	return {
+		"choices": [{
+			"message": {
+				"role": "assistant",
+				"content": content,
+			}
+		}]
+	}
 
 func _create_temp_conversation_for_tools(original_request: Dictionary) -> String:
 	var temp_id = "temp_tool_%d_%d" % [Time.get_ticks_msec(), randi()]
@@ -1206,12 +1426,14 @@ func _cleanup_request(request_id: String) -> void:
 	
 	_stream_buffers.erase(request_id)
 	_retry_counts.erase(request_id)
+	_request_debug_meta.erase(request_id)
 
 func _cleanup_all_requests() -> void:
 	for request_id in _active_requests.keys():
 		_cleanup_request(request_id)
 	_stream_buffers.clear()
 	_retry_counts.clear()
+	_request_debug_meta.clear()
 
 func _check_queue_empty() -> void:
 	if _request_queue.size() == 0 and _active_requests.size() == 0:
@@ -1265,6 +1487,85 @@ static func extract_reasoning_content(response: Dictionary) -> String:
 ## 从响应中提取token使用信息
 static func extract_usage(response: Dictionary) -> Dictionary:
 	return response.get("usage", {})
+
+
+func _build_request_debug_meta(options: Dictionary) -> Dictionary:
+	var meta: Dictionary = {}
+	var keys: Array[String] = ["source", "trace_label", "business", "prompt_key", "role"]
+	for key in keys:
+		if options.has(key):
+			var value: String = str(options.get(key, "")).strip_edges()
+			if not value.is_empty():
+				meta[key] = value
+	return meta
+
+
+func _get_request_debug_meta(request_id: String, original_id: String) -> Dictionary:
+	var meta: Dictionary = _request_debug_meta.get(request_id, {})
+	if meta.is_empty() and original_id != request_id:
+		meta = _request_debug_meta.get(original_id, {})
+	return meta
+
+
+func _get_cache_log_context(request_id: String, original_id: String) -> Dictionary:
+	var meta: Dictionary = _get_request_debug_meta(request_id, original_id)
+	var source: String = str(meta.get("source", meta.get("trace_label", meta.get("business", debug_source)))).strip_edges()
+	if source.is_empty():
+		source = str(name) if not str(name).is_empty() else "AIService"
+	var role: String = str(meta.get("role", service_role)).strip_edges()
+	if role.is_empty():
+		role = "unassigned"
+	var prompt_key: String = str(meta.get("prompt_key", "-")).strip_edges()
+	if prompt_key.is_empty():
+		prompt_key = "-"
+	return {
+		"source": source,
+		"role": role,
+		"prompt_key": prompt_key,
+	}
+
+
+## DeepSeek 缓存命中统计：把每次响应里的 prompt_cache_hit_tokens / prompt_cache_miss_tokens
+## 累计到本进程会话计数器，并打一条单行日志，便于调优 prompt 前缀稳定性。
+## 字段缺失（其它 provider 或老版本接口）时静默跳过。
+func _log_cache_stats(response: Dictionary, request_id: String, original_id: String) -> void:
+	var usage: Dictionary = response.get("usage", {})
+	if usage.is_empty():
+		return
+	if not usage.has("prompt_cache_hit_tokens") and not usage.has("prompt_cache_miss_tokens"):
+		return
+
+	var hit: int = int(usage.get("prompt_cache_hit_tokens", 0))
+	var miss: int = int(usage.get("prompt_cache_miss_tokens", 0))
+	var prompt_tokens: int = int(usage.get("prompt_tokens", hit + miss))
+
+	_cache_session_hit_tokens += hit
+	_cache_session_miss_tokens += miss
+	_cache_session_request_count += 1
+
+	var ratio: float = 0.0
+	if hit + miss > 0:
+		ratio = 100.0 * float(hit) / float(hit + miss)
+	var session_total: int = _cache_session_hit_tokens + _cache_session_miss_tokens
+	var session_ratio: float = 0.0
+	if session_total > 0:
+		session_ratio = 100.0 * float(_cache_session_hit_tokens) / float(session_total)
+	var context: Dictionary = _get_cache_log_context(request_id, original_id)
+
+	print("[AIService.cache] source=%s role=%s model=%s prompt_key=%s req=%s prompt=%d hit=%d miss=%d ratio=%.1f%% | session reqs=%d hit_total=%d miss_total=%d ratio=%.1f%%" % [
+		context.source, context.role, model, context.prompt_key,
+		original_id, prompt_tokens, hit, miss, ratio,
+		_cache_session_request_count, _cache_session_hit_tokens, _cache_session_miss_tokens, session_ratio,
+	])
+
+
+## 取本进程会话累计的 DeepSeek 缓存命中统计。
+func get_cache_session_stats() -> Dictionary:
+	return {
+		"requests": _cache_session_request_count,
+		"hit_tokens": _cache_session_hit_tokens,
+		"miss_tokens": _cache_session_miss_tokens,
+	}
 
 ## 检查响应是否因为工具调用而结束
 static func is_tool_call_response(response: Dictionary) -> bool:

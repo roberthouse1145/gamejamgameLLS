@@ -5,4 +5,7 @@
 
 [node name="Desktop2" unique_id=2009230698 instance=ExtResource("1_base")]
 script = ExtResource("2_script")
-desktop_app_ids = PackedStringArray("linkchat", "browser", "community", "sleep", "map", "work_order", "dev_work", "knowledge_base", "part_time", "sbeam", "shop", "avg_player", "desktop_pet")
+desktop_app_ids = PackedStringArray("linkchat", "browser", "community", "sleep", "map", "dev_work", "knowledge_base", "part_time", "sbeam", "shop", "avg_player", "desktop_pet", "music_player")
+
+[node name="PseudoCursor" parent="." index="6"]
+layout_mode = 0

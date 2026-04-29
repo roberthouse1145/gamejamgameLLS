@@ -33,7 +33,12 @@ func start(session_id: String, config: Dictionary) -> bool:
 
 	var request_id := _ai_service.chat_simple(
 		str(config.get("user_prompt", "")),
-		str(config.get("system_prompt", ""))
+		str(config.get("system_prompt", "")),
+		{
+			"source": str(config.get("source", "MomentGenerator")),
+			"role": "linkchat",
+			"prompt_key": str(config.get("prompt_key", "activity_moment_system")),
+		}
 	)
 	if request_id.is_empty():
 		return false

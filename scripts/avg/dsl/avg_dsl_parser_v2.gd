@@ -2,6 +2,8 @@ class_name AVGDSLParserV2 extends RefCounted
 ## AVG DSL V2 解析器 (采用 Python-like + Markdown 语法)
 ## 将面向对象的文本块解析为底层 Array[AVGCommand] 结构
 
+const AVGVariableClass = preload("res://scripts/avg/resources/avg_variable.gd")
+
 # ==============================================================================
 # 魔法映射 (Magic Mappings) -> 将对象和方法映射至底层原生指令
 # ==============================================================================
@@ -33,6 +35,9 @@ const MAGIC_MAPPINGS: Dictionary = {
 	"time": {
 		"wait": ["WAIT_TIME", ["duration"]]
 	},
+	"wait": {
+		"click": ["WAIT_CLICK", []]
+	},
 	"camera": {
 		"shake": ["SCREEN_SHAKE", []],
 		"pan": ["CAMERA_PAN", []],
@@ -52,6 +57,7 @@ const METHOD_MAPPINGS: Dictionary = {
 	# 方法名 -> [底层 COMMAND_TYPE, 预期位置参数 (除自身 id 外)]
 	"move": ["MOVE_CHARACTER", []], # 实际会被拆分为 kwargs
 	"effect": ["CHARACTER_EFFECT", ["effect"]],
+	"flip": ["FLIP_CHARACTER", []],
 	"jump": ["JUMP_TO_NODE", []],
 	"show": ["SHOW_CHARACTER", []],
 	"hide": ["HIDE_CHARACTER", []],
@@ -105,8 +111,19 @@ var _rx_var_op: RegEx
 var _rx_prop_assign: RegEx
 var _rx_method_call: RegEx
 var _rx_if_stmt: RegEx
+var _rx_elif_stmt: RegEx
+var _rx_else_if_stmt: RegEx
 var _rx_else_stmt: RegEx
 var _rx_kwargs_extractor: RegEx
+var _rx_legacy_jump_scene: RegEx
+var _rx_embedded_var_op: RegEx
+var _rx_embedded_method_call: RegEx
+var _rx_embedded_prop_assign: RegEx
+var _rx_embedded_if_stmt: RegEx
+var _rx_embedded_else_stmt: RegEx
+var _rx_embedded_elif_stmt: RegEx
+var _rx_embedded_else_if_stmt: RegEx
+var _rx_embedded_legacy_jump_scene: RegEx
 
 
 func _init() -> void:
@@ -141,19 +158,56 @@ func _compile_regexes() -> void:
 	
 	# char_001.visible = true
 	_rx_prop_assign = RegEx.new()
-	_rx_prop_assign.compile("^\\s*(\\w+)\\.(\\w+)\\s*=\\s*(.+)$")
+	# 对象名允许使用中文角色名等任意非空白 token，方法/属性名仍限制为 ASCII 标识符
+	_rx_prop_assign.compile("^\\s*([^\\.\\s]+)\\.(\\w+)\\s*=\\s*(.+)$")
 	
 	# bgm.play("xyz") 或 char_001.move(...)
 	_rx_method_call = RegEx.new()
-	_rx_method_call.compile("^\\s*(\\w+)\\.(\\w+)\\((.*)\\)\\s*$")
+	_rx_method_call.compile("^\\s*([^\\.\\s]+)\\.(\\w+)\\((.*)\\)\\s*$")
 	
 	# if var[1] == 5:
 	_rx_if_stmt = RegEx.new()
 	_rx_if_stmt.compile("^\\s*if\\s+(.+):\\s*$")
+
+	# elif ...:
+	_rx_elif_stmt = RegEx.new()
+	_rx_elif_stmt.compile("^\\s*elif\\s+(.+):\\s*$")
+
+	# else if ...:
+	_rx_else_if_stmt = RegEx.new()
+	_rx_else_if_stmt.compile("^\\s*else\\s+if\\s+(.+):\\s*$")
 	
 	# else:
 	_rx_else_stmt = RegEx.new()
 	_rx_else_stmt.compile("^\\s*else\\s*:\\s*$")
+
+	# jump_scene("scene_id") - legacy syntax compatibility
+	_rx_legacy_jump_scene = RegEx.new()
+	_rx_legacy_jump_scene.compile("^\\s*jump_scene\\((.*)\\)\\s*$")
+
+	_rx_embedded_var_op = RegEx.new()
+	_rx_embedded_var_op.compile("var\\[(\\w+)\\]\\s*([+\\-*/%]?=)\\s*.+$")
+
+	_rx_embedded_method_call = RegEx.new()
+	_rx_embedded_method_call.compile("([^\\.\\s]+)\\.(\\w+)\\((.*)\\)\\s*$")
+
+	_rx_embedded_prop_assign = RegEx.new()
+	_rx_embedded_prop_assign.compile("([^\\.\\s]+)\\.(\\w+)\\s*=\\s*.+$")
+
+	_rx_embedded_if_stmt = RegEx.new()
+	_rx_embedded_if_stmt.compile("\\bif\\s+.+:\\s*$")
+
+	_rx_embedded_else_stmt = RegEx.new()
+	_rx_embedded_else_stmt.compile("\\belse\\s*:\\s*$")
+
+	_rx_embedded_elif_stmt = RegEx.new()
+	_rx_embedded_elif_stmt.compile("\\belif\\s+.+:\\s*$")
+
+	_rx_embedded_else_if_stmt = RegEx.new()
+	_rx_embedded_else_if_stmt.compile("\\belse\\s+if\\s+.+:\\s*$")
+
+	_rx_embedded_legacy_jump_scene = RegEx.new()
+	_rx_embedded_legacy_jump_scene.compile("jump_scene\\((.*)\\)\\s*$")
 	
 	# key="val" 或 key=123 (用于拆解 kwargs)
 	_rx_kwargs_extractor = RegEx.new()
@@ -202,6 +256,11 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 		if raw_line.strip_edges().is_empty():
 			i += 1
 			continue
+
+		var prepared_line: String = _prepare_line_for_parse(raw_line)
+		if prepared_line.strip_edges().is_empty():
+			i += 1
+			continue
 			
 		# 计算缩进
 		var current_indent: int = _get_indent_level(raw_line)
@@ -210,22 +269,22 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			break
 			
 		# 将其视作当前行（去除前导空白后的部分）
-		var line: String = raw_line.strip_edges()
+		var line: String = prepared_line.strip_edges()
 		
 		# 1. 注释跳过
-		if _rx_comment.search(raw_line) != null:
+		if _rx_comment.search(prepared_line) != null:
 			i += 1
 			continue
 			
 		# 2. 对话块控制 (# => TextBlock)
-		var text_match: RegExMatch = _rx_text_block_start.search(raw_line)
+		var text_match: RegExMatch = _rx_text_block_start.search(prepared_line)
 		if text_match:
 			current_text_block_kwargs = _parse_kwargs(text_match.get_string(1))
 			i += 1
 			continue
 			
 		# 3. 对话行 (>)
-		var dialogue_match: RegExMatch = _rx_dialogue_line.search(raw_line)
+		var dialogue_match: RegExMatch = _rx_dialogue_line.search(prepared_line)
 		if dialogue_match:
 			var text_content: String = dialogue_match.get_string(1).strip_edges()
 			var cmd: AVGCommand = _create_dialogue_command(text_content, current_text_block_kwargs)
@@ -234,7 +293,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			continue
 			
 		# 4. 选项块探测 (# => ChoiceBlock)
-		var choice_match: RegExMatch = _rx_choice_block_start.search(raw_line)
+		var choice_match: RegExMatch = _rx_choice_block_start.search(prepared_line)
 		if choice_match:
 			var block_res: Dictionary = _parse_choice_block(lines, i, current_indent)
 			if block_res.has("command"):
@@ -249,18 +308,19 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 		# ---- 后续的非对话行解析 ----
 		
 		# 4. IF 控制流
-		var if_match: RegExMatch = _rx_if_stmt.search(raw_line)
+		var if_match: RegExMatch = _rx_if_stmt.search(prepared_line)
 		if if_match:
 			var condition: String = if_match.get_string(1).strip_edges()
 			
 			var if_cmd: AVGCommand = AVGCommand.new()
 			if_cmd.command_type = "IF"
+			if_cmd.params["condition_commands"] = []
+			if_cmd.params["if_commands"] = []
+			if_cmd.params["else_commands"] = []
+			if_cmd.params["has_else"] = false
 			
-			# 解析条件变量名与操作符
-			var cond_data: Dictionary = _parse_condition(condition, i + 1, errors)
-			if_cmd.params["variable_id"] = cond_data.get("variable_id", "")
-			if_cmd.params["operator"] = cond_data.get("operator", "==")
-			if_cmd.params["value"] = cond_data.get("value", 0)
+			# 解析条件并转换为标准 condition_commands 结构
+			if_cmd.params["condition_commands"] = _parse_condition_commands(condition, i + 1, errors)
 			
 			# 递归解析 if 下级块（缩进必须严格大于当前）
 			var next_indent: int = _find_next_indent(lines, i + 1)
@@ -282,6 +342,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 				
 				var next_ind: int = _get_indent_level(next_raw)
 				if next_ind == current_indent and _rx_else_stmt.search(next_raw):
+					if_cmd.params["has_else"] = true
 					var else_next_ind: int = _find_next_indent(lines, i + 1)
 					if else_next_ind > current_indent:
 						var else_res: Dictionary = _parse_block(lines, i + 1, else_next_ind)
@@ -297,25 +358,46 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			
 			parsed_cmds.append(if_cmd)
 			continue
+
+		# 4.5. 显式拒绝不支持的 elif，避免被自动包装成旁白
+		var elif_match: RegExMatch = _rx_elif_stmt.search(prepared_line)
+		if elif_match:
+			errors.append({
+				"line": i + 1,
+				"message": "Unsupported control flow: elif. Please rewrite as nested/continued if-else."
+			})
+			i += 1
+			continue
+
+		# 4.6. 显式拒绝 LLM 常写出的 else if 变体
+		var else_if_match: RegExMatch = _rx_else_if_stmt.search(prepared_line)
+		if else_if_match:
+			errors.append({
+				"line": i + 1,
+				"message": "Unsupported control flow: else if. Please rewrite as nested/continued if-else."
+			})
+			i += 1
+			continue
 			
 		# 5. 变量计算 (var[1] += 5)
-		var var_match: RegExMatch = _rx_var_op.search(raw_line)
+		var var_match: RegExMatch = _rx_var_op.search(prepared_line)
 		if var_match:
-			var var_id: String = var_match.get_string(1)
+			var var_ref: String = var_match.get_string(1)
 			var op_str: String = var_match.get_string(2)
 			var val_str: String = var_match.get_string(3).strip_edges()
 			
 			var cmd: AVGCommand = AVGCommand.new()
 			cmd.command_type = "SET_VARIABLE"
-			cmd.params["variable_id"] = "var_%03d" % int(var_id) if var_id.is_valid_int() else var_id
+			cmd.params.merge(_parse_variable_ref_token(var_ref), true)
 			cmd.params["operation"] = OPERATION_MAP.get(op_str, "set")
-			cmd.params["value"] = _safe_convert_int(val_str)
+			cmd.params["value_source"] = "constant"
+			cmd.params["value"] = _parse_variable_literal(val_str)
 			parsed_cmds.append(cmd)
 			i += 1
 			continue
 			
 		# 6. 对象方法调用 (bgm.play("xyz") or char.move(...))
-		var method_match: RegExMatch = _rx_method_call.search(raw_line)
+		var method_match: RegExMatch = _rx_method_call.search(prepared_line)
 		if method_match:
 			var obj_name: String = method_match.get_string(1)
 			var method_name: String = method_match.get_string(2)
@@ -328,7 +410,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			continue
 
 		# 7. 对象属性赋值 (char_001.visible = true)
-		var prop_match: RegExMatch = _rx_prop_assign.search(raw_line)
+		var prop_match: RegExMatch = _rx_prop_assign.search(prepared_line)
 		if prop_match:
 			var obj_name: String = prop_match.get_string(1)
 			var prop_name: String = prop_match.get_string(2)
@@ -337,6 +419,16 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			var c: AVGCommand = _build_prop_command(obj_name, prop_name, val_str, i + 1, errors)
 			if c != null:
 				parsed_cmds.append(c)
+			i += 1
+			continue
+
+		# 8. 兼容旧式全局跳转函数 jump_scene("scene_xxx")
+		var legacy_jump_match: RegExMatch = _rx_legacy_jump_scene.search(prepared_line)
+		if legacy_jump_match:
+			var legacy_jump_args: String = legacy_jump_match.get_string(1)
+			var legacy_jump_cmd: AVGCommand = _build_legacy_jump_scene_command(legacy_jump_args, i + 1, errors)
+			if legacy_jump_cmd != null:
+				parsed_cmds.append(legacy_jump_cmd)
 			i += 1
 			continue
 			
@@ -353,6 +445,32 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 		"errors": errors,
 		"next_idx": i
 	}
+
+
+func _build_legacy_jump_scene_command(args_str: String, line_num: int, errors: Array[Dictionary]) -> AVGCommand:
+	var parsed: Dictionary = _parse_target_args(args_str)
+	var args: Array = parsed.get("positional", [])
+	var kwargs: Dictionary = parsed.get("kwargs", {})
+	var scene_id: String = ""
+	if kwargs.has("scene_id"):
+		scene_id = str(kwargs.get("scene_id", "")).strip_edges()
+	elif not args.is_empty():
+		scene_id = str(args[0]).strip_edges()
+
+	if scene_id.is_empty():
+		errors.append({"line": line_num, "message": "jump_scene() requires a target scene_id"})
+		return null
+
+	var cmd := AVGCommand.new()
+	cmd.command_type = "JUMP_SCENE"
+	cmd.params["scene_id"] = scene_id
+	if kwargs.has("transition"):
+		cmd.params["transition"] = kwargs["transition"]
+	if kwargs.has("duration"):
+		cmd.params["duration"] = kwargs["duration"]
+	if kwargs.has("color"):
+		cmd.params["color"] = kwargs["color"]
+	return cmd
 
 
 ## 解析 Choice 选项块
@@ -388,14 +506,13 @@ func _parse_choice_block(lines: Array[String], start_idx: int, indent_level: int
 			
 			current_choice_dict["text"] = choice_text
 			current_choice_dict["commands"] = []
+			current_choice_dict["condition_commands"] = []
+			current_choice_dict["hidden_when_unmet"] = false
 			
 			if not inline_cond.is_empty():
-				var cd: Dictionary = _parse_condition(inline_cond, i + 1, errs)
-				if cd.get("variable_id") != "":
-					current_choice_dict["condition_variable"] = cd.get("variable_id")
-					current_choice_dict["condition_operator"] = cd.get("operator")
-					current_choice_dict["condition_value"] = cd.get("value")
-					current_choice_dict["condition_action"] = "hide" # 默认隐藏
+				current_choice_dict["condition_commands"] = _parse_condition_commands(inline_cond, i + 1, errs)
+				if not current_choice_dict["condition_commands"].is_empty():
+					current_choice_dict["hidden_when_unmet"] = true
 			
 			cmd.params["choices"].append(current_choice_dict)
 			
@@ -440,12 +557,84 @@ func _get_indent_level(line: String) -> int:
 func _find_next_indent(lines: Array[String], start_idx: int) -> int:
 	var i: int = start_idx
 	while i < lines.size():
-		var line: String = lines[i]
+		var line: String = _prepare_line_for_parse(lines[i])
 		var st: String = line.strip_edges()
 		if not st.is_empty() and _rx_comment.search(line) == null:
 			return _get_indent_level(line)
 		i += 1
 	return 0
+
+
+func _prepare_line_for_parse(raw_line: String) -> String:
+	var stripped: String = _strip_inline_comment_suffix(raw_line)
+	var embedded: String = _extract_embedded_command_from_comment(stripped)
+	if not embedded.is_empty():
+		return embedded
+	return stripped
+
+
+func _strip_inline_comment_suffix(raw_line: String) -> String:
+	var trimmed_left: String = raw_line.strip_edges(true, false)
+	if trimmed_left.begins_with(">") or trimmed_left.begins_with("-") or trimmed_left.begins_with("# =>"):
+		return raw_line
+
+	var quote_char: String = ""
+	var idx: int = 0
+	while idx < raw_line.length():
+		var ch: String = raw_line.substr(idx, 1)
+		if not quote_char.is_empty():
+			if ch == "\\" and idx + 1 < raw_line.length():
+				idx += 1
+			elif ch == quote_char:
+				quote_char = ""
+			idx += 1
+			continue
+		if ch == "\"" or ch == "'":
+			quote_char = ch
+			idx += 1
+			continue
+		if ch == "#":
+			return raw_line.substr(0, idx).strip_edges(false, true)
+		idx += 1
+	return raw_line
+
+
+func _extract_embedded_command_from_comment(raw_line: String) -> String:
+	var trimmed_left: String = raw_line.strip_edges(true, false)
+	if not trimmed_left.begins_with("#"):
+		return ""
+	# `# => TextBlock(...)` 和 `# => ChoiceBlock(...)` 是合法控制块，让上层正则处理。
+	# 但 LLM 经常把 `# =>` 错误地加在 screen.fade / bg.show / stage.set / xx.expression= 这类
+	# 普通命令前面，一旦不剥离前缀，整行会被兜底当成旁白。这里允许嵌入提取识别这类情况。
+	if trimmed_left.begins_with("# =>"):
+		var after_marker: String = trimmed_left.substr(4).strip_edges()
+		if after_marker.begins_with("TextBlock(") or after_marker.begins_with("ChoiceBlock("):
+			return ""
+
+	var candidate_patterns: Array[RegEx] = [
+		_rx_embedded_else_if_stmt,
+		_rx_embedded_elif_stmt,
+		_rx_embedded_if_stmt,
+		_rx_embedded_else_stmt,
+		_rx_embedded_var_op,
+		_rx_embedded_prop_assign,
+		_rx_embedded_method_call,
+		_rx_embedded_legacy_jump_scene,
+	]
+
+	var best_start: int = -1
+	for rx in candidate_patterns:
+		var match: RegExMatch = rx.search(trimmed_left)
+		if match == null:
+			continue
+		var start_idx: int = match.get_start()
+		if best_start == -1 or start_idx < best_start:
+			best_start = start_idx
+
+	if best_start == -1:
+		return ""
+
+	return trimmed_left.substr(best_start).strip_edges()
 
 ## 从 "speaker='char_001', emotion='smile'" 解析 kwargs 参数字典
 func _parse_kwargs(kwargs_str: String) -> Dictionary:
@@ -466,27 +655,238 @@ func _parse_kwargs(kwargs_str: String) -> Dictionary:
 		result[k] = final_v
 	return result
 
-## 生成对单个条件的解析
-func _parse_condition(cond_str: String, line_num: int, errors: Array[Dictionary]) -> Dictionary:
-	# 例: var[1] == 10
+## 解析布尔条件表达式为 condition_commands
+func _parse_condition_commands(cond_str: String, line_num: int, errors: Array[Dictionary]) -> Array[AVGCommand]:
+	var node: Variant = _parse_condition_expression(cond_str, line_num, errors)
+	if node == null:
+		return []
+	return _compile_condition_node(node)
+
+
+## 递归解析条件表达式，支持 and / or / 括号
+func _parse_condition_expression(cond_str: String, line_num: int, errors: Array[Dictionary]) -> Variant:
+	var trimmed: String = _trim_wrapping_parentheses(cond_str.strip_edges())
+	if trimmed.is_empty():
+		errors.append({"line": line_num, "message": "Empty condition expression"})
+		return null
+
+	var or_parts: Array[String] = _split_condition_top_level(trimmed, "or")
+	if or_parts.size() > 1:
+		return {
+			"type": "or",
+			"children": _parse_condition_expression_parts(or_parts, line_num, errors)
+		}
+
+	var and_parts: Array[String] = _split_condition_top_level(trimmed, "and")
+	if and_parts.size() > 1:
+		return {
+			"type": "and",
+			"children": _parse_condition_expression_parts(and_parts, line_num, errors)
+		}
+
+	return _parse_atomic_condition(trimmed, line_num, errors)
+
+
+func _parse_condition_expression_parts(parts: Array[String], line_num: int, errors: Array[Dictionary]) -> Array:
+	var result: Array = []
+	for part in parts:
+		var child: Variant = _parse_condition_expression(part, line_num, errors)
+		if child != null:
+			result.append(child)
+	return result
+
+
+func _compile_condition_node(node: Variant) -> Array[AVGCommand]:
+	if node == null:
+		return []
+	if node is AVGCommand:
+		return [node]
+	if not (node is Dictionary):
+		return []
+
+	var node_type: String = str(node.get("type", ""))
+	var children: Array = node.get("children", [])
+	if children.is_empty():
+		return []
+
+	if node_type == "and":
+		var combined: Array[AVGCommand] = []
+		for child in children:
+			combined.append_array(_compile_condition_node(child))
+		return combined
+
+	if node_type == "or":
+		return [_build_or_condition(children)]
+
+	return []
+
+
+func _build_or_condition(children: Array) -> AVGCommand:
+	var cond_if: AVGCommand = AVGCommand.new()
+	cond_if.command_type = "IF"
+	cond_if.params["condition_commands"] = _compile_condition_node(children[0])
+	cond_if.params["if_condition_commands"] = []
+	cond_if.params["has_else"] = true
+	if children.size() == 2:
+		cond_if.params["else_condition_commands"] = _compile_condition_node(children[1])
+	else:
+		cond_if.params["else_condition_commands"] = [_build_or_condition(children.slice(1))]
+	return cond_if
+
+
+## 生成对单个原子条件的解析
+func _parse_atomic_condition(cond_str: String, line_num: int, errors: Array[Dictionary]) -> AVGCommand:
 	var rx_cond: RegEx = RegEx.new()
-	rx_cond.compile("var\\[(\\w+)\\]\\s*(==|!=|>|<|>=|<=)\\s*(.+)")
+	rx_cond.compile("var\\[(\\w+)\\]\\s*(==|!=|>=|<=|>|<)\\s*(.+)")
 	var mat: RegExMatch = rx_cond.search(cond_str)
 	if mat:
-		var id_str: String = mat.get_string(1)
-		return {
-			"variable_id": "var_%03d" % int(id_str) if id_str.is_valid_int() else id_str,
-			"operator": mat.get_string(2),
-			"value": _safe_convert_int(mat.get_string(3).strip_edges())
-		}
-	else:
-		errors.append({"line": line_num, "message": "Failed to parse condition: " + cond_str})
-		return {"variable_id": "", "operator": "==", "value": 0}
+		var ref_str: String = mat.get_string(1)
+		var params: Dictionary = _parse_variable_ref_token(ref_str)
+		var rhs_text: String = mat.get_string(3).strip_edges()
+		var rhs_var_match: RegExMatch = _match_variable_ref_expr(rhs_text)
+		params["operator"] = mat.get_string(2)
+		if rhs_var_match != null:
+			params["value_source"] = "variable"
+			params.merge(_prefix_variable_ref_fields(_parse_variable_ref_token(rhs_var_match.get_string(1)), "source_"), true)
+		else:
+			params["value"] = _parse_variable_literal(rhs_text)
+			params["value_source"] = "constant"
+		return AVGCommand.new("CHECK_VAR", params)
+	errors.append({"line": line_num, "message": "Failed to parse condition: " + cond_str})
+	return null
 
-func _safe_convert_int(val_str: String) -> int:
-	if val_str.to_lower() == "true": return 1
-	if val_str.to_lower() == "false": return 0
-	return val_str.to_int()
+
+func _match_variable_ref_expr(expr: String) -> RegExMatch:
+	var rx_var_ref: RegEx = RegEx.new()
+	rx_var_ref.compile("^var\\[(\\w+)\\]$")
+	return rx_var_ref.search(expr.strip_edges())
+
+
+func _prefix_variable_ref_fields(fields: Dictionary, prefix: String) -> Dictionary:
+	var result: Dictionary = {}
+	for key in fields.keys():
+		result["%s%s" % [prefix, str(key)]] = fields[key]
+	return result
+
+
+func _split_condition_top_level(cond_str: String, keyword: String) -> Array[String]:
+	var parts: Array[String] = []
+	var start: int = 0
+	var paren_depth: int = 0
+	var bracket_depth: int = 0
+	var quote_char: String = ""
+	var i: int = 0
+	var keyword_len: int = keyword.length()
+
+	while i < cond_str.length():
+		var ch: String = cond_str.substr(i, 1)
+		if not quote_char.is_empty():
+			if ch == "\\" and i + 1 < cond_str.length():
+				i += 2
+				continue
+			if ch == quote_char:
+				quote_char = ""
+			i += 1
+			continue
+
+		if ch == "\"" or ch == "'":
+			quote_char = ch
+			i += 1
+			continue
+
+		if ch == "[":
+			bracket_depth += 1
+			i += 1
+			continue
+		if ch == "]":
+			bracket_depth = maxi(bracket_depth - 1, 0)
+			i += 1
+			continue
+		if bracket_depth == 0:
+			if ch == "(":
+				paren_depth += 1
+				i += 1
+				continue
+			if ch == ")":
+				paren_depth = maxi(paren_depth - 1, 0)
+				i += 1
+				continue
+
+		if paren_depth == 0 and bracket_depth == 0 and _matches_logic_keyword(cond_str, i, keyword):
+			parts.append(cond_str.substr(start, i - start).strip_edges())
+			i += keyword_len
+			start = i
+			continue
+
+		i += 1
+
+	parts.append(cond_str.substr(start).strip_edges())
+	return parts
+
+
+func _matches_logic_keyword(text: String, index: int, keyword: String) -> bool:
+	var keyword_len: int = keyword.length()
+	if index + keyword_len > text.length():
+		return false
+	if text.substr(index, keyword_len).to_lower() != keyword:
+		return false
+	var prev_char: String = text.substr(index - 1, 1) if index > 0 else ""
+	var next_char: String = text.substr(index + keyword_len, 1) if index + keyword_len < text.length() else ""
+	return _is_logic_boundary(prev_char) and _is_logic_boundary(next_char)
+
+
+func _is_logic_boundary(ch: String) -> bool:
+	return ch.is_empty() or ch == "(" or ch == ")" or ch == " " or ch == "\t"
+
+
+func _trim_wrapping_parentheses(text: String) -> String:
+	var trimmed: String = text.strip_edges()
+	while trimmed.begins_with("(") and trimmed.ends_with(")") and _is_outer_parentheses_pair(trimmed):
+		trimmed = trimmed.substr(1, trimmed.length() - 2).strip_edges()
+	return trimmed
+
+
+func _is_outer_parentheses_pair(text: String) -> bool:
+	var paren_depth: int = 0
+	var bracket_depth: int = 0
+	var quote_char: String = ""
+	for i in range(text.length()):
+		var ch: String = text.substr(i, 1)
+		if not quote_char.is_empty():
+			if ch == "\\" and i + 1 < text.length():
+				i += 1
+				continue
+			if ch == quote_char:
+				quote_char = ""
+			continue
+		if ch == "\"" or ch == "'":
+			quote_char = ch
+			continue
+		if ch == "[":
+			bracket_depth += 1
+			continue
+		if ch == "]":
+			bracket_depth = maxi(bracket_depth - 1, 0)
+			continue
+		if bracket_depth > 0:
+			continue
+		if ch == "(":
+			paren_depth += 1
+		elif ch == ")":
+			paren_depth -= 1
+			if paren_depth == 0 and i < text.length() - 1:
+				return false
+	return paren_depth == 0
+
+func _parse_variable_ref_token(raw_ref: String) -> Dictionary:
+	var ref: String = raw_ref.strip_edges()
+	if ref.is_empty():
+		return {}
+	if ref.is_valid_int():
+		return {"variable_id": "var_%03d" % int(ref)}
+	if ref.begins_with("var_"):
+		return {"variable_id": ref}
+	return {"variable_key": ref}
 
 ## 创建 DIALOGUE 命令
 func _create_dialogue_command(text: String, kwargs: Dictionary) -> AVGCommand:
@@ -702,6 +1102,8 @@ func _finalize_image_command(obj: String, method: String, cmd: AVGCommand) -> vo
 	if method == "hide":
 		if obj == "cg" and str(cmd.params.get("image_id", "")).strip_edges().is_empty():
 			cmd.params["image_id"] = "cg"
+		if obj == "cg" and not cmd.params.has("fade_duration"):
+			cmd.params["fade_duration"] = 0.2
 		return
 
 	var image_path: String = str(cmd.params.get("image_path", "")).strip_edges()
@@ -719,6 +1121,11 @@ func _finalize_image_command(obj: String, method: String, cmd: AVGCommand) -> vo
 
 	if not cmd.params.has("z_order"):
 		cmd.params["z_order"] = 10 if obj == "cg" else 0
+	if obj == "cg":
+		if not cmd.params.has("fade_duration"):
+			cmd.params["fade_duration"] = 0.25
+		if not cmd.params.has("transition"):
+			cmd.params["transition"] = "crossfade"
 
 	_cleanup_image_layout_keys(cmd.params)
 
@@ -780,6 +1187,19 @@ func _safe_convert_value(val_str: String) -> Variant:
 	elif val_str.is_valid_int(): return int(val_str)
 	elif val_str.is_valid_float(): return float(val_str)
 	return val_str
+
+
+func _parse_variable_literal(raw_value: String) -> Variant:
+	var trimmed: String = raw_value.strip_edges()
+	if _is_wrapped_in_quotes(trimmed):
+		return _strip_quotes(trimmed)
+	return AVGVariableClass.normalize_script_literal(_strip_quotes(trimmed))
+
+
+func _is_wrapped_in_quotes(text: String) -> bool:
+	if text.length() < 2:
+		return false
+	return (text.begins_with("\"") and text.ends_with("\"")) or (text.begins_with("'") and text.ends_with("'"))
 
 func _strip_quotes(s: String) -> String:
 	# 容错：LLM 偶尔会在引号外产生多余的括号等字符，如 "happy")

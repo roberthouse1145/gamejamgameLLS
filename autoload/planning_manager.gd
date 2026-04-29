@@ -10,7 +10,7 @@ const SEED_TASK_PROMPT_KEY: String = "seed_dev_work_generation"
 const DEVELOPMENT_PLAN_PROMPT_KEY: String = "plan_generation"
 
 signal seed_task_plan_completed(request_id: String, success: bool, tasks: Array, raw_output: String)
-signal development_plan_completed(request_id: String, success: bool, chapters: Array, raw_output: String)
+signal development_plan_completed(request_id: String, success: bool, tasks: Array, raw_output: String)
 
 var _planner_agent: ChatAgent = null
 var _active_request_id: String = ""
@@ -203,6 +203,8 @@ func _build_dev_cycle_summary_text() -> String:
 	lines.append("- 已完成任务数：%d" % completed_task_count)
 	lines.append("- 当前是否有后台工单在执行：%s" % ("是" if order_active else "否"))
 	lines.append("- 当前计划是否已生成：%s" % ("是" if plan_generated else "否"))
+	if dcm.has_method("get_next_planning_rhythm_hint"):
+		lines.append("- 下一批节奏提示：%s" % str(dcm.call("get_next_planning_rhythm_hint")))
 
 	var visible_tasks: Array = dcm.get_visible_tasks() if dcm.has_method("get_visible_tasks") else []
 	if visible_tasks.is_empty():
@@ -210,10 +212,26 @@ func _build_dev_cycle_summary_text() -> String:
 	else:
 		lines.append("- 当前可见 dev work：")
 		for task in visible_tasks:
+			var runtime_type: String = str(task.get("task_type", "")).strip_edges()
+			if dcm.has_method("_describe_task_runtime_type"):
+				runtime_type = str(dcm.call("_describe_task_runtime_type", task))
 			lines.append("  - [%s] %s（%s）" % [
 				str(task.get("status", "")),
 				str(task.get("title", "")),
-				str(task.get("task_type", "")),
+				runtime_type,
+			])
+
+	var recent_completed: Array = dcm.get_recent_completed_tasks(6) if dcm.has_method("get_recent_completed_tasks") else []
+	if recent_completed.is_empty():
+		lines.append("- 最近还没有完成过 dev work")
+	else:
+		lines.append("- 最近完成的 dev work：")
+		for item in recent_completed:
+			if not item is Dictionary:
+				continue
+			lines.append("  - %s（%s）" % [
+				str(item.get("title", "")),
+				str(item.get("runtime_type", "")),
 			])
 
 	return "\n".join(lines)
@@ -249,19 +267,116 @@ func _build_order_summary_text() -> String:
 
 
 func _parse_json_array_output(text: String) -> Variant:
-	var json_str: String = _extract_json_from_response(text)
-	return JSON.parse_string(json_str)
+	for candidate in _collect_json_parse_candidates(text):
+		var parsed: Variant = JSON.parse_string(candidate)
+		if parsed is Array:
+			return parsed
+	return null
+
+
+func _collect_json_parse_candidates(text: String) -> Array[String]:
+	var candidates: Array[String] = []
+	var stripped: String = text.strip_edges()
+	if stripped.is_empty():
+		return candidates
+
+	if stripped.begins_with("["):
+		_append_unique_json_candidate(candidates, stripped)
+
+	var fenced_content: String = _extract_fenced_content(stripped)
+	if not fenced_content.is_empty() and fenced_content.begins_with("["):
+		_append_unique_json_candidate(candidates, fenced_content)
+
+	var text_array: String = _extract_balanced_json_array(stripped)
+	if not text_array.is_empty():
+		_append_unique_json_candidate(candidates, text_array)
+
+	if not fenced_content.is_empty():
+		var fenced_array: String = _extract_balanced_json_array(fenced_content)
+		if not fenced_array.is_empty():
+			_append_unique_json_candidate(candidates, fenced_array)
+
+	return candidates
+
+
+func _append_unique_json_candidate(candidates: Array[String], candidate: String) -> void:
+	var normalized: String = candidate.strip_edges()
+	if normalized.is_empty() or normalized in candidates:
+		return
+	candidates.append(normalized)
 
 
 func _extract_json_from_response(text: String) -> String:
-	var regex := RegEx.new()
-	regex.compile("```(?:json)?\\s*\\n([\\s\\S]*?)\\n```")
-	var match_result := regex.search(text)
-	if match_result != null:
-		return match_result.get_string(1).strip_edges()
+	var fenced_content: String = _extract_fenced_content(text)
+	if not fenced_content.is_empty():
+		return fenced_content
 
-	var start: int = text.find("[")
-	var end: int = text.rfind("]")
-	if start >= 0 and end > start:
-		return text.substr(start, end - start + 1)
+	var balanced_array: String = _extract_balanced_json_array(text)
+	if not balanced_array.is_empty():
+		return balanced_array
 	return text.strip_edges()
+
+
+func _extract_fenced_content(text: String) -> String:
+	var stripped: String = text.strip_edges()
+	var fence_start: int = stripped.find("```")
+	if fence_start < 0:
+		return ""
+
+	var content_start: int = stripped.find("\n", fence_start)
+	if content_start < 0:
+		return ""
+
+	var fence_end: int = stripped.find("\n```", content_start + 1)
+	if fence_end >= 0:
+		return stripped.substr(content_start + 1, fence_end - content_start - 1).strip_edges()
+	return stripped.substr(content_start + 1).strip_edges()
+
+
+func _extract_balanced_json_array(text: String) -> String:
+	var stripped: String = text.strip_edges()
+	if stripped.is_empty():
+		return ""
+
+	for start in range(stripped.length()):
+		if stripped[start] != "[":
+			continue
+		var candidate: String = _slice_balanced_json_array(stripped, start)
+		if candidate.is_empty():
+			continue
+		var parsed: Variant = JSON.parse_string(candidate)
+		if parsed is Array:
+			return candidate
+	return ""
+
+
+func _slice_balanced_json_array(text: String, start_index: int) -> String:
+	if start_index < 0 or start_index >= text.length() or text[start_index] != "[":
+		return ""
+
+	var depth: int = 0
+	var in_string: bool = false
+	var escaping: bool = false
+	for i in range(start_index, text.length()):
+		var ch: String = text[i]
+		if in_string:
+			if escaping:
+				escaping = false
+			elif ch == "\\":
+				escaping = true
+			elif ch == '"':
+				in_string = false
+			continue
+
+		if ch == '"':
+			in_string = true
+			continue
+		if ch == "[":
+			depth += 1
+			continue
+		if ch == "]":
+			depth -= 1
+			if depth == 0:
+				return text.substr(start_index, i - start_index + 1)
+
+	return ""

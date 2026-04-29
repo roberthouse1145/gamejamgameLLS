@@ -9,37 +9,38 @@ extends Node
 
 const ITERATIONS: int = 100
 
-## Expected role -> profile mappings from ai_config.cfg
-const ROLE_TO_PROFILE: Dictionary = {
-	"boss": "doubao-pro",
-	"writer": "deepseek-v3",
-	"worker": "doubao-mini",
-	"lookup": "doubao-mini",
-}
+const EXPECTED_CHAT_BASE_URL: String = "https://api.deepseek.com"
+const EXPECTED_CHAT_MODEL: String = "deepseek-v4-flash"
+const FORBIDDEN_MODEL_MARKERS: PackedStringArray = ["doubao", "gemini", "deepseek-v3", "deepseek-chat", "deepseek-reasoner"]
 
-## Expected profile data from ai_config.cfg
-const EXPECTED_PROFILES: Dictionary = {
-	"doubao-pro": {
-		"type": "chat",
-		"base_url": "https://ark.cn-beijing.volces.com/api",
-		"api_key": "1638253e-e12e-4bbc-a4d0-f6b48f430317",
-		"model": "doubao-seed-2-0-pro-260215",
-	},
-	"deepseek-v3": {
-		"type": "chat",
-		"base_url": "https://ark.cn-beijing.volces.com/api",
-		"api_key": "1638253e-e12e-4bbc-a4d0-f6b48f430317",
-		"model": "deepseek-v3-2-251201",
-	},
-	"doubao-mini": {
-		"type": "chat",
-		"base_url": "https://ark.cn-beijing.volces.com/api",
-		"api_key": "1638253e-e12e-4bbc-a4d0-f6b48f430317",
-		"model": "doubao-seed-2-0-mini-260215",
-	},
-}
-
-const REQUIRED_ROLES: Array = ["boss", "writer", "worker", "lookup"]
+const REQUIRED_ROLES: Array = [
+	"chat_default",
+	"linkchat",
+	"input_guard",
+	"memory_summarizer",
+	"file_viewer",
+	"browser",
+	"dev_planner",
+	"signup_review",
+	"creative_brief_outline",
+	"date_event",
+	"sbeam_catalog_generator",
+	"shop_generator",
+	"avg_dev_main",
+	"avg_dev_writer",
+	"avg_dev_executor",
+	"date_scene_writer",
+	"dsl_repair",
+	"part_time_generator",
+	"minigame",
+	"creative_decision",
+	"date_scene_reviewer",
+	"work_order",
+	"work_order_controller",
+	"work_order_planner",
+	"work_order_writer",
+	"work_order_executor",
+]
 
 var _runner: PropertyTestRunner
 var _all_passed: bool = true
@@ -110,24 +111,24 @@ func _run_property1_role_config_round_trip() -> void:
 					return "Config for role '%s' missing field '%s'. Got keys: %s" % [
 						role, field, str(config.keys())]
 
-			# Get expected profile name and data
-			var expected_profile: String = ROLE_TO_PROFILE[role]
-			var expected: Dictionary = EXPECTED_PROFILES[expected_profile]
-
 			# Verify base_url matches
-			if config["base_url"] != expected["base_url"]:
+			if config["base_url"] != EXPECTED_CHAT_BASE_URL:
 				return "Role '%s' base_url mismatch: expected '%s', got '%s'" % [
-					role, expected["base_url"], config["base_url"]]
+					role, EXPECTED_CHAT_BASE_URL, config["base_url"]]
 
-			# Verify api_key matches
-			if config["api_key"] != expected["api_key"]:
-				return "Role '%s' api_key mismatch: expected '%s', got '%s'" % [
-					role, expected["api_key"], config["api_key"]]
+			# Verify api_key is configured without pinning a real secret in source.
+			if str(config["api_key"]).strip_edges().is_empty():
+				return "Role '%s' api_key is empty" % role
 
 			# Verify model matches
-			if config["model"] != expected["model"]:
+			if config["model"] != EXPECTED_CHAT_MODEL:
 				return "Role '%s' model mismatch: expected '%s', got '%s'" % [
-					role, expected["model"], config["model"]]
+					role, EXPECTED_CHAT_MODEL, config["model"]]
+
+			var model_lower: String = str(config["model"]).to_lower()
+			for marker in FORBIDDEN_MODEL_MARKERS:
+				if model_lower.find(marker) >= 0:
+					return "Role '%s' uses forbidden legacy model marker '%s': %s" % [role, marker, config["model"]]
 
 			# Also verify that querying a non-existent role returns empty
 			var fake_role: String = "nonexistent_%d" % rng.randi_range(100000, 999999)

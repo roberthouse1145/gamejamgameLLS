@@ -126,7 +126,6 @@ func _build_scene(session: Dictionary, event_def: Dictionary) -> Resource:
 	scene.scene_id = str(event_def.get("event_id", "date_event"))
 	scene.scene_name = str(event_def.get("title", "Important Date"))
 	scene.nodes = [root]
-	scene.local_variables = []
 	return scene
 
 
@@ -228,7 +227,7 @@ func _command(command_type: String, params: Dictionary) -> Resource:
 func _make_variable(variable_id: String, variable_name: String, default_value: int, description: String) -> Resource:
 	var variable := AVGVariableClass.new()
 	variable.variable_id = variable_id
-	variable.variable_name = variable_name
+	AVGVariableClass.apply_key(variable, variable_name)
 	variable.default_value = default_value
 	variable.description = description
 	return variable

@@ -23,26 +23,33 @@ func _ready() -> void:
 
 func _test_followup_card(manager: Node) -> void:
 	var action_meta := {
-		"action_id": "browse_forum",
-		"site": {"display_name": "AGJ Community"},
-		"topic": {"mood": "mixed"},
-		"action": {"title": "刷论坛"},
+		"action_id": "learn_dev",
+		"action": {"title": "学习开发"},
 	}
 	var entry := {
 		"title": "赛题讨论串",
 		"url": "community://discussion/day-4/1",
 		"summary": "评论区开始发酵",
-		"site": {"display_name": "AGJ Community"},
+		"source_type": "llm",
+		"posts": [{"author": "路过的楼主", "content": "主楼正文"}],
 	}
 	var card: Dictionary = manager.call("_build_followup_card", entry, action_meta)
 	_assert_true("followup card type", str(card.get("type", "")) == "web_page", "卡片类型应该是 web_page")
 	_assert_true("followup card url", not str(card.get("url", "")).strip_edges().is_empty(), "卡片必须带 url")
 	_assert_true("followup card title", not str(card.get("title", "")).strip_edges().is_empty(), "卡片必须带标题")
+	_assert_true("followup card source kind", str(card.get("source_kind", "")) == "community_thread", "社区卡片必须标记为帖子转发")
+	_assert_true("followup card source author", str(card.get("source_author", "")) == "路过的楼主", "卡片应保留社区原作者")
+
+	var prompt: String = str(manager.call("_build_followup_prompt", entry, action_meta))
+	_assert_true("followup prompt shared thread", prompt.find("分享给你看") >= 0, "prompt 应明确这是分享给林夏看的帖子")
+	_assert_true("followup prompt not player-authored", prompt.find("不是玩家自己写") >= 0, "prompt 应明确帖子不是玩家自己写的")
+	_assert_true("followup prompt marks original post", prompt.find("社区用户原文，不是玩家发言") >= 0, "prompt 应区分社区原文和玩家发言")
 
 
 func _test_local_followup_reply(manager: Node) -> void:
 	var action_meta := {
-		"action_id": "post_promo",
+		"action_id": "follow_contest",
+		"action": {"title": "发帖宣传"},
 	}
 	var entry := {
 		"title": "宣传页",
@@ -59,8 +66,8 @@ func _test_scene_instantiation() -> void:
 		return
 	add_child(instance)
 	await get_tree().process_frame
-	_assert_true("loading view exists", instance.get_node_or_null("RootMargin/RootVBox/ContentStack/LoadingView") != null, "应当存在加载视图")
-	_assert_true("feed scroll exists", instance.get_node_or_null("RootMargin/RootVBox/ContentStack/FeedScroll") != null, "应当存在内容流滚动区")
+	_assert_true("loading view exists", instance.get_node_or_null("LoadingView") != null, "应当存在加载视图")
+	_assert_true("feed scroll exists", instance.get_node_or_null("MainVBox/PagesContainer/FeedPage/FeedScroll") != null, "应当存在内容流滚动区")
 	instance.queue_free()
 
 

@@ -88,6 +88,7 @@ const DesktopIconClass = preload("res://scripts/pseudo_os/desktop_icon.gd")
 # Preload Taskbar class
 const TaskbarClass = preload("res://scripts/pseudo_os/taskbar.gd")
 const NPCResponseHandlerClass = preload("res://scripts/chat/npc_response_handler.gd")
+const UIIconLibraryClass = preload("res://scripts/ui/ui_icon_library.gd")
 
 # Start menu & system panels
 const StartMenuScene = preload("res://scenes/pseudo_os/start_menu.tscn")
@@ -113,6 +114,8 @@ var _chat_manager: Node = null
 
 # Desktop icon tracking
 var desktop_icons: Dictionary = {} # app_id -> DesktopIcon node
+var _selected_desktop_icon_id: String = ""
+var _desktop_icon_visibility_overrides: Dictionary = {} # app_id -> bool
 var _desktop_notifications: Dictionary = {} # notification_id -> Control
 var _notification_stack: VBoxContainer = null
 var _notification_message_queues: Dictionary = {} # channel_id -> Array[Dictionary]
@@ -127,9 +130,10 @@ var _quit_confirm_window: Control = null
 # Desktop settings
 @export var background_color: Color = Color(0.1, 0.3, 0.5)
 @export var background_texture: Texture2D = null
-@export var icon_spacing: Vector2 = Vector2(110, 116)
-@export var icon_margin: Vector2 = Vector2(24, 24)
+@export var icon_spacing: Vector2 = Vector2(156, 184)
+@export var icon_margin: Vector2 = Vector2(28, 28)
 @export var desktop_app_ids: PackedStringArray = PackedStringArray()
+@export var pre_generate_activity_catalogs_on_ready: bool = true
 
 const CHAT_NOTIFICATION_DURATION: float = 6.0
 const CHAT_NOTIFICATION_PAUSE_MIN: float = 0.5
@@ -178,7 +182,42 @@ func _ready() -> void:
 
 
 func _after_desktop_ready() -> void:
-	pass
+	if pre_generate_activity_catalogs_on_ready:
+		pre_generate_activity_catalogs()
+
+
+func pre_generate_activity_catalogs() -> void:
+	var cfg := AIConfigManager.get_instance()
+	if cfg != null and cfg.is_background_llm_disabled():
+		return
+	_call_activity_pre_generator("ShopManager", "pre_generate_next_day_catalog")
+	_call_activity_pre_generator("DateManager", "pre_generate_next_day_events")
+	_call_activity_pre_generator("PartTimeJobManager", "pre_generate_next_day_catalog")
+	_call_activity_pre_generator("SbeamManager", "pre_generate_next_day_catalog")
+
+
+func _call_activity_pre_generator(manager_name: String, method_name: String) -> void:
+	var manager: Node = get_node_or_null("/root/%s" % manager_name)
+	if manager == null:
+		return
+	if not manager.has_method(method_name):
+		push_warning("[Desktop] %s has no method %s" % [manager_name, method_name])
+		return
+	manager.call(method_name)
+
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventMouseButton):
+		return
+
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+
+	if _is_pointer_over_desktop_icon(mouse_event.global_position):
+		return
+
+	_clear_desktop_icon_selection()
 
 ## Setup the WindowManager instance
 func _setup_window_manager() -> void:
@@ -304,6 +343,12 @@ func _setup_app_manager() -> void:
 		# Connect app signals
 		_app_manager.app_launched.connect(_on_app_launched)
 		_app_manager.app_closed.connect(_on_app_closed)
+		if _app_manager.has_signal("app_registered"):
+			_app_manager.app_registered.connect(_on_app_registered)
+		if _app_manager.has_signal("app_unregistered"):
+			_app_manager.app_unregistered.connect(_on_app_unregistered)
+		if _app_manager.has_signal("app_desktop_visibility_changed"):
+			_app_manager.app_desktop_visibility_changed.connect(_on_app_desktop_visibility_changed)
 		if _app_manager.has_signal("app_access_changed"):
 			_app_manager.app_access_changed.connect(_on_app_access_changed)
 	else:
@@ -343,9 +388,9 @@ func _setup_notification_layer() -> void:
 ## Setup the desktop background
 # ── 时段切换系统通知 ──────────────────────────────────────────
 const _PHASE_HINTS: Dictionary = {
-	0: {"name": "上午", "icon": "☀", "msg": "进入上午时段，适合推进主线任务。"},
-	1: {"name": "下午", "icon": "🌤", "msg": "进入下午时段，记得平衡效率与状态。"},
-	2: {"name": "晚上", "icon": "🌙", "msg": "进入晚上时段，适合收尾或触发夜间剧情。"},
+	0: {"name": "上午", "icon": "morning", "msg": "进入上午时段，适合推进主线任务。"},
+	1: {"name": "下午", "icon": "afternoon", "msg": "进入下午时段，记得平衡效率与状态。"},
+	2: {"name": "晚上", "icon": "night", "msg": "进入晚上时段，适合收尾或触发夜间剧情。"},
 }
 var _last_notified_phase: int = -1
 
@@ -404,21 +449,38 @@ func _get_desktop_app_definitions() -> Array:
 	if _app_manager == null:
 		return []
 
-	if desktop_app_ids.is_empty():
-		return _app_manager.get_registered_apps()
-
 	var app_definitions: Array = []
-	for raw_app_id in desktop_app_ids:
-		var app_id: String = str(raw_app_id)
+	for app_definition in _app_manager.get_registered_apps():
+		if app_definition == null:
+			continue
+		var app_id: String = str(app_definition.app_id).strip_edges()
 		if app_id.is_empty():
 			continue
-		var app_definition: Resource = _app_manager.get_app_definition(app_id)
-		if app_definition == null:
-			push_warning("Desktop: App '%s' is configured for this desktop but is not registered" % app_id)
+		if not _should_show_app_icon(app_id, app_definition):
 			continue
 		app_definitions.append(app_definition)
 
 	return app_definitions
+
+
+func _is_app_enabled_in_desktop_config(app_id: String) -> bool:
+	if _desktop_icon_visibility_overrides.has(app_id):
+		return bool(_desktop_icon_visibility_overrides[app_id])
+	if desktop_app_ids.is_empty():
+		return true
+	return app_id in desktop_app_ids
+
+
+func _should_show_app_icon(app_id: String, app_definition: Resource = null) -> bool:
+	if app_id.is_empty():
+		return false
+	if not _is_app_enabled_in_desktop_config(app_id):
+		return false
+	if _app_manager != null and _app_manager.has_method("is_app_desktop_visible"):
+		return bool(_app_manager.is_app_desktop_visible(app_id))
+	if app_definition != null and "show_on_desktop" in app_definition:
+		return bool(app_definition.show_on_desktop)
+	return true
 
 
 ## Add a desktop icon for an app
@@ -426,14 +488,13 @@ func _get_desktop_app_definitions() -> Array:
 func add_desktop_icon(app_definition: Resource) -> void:
 	if not app_definition:
 		return
-	if "show_on_desktop" in app_definition and not bool(app_definition.show_on_desktop):
-		return
 	
 	var app_id: String = app_definition.app_id
+	if not _should_show_app_icon(app_id, app_definition):
+		return
 	
 	# Check if icon already exists
 	if desktop_icons.has(app_id):
-		push_warning("Desktop: Icon for app '%s' already exists" % app_id)
 		return
 	
 	# Create icon node (will be implemented in Task 5.2)
@@ -459,6 +520,10 @@ func _create_icon_placeholder(app_definition: Resource) -> Control:
 		
 		# Connect double-click signal
 		icon.double_clicked.connect(_on_desktop_icon_double_clicked)
+		if icon.has_signal("selected"):
+			icon.selected.connect(_on_desktop_icon_selected)
+		if icon.has_signal("deselected"):
+			icon.deselected.connect(_on_desktop_icon_deselected)
 	
 	return icon
 
@@ -503,9 +568,90 @@ func remove_desktop_icon(app_id: String) -> void:
 	if is_instance_valid(icon):
 		icon.queue_free()
 	desktop_icons.erase(app_id)
+	if _selected_desktop_icon_id == app_id:
+		_selected_desktop_icon_id = ""
 	
 	# Reposition remaining icons
 	_reposition_all_icons()
+
+
+func _on_desktop_icon_selected(app_id: String) -> void:
+	_selected_desktop_icon_id = app_id
+	_clear_desktop_icon_selection(app_id)
+
+
+func _on_desktop_icon_deselected(app_id: String) -> void:
+	if _selected_desktop_icon_id == app_id:
+		_selected_desktop_icon_id = ""
+
+
+func _clear_desktop_icon_selection(except_app_id: String = "") -> void:
+	var normalized_except := except_app_id.strip_edges()
+	for tracked_app_id in desktop_icons.keys():
+		if tracked_app_id == normalized_except:
+			continue
+
+		var icon: Node = desktop_icons[tracked_app_id]
+		if icon == null or not is_instance_valid(icon):
+			continue
+
+		if icon.has_method("deselect"):
+			icon.deselect()
+		elif icon.has_method("set_selected"):
+			icon.set_selected(false)
+
+	if normalized_except.is_empty():
+		_selected_desktop_icon_id = ""
+
+
+func _is_pointer_over_desktop_icon(global_pos: Vector2) -> bool:
+	for app_id in desktop_icons.keys():
+		var icon: Variant = desktop_icons[app_id]
+		if not (icon is Control):
+			continue
+
+		var icon_control := icon as Control
+		if not is_instance_valid(icon_control):
+			continue
+		if icon_control.get_global_rect().has_point(global_pos):
+			return true
+
+	return false
+
+
+func set_app_icon_visible(app_id: String, desired_visible: bool) -> void:
+	var normalized_app_id := app_id.strip_edges()
+	if normalized_app_id.is_empty():
+		return
+
+	_desktop_icon_visibility_overrides[normalized_app_id] = desired_visible
+	if not desired_visible:
+		remove_desktop_icon(normalized_app_id)
+		return
+
+	if _app_manager == null:
+		return
+	var app_definition: Resource = _app_manager.get_app_definition(normalized_app_id)
+	if app_definition != null:
+		add_desktop_icon(app_definition)
+
+
+func clear_app_icon_visibility_override(app_id: String) -> void:
+	var normalized_app_id := app_id.strip_edges()
+	if normalized_app_id.is_empty():
+		return
+	if not _desktop_icon_visibility_overrides.has(normalized_app_id):
+		return
+
+	_desktop_icon_visibility_overrides.erase(normalized_app_id)
+	if _app_manager == null:
+		return
+
+	var app_definition: Resource = _app_manager.get_app_definition(normalized_app_id)
+	if app_definition != null and _should_show_app_icon(normalized_app_id, app_definition):
+		add_desktop_icon(app_definition)
+	else:
+		remove_desktop_icon(normalized_app_id)
 
 
 ## Reposition all icons after removal
@@ -597,6 +743,24 @@ func _on_app_launched(_app_id: String, _window: Control) -> void:
 func _on_app_closed(_app_id: String) -> void:
 	# Could update icon state to show app is closed
 	pass
+
+
+func _on_app_registered(app_id: String, app_definition: Resource) -> void:
+	if desktop_icons.has(app_id):
+		remove_desktop_icon(app_id)
+	if _should_show_app_icon(app_id, app_definition):
+		add_desktop_icon(app_definition)
+	_refresh_icon_access_state()
+
+
+func _on_app_unregistered(app_id: String) -> void:
+	_desktop_icon_visibility_overrides.erase(app_id)
+	remove_desktop_icon(app_id)
+
+
+func _on_app_desktop_visibility_changed(app_id: String, desired_visible: bool) -> void:
+	set_app_icon_visible(app_id, desired_visible)
+	_refresh_icon_access_state()
 
 
 func _on_app_access_changed(_mode: String, _apps: Array[String]) -> void:
@@ -717,7 +881,9 @@ func _show_linkchat_notification(channel_id: String, sender_name: String, previe
 	var notification_id := "linkchat:%s" % channel_id
 	_remove_notification(notification_id)
 
-	# TODO: 播放通知音效（音频系统尚未实现）
+	var audio := get_node_or_null("/root/AudioManager")
+	if audio != null and audio.has_method("play_sfx_key"):
+		audio.play_sfx_key("chat_receive")
 
 	var toast := PanelContainer.new()
 	toast.custom_minimum_size = Vector2(0, 0)
@@ -991,7 +1157,7 @@ func _remove_notification(notification_id: String) -> void:
 
 
 ## 显示桌面右下角系统通知（Windows 风格提醒）
-func show_system_notification(title: String, body: String, icon_text: String = "⚠", duration: float = 5.0) -> void:
+func show_system_notification(title: String, body: String, icon_token: String = "warning", duration: float = 5.0) -> void:
 	if _notification_stack == null:
 		return
 
@@ -1031,7 +1197,7 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	hbox.add_theme_constant_override("separation", 14)
 	margin.add_child(hbox)
 
-	# 左侧图标（深蓝圆底 + emoji）
+	# 左侧图标（Win11 风格圆底图标）
 	var icon_panel := PanelContainer.new()
 	icon_panel.custom_minimum_size = Vector2(44, 44)
 	icon_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -1042,13 +1208,24 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	icon_style.corner_radius_bottom_left = 22
 	icon_style.corner_radius_bottom_right = 22
 	icon_panel.add_theme_stylebox_override("panel", icon_style)
-	var icon_label := Label.new()
-	icon_label.text = icon_text
-	icon_label.add_theme_font_size_override("font_size", 20)
-	icon_label.add_theme_color_override("font_color", Color("#4569C7"))
-	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	icon_panel.add_child(icon_label)
+	var icon_texture := UIIconLibraryClass.get_icon(icon_token)
+	if icon_texture != null:
+		var icon_rect := TextureRect.new()
+		icon_rect.texture = icon_texture
+		icon_rect.custom_minimum_size = Vector2(22, 22)
+		icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.modulate = _get_notification_icon_color(icon_token)
+		icon_rect.anchors_preset = Control.PRESET_CENTER
+		icon_panel.add_child(icon_rect)
+	else:
+		var icon_label := Label.new()
+		icon_label.text = icon_token
+		icon_label.add_theme_font_size_override("font_size", 20)
+		icon_label.add_theme_color_override("font_color", Color("#4569C7"))
+		icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		icon_panel.add_child(icon_label)
 	hbox.add_child(icon_panel)
 
 	# 右侧文字
@@ -1089,3 +1266,23 @@ func show_system_notification(title: String, body: String, icon_text: String = "
 	timer.timeout.connect(_expire_notification.bind(notification_id))
 	toast.add_child(timer)
 	timer.start()
+
+
+func _get_notification_icon_color(icon_token: String) -> Color:
+	match icon_token.strip_edges().to_lower():
+		"warning", "⚠":
+			return Color("#C47A00")
+		"night", "🌙":
+			return Color("#5872D9")
+		"morning", "☀":
+			return Color("#E28A1E")
+		"afternoon", "🌤":
+			return Color("#3B82C4")
+		"power", "⏻":
+			return Color("#D64545")
+		"metro", "🚇":
+			return Color("#17965C")
+		"bus", "🚌":
+			return Color("#17965C")
+		_:
+			return Color("#4569C7")

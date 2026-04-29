@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "09"
 }
 profile = "亲切阳光的褐发青年，琥珀色双眸，身着深色英式风衣，系着波洛领带并配有腰间挂包"
+display_offset = Vector2(0, 0.15)

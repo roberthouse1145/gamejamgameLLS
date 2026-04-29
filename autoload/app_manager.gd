@@ -32,9 +32,6 @@ var _access_mode: String = "none"
 var _access_list: Array[String] = []
 
 signal app_access_changed(mode: String, apps: Array[String])
-signal app_window_state_changed(app_id: String, state: Dictionary)
-
-var _window_states: Dictionary = {}
 
 
 func _ready() -> void:
@@ -50,7 +47,6 @@ func _register_all_apps() -> void:
 		"res://resources/apps/story_project_manager_app.tres",
 		"res://resources/apps/game_previewer_app.tres",
 		"res://resources/apps/file_manager_app.tres",
-		"res://resources/apps/deepcode_app.tres",
 		"res://resources/apps/linkchat_app.tres",
 		"res://resources/apps/browser_app.tres",
 		"res://resources/apps/community_app.tres",
@@ -113,26 +109,22 @@ func register_app(definition: Resource) -> void:
 ## Launch an app by its ID
 ## @param app_id: The ID of the app to launch
 ## @return: The created window Control (PseudoWindow), or null if failed
-func launch_app(app_id: String, force: bool = false) -> Control:
+func launch_app(app_id: String, force_launch: bool = false) -> Control:
 	# Check if app is registered
 	if not app_registry.has(app_id):
 		push_warning("AppManager: App '%s' is not registered" % app_id)
 		return null
 
 	# Story-driven access control
-	if not force and not is_app_accessible(app_id):
+	if not force_launch and not is_app_accessible(app_id):
 		push_warning("AppManager: App '%s' is currently restricted by story" % app_id)
 		return null
 
-	# Check if app is already running - restore if minimized, then focus
+	# Check if app is already running - focus existing window
 	if is_app_running(app_id):
 		var existing_window: Control = running_apps[app_id]
 		if window_manager:
-			if existing_window.is_minimized:
-				window_manager.restore_window(existing_window)
-			else:
-				window_manager.focus_window(existing_window)
-		_apply_window_state(app_id, existing_window)
+			window_manager.focus_window(existing_window)
 		return existing_window
 	
 	# Get the app definition
@@ -169,7 +161,6 @@ func launch_app(app_id: String, force: bool = false) -> Control:
 	
 	# Emit app_launched signal
 	app_launched.emit(app_id, window)
-	_apply_window_state(app_id, window)
 	
 	return window
 
@@ -185,14 +176,10 @@ func _on_app_window_closed(app_id: String) -> void:
 
 ## Close a running app by its ID
 ## @param app_id: The ID of the app to close
-func close_app(app_id: String, force: bool = false) -> void:
+func close_app(app_id: String) -> void:
 	# Check if app is running
 	if not is_app_running(app_id):
 		push_warning("AppManager: App '%s' is not running" % app_id)
-		return
-
-	if not force and is_app_window_close_locked(app_id):
-		push_warning("AppManager: App '%s' close is currently locked" % app_id)
 		return
 	
 	# Get the window
@@ -243,33 +230,10 @@ func get_registered_app_ids() -> Array[String]:
 	return ids
 
 
-func get_app_definition(app_id: String) -> Resource:
-	if app_registry.has(app_id):
-		return app_registry[app_id]
-	return null
-
-
 ## Set the WindowManager reference
 ## @param manager: The WindowManager node
 func set_window_manager(manager: Node) -> void:
 	window_manager = manager
-
-
-func focus_app(app_id: String, force_launch: bool = false) -> Control:
-	if is_app_running(app_id):
-		var window: Control = running_apps[app_id]
-		if window_manager:
-			if window.is_minimized:
-				window_manager.restore_window(window)
-			else:
-				window_manager.focus_window(window)
-		_apply_window_state(app_id, window)
-		return window
-
-	if force_launch:
-		return launch_app(app_id, true)
-
-	return null
 
 
 # =============================================================================
@@ -320,62 +284,3 @@ func get_accessible_app_ids() -> Array[String]:
 		if is_app_accessible(app_id):
 			result.append(app_id)
 	return result
-
-
-func set_app_window_state(app_id: String, state: Dictionary) -> void:
-	var next_state: Dictionary = get_app_window_state(app_id)
-	for key in state.keys():
-		next_state[key] = state[key]
-	_window_states[app_id] = next_state
-
-	var window: Control = get_app_window(app_id)
-	if window != null:
-		_apply_window_state(app_id, window)
-
-	app_window_state_changed.emit(app_id, next_state.duplicate(true))
-
-
-func clear_app_window_state(app_id: String) -> void:
-	if _window_states.erase(app_id):
-		var window: Control = get_app_window(app_id)
-		if window != null:
-			_apply_window_state(app_id, window)
-	app_window_state_changed.emit(app_id, get_app_window_state(app_id))
-
-
-func get_app_window_state(app_id: String) -> Dictionary:
-	return _window_states.get(app_id, {}).duplicate(true)
-
-
-func lock_app_window(app_id: String, lock_close: bool = true, lock_minimize: bool = true) -> void:
-	set_app_window_state(app_id, {
-		"close_locked": lock_close,
-		"minimize_locked": lock_minimize,
-	})
-
-
-func unlock_app_window(app_id: String) -> void:
-	set_app_window_state(app_id, {
-		"close_locked": false,
-		"minimize_locked": false,
-	})
-
-
-func is_app_window_close_locked(app_id: String) -> bool:
-	return bool(get_app_window_state(app_id).get("close_locked", false))
-
-
-func _apply_window_state(app_id: String, window: Control) -> void:
-	if window == null or not is_instance_valid(window):
-		return
-
-	var state: Dictionary = get_app_window_state(app_id)
-	if window.has_method("set_close_locked"):
-		window.set_close_locked(bool(state.get("close_locked", false)))
-	elif "close_button" in window and window.close_button:
-		window.close_button.disabled = bool(state.get("close_locked", false))
-
-	if window.has_method("set_minimize_locked"):
-		window.set_minimize_locked(bool(state.get("minimize_locked", false)))
-	elif "minimize_button" in window and window.minimize_button:
-		window.minimize_button.disabled = bool(state.get("minimize_locked", false))

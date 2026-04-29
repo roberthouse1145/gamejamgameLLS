@@ -226,7 +226,7 @@ func _get_default_title(category: String) -> String:
 
 func _connect_signals() -> void:
 	close_button.pressed.connect(func(): close_requested.emit())
-	%SaveButton.pressed.connect(func(): KnowledgeBaseManager.save_data())
+	%SaveButton.pressed.connect(_save_current_project)
 
 	add_world_btn.pressed.connect(func(): _add_new_document("world", world_canvas))
 	add_character_btn.pressed.connect(func(): _add_new_document("characters", character_canvas))
@@ -254,6 +254,16 @@ func _connect_signals() -> void:
 			_add_new_document("notes", note_canvas, note_canvas.get_local_mouse_position())
 			note_canvas.accept_event()
 	)
+
+
+func _save_current_project() -> void:
+	if StorageManager.current_project == null:
+		push_warning("KnowledgeBaseApp: 当前没有可保存的项目")
+		return
+
+	var save_err: Error = StorageManager.save_project(StorageManager.current_project)
+	if save_err != OK:
+		push_error("KnowledgeBaseApp: 保存项目失败，error=%d" % save_err)
 
 func _on_category_selected(index: int) -> void:
 	for i in range(_category_panels.size()):

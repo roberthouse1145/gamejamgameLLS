@@ -41,14 +41,15 @@ func build_prompt_from_session(session: Dictionary) -> String:
 		_build_state_block(),
 		"",
 		"## 场景结构要求",
-		"- 必须包含四段：开始前、玩到中途、一次自然接话选择、结束后的余韵。",
+		"- 必须包含四段：开始前、玩到中途、一次自然接话选择、结束后的自然散场。",
 		"- 这是一段共同体验场景，不是完整游玩记录，不要模拟整部游戏流程。",
 		"- 只允许一次选择，选项数为 2 到 3 个。",
 		"- 选项必须是玩家对她当下反应的自然接话，不要写成策略按钮。",
 		"- 游戏内容只写到足够触发情绪即可，不要详细解释玩法系统。",
 		"- 重点是两个人之间的气氛变化，不是那款游戏本身有多复杂。",
 		"- 不要把话题扯回 GameJam、工单、AVG 开发讨论。",
-		"- 结尾必须收在玩完后的余韵，不要再追加手机消息、朋友圈或系统结算。",
+		"- 结尾必须收在游戏关掉后的自然散场（关掉游戏、伸懒腰、互相吐槽两句），不要追加手机消息、朋友圈或系统结算。",
+		"- 禁止借这次游戏升华关系或感悟人生。粪作就让它粪地结束，不要用旁白替烂游戏找补。",
 	]).strip_edges()
 
 
@@ -61,6 +62,7 @@ func _build_sbeam_game_block(game: Dictionary, day: int, phase: String, detail_p
 	var pitch: String = str(game.get("pitch", "")).strip_edges()
 	var hook_moment: String = str(game.get("hook_moment", "")).strip_edges()
 	var review_summary: String = str(game.get("review_summary", "")).strip_edges()
+	var reaction_bias: String = str(game.get("reaction_bias", "")).strip_edges()
 	var player_hint: String = str(game.get("player_count_hint", "")).strip_edges()
 	var lines: Array[String] = [
 		"当前时间：比赛第 %d 天，时段为 %s。" % [day, phase if not phase.is_empty() else "UNKNOWN"],
@@ -76,11 +78,13 @@ func _build_sbeam_game_block(game: Dictionary, day: int, phase: String, detail_p
 		lines.append("最容易触发情绪的片段：%s" % hook_moment)
 	if not review_summary.is_empty():
 		lines.append("玩家普遍观感：%s" % review_summary)
+	if not reaction_bias.is_empty():
+		lines.append("情绪基调（reaction_bias）：%s（结尾必须匹配此基调，不要默认走 aftertaste 模板）" % reaction_bias)
 	if not detail_prompt.is_empty():
 		lines.append("现实环境：%s" % detail_prompt)
 	if not event_prompt.is_empty():
 		lines.append("本次气氛参考：%s" % event_prompt)
-	lines.append("重点不是完整试玩记录，而是一起玩的反应、停顿、接话和余韵。")
+	lines.append("重点不是完整试玩记录，而是一起玩时的反应、停顿和自然接话。")
 	lines.append("让场景自己决定今晚最能带出两人反应的片段，不要依赖预设桥段。")
 	return "\n".join(lines)
 

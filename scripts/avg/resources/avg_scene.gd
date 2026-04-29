@@ -7,10 +7,10 @@ class_name AVGScene extends Resource
 @export var scene_id: String = ""
 @export var scene_name: String = "New Scene"
 @export var folder: String = ""  # 文件夹分组
+@export var scene_note: String = ""  # 给编辑器/Agent 用的场景摘要备注，不参与运行时
 @export var nodes: Array = []  # Array of AVGNode
-## 场景独立变量 — 作用域仅限本场景，切换场景时销毁
-## 同名时优先于项目全局变量（遮蔽）
-@export var local_variables: Array = []  # Array of AVGVariable
+## 已废弃：历史兼容字段。新的变量系统仅支持项目级变量。
+@export var local_variables: Array = []  # Legacy compatibility only; ignored at runtime.
 
 
 static func get_avg_properties() -> Array[Dictionary]:
@@ -18,6 +18,7 @@ static func get_avg_properties() -> Array[Dictionary]:
 		{"name": "scene_id", "type": TYPE_STRING, "editable": false, "visible": true, "category": "系统"},
 		{"name": "scene_name", "type": TYPE_STRING, "editable": true, "category": "基本"},
 		{"name": "folder", "type": TYPE_STRING, "editable": true, "category": "基本"},
+		{"name": "scene_note", "type": TYPE_STRING, "editable": true, "category": "基本", "multiline": true},
 	]
 
 

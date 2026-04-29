@@ -34,3 +34,4 @@ emotion_slots = {
 "thinking": "14"
 }
 profile = "妖艳撩人的魅魔少女，紫发红角蝙蝠翼，红眼惑人"
+display_offset = Vector2(0, 0.15)

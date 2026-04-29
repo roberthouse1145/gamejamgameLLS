@@ -14,6 +14,7 @@ var _selected_index: int = -1
 
 # Preload AVGScene
 const AVGSceneClass = preload("res://scripts/avg/resources/avg_scene.gd")
+const DBToolsClass = preload("res://scripts/avg/dev_tools/db_tools.gd")
 
 # UI References
 @onready var toolbar: HBoxContainer = %Toolbar
@@ -78,8 +79,12 @@ func _refresh_list() -> void:
 	
 	for scene in _project.scenes:
 		var display_text: String = scene.scene_name
+		if DBToolsClass.is_placeholder_scene(scene):
+			display_text += " [占位]"
 		if scene.scene_id != "":
 			display_text = "%s (%s)" % [scene.scene_name, scene.scene_id]
+			if DBToolsClass.is_placeholder_scene(scene):
+				display_text += " [占位]"
 		scene_list.add_item(display_text)
 	
 	# Restore selection

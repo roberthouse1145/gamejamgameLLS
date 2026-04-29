@@ -36,3 +36,4 @@ emotion_slots = {
 "worried": "12"
 }
 profile = "神秘阴郁的兆帽青年，红白挑染短发，紫瞳，身着符文黑袍戴骨饰，手持提灯法杖"
+display_offset = Vector2(0, 0.15)

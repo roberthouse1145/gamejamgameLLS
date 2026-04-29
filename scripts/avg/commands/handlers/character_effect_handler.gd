@@ -5,6 +5,24 @@ class_name CharacterEffectHandler
 
 const ParamDef = preload("res://scripts/avg/commands/param_definition.gd")
 
+const INTENSITY_ALIASES: Dictionary = {
+	"small": "small",
+	"light": "small",
+	"soft": "small",
+	"弱": "small",
+	"轻": "small",
+	"medium": "medium",
+	"mid": "medium",
+	"normal": "medium",
+	"普通": "medium",
+	"中": "medium",
+	"large": "large",
+	"heavy": "large",
+	"strong": "large",
+	"强": "large",
+	"重": "large",
+}
+
 
 func _init() -> void:
 	super._init("CHARACTER_EFFECT")
@@ -22,7 +40,8 @@ func _create_schema() -> ParamSchemaClass:
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 	var character_id: String = _get_param(command, "character_id", "")
 	var effect_name: String = _get_param(command, "effect", "jump")
-	var intensity: String = _get_param(command, "intensity", "medium")
+	var raw_intensity: Variant = command.params.get("intensity", "medium") if command != null and command.params != null else "medium"
+	var intensity: String = _normalize_intensity(raw_intensity)
 	var duration: float = _get_param(command, "duration", -1.0)
 
 	if character_id.is_empty():
@@ -32,3 +51,12 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 		context.character_display.play_effect(character_id, effect_name, intensity, duration)
 
 	return CommandResultClass.ok()
+
+
+func _normalize_intensity(value: Variant) -> String:
+	var text: String = str(value).strip_edges().to_lower()
+	if text.is_empty():
+		return "medium"
+	if INTENSITY_ALIASES.has(text):
+		return str(INTENSITY_ALIASES[text])
+	return "medium"

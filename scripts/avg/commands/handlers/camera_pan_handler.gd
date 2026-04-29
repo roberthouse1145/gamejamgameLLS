@@ -30,9 +30,8 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var pan_offset: Vector2 = _resolve_pan_offset(params)
-	var duration: float = float(params.get("duration", 1.0))
+	var pan_offset: Vector2 = _resolve_pan_offset(command)
+	var duration: float = _get_param(command, "duration", 1.0)
 	var runner: Node = context.scene_runner
 	if runner == null:
 		return CommandResultClass.error("CAMERA_PAN: no scene_runner")
@@ -44,12 +43,12 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 	})
 
 
-func _resolve_pan_offset(params: Dictionary) -> Vector2:
-	var target: String = str(params.get("target", "")).strip_edges().to_lower()
+func _resolve_pan_offset(command: Resource) -> Vector2:
+	var target: String = str(_get_param(command, "target", "")).strip_edges().to_lower()
 	if not target.is_empty() and TARGET_OFFSETS.has(target):
 		return TARGET_OFFSETS[target]
 
 	return Vector2(
-		float(params.get("norm_x", 0.0)),
-		float(params.get("norm_y", 0.0))
+		_get_param(command, "norm_x", 0.0),
+		_get_param(command, "norm_y", 0.0)
 	)

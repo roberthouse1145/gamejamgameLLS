@@ -36,3 +36,4 @@ emotion_slots = {
 "worried": "05"
 }
 profile = "清秀沉稳的少年祭司，淡紫短发金眸，身着黑白紫拼色长袍，戴有大型祭司帽"
+display_offset = Vector2(0, 0.15)

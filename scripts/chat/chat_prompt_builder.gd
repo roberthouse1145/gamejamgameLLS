@@ -16,6 +16,7 @@ static func build(
 	player_messages: Array[String],
 	relevant_memories: Array = [],
 	topic: ChatTopic = null,
+	project_shared_context: String = "",
 ) -> Dictionary:
 	# 构建上下文变量，通过 resolve_with_vars 传入（不污染全局状态）
 	# 注：player_name / player_web_name / player_team / game_time
@@ -30,11 +31,11 @@ static func build(
 		"player_identity": _build_player_identity(),
 		"chat_history": _build_history(chat_history),
 		"memories": _build_memories(relevant_memories),
+		"project_shared_context": _build_project_shared_context(project_shared_context),
 		"lore_facts": "",
 		"lore_constraints": "",
-		"topic": _build_topic(topic),
-		"topic_complete_hint":
-			"5. 达成对话目标后，单独输出一行 [TOPIC_COMPLETE] 作为完成标记。" if topic else "",
+		"topic": _build_topic_static(topic),
+		"topic_runtime": _build_topic_runtime(topic),
 		"speaker_ids": _build_speaker_ids(npcs),
 	}
 
@@ -62,6 +63,13 @@ static func build(
 			{"role": "user", "content": user_message},
 		]
 	}
+
+
+static func _build_project_shared_context(project_shared_context: String) -> String:
+	var normalized := project_shared_context.strip_edges()
+	if normalized.is_empty():
+		return "当前角色没有额外的项目共享上下文。除非聊天历史、topic 或玩家刚刚明确提到，否则不要假装知道项目进度、知识库内容或工单状态。"
+	return normalized
 
 
 static func _build_characters(channel: ChatChannel, npcs: Array) -> String:
@@ -158,37 +166,74 @@ static func _summarize_card(card: Dictionary) -> String:
 	var card_type := str(card.get("type", "")).strip_edges().to_lower()
 	var title := str(card.get("title", "")).strip_edges()
 	var hint := str(card.get("hint", "")).strip_edges()
+	var badge := str(card.get("badge", "")).strip_edges()
 	match card_type:
 		"image":
 			return "[分享了图片卡片：%s]" % (
 				hint if not hint.is_empty() else str(card.get("image_id", "图片"))
 			)
 		"location":
-			return "[分享了地点卡片：%s %s]" % [
-				title if not title.is_empty() else "未命名地点",
-				str(card.get("footer", "")).strip_edges()
-			]
+			var location_parts: Array[String] = []
+			var location_subtitle := str(card.get("subtitle", "")).strip_edges()
+			var location_footer := str(card.get("footer", "")).strip_edges()
+			if not title.is_empty():
+				location_parts.append(title)
+			if not location_subtitle.is_empty():
+				location_parts.append(location_subtitle)
+			if not location_footer.is_empty():
+				location_parts.append(location_footer)
+			if _badge_implies_invite(badge):
+				return "[发来了约会邀请卡片：%s]" % _join_card_parts(location_parts, "未命名地点")
+			return "[分享了地点卡片：%s]" % _join_card_parts(location_parts, "未命名地点")
+		"job_posting":
+			var company_or_area := str(card.get("subtitle", "")).strip_edges()
+			var salary := str(card.get("salary", card.get("footer", ""))).strip_edges()
+			var job_parts: Array[String] = []
+			if not title.is_empty():
+				job_parts.append(title)
+			if not company_or_area.is_empty():
+				job_parts.append(company_or_area)
+			if not salary.is_empty():
+				job_parts.append(salary)
+			if _badge_implies_invite(badge):
+				return "[发来了兼职邀请卡片：%s]" % _join_card_parts(job_parts, "未命名兼职")
+			return "[分享了兼职卡片：%s]" % _join_card_parts(job_parts, "未命名兼职")
 		"mock_image":
 			return "[分享了伪图片卡片：%s]" % (title if not title.is_empty() else "未命名卡片")
 		"web_page":
+			if str(card.get("source_kind", "")).strip_edges().to_lower() == "community_thread":
+				var thread_parts: Array[String] = []
+				if not title.is_empty():
+					thread_parts.append(title)
+				var source_author := str(card.get("source_author", "")).strip_edges()
+				if not source_author.is_empty():
+					thread_parts.append("作者：%s" % source_author)
+				var thread_url := str(card.get("url", "")).strip_edges()
+				if not thread_url.is_empty():
+					thread_parts.append(thread_url)
+				return "[分享了一条社区帖子链接（玩家只是转发，不是帖子作者）：%s]" % _join_card_parts(thread_parts, "未命名帖子")
 			return "[分享了网页卡片：%s %s]" % [
 				title if not title.is_empty() else "未命名网页",
 				str(card.get("url", "")).strip_edges()
 			]
 		"game":
-			var footer := str(card.get("footer", "")).strip_edges()
-			var subtitle := str(card.get("subtitle", "")).strip_edges()
+			var game_footer := str(card.get("footer", "")).strip_edges()
+			var game_subtitle := str(card.get("subtitle", "")).strip_edges()
+			var game_price := _format_card_price(card.get("price", ""))
 			var parts: Array[String] = []
 			if not title.is_empty():
 				parts.append(title)
-			if not subtitle.is_empty():
-				parts.append(subtitle)
-			if not footer.is_empty():
-				parts.append(footer)
-			return "[分享了游戏卡片：%s]" % "，".join(parts) if not parts.is_empty() else "[分享了游戏卡片]"
+			if not game_subtitle.is_empty():
+				parts.append(game_subtitle)
+			if not game_price.is_empty():
+				parts.append(game_price)
+			if not game_footer.is_empty():
+				parts.append(game_footer)
+			if _badge_implies_invite(badge):
+				return "[发来了游戏邀请卡片：%s]" % _join_card_parts(parts, "未命名游戏")
+			return "[分享了游戏卡片：%s]" % _join_card_parts(parts, "未命名游戏")
 		"product":
 			var price := str(card.get("price", "")).strip_edges()
-			var badge := str(card.get("badge", "")).strip_edges()
 			var parts: Array[String] = []
 			if not title.is_empty():
 				parts.append(title)
@@ -199,6 +244,32 @@ static func _summarize_card(card: Dictionary) -> String:
 			return "[分享了商品卡片：%s]" % "，".join(parts)
 		_:
 			return "[分享了一张卡片]"
+
+
+static func _join_card_parts(parts: Array[String], fallback: String) -> String:
+	if parts.is_empty():
+		return fallback
+	return "，".join(parts)
+
+
+static func _format_card_price(price_value: Variant) -> String:
+	if price_value == null:
+		return ""
+	var price_text := str(price_value).strip_edges()
+	if price_text.is_empty():
+		return ""
+	if price_text.begins_with("¥"):
+		return price_text
+	if price_text.is_valid_int() or price_text.is_valid_float():
+		return "¥ %d" % int(price_text.to_float())
+	return price_text
+
+
+static func _badge_implies_invite(badge: String) -> bool:
+	var normalized := badge.strip_edges().to_lower()
+	if normalized.is_empty():
+		return false
+	return "invite" in normalized or "邀" in badge
 
 
 static func _build_memories(relevant_memories: Array) -> String:
@@ -214,7 +285,7 @@ static func _build_memories(relevant_memories: Array) -> String:
 	return "\n".join(lines)
 
 
-static func _build_topic(topic: ChatTopic) -> String:
+static func _build_topic_static(topic: ChatTopic) -> String:
 	if topic == null:
 		return "当前无特定话题，自由聊天即可。"
 
@@ -222,6 +293,18 @@ static func _build_topic(topic: ChatTopic) -> String:
 	if not topic.goal_description.is_empty():
 		parts.append("\n对话目标：%s" % topic.goal_description)
 	return "\n".join(parts)
+
+
+static func _build_topic_runtime(topic: ChatTopic) -> String:
+	if topic == null:
+		return "当前无 topic 运行时状态。"
+
+	var runtime_parts: Array[String] = []
+	runtime_parts.append("当前 topic 轮次：第 %d 轮" % maxi(1, int(topic.turn_count)))
+	var timeout_followup_count: int = int(topic.context_data.get("timeout_followup_count", 0))
+	if timeout_followup_count > 0:
+		runtime_parts.append("本 topic 已因玩家沉默触发过 %d 次超时续聊" % timeout_followup_count)
+	return "- %s" % "\n- ".join(runtime_parts)
 
 
 static func _build_user_message(player_messages: Array[String]) -> String:

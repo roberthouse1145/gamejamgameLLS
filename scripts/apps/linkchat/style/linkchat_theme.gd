@@ -4,7 +4,8 @@ class_name LinkChatTheme
 ## LinkChat 专属样式工厂
 
 # --- 背景色 ---
-const COLOR_BG_SIDEBAR = Color("#F2F3F5") # 浅灰侧边栏
+const COLOR_BG_NAV = Color("#EDEEF0") # 最左导航条，偏深灰
+const COLOR_BG_SIDEBAR = Color("#FAFBFC") # 频道列表，偏白
 const COLOR_BG_MAIN = Color("#FFFFFF") # 纯白聊天主区
 const COLOR_BG_HEADER = Color("#F7F7F7") # 顶部微灰
 const COLOR_BG_INPUT_AREA = Color("#FFFFFF")
@@ -16,8 +17,8 @@ const COLOR_BUBBLE_PLAYER = Color("#95EC69") # 微信/Line 绿
 const COLOR_BUBBLE_SYSTEM = Color("#F0F0F0") # 系统消息浅灰底
 
 # --- 侧边栏 ---
-const COLOR_CONTACT_HOVER = Color("#E3E5E7")
-const COLOR_CONTACT_SELECTED = Color("#CED2D6")
+const COLOR_CONTACT_HOVER = Color("#E8EAEE")    # hover 更偏蓝灰，与新 sidebar 白底对比更清晰
+const COLOR_CONTACT_SELECTED = Color("#B8C1C9") # 选中更深，与 hover 明显区分
 const COLOR_CONTACT_SEPARATOR = Color.TRANSPARENT # 去掉分割线
 
 # --- 文字色 ---
@@ -74,9 +75,8 @@ static func rounded_flat(bg: Color, radius: int = RADIUS_MD, border_color: Color
 
 ## NPC 消息气泡
 static func get_npc_bubble_style() -> StyleBoxFlat:
-	# 白底 + 微阴影
+	# 白底 + 微阴影；统一四角圆角，取消弱尖角
 	var s := rounded_flat(COLOR_BUBBLE_NPC, RADIUS_BUBBLE, Color.TRANSPARENT, 0, Color(0, 0, 0, 0.05), 1)
-	s.corner_radius_top_left = 2 # 小尖角
 	s.content_margin_left = 20
 	s.content_margin_top = 14
 	s.content_margin_right = 20
@@ -87,7 +87,6 @@ static func get_npc_bubble_style() -> StyleBoxFlat:
 ## 玩家消息气泡
 static func get_player_bubble_style() -> StyleBoxFlat:
 	var s := rounded_flat(COLOR_BUBBLE_PLAYER, RADIUS_BUBBLE)
-	s.corner_radius_top_right = 2 # 小尖角
 	s.content_margin_left = 20
 	s.content_margin_top = 14
 	s.content_margin_right = 20
@@ -172,7 +171,8 @@ static func get_unread_badge_style() -> StyleBoxFlat:
 
 ## 推荐回复选项 (Chip)
 static func get_chip_style() -> StyleBoxFlat:
-	var s := rounded_flat(Color("#FFFFFF"), RADIUS_LG, COLOR_BORDER, 1)
+	# 改浅灰底 + 更深边框，在聊天主区白底上立起来
+	var s := rounded_flat(Color("#F4F6F8"), RADIUS_LG, Color("#D1D5DB"), 1)
 	s.content_margin_left = 16
 	s.content_margin_top = 8
 	s.content_margin_right = 16
@@ -181,7 +181,7 @@ static func get_chip_style() -> StyleBoxFlat:
 
 
 static func get_chip_hover_style() -> StyleBoxFlat:
-	var s := rounded_flat(Color("#F2F3F5"), RADIUS_LG, COLOR_ACCENT, 1)
+	var s := rounded_flat(Color("#E8F6DD"), RADIUS_LG, COLOR_ACCENT, 1)
 	s.content_margin_left = 16
 	s.content_margin_top = 8
 	s.content_margin_right = 16

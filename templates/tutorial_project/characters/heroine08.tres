@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "10"
 }
 profile = "活泼的蒸汽朋克风冒险少女，褐发短发蓝眼，戴猫咪徽章报童帽，身着工装连体裤"
+display_offset = Vector2(0, 0.15)
 

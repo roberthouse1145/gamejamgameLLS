@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "10"
 }
 profile = "忧郁神秘的洛丽塔少女，金发长编发紫瞳，戴眼罩，身着酒红外套，手提破旧兔公仔"
+display_offset = Vector2(0, 0.15)
 

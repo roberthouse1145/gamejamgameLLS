@@ -38,7 +38,7 @@ func validate(command: Resource):
 		result.add_error("characters must be an Array")
 	if params.has("characters_csv") and not (params.get("characters_csv") is String):
 		result.add_error("characters_csv must be a String")
-	if params.has("duration") and not (params.get("duration") is int or params.get("duration") is float):
+	if params.has("duration") and not _is_number_like_value(params.get("duration")):
 		result.add_error("duration must be a number")
 	return result
 
@@ -46,11 +46,11 @@ func validate(command: Resource):
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 	var params: Dictionary = command.params if command.params else {}
 	var stage_characters: Array[String] = _extract_stage_characters(params)
-	var duration: float = float(params.get("duration", 0.35))
-	var exit_effect: String = str(params.get("exit_effect", "fade")).strip_edges()
-	var exit_distance: float = float(params.get("exit_distance", 0.08))
-	var move_easing: String = str(params.get("move_easing", "ease_in_out")).strip_edges()
-	var exit_easing: String = str(params.get("exit_easing", "ease_in")).strip_edges()
+	var duration: float = _get_param(command, "duration", 0.35)
+	var exit_effect: String = _get_param(command, "exit_effect", "fade")
+	var exit_distance: float = _get_param(command, "exit_distance", 0.08)
+	var move_easing: String = _get_param(command, "move_easing", "ease_in_out")
+	var exit_easing: String = _get_param(command, "exit_easing", "ease_in")
 
 	if context.character_display == null or not context.character_display.has_method("stage_exit"):
 		return CommandResultClass.error("stage_exit is unavailable on character_display")

@@ -20,11 +20,10 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var node_id: String = params.get("node_id", "")
-	var norm_w: float = float(params.get("norm_w", 0.1))
-	var norm_h: float = float(params.get("norm_h", 0.1))
-	var duration: float = float(params.get("duration", 0.3))
+	var node_id: String = _get_param(command, "node_id", "")
+	var norm_w: float = _get_param(command, "norm_w", 0.1)
+	var norm_h: float = _get_param(command, "norm_h", 0.1)
+	var duration: float = _get_param(command, "duration", 0.3)
 	var runner: Node = context.scene_runner
 	if runner == null:
 		return CommandResultClass.error("RESIZE_NODE: no scene_runner")

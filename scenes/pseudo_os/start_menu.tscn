@@ -1,9 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bfrjh117rvb56"]
 
-[ext_resource type="Script" path="res://scripts/pseudo_os/start_menu.gd" id="1_start_menu"]
+[ext_resource type="Script" uid="uid://dynynhjm20s73" path="res://scripts/pseudo_os/start_menu.gd" id="1_start_menu"]
 
-[node name="StartMenu" type="PanelContainer"]
-anchors_preset = 0
+[node name="StartMenu" type="PanelContainer" unique_id=1999969438]
 offset_right = 260.0
 offset_bottom = 140.0
 script = ExtResource("1_start_menu")

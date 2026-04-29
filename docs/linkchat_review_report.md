@@ -72,7 +72,7 @@ topic_type: String        # casual_interaction / work_task / ...
 npc_id: String            # 对话NPC
 channel_id: String        # 所属频道
 system_prompt: String     # LLM system prompt
-max_turns: int            # 0=无限
+max_turns: int            # 已停用，保留仅为兼容旧数据
 turn_count: int           # 当前轮数
 ```
 

@@ -80,8 +80,6 @@ func _setup_ai_services() -> void:
 	var config_mgr := AIConfigManager.get_instance()
 	_writer_ready = config_mgr.apply_to_service(_writer_service, WRITER_ROLE)
 	if not _writer_ready:
-		_writer_ready = config_mgr.apply_to_service(_writer_service, "avg_dev_writer")
-	if not _writer_ready:
 		_writer_ready = config_mgr.apply_to_service(_writer_service, "chat_default")
 
 
@@ -108,15 +106,21 @@ func _build_prompt(session: Dictionary) -> String:
 	if prompt_manager == null or not prompt_manager.has_method("resolve_with_vars"):
 		return base_prompt
 
-	var preview_source_key: String = str(session.get("scene_preview_source_key", PREVIEW_SOURCE_KEY)).strip_edges()
+	var default_preview_source_key: String = PREVIEW_SOURCE_KEY
+	var default_preview_prompt_key: String = PREVIEW_PROMPT_KEY
+	if str(session.get("activity_type", "")).strip_edges() == "story" or session.has("story_scene_prompt"):
+		default_preview_source_key = "story_scene_preview_source"
+		default_preview_prompt_key = "story_scene_dsl_preview"
+
+	var preview_source_key: String = str(session.get("scene_preview_source_key", default_preview_source_key)).strip_edges()
 	if preview_source_key.is_empty():
-		preview_source_key = PREVIEW_SOURCE_KEY
+		preview_source_key = default_preview_source_key
 	var preview_asset_key: String = str(session.get("scene_asset_prompt_key", PREVIEW_ASSET_KEY)).strip_edges()
 	if preview_asset_key.is_empty():
 		preview_asset_key = PREVIEW_ASSET_KEY
-	var preview_prompt_key: String = str(session.get("scene_preview_prompt_key", PREVIEW_PROMPT_KEY)).strip_edges()
+	var preview_prompt_key: String = str(session.get("scene_preview_prompt_key", default_preview_prompt_key)).strip_edges()
 	if preview_prompt_key.is_empty():
-		preview_prompt_key = PREVIEW_PROMPT_KEY
+		preview_prompt_key = default_preview_prompt_key
 
 	var ctx: Dictionary = {
 		preview_source_key: base_prompt,
@@ -147,7 +151,6 @@ func _request_generation(context: Dictionary) -> bool:
 
 	var request_id: String = _writer_service.chat_simple(prompt_text, _build_system_prompt(), {
 		"temperature": 0.75,
-		"max_tokens": 2400,
 	})
 	if request_id.is_empty():
 		return false
@@ -176,6 +179,7 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 	if not reasoning_text.is_empty():
 		print("[AVGSceneGenerator] Writer reasoning: %s" % reasoning_text)
 	var sanitized_text: String = _strip_code_fences(raw_text)
+	print("[AVGSceneGenerator] DSL from LLM (session=%s):\n%s" % [str(context.get("session_id", "")), sanitized_text])
 	var validation: Dictionary = _validate_dsl(sanitized_text)
 	print("[AVGSceneGenerator] Writer response: %s | ok=%s | %s" % [
 		str(context.get("session_id", "")),
@@ -189,16 +193,16 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 	# 尝试使用 Repair Agent 修复（而非直接全量重试）
 	if _repair_agent != null and _repair_agent.is_available():
 		var session_id: String = str(context.get("session_id", ""))
-		var attempt: int = int(context.get("attempt", 0))
+		var repair_attempt: int = int(context.get("attempt", 0))
 		# 保存上下文供 repair 完成/失败后继续流程
 		_request_context_by_id["repair_" + session_id] = {
 			"session_id": session_id,
 			"session": context.get("session", {}),
 			"base_prompt": str(context.get("base_prompt", "")),
-			"attempt": attempt,
+			"attempt": repair_attempt,
 			"raw_dsl": sanitized_text,
 		}
-		print("[AVGSceneGenerator] Attempting DSL repair for %s (attempt %d)" % [session_id, attempt])
+		print("[AVGSceneGenerator] Attempting DSL repair for %s (attempt %d)" % [session_id, repair_attempt])
 		_repair_agent.attempt_repair(
 			session_id,
 			sanitized_text,
@@ -228,7 +232,7 @@ func _on_repair_completed(session_id: String, repaired_dsl: String) -> void:
 	# 重新解析修复后的 DSL 以获取 commands
 	var validation: Dictionary = _validate_dsl(repaired_dsl)
 	if bool(validation.get("ok", false)):
-		print("[AVGSceneGenerator] Repair succeeded, emitting scene for %s" % session_id)
+		print("[AVGSceneGenerator] Repair succeeded for %s. Repaired DSL:\n%s" % [session_id, repaired_dsl])
 		_emit_scene_generated(session_id, validation.get("commands", []), context.get("session", {}))
 	else:
 		# 修复后仍然不通过（理论上不应发生），回退到全量重试
@@ -481,8 +485,6 @@ func _build_scene_package(session_id: String, commands: Array, session: Dictiona
 	scene.scene_id = "%s_%s" % [scene_prefix, session_id]
 	scene.scene_name = scene_title
 	scene.nodes = [root]
-	scene.local_variables = []
-
 	project.project_name = "%s_%s" % [scene_prefix, session_id]
 	project.scenes = [scene]
 	project.variables = _merge_project_variables(project.variables, [_make_choice_variable()])
@@ -655,7 +657,7 @@ func _merge_project_variables(existing_variables: Array, additions: Array) -> Ar
 func _make_choice_variable() -> Resource:
 	var variable := AVGVariableClass.new()
 	variable.variable_id = NORMAL_CHOICE_VAR_ID
-	variable.variable_name = "date_choice_id"
+	AVGVariableClass.apply_key(variable, "date_choice_id")
 	variable.default_value = 0
 	variable.description = "Selected normal date choice"
 	return variable

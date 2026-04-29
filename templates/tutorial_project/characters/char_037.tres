@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_q484y"]
+
+[resource]
+script = ExtResource("1_q484y")
+character_id = "char_037"
+character_name = "Hero16"
+display_name = "Hero16"
+sprites = {
+"angry": "assets/images/character/hero16/hero_16_cos09.png",
+"default": "assets/images/character/hero16/hero_16_cos01.png",
+"happy": "assets/images/character/hero16/hero_16_cos18.png",
+"laugh": "assets/images/character/hero16/hero_16_cos19.png",
+"sad": "assets/images/character/hero16/hero_16_cos04.png",
+"serious": "assets/images/character/hero16/hero_16_cos02.png",
+"shy": "assets/images/character/hero16/hero_16_cos17.png",
+"smug": "assets/images/character/hero16/hero_16_cos07.png",
+"surprised": "assets/images/character/hero16/hero_16_cos10.png",
+"thinking": "assets/images/character/hero16/hero_16_cos14.png",
+"worried": "assets/images/character/hero16/hero_16_cos12.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "09",
+"default": "01",
+"happy": "18",
+"laugh": "19",
+"sad": "04",
+"serious": "02",
+"shy": "17",
+"smug": "07",
+"surprised": "10",
+"thinking": "14",
+"worried": "12"
+}
+profile = "神秘阴郁的兆帽青年，红白挑染短发，紫瞳，身着符文黑袍戴骨饰，手持提灯法杖"
+display_offset = Vector2(0, 0.15)

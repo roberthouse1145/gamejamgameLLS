@@ -19,21 +19,44 @@ func _register_project_read_only_tools() -> void:
 	_ai_service.register_tool("project_info", "获取当前项目基础信息（名称、分辨率、场景数、角色数、变量数等）。", {
 		"type": "object",
 		"properties": {},
-	}, func(args: Dictionary) -> Variant: return AVGDevProjectTools._project_info(args))
+	}, func(args: Dictionary) -> Variant: return AVGDevProjectTools._project_info(args), {
+		"fields": ["success", "data.project_name", "data.resolution", "data.scene_count", "data.character_count", "data.variable_count", "data.event_count", "data.initial_scene_id", "data.initial_scene_name", "error"]
+	})
+
+	_ai_service.register_tool("list_scene_catalog", "获取场景目录摘要，返回场景 ID、名称、备注，以及初始场景/孤立场景提示。", {
+		"type": "object",
+		"properties": {},
+	}, func(args: Dictionary) -> Variant: return AVGDevProjectTools._list_scene_catalog(args), {
+		"fields": ["success", "data", "entry_scene_id", "error"]
+	})
+
+	_ai_service.register_tool("analyze_story_reachability", "分析当前项目的剧情可达性，检查孤立场景、不可达分支和 unknown 路径。", {
+		"type": "object",
+		"properties": {
+			"max_total_states": {"type": "integer"},
+			"max_command_steps": {"type": "integer"},
+		},
+	}, func(args: Dictionary) -> Variant: return AVGDevProjectTools._analyze_story_reachability(args), {
+		"fields": ["success", "data.entry_scene_id", "data.scene_catalog", "data.unreachable_scenes", "data.warnings", "error"]
+	})
 
 	_ai_service.register_tool("list_assets", "列出当前项目可用资源及 alias。只有在你需要确认真实资源范围时才调用。", {
 		"type": "object",
 		"properties": {
 			"category": {"type": "string", "enum": ["all", "backgrounds", "images", "cg", "bgm", "sfx", "characters"], "description": "要查询的资源类别，默认 all"}
 		},
-	}, func(args: Dictionary) -> Variant: return AVGDevProjectTools._list_assets(args))
+	}, func(args: Dictionary) -> Variant: return AVGDevProjectTools._list_assets(args), {
+		"fields": ["success", "data", "error"]
+	})
 
 
 func _register_dev_cycle_snapshot_tool() -> void:
 	_ai_service.register_tool("get_dev_cycle_snapshot", "获取当前开发循环的简要状态，包括当前天数、可见任务、已完成任务数量、工单队列情况、计划是否已生成。", {
 		"type": "object",
 		"properties": {},
-	}, func(args: Dictionary) -> Variant: return _get_dev_cycle_snapshot(args))
+	}, func(args: Dictionary) -> Variant: return _get_dev_cycle_snapshot(args), {
+		"fields": ["success", "data.current_day", "data.visible_tasks", "data.completed_task_count", "data.queue_size", "data.order_active", "data.plan_generated", "data.plan_generating", "error"]
+	})
 
 
 func _get_dev_cycle_snapshot(_args: Dictionary) -> Dictionary:

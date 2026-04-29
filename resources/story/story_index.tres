@@ -1,20 +1,38 @@
 [gd_resource type="Resource" script_class="StoryChapterIndex" format=3]
 
-[ext_resource type="Resource" path="res://resources/story/generated/day1.tres" id="1_pytuj"]
-[ext_resource type="Resource" path="res://resources/story/generated/test_brief.tres" id="2_x12l7"]
-[ext_resource type="Resource" path="res://resources/story/generated/test_dev.tres" id="3_oy0wn"]
-[ext_resource type="Script" path="res://scripts/story/resources/story_chapter_index.gd" id="4_04u0k"]
+[ext_resource type="Resource" path="res://resources/story/generated/day1.tres" id="1_sh5o1"]
+[ext_resource type="Resource" path="res://resources/story/generated/day2.tres" id="2_mv5r5"]
+[ext_resource type="Resource" path="res://resources/story/generated/day7_night.tres" id="3_5iwjj"]
+[ext_resource type="Resource" path="res://resources/story/generated/day8.tres" id="4_tvny7"]
+[ext_resource type="Resource" path="res://resources/story/generated/test_brief.tres" id="5_w3bsh"]
+[ext_resource type="Resource" path="res://resources/story/generated/test_day1_brief.tres" id="6_jvfm4"]
+[ext_resource type="Resource" path="res://resources/story/generated/test_dev.tres" id="7_q7272"]
+[ext_resource type="Resource" path="res://resources/story/generated/test_project_preview.tres" id="8_hh2mo"]
+[ext_resource type="Resource" path="res://resources/story/generated/test_sleep_invite.tres" id="9_n7he2"]
+[ext_resource type="Script" path="res://scripts/story/resources/story_chapter_index.gd" id="10_1ttlf"]
 
 [resource]
-script = ExtResource("4_04u0k")
-chapters = Array[Resource]([ExtResource("1_pytuj"), ExtResource("2_x12l7"), ExtResource("3_oy0wn")])
+script = ExtResource("10_1ttlf")
+chapters = Array[Resource]([ExtResource("1_sh5o1"), ExtResource("2_mv5r5"), ExtResource("3_5iwjj"), ExtResource("4_tvny7"), ExtResource("5_w3bsh"), ExtResource("6_jvfm4"), ExtResource("7_q7272"), ExtResource("8_hh2mo"), ExtResource("9_n7he2")])
 chapter_sources = {
 "day1": "res://resources/story/chapters/day1.txt",
+"day2": "res://resources/story/chapters/day2.txt",
+"day7_night": "res://resources/story/chapters/day7_night.txt",
+"day8": "res://resources/story/chapters/day8.txt",
 "test_brief": "res://resources/story/chapters/test_brief.txt",
-"test_dev": "res://resources/story/chapters/test_dev.txt"
+"test_day1_brief": "res://resources/story/chapters/test_day1_brief.txt",
+"test_dev": "res://resources/story/chapters/test_dev.txt",
+"test_project_preview": "res://resources/story/chapters/test_project_preview.txt",
+"test_sleep_invite": "res://resources/story/chapters/test_sleep_invite.txt"
 }
 compiled_paths = {
 "day1": "res://resources/story/generated/day1.tres",
+"day2": "res://resources/story/generated/day2.tres",
+"day7_night": "res://resources/story/generated/day7_night.tres",
+"day8": "res://resources/story/generated/day8.tres",
 "test_brief": "res://resources/story/generated/test_brief.tres",
-"test_dev": "res://resources/story/generated/test_dev.tres"
+"test_day1_brief": "res://resources/story/generated/test_day1_brief.tres",
+"test_dev": "res://resources/story/generated/test_dev.tres",
+"test_project_preview": "res://resources/story/generated/test_project_preview.tres",
+"test_sleep_invite": "res://resources/story/generated/test_sleep_invite.tres"
 }

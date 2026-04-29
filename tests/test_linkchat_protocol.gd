@@ -1,14 +1,25 @@
 extends Control
 
 const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
+const ChatChannelClass = preload("res://scripts/chat/resources/chat_channel.gd")
+const ChatProtocolExecutorClass = preload("res://scripts/chat/chat_protocol_executor.gd")
+const ChatResponseParserClass = preload("res://scripts/chat/chat_response_parser.gd")
+const ChatRunStateCodecClass = preload("res://scripts/chat/chat_run_state_codec.gd")
+const ChatStateStoreClass = preload("res://scripts/chat/chat_state_store.gd")
+const TopicManagerClass = preload("res://scripts/chat/topic_manager.gd")
 const WindowManagerClass = preload("res://scripts/pseudo_os/window_manager.gd")
 
 
 func _ready() -> void:
 	print("[Test] LinkChat protocol tests start")
 	_test_chat_manager_stores_normalized_npc_message()
+	_test_chat_response_parser_direct_usage()
+	_test_chat_protocol_executor_direct_usage()
+	_test_chat_state_store_direct_usage()
+	_test_chat_run_state_codec_direct_usage()
 	_test_strip_thinking_tag_variants()
 	_test_ai_service_extract_content_strips_think()
+	_test_chat_manager_extracts_thinking_from_raw_message()
 	_test_linkchat_response_protocol_parser()
 	_test_linkchat_standalone_card_line_parser()
 	_test_linkchat_extended_protocol_parser()
@@ -31,6 +42,216 @@ func _test_chat_manager_stores_normalized_npc_message() -> void:
 		return
 
 	print("[OK] ChatManager returns normalized stored NPC messages")
+
+
+func _test_chat_response_parser_direct_usage() -> void:
+	var parser := ChatResponseParserClass.new().setup(
+		func(card: Dictionary) -> Dictionary:
+			return card.duplicate(true),
+		["open_browser", "focus_app", "launch_app", "post_moment", "lock_app_window", "unlock_app_window", "generate_work_order"]
+	)
+	var parsed: Dictionary = parser.parse_ai_response_text(
+		"@npc_lin_xia: 先看这个\n!action type=open_browser url=\"gamejam://forum/theme\" timing=after_messages\n> 好",
+		"npc_lin_xia"
+	)
+	var messages: Array = parsed.get("messages", [])
+	var actions: Array = parsed.get("actions", [])
+	var replies: Array = parsed.get("recommended_replies", [])
+	var ok: bool = messages.size() == 1 \
+		and str(messages[0].get("speaker", "")) == "npc_lin_xia" \
+		and actions.size() == 1 \
+		and str(actions[0].get("type", "")) == "open_browser" \
+		and replies.size() == 1
+	if not ok:
+		print("[FAIL] ChatResponseParser direct usage regression")
+		print("  parsed: %s" % str(parsed))
+		return
+
+	print("[OK] ChatResponseParser direct usage keeps protocol parsing independent")
+
+
+func _test_chat_protocol_executor_direct_usage() -> void:
+	await _ensure_window_manager()
+	var executor := ChatProtocolExecutorClass.new().setup(
+		func(_npc_id: String, _content: String, _image_hint: String = "", _likes: int = 0) -> Variant:
+			return null,
+		func(_channel_id: String) -> Array[Dictionary]:
+			return []
+	)
+	add_child(executor)
+
+	var topic := ChatTopicClass.new()
+	topic.topic_id = "test_protocol_executor_direct"
+	topic.topic_type = "story_event"
+	topic.display_title = "Protocol Executor"
+	topic.npc_id = "npc_lin_xia"
+	topic.channel_id = "dm_lin_xia"
+
+	var capture := {
+		"event_id": "",
+		"url": "",
+	}
+	executor.event_emitted.connect(func(emitted_topic: ChatTopic, event_id: String, payload: Dictionary) -> void:
+		if emitted_topic.topic_id != topic.topic_id:
+			return
+		capture["event_id"] = event_id
+		capture["url"] = str(payload.get("url", ""))
+	, CONNECT_ONE_SHOT)
+	BrowserManager.url_open_requested.connect(func(url: String, _design_prompt: String, _page_context: String) -> void:
+		capture["url"] = url
+	, CONNECT_ONE_SHOT)
+
+	executor.execute_effects(topic, [{
+		"id": "executor_direct_event",
+		"payload": {"url": "gamejam://forum/theme"},
+	}], [{
+		"type": "open_browser",
+		"url": "gamejam://forum/theme",
+	}])
+	await get_tree().process_frame
+
+	var ok: bool = str(capture.get("event_id", "")) == "executor_direct_event" \
+		and str(capture.get("url", "")) == "gamejam://forum/theme"
+	if not ok:
+		print("[FAIL] ChatProtocolExecutor direct usage regression")
+		print("  captured_event_id: %s" % str(capture.get("event_id", "")))
+		print("  captured_url: %s" % str(capture.get("url", "")))
+		return
+
+	print("[OK] ChatProtocolExecutor direct usage keeps effect execution independent")
+
+
+func _test_chat_run_state_codec_direct_usage() -> void:
+	var store := {
+		"channels": {},
+		"order": [] as Array[String],
+	}
+	var add_channel_callable := func(channel_id: String, display_name: String, channel_type: int, members_list: Array) -> void:
+		var channel := ChatChannelClass.new()
+		channel.channel_id = channel_id
+		channel.display_name = display_name
+		channel.channel_type = channel_type as ChatChannelClass.ChannelType
+		channel.members.assign(members_list)
+		store["channels"][channel_id] = channel
+		(store["order"] as Array[String]).append(channel_id)
+	var get_channel_callable := func(channel_id: String) -> Resource:
+		return (store["channels"] as Dictionary).get(channel_id)
+	var build_author_callable := func(npc_id: String, _author_override: Dictionary = {}) -> Dictionary:
+		return {
+			"id": npc_id,
+			"display_name": npc_id,
+			"avatar_mode": "seed",
+			"avatar_seed": npc_id,
+		}
+	var codec := ChatRunStateCodecClass.new().setup(
+		add_channel_callable,
+		get_channel_callable,
+		build_author_callable
+	)
+
+	var source_channel := ChatChannelClass.new()
+	source_channel.channel_id = "dm_codec"
+	source_channel.display_name = "Codec"
+	source_channel.channel_type = ChatChannelClass.ChannelType.DM
+	source_channel.members = ["player", "npc_lin_xia"]
+	source_channel.pinned = true
+	source_channel.unread_count = 2
+	source_channel.messages = [{
+		"sender_id": "npc_lin_xia",
+		"sender_name": "林夏",
+		"content": "codec payload",
+	}]
+
+	var source_topic_manager := TopicManagerClass.new()
+	add_child(source_topic_manager)
+	source_topic_manager.topic_history.append({"topic_id": "codec_topic"})
+
+	var run_state := codec.build_run_state(
+		{"dm_codec": source_channel},
+		["dm_codec"],
+		[{"id": "moment_codec", "npc_id": "npc_lin_xia", "content": "hello"}],
+		3,
+		"dm_codec",
+		source_topic_manager,
+		false
+	)
+
+	var restored_topic_manager := TopicManagerClass.new()
+	add_child(restored_topic_manager)
+	var restored: Dictionary = codec.load_run_state(run_state, true, restored_topic_manager)
+	var restored_channel: ChatChannel = (store["channels"] as Dictionary).get("dm_codec") as ChatChannel
+	var restored_moments: Array = restored.get("moments", [])
+	var ok: bool = restored_channel != null \
+		and restored_channel.pinned \
+		and restored_channel.messages.size() == 1 \
+		and restored_moments.size() == 1 \
+		and (restored_moments[0] as Dictionary).has("author") \
+		and int(restored.get("moments_unread", 0)) == 3 \
+		and str(restored.get("last_activated_topic_channel_id", "")) == "dm_codec" \
+		and restored_topic_manager.topic_history.size() == 1
+	if not ok:
+		print("[FAIL] ChatRunStateCodec direct usage regression")
+		print("  restored: %s" % str(restored))
+		print("  restored_channel: %s" % str(restored_channel))
+		return
+
+	print("[OK] ChatRunStateCodec direct usage keeps persistence logic independent")
+
+
+func _test_chat_state_store_direct_usage() -> void:
+	var build_author_callable := func(npc_id: String, _author_override: Dictionary = {}) -> Dictionary:
+		return {
+			"id": npc_id,
+			"display_name": npc_id,
+			"avatar_mode": "seed",
+			"avatar_seed": npc_id,
+		}
+	var store := ChatStateStoreClass.new().setup(build_author_callable)
+	store.add_channel("dm_store", "Store", ChatChannelClass.ChannelType.DM, ["player", "npc_lin_xia"])
+
+	var stored_message := store.store_message_data("dm_store", "npc_lin_xia", "林夏", {
+		"content": "state store payload",
+		"card": {"type": "web_page", "title": "Store"},
+	})
+	var stored_moment := store.store_moment({
+		"id": "moment_store",
+		"npc_id": "npc_lin_xia",
+		"author": build_author_callable.call("npc_lin_xia"),
+		"content": "store moment",
+		"likes": 1,
+		"liked_by_player": false,
+		"comments": [] as Array[Dictionary],
+	})
+	store.like_moment("moment_store")
+
+	var topic_manager := TopicManagerClass.new()
+	add_child(topic_manager)
+	topic_manager.topic_history.append({"topic_id": "store_topic"})
+	var run_state := store.build_run_state("dm_store", topic_manager, false)
+
+	var restored_topic_manager := TopicManagerClass.new()
+	add_child(restored_topic_manager)
+	var restored_store := ChatStateStoreClass.new().setup(build_author_callable)
+	var restored: Dictionary = restored_store.load_run_state(run_state, true, restored_topic_manager)
+	var restored_channel := restored_store.get_channel("dm_store") as ChatChannel
+	var restored_moments := restored_store.get_moments()
+	var ok: bool = not stored_message.is_empty() \
+		and str(stored_message.get("sender_name", "")) == "林夏" \
+		and str(stored_moment.get("id", "")) == "moment_store" \
+		and restored_channel != null \
+		and restored_channel.messages.size() == 1 \
+		and restored_moments.size() == 1 \
+		and bool((restored_moments[0] as Dictionary).get("liked_by_player", false)) \
+		and int(restored.get("moments_unread", 0)) == 1 \
+		and restored_topic_manager.topic_history.size() == 1
+	if not ok:
+		print("[FAIL] ChatStateStore direct usage regression")
+		print("  restored: %s" % str(restored))
+		print("  restored_channel: %s" % str(restored_channel))
+		print("  restored_moments: %s" % str(restored_moments))
+		return
+
+	print("[OK] ChatStateStore direct usage keeps chat state ownership independent")
 
 
 func _ensure_window_manager() -> void:
@@ -101,6 +322,28 @@ func _test_ai_service_extract_content_strips_think() -> void:
 		return
 
 	print("[OK] AIService splits content and reasoning_content")
+
+
+func _test_chat_manager_extracts_thinking_from_raw_message() -> void:
+	var response := {
+		"choices": [{
+			"message": {
+				"content": [{
+					"type": "text",
+					"text": "<thinking>test reasoning</thinking>\n@npc_lin_xia: theme is out"
+				}]
+			}
+		}]
+	}
+	var extracted: Dictionary = ChatManager.call("_extract_ai_response_texts", response)
+	var ok: bool = str(extracted.get("content", "")) == "@npc_lin_xia: theme is out" \
+		and str(extracted.get("thinking", "")) == "test reasoning"
+	if not ok:
+		print("[FAIL] ChatManager should extract thinking from raw assistant messages")
+		print("  extracted: %s" % str(extracted))
+		return
+
+	print("[OK] ChatManager extracts thinking from raw assistant messages")
 
 
 func _test_linkchat_response_protocol_parser() -> void:

@@ -16,6 +16,7 @@ extends Node
 
 # ==================== 信号 ====================
 signal bgm_changed(stream: AudioStream)
+signal bgm_finished(stream: AudioStream)
 
 # ==================== SFX 音效池大小 ====================
 const SFX_POOL_SIZE: int = 8
@@ -38,7 +39,7 @@ var bgm_volume_db: float = 0.0:
 ## key: 逻辑名称，value: res:// 路径（延迟加载，首次使用时 load）
 var _sfx_registry: Dictionary = {
 	# UI
-	"ui_click":        "res://Assets/sounds/ui/click.ogg",
+	"ui_click":        "res://Assets/sounds/ui/cursor_click.wav",
 	"ui_hover":        "res://Assets/sounds/ui/hover.ogg",
 	"ui_window_open":  "res://Assets/sounds/ui/window_open.ogg",
 	"ui_window_close": "res://Assets/sounds/ui/window_close.ogg",
@@ -47,8 +48,8 @@ var _sfx_registry: Dictionary = {
 	"sys_confirm":     "res://Assets/sounds/system/confirm.ogg",
 	"sys_notify":      "res://Assets/sounds/system/notify.ogg",
 	# 聊天
-	"chat_send":       "res://Assets/sounds/chat/send.ogg",
-	"chat_receive":    "res://Assets/sounds/chat/receive.ogg",
+	"chat_send":       "res://Assets/sounds/chat/message_send.wav",
+	"chat_receive":    "res://Assets/sounds/chat/message_send.wav",
 	"chat_typing":     "res://Assets/sounds/chat/typing.ogg",
 }
 
@@ -82,12 +83,14 @@ func _ready() -> void:
 	_bgm_player_a = AudioStreamPlayer.new()
 	_bgm_player_a.bus = "BGM"
 	_bgm_player_a.volume_db = bgm_volume_db
+	_bgm_player_a.finished.connect(_on_bgm_player_finished.bind(_bgm_player_a))
 	add_child(_bgm_player_a)
 
 	_bgm_player_b = AudioStreamPlayer.new()
 	_bgm_player_b.bus = "BGM"
 	_bgm_player_b.volume_db = bgm_volume_db
 	_bgm_player_b.volume_db = -80.0  # 初始静音
+	_bgm_player_b.finished.connect(_on_bgm_player_finished.bind(_bgm_player_b))
 	add_child(_bgm_player_b)
 
 	_bgm_active_player = _bgm_player_a
@@ -200,7 +203,44 @@ func resume_bgm() -> void:
 	_bgm_active_player.stream_paused = false
 
 
+func seek_bgm(position_seconds: float) -> void:
+	if _bgm_active_player == null or _bgm_active_player.stream == null:
+		return
+	_bgm_active_player.seek(maxf(position_seconds, 0.0))
+
+
+func get_current_bgm_stream() -> AudioStream:
+	return _bgm_current_stream
+
+
+func get_bgm_playback_position() -> float:
+	if _bgm_active_player == null or not _bgm_active_player.playing:
+		return 0.0
+	return _bgm_active_player.get_playback_position()
+
+
+func is_bgm_paused() -> bool:
+	if _bgm_active_player == null:
+		return false
+	return _bgm_active_player.stream_paused
+
+
+func is_bgm_playing() -> bool:
+	if _bgm_active_player == null:
+		return false
+	return _bgm_active_player.playing and not _bgm_active_player.stream_paused
+
+
 ## 动态注册新的音效 key（运行时也可调用）
 func register_sfx(key: String, path: String) -> void:
 	_sfx_registry[key] = path
 	_sfx_cache.erase(key)  # 清除旧缓存
+
+
+func _on_bgm_player_finished(player: AudioStreamPlayer) -> void:
+	if player != _bgm_active_player:
+		return
+	var finished_stream: AudioStream = _bgm_current_stream
+	_bgm_current_stream = null
+	if finished_stream != null:
+		bgm_finished.emit(finished_stream)

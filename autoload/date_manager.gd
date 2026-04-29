@@ -4,9 +4,12 @@ const ActivityCatalogProtocolClass = preload("res://scripts/activity/activity_ca
 const ActivityOptionLLMServiceClass = preload("res://scripts/activity/activity_option_llm_service.gd")
 
 # =============================================================================
-# DateManager 鈥?绾︿細娲诲姩绠＄悊鍣?#
-# 缁ф壙 ActivitySessionManager锛岄澶栨彁渚涳細
-# - 鍦扮偣鏁版嵁鍔犺浇锛坉ate_locations.json锛?# - Important Event 鍙岃建绯荤粺锛圖ateEventBuilder锛?# =============================================================================
+# DateManager — 约会活动管理器
+#
+# 继承 ActivitySessionManager，额外提供：
+# - 地点数据加载（date_locations.json）
+# - Important Event 双轨系统（DateEventBuilder）
+# =============================================================================
 
 signal date_started(session_id: String, payload: Dictionary)
 signal transit_started(session_id: String, payload: Dictionary)
@@ -28,6 +31,7 @@ var _events_by_id: Dictionary = {}
 var _date_event_builder: RefCounted = null
 var _played_important_events: Dictionary = {}
 var _avg_history: Array = []
+var _avg_history_replay_payloads: Dictionary = {}
 
 
 # =============================================================================
@@ -70,7 +74,7 @@ func _build_session(_session_id: String, entry_id: String, entry: Dictionary) ->
 		"important_event_result": {},
 		"important_event_outline": "",
 		"important_event_window": null,
-		"scene_window_title": "绾︿細涓? %s" % str(entry.get("title", "Date")),
+		"scene_window_title": "约会中：%s" % str(entry.get("title", "Date")),
 	}
 	if _date_event_builder != null and _supports_interactive_date_events():
 		session["important_event_available"] = _date_event_builder.has_event_for_session(session, _played_important_events)
@@ -78,6 +82,8 @@ func _build_session(_session_id: String, entry_id: String, entry: Dictionary) ->
 
 
 func _on_session_begin(session: Dictionary) -> void:
+	if str(session.get("session_origin", "")).strip_edges() == "npc_initiative":
+		return
 	_send_player_event_card(session.get("location", {}))
 
 
@@ -133,8 +139,8 @@ func get_available_locations() -> Array[Dictionary]:
 	return get_available_events()
 
 
-func begin_date(event_id: String, transit_duration: float = DEFAULT_TRANSIT_DURATION) -> Dictionary:
-	var result := begin_session(event_id, transit_duration)
+func begin_date(event_id: String, transit_duration: float = DEFAULT_TRANSIT_DURATION, skip_departure: bool = false) -> Dictionary:
+	var result := begin_session(event_id, transit_duration, skip_departure)
 	if result.get("success", false):
 		var sid: String = str(result.get("session_id", ""))
 		date_started.emit(sid, result)
@@ -194,18 +200,55 @@ func load_run_state(data: Dictionary) -> bool:
 
 
 func get_avg_history() -> Array:
-	return _avg_history
+	var result: Array = _avg_history.duplicate(true)
+	for i in range(result.size()):
+		if not result[i] is Dictionary:
+			continue
+		var entry: Dictionary = (result[i] as Dictionary).duplicate(true)
+		var session_id := str(entry.get("session_id", "")).strip_edges()
+		entry["has_replay"] = _avg_history_replay_payloads.has(session_id)
+		if entry["has_replay"]:
+			entry["replay_type"] = str((_avg_history_replay_payloads[session_id] as Dictionary).get("type", ""))
+		result[i] = entry
+	return result
 
 
 func add_avg_history_entry(entry: Dictionary) -> void:
-	_avg_history.insert(0, entry)
+	_avg_history.insert(0, _sanitize_avg_history_entry(entry))
 	if _avg_history.size() > 50:
 		_avg_history.resize(50)
+
+
+func register_avg_history_replay(session_id: String, replay_type: String, payload: Dictionary) -> void:
+	var normalized_session_id := session_id.strip_edges()
+	var normalized_type := replay_type.strip_edges()
+	if normalized_session_id.is_empty() or normalized_type.is_empty() or payload.is_empty():
+		return
+	_avg_history_replay_payloads[normalized_session_id] = {
+		"type": normalized_type,
+		"payload": payload.duplicate(true),
+	}
+
+
+func get_avg_history_replay(session_id: String) -> Dictionary:
+	var normalized_session_id := session_id.strip_edges()
+	if normalized_session_id.is_empty() or not _avg_history_replay_payloads.has(normalized_session_id):
+		return {}
+	return (_avg_history_replay_payloads[normalized_session_id] as Dictionary).duplicate(true)
+
+
+func _sanitize_avg_history_entry(entry: Dictionary) -> Dictionary:
+	var sanitized := entry.duplicate(true)
+	sanitized.erase("has_replay")
+	sanitized.erase("replay_type")
+	sanitized.erase("replay_payload")
+	return sanitized
 
 
 func _on_reset_runtime_state() -> void:
 	_played_important_events.clear()
 	_avg_history.clear()
+	_avg_history_replay_payloads.clear()
 	_event_request_id = ""
 	_is_generating_events = false
 	if _event_generator != null and _event_generator.has_method("clear_pending_requests"):
@@ -299,9 +342,6 @@ func _ready() -> void:
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm != null and glm.has_signal("day_changed"):
 		glm.day_changed.connect(_on_day_changed)
-	# Pre-generate Day 2 events (after AI service is ready)
-	var current_day: int = ActivityUtilsClass.get_current_day()
-	generate_next_day_events(current_day + 1)
 
 
 func _on_base_progress_started(session_id: String, payload: Dictionary) -> void:
@@ -334,7 +374,7 @@ func _on_base_session_completed(session_id: String, payload: Dictionary) -> void
 
 
 # =============================================================================
-# Important Event (Dual-Track) 鈥?DateManager exclusive
+# Important Event (Dual-Track) — DateManager exclusive
 # =============================================================================
 
 func _supports_interactive_date_events() -> bool:
@@ -364,7 +404,7 @@ func _start_important_event(session_id: String) -> bool:
 	var request: Dictionary = _date_event_builder.build_event_request(session, _played_important_events)
 	if not bool(request.get("success", false)):
 		return false
-	var window_title := str(request.get("window_title", "閲嶈绾︿細"))
+	var window_title := str(request.get("window_title", "重要约会"))
 	var result: Dictionary = SceneWindowClass.open_event(window_title, session_id, request, Callable(self, "_on_important_event_finished"))
 	if result.is_empty():
 		return false
@@ -378,7 +418,7 @@ func _start_important_event(session_id: String) -> bool:
 	important_event_started.emit(session_id, {
 		"session_id": session_id,
 		"event_id": str(request.get("event_id", "")),
-		"title": str(request.get("title", "閲嶈绾︿細")),
+		"title": str(request.get("title", "重要约会")),
 	})
 	return true
 
@@ -416,40 +456,20 @@ func _on_important_event_finished(session_id: String, outcome: Dictionary) -> vo
 # Topic / Prompt Building
 # =============================================================================
 
-func _build_topic_prompt(session: Dictionary, stage: String) -> String:
-	var location: Dictionary = session.get("location", {})
-	var title := str(location.get("title", "date spot")).strip_edges()
-	var location_title := str(location.get("location_title", "")).strip_edges()
-	var detail_prompt := str(session.get("detail_prompt", "")).strip_edges()
-	var important_result: Dictionary = session.get("important_event_result", {})
-	var important_event_outline := str(session.get("important_event_outline", "")).strip_edges()
-	var normal_scene_result: Dictionary = session.get("scene_result", {})
-	var normal_scene_outline := str(session.get("scene_outline", "")).strip_edges()
-	var parts: Array[String] = [
-		"You are Lin Xia.",
-		"Current date event: %s" % title,
-	]
-	if not location_title.is_empty():
-		parts.append("Location title: %s" % location_title)
-	if not detail_prompt.is_empty():
-		parts.append("Location details: %s" % detail_prompt)
-	if stage != "departure" and not important_result.is_empty():
-		parts.append("Important event choice: %s" % str(important_result.get("choice_text", "")))
-		parts.append("Important event summary: %s" % str(important_result.get("summary", "")))
-	if stage != "departure" and not normal_scene_result.is_empty():
-		parts.append("Date scene choice: %s" % str(normal_scene_result.get("choice_text", "")))
-	if stage != "departure" and not important_event_outline.is_empty():
-		parts.append("Important event outline:\n%s" % important_event_outline)
-	if stage != "departure" and not normal_scene_outline.is_empty():
-		parts.append("Date scene outline:\n%s" % normal_scene_outline)
-	match stage:
-		"departure":
-			parts.append("Reply with one short departure message only.")
-		"followup":
-			parts.append("Reply with one short followup message only.")
-		_:
-			parts.append("Reply with one short natural message.")
-	return "\n".join(parts)
+func _build_topic_prompt(_session: Dictionary, stage: String) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm == null:
+		return ""
+	var key := ""
+	if stage == "departure":
+		key = "activity_topic_departure"
+	elif stage == "followup":
+		key = "activity_topic_followup"
+	else:
+		return ""
+	return str(pm.resolve_with_vars(key, {
+		"activity_type_label": "约会",
+	})).strip_edges()
 
 
 func _build_topic_goal(stage: String) -> String:
@@ -460,38 +480,104 @@ func _build_topic_goal(stage: String) -> String:
 	return "Send a short natural message"
 
 
-func _build_seed_message(stage: String) -> String:
+func _build_seed_message(stage: String, session: Dictionary = {}) -> String:
 	if stage == "departure":
-		return "Send the departure reply directly."
+		return _build_departure_seed_message(session)
 	if stage == "followup":
-		return "Send the followup reply directly."
-	return "Reply directly."
+		return _build_followup_seed_message(session)
+	return "请直接回复。"
+
+
+func _build_departure_seed_message(session: Dictionary) -> String:
+	var location: Dictionary = session.get("location", {})
+	var title: String = str(location.get("title", "")).strip_edges()
+	var location_title: String = str(location.get("location_title", "")).strip_edges()
+	var subtitle: String = str(location.get("subtitle", "")).strip_edges()
+	var description: String = str(location.get("description", "")).strip_edges()
+	var parts: Array[String] = ["[本次约会卡片的公开信息]"]
+	if not title.is_empty():
+		parts.append("- 事件标题：%s" % title)
+	if not location_title.is_empty():
+		parts.append("- 地点：%s" % location_title)
+	if not subtitle.is_empty():
+		parts.append("- 卡片副标题：%s" % subtitle)
+	if not description.is_empty():
+		parts.append("- 卡片简介：%s" % description)
+	parts.append("")
+	parts.append("请按 departure 规则回一条出发前的短消息。")
+	return "\n".join(parts)
+
+
+func _build_followup_seed_message(session: Dictionary) -> String:
+	var location: Dictionary = session.get("location", {})
+	var title: String = str(location.get("title", "")).strip_edges()
+	var location_title: String = str(location.get("location_title", "")).strip_edges()
+	var important_result: Dictionary = session.get("important_event_result", {})
+	var important_event_outline: String = str(session.get("important_event_outline", "")).strip_edges()
+	var normal_scene_result: Dictionary = session.get("scene_result", {})
+	var normal_scene_outline: String = str(session.get("scene_outline", "")).strip_edges()
+	var parts: Array[String] = ["[本次刚结束的约会]"]
+	if not title.is_empty():
+		parts.append("- 事件标题：%s" % title)
+	if not location_title.is_empty():
+		parts.append("- 地点：%s" % location_title)
+	if not important_result.is_empty():
+		var imp_choice: String = str(important_result.get("choice_text", "")).strip_edges()
+		if not imp_choice.is_empty():
+			parts.append("- 重要事件中你的关键回应：%s" % imp_choice)
+		var imp_summary: String = str(important_result.get("summary", "")).strip_edges()
+		if not imp_summary.is_empty():
+			parts.append("- 重要事件总结：%s" % imp_summary)
+	if not important_event_outline.is_empty():
+		parts.append("- 重要事件实际过程：")
+		parts.append(important_event_outline)
+	if not normal_scene_result.is_empty():
+		var scn_choice: String = str(normal_scene_result.get("choice_text", "")).strip_edges()
+		if not scn_choice.is_empty():
+			parts.append("- 约会场景中你的关键回应：%s" % scn_choice)
+	if not normal_scene_outline.is_empty():
+		parts.append("- 约会场景实际过程：")
+		parts.append(normal_scene_outline)
+	parts.append("")
+	parts.append("请按 followup 规则回一条事后短消息。")
+	return "\n".join(parts)
 
 
 func _build_moment_system_prompt() -> String:
-	return "You are Lin Xia. Write one short Chinese social post after a date. Output plain text only. No JSON. No explanations. No quotes. Max 36 Chinese characters."
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm == null:
+		return "你是林夏。你要发一条刚结束约会后的朋友圈。只返回一条中文纯文本动态，不超过 36 字。"
+	return str(pm.resolve_with_vars("activity_moment_system", {
+		"activity_type_label": "约会",
+	})).strip_edges()
 
 
 func _build_moment_user_prompt(session: Dictionary) -> String:
 	var location: Dictionary = session.get("location", {})
-	var title := str(location.get("title", "date")).strip_edges()
-	var detail_prompt := str(session.get("detail_prompt", "")).strip_edges()
+	var title: String = str(location.get("title", "")).strip_edges()
+	var location_title: String = str(location.get("location_title", "")).strip_edges()
 	var important_result: Dictionary = session.get("important_event_result", {})
-	var important_event_outline := str(session.get("important_event_outline", "")).strip_edges()
+	var important_event_outline: String = str(session.get("important_event_outline", "")).strip_edges()
 	var normal_scene_result: Dictionary = session.get("scene_result", {})
-	var normal_scene_outline := str(session.get("scene_outline", "")).strip_edges()
-	var parts: Array[String] = ["Location: %s" % title]
-	if not detail_prompt.is_empty():
-		parts.append("Location details: %s" % detail_prompt)
+	var normal_scene_outline: String = str(session.get("scene_outline", "")).strip_edges()
+	var parts: Array[String] = []
+	if not title.is_empty():
+		parts.append("刚结束的约会：%s" % title)
+	if not location_title.is_empty():
+		parts.append("地点：%s" % location_title)
 	if not important_result.is_empty():
-		parts.append("Important result: %s" % str(important_result.get("summary", "")))
+		var imp_summary: String = str(important_result.get("summary", "")).strip_edges()
+		if not imp_summary.is_empty():
+			parts.append("重要事件总结：%s" % imp_summary)
 	if not normal_scene_result.is_empty():
-		parts.append("Scene choice: %s" % str(normal_scene_result.get("choice_text", "")))
+		var scn_choice: String = str(normal_scene_result.get("choice_text", "")).strip_edges()
+		if not scn_choice.is_empty():
+			parts.append("约会场景关键回应：%s" % scn_choice)
 	if not important_event_outline.is_empty():
-		parts.append("Important event outline:\n%s" % important_event_outline)
+		parts.append("重要事件实际过程：\n%s" % important_event_outline)
 	if not normal_scene_outline.is_empty():
-		parts.append("Date scene outline:\n%s" % normal_scene_outline)
-	parts.append("Write one short social post.")
+		parts.append("约会场景实际过程：\n%s" % normal_scene_outline)
+	parts.append("写一条像随手发出的朋友圈，不超过 36 字。")
 	return "\n".join(parts)
 
 
@@ -612,7 +698,8 @@ func _build_location_entry(raw: Dictionary) -> Dictionary:
 
 
 # =============================================================================
-# Event System 鈥?浜嬩欢椹卞姩鐨勭害浼氱郴缁?# =============================================================================
+# Event System — 事件驱动的约会系统
+# =============================================================================
 
 func _load_initial_events() -> void:
 	if not FileAccess.file_exists(DATE_EVENTS_INITIAL_PATH):
@@ -629,7 +716,7 @@ func _load_initial_events() -> void:
 		print("[DateManager] Loaded %d initial date events" % _daily_events.size())
 
 
-## 璁剧疆褰撴棩鍙€夌殑绾︿細浜嬩欢鍒楄〃锛堢敱 LLM 鐢熸垚鎴栧垵濮嬫暟鎹彁渚涳級
+## 设置当日可选的约会事件列表（由 LLM 生成或初始数据提供）
 func set_daily_events(events: Array) -> void:
 	_daily_events.clear()
 	_events_by_id.clear()
@@ -662,7 +749,8 @@ func _get_current_phase() -> String:
 
 
 # =============================================================================
-# LLM Event Generation 鈥?涓烘鏃ュ紓姝ョ敓鎴愮害浼氫簨浠?# =============================================================================
+# LLM Event Generation — 为次日异步生成约会事件
+# =============================================================================
 
 func _setup_event_ai_service() -> void:
 	if _is_background_llm_disabled():
@@ -680,12 +768,12 @@ func _setup_event_ai_service() -> void:
 
 
 func _on_day_changed(new_day: int) -> void:
-	# 婵€娲婚鐢熸垚鐨勪簨浠讹紙濡傛灉鏈夌殑璇濓級
+	# 激活预生成的事件（如果有的话）
 	if not _pending_next_day_events.is_empty():
 		set_daily_events(_pending_next_day_events)
 		_pending_next_day_events.clear()
 		_log_debug("[DateManager] Activated %d pre-generated events for day %d" % [_daily_events.size(), new_day])
-	# 寮傛涓轰笅涓€澶╅鐢熸垚浜嬩欢锛圖ay 1 涓嶉渶瑕侊紝鍒濆浜嬩欢宸插湪 _ready 涓姞杞斤級
+	# 异步为下一天预生成事件（Day 1 不需要，初始事件已在 _ready 中加载）
 	if new_day >= 1:
 		generate_next_day_events(new_day + 1)
 
@@ -703,12 +791,18 @@ func generate_next_day_events(target_day: int) -> void:
 	var sys_prompt := "Output only [DATE_EVENT] ... [/DATE_EVENT] blocks. No JSON. No markdown. No explanations."
 	_event_request_id = _event_generator.request_text(prompt, sys_prompt, {
 		"target_day": target_day,
+	}, {
+		"prompt_key": "date_event_generation",
 	})
 	if _event_request_id.is_empty():
 		_is_generating_events = false
 		push_warning("[DateManager] Failed to send event generation request")
 		return
 	_log_debug("[DateManager] Generating date events for day %d..." % target_day)
+
+
+func pre_generate_next_day_events() -> void:
+	generate_next_day_events(ActivityUtilsClass.get_current_day() + 1)
 
 func _build_event_generation_prompt(target_day: int) -> String:
 	var prompt_manager: Node = get_node_or_null("/root/PromptManager")
@@ -735,7 +829,7 @@ func _build_game_state_for_event_gen() -> String:
 func _build_recent_history_for_event_gen() -> String:
 	var summaries := get_recent_history_summaries(5)
 	if summaries.is_empty():
-		return "鏆傛棤绾︿細鍘嗗彶"
+		return "暂无约会历史"
 	var lines: Array[String] = []
 	for s in summaries:
 		lines.append("- %s" % s)

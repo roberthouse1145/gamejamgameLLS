@@ -21,12 +21,11 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var shared_node_id: String = params.get("shared_node_id", "")
-	var instance_id: String = params.get("instance_id", "")
-	var norm_x: float = float(params.get("norm_x", 0.0))
-	var norm_y: float = float(params.get("norm_y", 0.0))
-	var parent_node_id: String = params.get("parent_node_id", "")
+	var shared_node_id: String = _get_param(command, "shared_node_id", "")
+	var instance_id: String = _get_param(command, "instance_id", "")
+	var norm_x: float = _get_param(command, "norm_x", 0.0)
+	var norm_y: float = _get_param(command, "norm_y", 0.0)
+	var parent_node_id: String = _get_param(command, "parent_node_id", "")
 	if shared_node_id.is_empty():
 		return CommandResultClass.error("SPAWN_NODE: shared_node_id is required")
 	var runner: Node = context.scene_runner

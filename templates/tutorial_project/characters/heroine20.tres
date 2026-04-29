@@ -32,4 +32,5 @@ emotion_slots = {
 "worried": "15"
 }
 profile = "冷酷神秘的忍者少女，银发黄眼，面罩遮面，随身携带武器"
+display_offset = Vector2(0, 0.15)
 

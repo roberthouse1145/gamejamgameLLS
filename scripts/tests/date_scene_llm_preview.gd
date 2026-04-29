@@ -61,9 +61,7 @@ func _setup_ai_service() -> void:
 
 	var config_mgr := AIConfigManager.new()
 	if config_mgr.load_config():
-		_config_ready = config_mgr.apply_to_service(_ai_service, "avg_dev_writer")
-		if not _config_ready:
-			_config_ready = config_mgr.apply_to_service(_ai_service, "chat_default")
+		_config_ready = config_mgr.apply_to_service(_ai_service, "chat_default")
 
 	if _config_ready:
 		_set_status("AI 配置已加载，准备生成普通约会 DSL。", Color(0.71, 0.86, 0.98, 1.0))
@@ -150,7 +148,6 @@ func _request_generation(prompt_text: String) -> void:
 
 	var options: Dictionary = {
 		"temperature": 0.75,
-		"max_tokens": 2400
 	}
 	_last_request_id = _ai_service.chat_simple(prompt_text, _build_system_prompt(), options)
 	_set_status(

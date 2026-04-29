@@ -1,0 +1,177 @@
+{
+  "_comment": "代码排序小游戏题库。每题的 lines 为正确顺序。lines 数量越多难度越高。",
+  "puzzles": [
+    {
+      "id": "play_line",
+      "title": "play_line.gd",
+      "objective": "让一句台词正确地播完",
+      "lines": [
+        "📜 从剧本节点读出下一句台词",
+        "📜 显示说话人的名字和立绘",
+        "📜 用打字机效果把文字铺上屏幕",
+        "📜 等玩家点击或自动延时结束",
+        "📜 把当前节点向后推一位"
+      ]
+    },
+    {
+      "id": "branch_by_affinity",
+      "title": "branch_by_affinity.gd",
+      "objective": "按好感度决定走哪条分支",
+      "lines": [
+        "💞 读取当前女主的好感度",
+        "💞 如果 好感 >= 80：",
+        "💞 　　跳到「心动线」节点",
+        "💞 否则 如果 好感 >= 40：",
+        "💞 　　跳到「日常线」节点",
+        "💞 否则 → 跳到「普通线」节点"
+      ]
+    },
+    {
+      "id": "save_slot",
+      "title": "save_slot.gd",
+      "objective": "把当前进度写入指定存档槽",
+      "lines": [
+        "💾 收集当前章节和节点索引",
+        "💾 记录玩家属性与好感数值",
+        "💾 打包立绘、BGM、CG 状态",
+        "💾 生成截图作为存档缩略图",
+        "💾 写入 user://save_%d.tres"
+      ]
+    },
+    {
+      "id": "show_portrait",
+      "title": "show_portrait.gd",
+      "objective": "把新立绘淡入、旧立绘淡出",
+      "lines": [
+        "🎭 卸下当前角色的旧立绘",
+        "🎭 加载新立绘的 PNG 资源",
+        "🎭 把新立绘的 alpha 设为 0",
+        "🎭 用 Tween 0.3 秒淡入到 1.0",
+        "🎭 同步把表情参数广播给 live2d"
+      ]
+    },
+    {
+      "id": "submit_script",
+      "title": "submit_script.gd",
+      "objective": "把剧本交给林夏过稿",
+      "lines": [
+        "📝 导出当前章节为纯文本",
+        "📝 统计错别字和空对话",
+        "📝 如果 有空对话 → 提示补全后再来",
+        "📝 打包发到共享工程目录",
+        "📝 通知林夏开始 review"
+      ]
+    },
+    {
+      "id": "boot_engine",
+      "title": "boot_engine.gd",
+      "objective": "把 galgame 引擎的启动序列排好",
+      "lines": [
+        "⚙️ 加载 project.godot 的设置",
+        "⚙️ 启动各 autoload 单例",
+        "⚙️ 初始化音频总线与字体",
+        "⚙️ 读取玩家上次存档状态",
+        "⚙️ 切到标题画面场景"
+      ]
+    },
+    {
+      "id": "export_build",
+      "title": "export_build.gd",
+      "objective": "把 DEMO 导出成一个可发的版本",
+      "lines": [
+        "📦 跑一次本地冒烟测试",
+        "📦 清理未使用的资源",
+        "📦 选择导出预设 windows_demo",
+        "📦 打包成 zip 并附上版本号",
+        "📦 上传到 sbeam 草稿仓库"
+      ]
+    },
+    {
+      "id": "fix_bug",
+      "title": "fix_bug.gd",
+      "objective": "处理一条玩家反馈的 bug",
+      "lines": [
+        "🐞 按反馈里的步骤本地复现",
+        "🐞 用 print_debug 定位出错节点",
+        "🐞 如果 能改剧本绕过 → 改剧本",
+        "🐞 否则 → 修代码逻辑",
+        "🐞 跑测试用例确认回归",
+        "🐞 提交修复并写进更新日志"
+      ]
+    },
+    {
+      "id": "rehearse_scene",
+      "title": "rehearse_scene.gd",
+      "objective": "和林夏过一场演出前的对戏",
+      "lines": [
+        "🎬 打开当前章节的剧本文件",
+        "🎬 先自己把台词默读一遍",
+        "🎬 让林夏按角色念出关键句",
+        "🎬 标记节奏不顺的句子",
+        "🎬 在开发笔记里记下待改点"
+      ]
+    },
+    {
+      "id": "push_patch",
+      "title": "push_patch.gd",
+      "objective": "把今天的改动推送上去",
+      "lines": [
+        "🔧 git status 看看动了哪些文件",
+        "🔧 把明显是临时测试的文件撤掉",
+        "🔧 写一段能看懂的 commit 信息",
+        "🔧 git push 到远端分支",
+        "🔧 在群里 @ 林夏同步进度"
+      ]
+    },
+    {
+      "id": "choice_menu",
+      "title": "choice_menu.gd",
+      "objective": "让玩家从选项里挑一个",
+      "lines": [
+        "🧭 暂停台词打字机，冻结剧本指针",
+        "🧭 从当前节点读出选项列表",
+        "🧭 按好感和前置条件过滤选项",
+        "🧭 把可用选项渲染到按钮面板",
+        "🧭 等玩家点击并记录 flag",
+        "🧭 根据 flag 跳到下一个节点"
+      ]
+    },
+    {
+      "id": "bgm_crossfade",
+      "title": "bgm_crossfade.gd",
+      "objective": "把 BGM 从旧曲过渡到新曲",
+      "lines": [
+        "🎵 读取新 BGM 的资源路径",
+        "🎵 创建一条新 AudioStreamPlayer",
+        "🎵 新播放器音量设为 -40dB 开始播放",
+        "🎵 用 Tween 2 秒把新 BGM 拉到目标音量",
+        "🎵 同步把旧 BGM 降到 -40dB",
+        "🎵 停止并释放旧 AudioStreamPlayer"
+      ]
+    },
+    {
+      "id": "cg_gallery_unlock",
+      "title": "cg_gallery_unlock.gd",
+      "objective": "玩家看完一张 CG 后解锁鉴赏室",
+      "lines": [
+        "🖼️ 从当前节点拿到 CG 资源 ID",
+        "🖼️ 检查玩家鉴赏室里是否已有该 ID",
+        "🖼️ 如果 没有 → 写入玩家档案的 unlocked 集合",
+        "🖼️ 弹出「新 CG 已收录」提示",
+        "🖼️ 播放解锁音效"
+      ]
+    },
+    {
+      "id": "auto_mode_tick",
+      "title": "auto_mode_tick.gd",
+      "objective": "自动模式下每帧推进剧本",
+      "lines": [
+        "⏱️ 累加本帧到 auto_timer",
+        "⏱️ 如果 当前台词还在打字 → 直接返回",
+        "⏱️ 如果 auto_timer 小于设定停顿 → 直接返回",
+        "⏱️ 清零 auto_timer",
+        "⏱️ 让剧本指针前进一步"
+      ]
+    }
+  ]
+}

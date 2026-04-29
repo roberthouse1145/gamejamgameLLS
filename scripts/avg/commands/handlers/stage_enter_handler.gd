@@ -44,7 +44,7 @@ func validate(command: Resource):
 		result.add_error("emotions must be a String")
 	if params.has("outfits") and not (params.get("outfits") is String):
 		result.add_error("outfits must be a String")
-	if params.has("duration") and not (params.get("duration") is int or params.get("duration") is float):
+	if params.has("duration") and not _is_number_like_value(params.get("duration")):
 		result.add_error("duration must be a number")
 	return result
 
@@ -54,11 +54,11 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 	var stage_characters: Array[String] = _extract_stage_characters(params)
 	var emotions: String = str(params.get("emotions", "")).strip_edges()
 	var outfits: String = str(params.get("outfits", "")).strip_edges()
-	var duration: float = float(params.get("duration", 0.35))
-	var enter_effect: String = str(params.get("enter_effect", "fade")).strip_edges()
-	var enter_distance: float = float(params.get("enter_distance", 0.08))
-	var move_easing: String = str(params.get("move_easing", "ease_in_out")).strip_edges()
-	var enter_easing: String = str(params.get("enter_easing", "ease_out")).strip_edges()
+	var duration: float = _get_param(command, "duration", 0.35)
+	var enter_effect: String = _get_param(command, "enter_effect", "fade")
+	var enter_distance: float = _get_param(command, "enter_distance", 0.08)
+	var move_easing: String = _get_param(command, "move_easing", "ease_in_out")
+	var enter_easing: String = _get_param(command, "enter_easing", "ease_out")
 
 	if context.character_display == null or not context.character_display.has_method("stage_enter"):
 		return CommandResultClass.error("stage_enter is unavailable on character_display")

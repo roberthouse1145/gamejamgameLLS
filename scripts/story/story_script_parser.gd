@@ -15,6 +15,9 @@ class_name StoryScriptParser
 ##     key: value              — 等待条件参数（缩进）
 ##   capture:                  — 捕获块
 ##     key: jsonpath           — 捕获映射（缩进）
+##   next_conditions:          — 条件分支块
+##     expr -> step_id         — 条件命中后跳转
+##     default -> step_id      — 默认分支
 ##   -> step_id                — 下一步
 ##
 ## 值会自动类型推断:
@@ -26,6 +29,8 @@ static func parse(text: String) -> Dictionary:
 		"chapter_id": "",
 		"chapter_name": "",
 		"description": "",
+		"priority": 0,
+		"trigger": {},
 		"next_chapter": "",
 		"steps": []
 	}
@@ -34,12 +39,14 @@ static func parse(text: String) -> Dictionary:
 	var i: int = 0
 	var current_step: Dictionary = {}
 	var in_header: bool = true
-	var parse_mode: String = ""  # "", "action", "wait", "capture"
+	var header_mode: String = ""
+	var parse_mode: String = ""  # "", "action", "wait", "capture", "next_conditions"
 	var current_action: Dictionary = {}
 
 	while i < lines.size():
 		var raw_line: String = lines[i].rstrip("\r")
 		var stripped: String = raw_line.strip_edges()
+		var is_indented: bool = raw_line.begins_with("  ") or raw_line.begins_with("\t")
 
 		# 跳过空行
 		if stripped.is_empty():
@@ -48,6 +55,15 @@ static func parse(text: String) -> Dictionary:
 
 		# ── 章节头部字段 ──
 		if in_header:
+			if header_mode == "trigger":
+				if is_indented and ":" in stripped:
+					var trigger_kv: Array = _parse_kv(stripped)
+					if trigger_kv.size() == 2:
+						result["trigger"][trigger_kv[0]] = _coerce_header_value(trigger_kv[0], trigger_kv[1], header_mode)
+					i += 1
+					continue
+				header_mode = ""
+
 			if stripped.begins_with("chapter:"):
 				result["chapter_id"] = stripped.substr(8).strip_edges()
 				i += 1
@@ -58,6 +74,16 @@ static func parse(text: String) -> Dictionary:
 				continue
 			elif stripped.begins_with("desc:"):
 				result["description"] = stripped.substr(5).strip_edges()
+				i += 1
+				continue
+			elif stripped.begins_with("priority:"):
+				result["priority"] = int(_auto_type(stripped.substr(9).strip_edges()))
+				i += 1
+				continue
+			elif stripped == "trigger:":
+				header_mode = "trigger"
+				if not result.has("trigger"):
+					result["trigger"] = {}
 				i += 1
 				continue
 			elif stripped.begins_with("next_chapter:"):
@@ -139,8 +165,37 @@ static func parse(text: String) -> Dictionary:
 			i += 1
 			continue
 
+		# ── 条件分支块 ──
+		if stripped == "next_conditions:":
+			_finalize_action(current_step, current_action)
+			current_action = {}
+			parse_mode = "next_conditions"
+			if not current_step.has("next_conditions"):
+				current_step["next_conditions"] = []
+			i += 1
+			continue
+
+		# ── 条件分支项（缩进行 expr -> step_id） ──
+		if parse_mode == "next_conditions" and is_indented and "->" in stripped:
+			var arrow_pos: int = stripped.find("->")
+			if arrow_pos >= 0:
+				var left: String = stripped.substr(0, arrow_pos).strip_edges()
+				var next_step: String = stripped.substr(arrow_pos + 2).strip_edges()
+				if not next_step.is_empty():
+					var condition: Dictionary = {"next": next_step}
+					if left == "default" or left == "else":
+						condition["default"] = true
+					elif left.begins_with("if:"):
+						condition["if"] = left.substr(3).strip_edges()
+					elif left.begins_with("if "):
+						condition["if"] = left.substr(2).strip_edges()
+					else:
+						condition["if"] = left
+					current_step["next_conditions"].append(condition)
+			i += 1
+			continue
+
 		# ── 缩进行：属于当前块的 key: value ──
-		var is_indented: bool = raw_line.begins_with("  ") or raw_line.begins_with("\t")
 		if is_indented and ":" in stripped:
 			var kv: Array = _parse_kv(stripped)
 			if kv.size() == 2:
@@ -216,6 +271,14 @@ static func _parse_kv(line: String) -> Array:
 static func _coerce_value(key: String, value: String, parse_mode: String, current_action: Dictionary) -> Variant:
 	if parse_mode == "action" and _is_array_field(key, str(current_action.get("type", ""))):
 		return _parse_array_value(value)
+	return _auto_type(value)
+
+
+static func _coerce_header_value(key: String, value: String, header_mode: String) -> Variant:
+	if header_mode == "trigger" and key in ["conditions", "required_chapters", "excluded_chapters"]:
+		return _parse_array_value(value)
+	if header_mode == "trigger" and key == "phase":
+		return value.strip_edges().to_upper()
 	return _auto_type(value)
 
 

@@ -1,6 +1,8 @@
 class_name StartMenu extends PanelContainer
 ## 开始菜单弹出面板 - 点击任务栏开始按钮后显示
 
+const UIIconLibraryClass = preload("res://scripts/ui/ui_icon_library.gd")
+
 signal settings_requested
 signal power_off_requested
 
@@ -35,7 +37,7 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 4)
 	add_child(vbox)
 
-	_settings_btn = _create_menu_item("⚙  设置", vbox)
+	_settings_btn = _create_menu_item("设置", "settings", vbox)
 	_settings_btn.pressed.connect(func() -> void:
 		close_menu()
 		settings_requested.emit()
@@ -45,19 +47,22 @@ func _build_ui() -> void:
 	sep.add_theme_stylebox_override("separator", StyleBoxLine.new())
 	vbox.add_child(sep)
 
-	_power_btn = _create_menu_item("⏻  关闭电源", vbox)
+	_power_btn = _create_menu_item("关闭电源", "power", vbox)
 	_power_btn.pressed.connect(func() -> void:
 		close_menu()
 		power_off_requested.emit()
 	)
 
 
-func _create_menu_item(label_text: String, parent: Control) -> Button:
+func _create_menu_item(label_text: String, icon_token: String, parent: Control) -> Button:
 	var btn := Button.new()
 	btn.text = label_text
+	btn.icon = UIIconLibraryClass.get_icon(icon_token)
 	btn.custom_minimum_size.y = MENU_ITEM_HEIGHT
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.expand_icon = true
 	btn.flat = true
+	btn.add_theme_constant_override("icon_max_width", int(ICON_SIZE))
 	parent.add_child(btn)
 
 	var normal := StyleBoxFlat.new()
@@ -80,6 +85,7 @@ func _create_menu_item(label_text: String, parent: Control) -> Button:
 	btn.add_theme_color_override("font_hover_color", TEXT_COLOR)
 	btn.add_theme_color_override("font_pressed_color", TEXT_COLOR)
 	btn.add_theme_font_size_override("font_size", FONT_SIZE)
+	btn.add_theme_constant_override("h_separation", 12)
 	return btn
 
 

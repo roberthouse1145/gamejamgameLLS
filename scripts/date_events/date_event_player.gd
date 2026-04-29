@@ -30,10 +30,10 @@ const MAX_HISTORY_ENTRIES: int = 50
 @onready var preview_viewport: SubViewport = %PreviewViewport
 
 # -- 页面节点 --
-@onready var sidebar: PanelContainer = %Sidebar
+@onready var top_bar: PanelContainer = %TopBar
 @onready var content_area: Control = %ContentArea
 @onready var home_page: ScrollContainer = %HomePage
-@onready var history_page: VBoxContainer = %HistoryPage
+@onready var history_page: ScrollContainer = %HistoryPage
 @onready var playback_page: Control = %PlaybackPage
 @onready var home_content: VBoxContainer = %HomeContent
 @onready var history_list: VBoxContainer = %HistoryList
@@ -48,6 +48,7 @@ var _event_request: Dictionary = {}
 var _scene_package: Dictionary = {}
 var _finished: bool = false
 var _current_page: Page = Page.HOME
+var _record_history_on_finish: bool = true
 
 ## 截图功能开关
 var _capture_enabled: bool = false
@@ -97,12 +98,9 @@ func navigate_to(page: Page) -> void:
 	if playback_page != null:
 		playback_page.visible = (page == Page.PLAYBACK)
 
-	# 侧边栏在播放时隐藏
-	if sidebar != null:
-		sidebar.visible = (page != Page.PLAYBACK)
-	var sidebar_border: VSeparator = sidebar.get_parent().get_node_or_null("SidebarBorder") as VSeparator
-	if sidebar_border != null:
-		sidebar_border.visible = (page != Page.PLAYBACK)
+	# 顶部导航在播放时隐藏
+	if top_bar != null:
+		top_bar.visible = (page != Page.PLAYBACK)
 
 	# 按钮高亮
 	_update_nav_highlight()
@@ -113,9 +111,9 @@ func navigate_to(page: Page) -> void:
 
 func _update_nav_highlight() -> void:
 	if nav_home_btn != null:
-		nav_home_btn.flat = (_current_page != Page.HOME)
+		nav_home_btn.button_pressed = (_current_page == Page.HOME)
 	if nav_history_btn != null:
-		nav_history_btn.flat = (_current_page != Page.HISTORY)
+		nav_history_btn.button_pressed = (_current_page == Page.HISTORY)
 
 
 func _refresh_current_page() -> void:
@@ -137,20 +135,14 @@ func _build_home_page() -> void:
 	for child in home_content.get_children():
 		child.queue_free()
 
-	# 页头
-	var header := _create_page_header("首页")
-	home_content.add_child(header)
+	# 顶部边距
+	var top_spacer := Control.new()
+	top_spacer.custom_minimum_size = Vector2(0, 4)
+	home_content.add_child(top_spacer)
 
 	if _history_entries.is_empty():
-		# 空状态
-		var empty_label := Label.new()
-		empty_label.text = "还没有播放过任何剧情\n等待新的剧情到来..."
-		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		empty_label.add_theme_font_size_override("font_size", 16)
-		empty_label.add_theme_color_override("font_color", Color(0.6, 0.65, 0.7))
-		empty_label.custom_minimum_size = Vector2(0, 200)
-		home_content.add_child(empty_label)
+		var empty := _create_empty_state("还没有播放过任何剧情\n等待新的剧情到来...")
+		home_content.add_child(empty)
 		return
 
 	# 最新剧情 Hero Banner
@@ -160,10 +152,7 @@ func _build_home_page() -> void:
 
 	# 最近播放（跳过第一个）
 	if _history_entries.size() > 1:
-		var recent_title := Label.new()
-		recent_title.text = "  最近播放"
-		recent_title.add_theme_font_size_override("font_size", 16)
-		recent_title.add_theme_color_override("font_color", Color(0.4, 0.45, 0.55))
+		var recent_title := _create_section_title("最近播放")
 		home_content.add_child(recent_title)
 
 		var grid := _create_recent_grid()
@@ -185,6 +174,11 @@ func _create_hero_banner(entry: Dictionary) -> PanelContainer:
 	style.shadow_color = Color(0, 0, 0, 0.05)
 	style.shadow_size = 8
 	style.shadow_offset = Vector2(0, 4)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.88, 0.92, 0.95, 1)
 	panel.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
@@ -249,7 +243,7 @@ func _create_hero_banner(entry: Dictionary) -> PanelContainer:
 	var tag_label := Label.new()
 	tag_label.text = "最新"
 	tag_label.add_theme_font_size_override("font_size", 13)
-	tag_label.add_theme_color_override("font_color", Color(0.3, 0.5, 0.9, 1))
+	tag_label.add_theme_color_override("font_color", Color(0, 0.631373, 0.839216, 1))
 	info_vbox.add_child(tag_label)
 
 	return panel
@@ -286,29 +280,31 @@ func _build_history_page() -> void:
 	for child in history_list.get_children():
 		child.queue_free()
 
+	var top_spacer := Control.new()
+	top_spacer.custom_minimum_size = Vector2(0, 4)
+	history_list.add_child(top_spacer)
+
 	if _history_entries.is_empty():
-		var empty_label := Label.new()
-		empty_label.text = "暂无播放记录"
-		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		empty_label.add_theme_font_size_override("font_size", 16)
-		empty_label.add_theme_color_override("font_color", Color(0.6, 0.65, 0.75, 0.8))
-		empty_label.custom_minimum_size = Vector2(0, 100)
-		history_list.add_child(empty_label)
+		var empty := _create_empty_state("暂无播放记录")
+		history_list.add_child(empty)
 		return
 
 	var list_margin := MarginContainer.new()
-	list_margin.add_theme_constant_override("margin_left", 16)
-	list_margin.add_theme_constant_override("margin_right", 16)
+	list_margin.add_theme_constant_override("margin_left", 24)
+	list_margin.add_theme_constant_override("margin_right", 24)
 	list_margin.add_theme_constant_override("margin_top", 4)
 	history_list.add_child(list_margin)
 
-	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
-	list_margin.add_child(vbox)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 16)
+	list_margin.add_child(grid)
 
 	for entry in _history_entries:
 		var card := _create_history_card(entry)
-		vbox.add_child(card)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(card)
 
 
 func _create_history_card(entry: Dictionary) -> PanelContainer:
@@ -323,9 +319,14 @@ func _create_history_card(entry: Dictionary) -> PanelContainer:
 	style.content_margin_right = 12
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
-	style.shadow_color = Color(0, 0, 0, 0.05)
+	style.shadow_color = Color(0, 0, 0, 0.04)
 	style.shadow_size = 4
 	style.shadow_offset = Vector2(0, 2)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = Color(0.9, 0.94, 0.96, 1)
 	panel.add_theme_stylebox_override("panel", style)
 
 	var hbox := HBoxContainer.new()
@@ -383,7 +384,9 @@ func _create_history_card(entry: Dictionary) -> PanelContainer:
 	hbox.add_child(action_vbox)
 
 	var btn := Button.new()
-	btn.text = "播放回放"
+	var can_replay: bool = bool(entry.get("has_replay", false))
+	btn.text = "重播" if can_replay else "无法重播"
+	btn.disabled = not can_replay
 	btn.add_theme_font_size_override("font_size", 13)
 	var btn_style := StyleBoxFlat.new()
 	btn_style.bg_color = Color(0.9, 0.94, 0.98, 1)
@@ -396,12 +399,10 @@ func _create_history_card(entry: Dictionary) -> PanelContainer:
 	btn_style.content_margin_top = 6
 	btn_style.content_margin_bottom = 6
 	btn.add_theme_stylebox_override("normal", btn_style)
-	btn.add_theme_color_override("font_color", Color(0.2, 0.45, 0.85, 1))
+	btn.add_theme_color_override("font_color", Color(0, 0.631373, 0.839216, 1))
 
-	btn.pressed.connect(func():
-		var filepath = entry.get("file_path", "")
-		if filepath != "":
-			print("准备回放: ", filepath)
+	btn.pressed.connect(func() -> void:
+		_replay_history_entry(entry)
 	)
 	action_vbox.add_child(btn)
 
@@ -412,6 +413,30 @@ func _create_history_card(entry: Dictionary) -> PanelContainer:
 # 通用 UI 工具
 # =============================================================================
 
+func _create_section_title(text: String) -> MarginContainer:
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_top", 8)
+	margin.add_theme_constant_override("margin_bottom", 2)
+	var lbl := Label.new()
+	lbl.text = text
+	lbl.add_theme_font_size_override("font_size", 16)
+	lbl.add_theme_color_override("font_color", Color(0.2, 0.28, 0.36, 1))
+	margin.add_child(lbl)
+	return margin
+
+
+func _create_empty_state(text: String) -> Label:
+	var empty_label := Label.new()
+	empty_label.text = text
+	empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	empty_label.add_theme_font_size_override("font_size", 16)
+	empty_label.add_theme_color_override("font_color", Color(0.55, 0.62, 0.7, 1))
+	empty_label.custom_minimum_size = Vector2(0, 220)
+	return empty_label
+
+
 func _create_page_header(text: String) -> MarginContainer:
 	var margin := MarginContainer.new()
 	margin.add_theme_constant_override("margin_left", 20)
@@ -420,7 +445,7 @@ func _create_page_header(text: String) -> MarginContainer:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.add_theme_font_size_override("font_size", 20)
-	lbl.add_theme_color_override("font_color", Color(0.86, 0.89, 0.96, 1))
+	lbl.add_theme_color_override("font_color", Color(0.15, 0.2, 0.26, 1))
 	margin.add_child(lbl)
 	return margin
 
@@ -434,11 +459,12 @@ func _format_timestamp(unix_time: int) -> String:
 # 播放 (外部接口 — 保持与之前完全兼容)
 # =============================================================================
 
-func play_event(session_id: String, event_request: Dictionary) -> void:
+func play_event(session_id: String, event_request: Dictionary, record_history: bool = true) -> void:
 	_session_id = session_id
 	_event_request = event_request.duplicate(true)
 	_scene_package.clear()
 	_finished = false
+	_record_history_on_finish = record_history
 	if title_label != null:
 		title_label.text = str(_event_request.get("title", "Important Date"))
 
@@ -458,11 +484,13 @@ func play_event(session_id: String, event_request: Dictionary) -> void:
 	_pause_global_bgm()
 
 
-func play_scene_package(session_id: String, scene_package: Dictionary) -> void:
+func play_scene_package(session_id: String, scene_package: Dictionary, record_history: bool = true) -> void:
 	_session_id = session_id
 	_event_request.clear()
 	_scene_package = scene_package.duplicate(true)
 	_finished = false
+	_record_history_on_finish = record_history
+	print("[DateEventPlayer] Playing scene_package (session=%s):\n%s" % [session_id, str(scene_package.get("scene_outline", "(no outline)"))])
 	if title_label != null:
 		title_label.text = str(_scene_package.get("title", "Date Scene"))
 
@@ -492,7 +520,9 @@ func _on_scene_ended(_scene_id: String) -> void:
 
 	var choice_id: int = 0
 	if variable_manager != null and variable_manager.has_method("get_value_by_id"):
-		choice_id = int(variable_manager.get_value_by_id(CHOICE_VAR_ID))
+		var choice_value: Variant = variable_manager.get_value_by_id(CHOICE_VAR_ID)
+		if choice_value != null:
+			choice_id = int(choice_value)
 
 	if not _event_request.is_empty():
 		var outcomes: Dictionary = _event_request.get("outcomes", {})
@@ -527,7 +557,7 @@ func _emit_outcome(outcome: Dictionary) -> void:
 	_resume_global_bgm()
 
 	# 保存历史记录（仅首次播放，即截图开启时）
-	if _capture_enabled:
+	if _capture_enabled and _record_history_on_finish:
 		var cover_path: String = save_cover_to_disk(_session_id)
 		var title: String = ""
 		if title_label != null:
@@ -675,6 +705,10 @@ func _add_history_entry(session_id: String, title: String, cover_path: String, o
 		"cover_path": cover_path,
 		"outcome_summary": outcome_summary,
 	}
+	var replay_info := _register_current_replay_payload(session_id)
+	if not replay_info.is_empty():
+		entry["has_replay"] = true
+		entry["replay_type"] = str(replay_info.get("type", ""))
 	# 新条目放在最前面
 	_history_entries.insert(0, entry)
 	if _history_entries.size() > MAX_HISTORY_ENTRIES:
@@ -683,6 +717,54 @@ func _add_history_entry(session_id: String, title: String, cover_path: String, o
 	var dm := _get_date_manager()
 	if dm != null:
 		dm.add_avg_history_entry(entry)
+
+
+func _register_current_replay_payload(session_id: String) -> Dictionary:
+	var replay_type: String = ""
+	var replay_payload: Dictionary = {}
+	if not _event_request.is_empty():
+		replay_type = "event_request"
+		replay_payload = _event_request.duplicate(true)
+	elif not _scene_package.is_empty():
+		replay_type = "scene_package"
+		replay_payload = _scene_package.duplicate(true)
+	if replay_payload.is_empty():
+		return {}
+
+	var dm := _get_date_manager()
+	if dm != null and dm.has_method("register_avg_history_replay"):
+		dm.register_avg_history_replay(session_id, replay_type, replay_payload)
+	return {"type": replay_type}
+
+
+func _replay_history_entry(entry: Dictionary) -> void:
+	var session_id := str(entry.get("session_id", "")).strip_edges()
+	if session_id.is_empty():
+		return
+
+	var replay := _get_history_replay(session_id)
+	if replay.is_empty():
+		return
+	var replay_type := str(replay.get("type", "")).strip_edges()
+	var payload_value: Variant = replay.get("payload", {})
+	if not payload_value is Dictionary:
+		return
+	var payload: Dictionary = payload_value
+	if payload.is_empty():
+		return
+
+	match replay_type:
+		"event_request":
+			play_event(session_id, payload, false)
+		"scene_package":
+			play_scene_package(session_id, payload, false)
+
+
+func _get_history_replay(session_id: String) -> Dictionary:
+	var dm := _get_date_manager()
+	if dm != null and dm.has_method("get_avg_history_replay"):
+		return dm.get_avg_history_replay(session_id)
+	return {}
 
 
 func _get_date_manager() -> Node:

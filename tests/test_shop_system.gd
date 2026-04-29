@@ -39,9 +39,17 @@ func _ready() -> void:
 	var expected_money: int = start_money - int(pillow.get("price", 0)) - int(cake.get("price", 0))
 	_assert(int(gm.get("money")) == expected_money, "money reduced after purchase")
 
-	shop.process_day_transition(int(glm.get("current_day")) + 2)
 	var inventory: Array = shop.get_inventory()
-	_assert(inventory.size() >= 2, "orders delivered into inventory")
+	_assert(inventory.size() >= 2, "orders added to inventory immediately")
+
+	var orders: Array = shop.get_orders()
+	_assert(orders.size() >= 2, "orders recorded after purchase")
+	if orders.size() >= 2:
+		_assert(str(orders[0].get("status", "")) == "delivered", "order status is delivered immediately")
+		_assert(str(orders[0].get("tracking_text", "")) == "已入库", "order tracking text is normalized")
+	else:
+		_assert(true, "order status is delivered immediately")
+		_assert(true, "order tracking text is normalized")
 
 	var cake_inventory := _find_inventory_item(inventory, "core_cake")
 	var pillow_inventory := _find_inventory_item(inventory, "core_pillow")
@@ -73,7 +81,6 @@ func _ready() -> void:
 	if not gift_item.is_empty():
 		var buy_gift2: Dictionary = shop.purchase_item(str(gift_item.get("item_id", "")))
 		if bool(buy_gift2.get("success", false)):
-			shop.process_day_transition(int(glm.get("current_day")) + 3)
 			var inv_gift: Array = shop.get_inventory()
 			var gift2_inv := _find_inventory_item_excluding(inv_gift, "gift", "core_cake")
 			if not gift2_inv.is_empty():

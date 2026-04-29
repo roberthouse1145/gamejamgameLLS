@@ -246,10 +246,8 @@ func _update_info() -> void:
 	if _info_commands_label:
 		_info_commands_label.text = "命令数: %d" % cmd_count
 
-	# 场景变量数
+	# 场景变量已废弃，固定显示为 0
 	var local_var_count: int = 0
-	if "local_variables" in scene and scene.local_variables != null:
-		local_var_count = scene.local_variables.size()
 	if _info_local_vars_label:
 		_info_local_vars_label.text = "场景变量: %d" % local_var_count
 

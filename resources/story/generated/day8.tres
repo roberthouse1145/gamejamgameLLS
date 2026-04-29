@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="StoryChapter" format=3]
+
+[ext_resource type="Script" path="res://scripts/story/resources/story_chapter.gd" id="1_cjwii"]
+[ext_resource type="Script" path="res://scripts/story/resources/story_step.gd" id="2_uimpi"]
+
+[sub_resource type="Resource" id="Resource_pompu"]
+script = ExtResource("2_uimpi")
+step_id = "day8_01_init"
+description = "第八天早晨自动触发 DEMO 结束 topic"
+next = "day8_02_demo_end"
+
+[sub_resource type="Resource" id="Resource_kv8d6"]
+script = ExtResource("2_uimpi")
+step_id = "day8_02_demo_end"
+description = "林夏以元叙事方式宣布 DEMO 结束，第四堵墙时刻"
+actions = Array[Dictionary]([{
+"npc_speaks_first": true,
+"topic_path": "res://resources/story/topics/day8_demo_end.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "day8_demo_end",
+"type": "topic_completed"
+}
+next = "day8_03_sandbox"
+
+[sub_resource type="Resource" id="Resource_cx0jw"]
+script = ExtResource("2_uimpi")
+step_id = "day8_03_sandbox"
+description = "DEMO 结束后的沙盒状态：解锁所有应用，标记 demo 完成"
+actions = Array[Dictionary]([{
+"mode": "all",
+"type": "set_app_access"
+}, {
+"key": "demo_completed",
+"type": "set_variable",
+"value": true
+}])
+
+[resource]
+script = ExtResource("1_cjwii")
+chapter_id = "day8"
+chapter_name = "第八天 - DEMO 已到尽头"
+description = "DEMO 正式内容在此结束。林夏以元叙事方式告知玩家剧本走完了，可以自由聊天但每句话都在消耗作者 API 额度。"
+trigger = {
+"day": 8,
+"phase": "MORNING",
+"required_chapters": ["day7_night"]
+}
+steps = Array[Resource]([SubResource("Resource_pompu"), SubResource("Resource_kv8d6"), SubResource("Resource_cx0jw")])

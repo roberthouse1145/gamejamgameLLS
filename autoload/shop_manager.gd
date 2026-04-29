@@ -54,7 +54,6 @@ func _ready() -> void:
 	var current_day: int = _get_current_day()
 	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
 		current_day, _fixed_core_items, _get_gm()), current_day)
-	_generate_catalog_for_day(current_day + 1)
 
 
 func _connect_signals() -> void:
@@ -135,6 +134,10 @@ func has_pending_requests() -> bool:
 	return _is_generating_catalog and not _catalog_request_id.is_empty()
 
 
+func pre_generate_next_day_catalog() -> void:
+	_generate_catalog_for_day(_get_current_day() + 1)
+
+
 func has_purchased_item(item_id: String) -> bool:
 	return _order_svc.has_purchased_item(item_id)
 
@@ -174,7 +177,8 @@ func _generate_catalog_for_day(target_day: int) -> void:
 	catalog_generation_started.emit(target_day)
 	_catalog_request_id = _ai_service.chat_simple(
 		ShopCatalogFactory.build_generation_prompt(target_day, _fixed_core_items.size(), _get_gm()),
-		ShopCatalogFactory.build_generation_system_prompt()
+		ShopCatalogFactory.build_generation_system_prompt(),
+		{"prompt_key": "shop/catalog_generation_user"}
 	)
 	if _catalog_request_id.is_empty():
 		_is_generating_catalog = false
@@ -278,6 +282,7 @@ func load_run_state(data: Dictionary) -> bool:
 		"active_effects": data.get("active_effects", {}),
 		"last_gift_day": int(data.get("last_gift_day", -1)),
 	})
+	var normalized_orders: bool = _order_svc.normalize_orders_for_instant_inventory(_inv_svc.add_inventory_item)
 
 	if _catalog.is_empty():
 		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
@@ -286,6 +291,8 @@ func load_run_state(data: Dictionary) -> bool:
 		catalog_refreshed.emit(get_catalog())
 		inventory_changed.emit(_inv_svc.get_inventory())
 		active_effects_changed.emit(_inv_svc.get_active_effects())
+		if normalized_orders:
+			_emit_state_changed()
 		_emit_state_changed()
 	return true
 
@@ -475,7 +482,6 @@ func _trigger_gift_topic(shop_item: ShopItem) -> void:
 	topic.channel_id = DM_CHANNEL
 	topic.system_prompt = prompt
 	topic.goal_description = "对收到的礼物做出反应"
-	topic.max_turns = 1
 	topic.timeout_seconds = 30
 	topic.context_data = {"suppress_system_notice": true}
 

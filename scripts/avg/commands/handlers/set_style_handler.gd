@@ -21,16 +21,15 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var node_id: String = params.get("node_id", "")
-	var bg_color_str: String = params.get("bg_color", "000000cc")
-	var corner_radius: int = int(params.get("corner_radius", 8))
-	var border_width: int = int(params.get("border_width", 0))
-	var border_color_str: String = params.get("border_color", "ffffffff")
+	var node_id: String = _get_param(command, "node_id", "")
+	var bg_color_str: String = _get_param(command, "bg_color", "000000cc")
+	var corner_radius: int = _get_param(command, "corner_radius", 8)
+	var border_width: int = _get_param(command, "border_width", 0)
+	var border_color_str: String = _get_param(command, "border_color", "ffffffff")
 	var runner: Node = context.scene_runner
 	if runner == null:
 		return CommandResultClass.error("SET_STYLE: no scene_runner")
-	var bg_color: Color = Color(bg_color_str)
-	var border_color: Color = Color(border_color_str)
+	var bg_color: Color = Color.from_string(bg_color_str, Color("000000cc"))
+	var border_color: Color = Color.from_string(border_color_str, Color("ffffffff"))
 	runner.node_set_style(node_id, bg_color, corner_radius, border_width, border_color)
 	return CommandResultClass.ok()

@@ -18,9 +18,8 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var node_id: String = params.get("node_id", "")
-	var fade_duration: float = float(params.get("fade_duration", 0.0))
+	var node_id: String = _get_param(command, "node_id", "")
+	var fade_duration: float = _get_param(command, "fade_duration", 0.0)
 	var runner: Node = context.scene_runner
 	if runner == null:
 		return CommandResultClass.error("REMOVE_NODE: no scene_runner")

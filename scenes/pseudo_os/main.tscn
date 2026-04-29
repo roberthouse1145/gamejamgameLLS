@@ -1,6 +1,6 @@
-[gd_scene load_steps=5 format=3 uid="uid://c6f21p8w37nmd"]
+[gd_scene format=3 uid="uid://c6f21p8w37nmd"]
 
-[ext_resource type="Script" path="res://scripts/pseudo_os/main.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://25sq1mbi1vdf" path="res://scripts/pseudo_os/main.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/pseudo_os/pseudo_cursor.tscn" id="2_cursor"]
 
 [sub_resource type="Gradient" id="Gradient_main_bg"]
@@ -12,7 +12,7 @@ gradient = SubResource("Gradient_main_bg")
 fill_from = Vector2(0.5, 0)
 fill_to = Vector2(0.5, 1)
 
-[node name="Main" type="Control"]
+[node name="Main" type="Control" unique_id=411043963]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -21,7 +21,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="BaseBackground" type="TextureRect" parent="."]
+[node name="BaseBackground" type="TextureRect" parent="." unique_id=1449313024]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -29,6 +29,6 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 texture = SubResource("GradientTexture2D_main_bg")
-color = Color(1, 1, 1, 1)
 
-[node name="PseudoCursor" parent="." instance=ExtResource("2_cursor")]
+[node name="PseudoCursor" parent="." unique_id=1896566188 instance=ExtResource("2_cursor")]
+layout_mode = 0

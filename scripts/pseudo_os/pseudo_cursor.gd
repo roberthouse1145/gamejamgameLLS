@@ -93,11 +93,12 @@ func _offset_polygon(poly: PackedVector2Array, amount: float) -> PackedVector2Ar
 
 
 func _process(delta: float) -> void:
-	global_position = global_position.lerp(get_global_mouse_position(), follow_speed * delta)
+	var follow_weight: float = clampf(follow_speed * delta, 0.0, 1.0)
+	global_position = global_position.lerp(get_global_mouse_position(), follow_weight)
 
 	# 平滑插值缩放和颜色
-	_current_scale = lerpf(_current_scale, _target_scale, 18.0 * delta)
-	_current_color = _current_color.lerp(_target_color, 14.0 * delta)
+	_current_scale = lerpf(_current_scale, _target_scale, clampf(18.0 * delta, 0.0, 1.0))
+	_current_color = _current_color.lerp(_target_color, clampf(14.0 * delta, 0.0, 1.0))
 
 	queue_redraw()
 
@@ -109,7 +110,9 @@ func _input(event: InputEvent) -> void:
 			if mb.pressed:
 				_target_scale = click_scale
 				_target_color = color_accent
-				AudioManager.play_sfx_key("ui_click")
+				var audio_manager: Node = get_node_or_null("/root/AudioManager")
+				if audio_manager != null and audio_manager.has_method("play_sfx_key"):
+					audio_manager.play_sfx_key("ui_click")
 				clicked.emit(global_position)
 			else:
 				_target_scale = 1.0

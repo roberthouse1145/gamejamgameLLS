@@ -3,6 +3,7 @@ class_name AVGCharacter extends Resource
 ## Stores character info, semantic emotion slots, and optional outfit naming rules.
 
 @export var character_id: String = ""
+@export var character_key: String = ""
 @export var character_name: String = "Character"
 @export var display_name: String = ""
 @export var sprites: Dictionary = {}
@@ -24,6 +25,7 @@ class_name AVGCharacter extends Resource
 static func get_avg_properties() -> Array[Dictionary]:
 	return [
 		{"name": "character_id", "type": TYPE_STRING, "editable": false, "visible": true, "category": "系统"},
+		{"name": "character_key", "type": TYPE_STRING, "editable": true, "visible": true, "category": "系统"},
 		{"name": "character_name", "type": TYPE_STRING, "editable": true, "category": "基本"},
 		{"name": "display_name", "type": TYPE_STRING, "editable": true, "category": "基本"},
 		{"name": "default_outfit", "type": TYPE_STRING, "editable": true, "category": "基本"},
@@ -38,6 +40,46 @@ static func get_avg_properties() -> Array[Dictionary]:
 
 static func make_id(slot: int) -> String:
 	return "char_%03d" % slot
+
+
+static func normalize_character_key(raw_key: String) -> String:
+	var lower_value: String = raw_key.strip_edges().to_lower()
+	var result: String = ""
+	var previous_was_separator: bool = false
+	for i in lower_value.length():
+		var codepoint: int = lower_value.unicode_at(i)
+		var is_letter: bool = codepoint >= 97 and codepoint <= 122
+		var is_digit: bool = codepoint >= 48 and codepoint <= 57
+		var is_separator: bool = codepoint == 95 or codepoint == 45 or codepoint == 32 or codepoint == 46 or codepoint == 47 or codepoint == 92
+		if is_letter or is_digit:
+			result += char(codepoint)
+			previous_was_separator = false
+		elif is_separator:
+			if not result.is_empty() and not previous_was_separator:
+				result += "_"
+				previous_was_separator = true
+	return result.strip_edges().trim_suffix("_")
+
+
+static func looks_like_template_shell(character: Variant) -> bool:
+	var existing_key: String = ""
+	var raw_name: String = ""
+	var raw_display_name: String = ""
+	if character is Resource:
+		existing_key = normalize_character_key(str(character.character_key if "character_key" in character else ""))
+		raw_name = str(character.character_name if "character_name" in character else "").strip_edges()
+		raw_display_name = str(character.display_name if "display_name" in character else "").strip_edges()
+	elif character is Dictionary:
+		existing_key = normalize_character_key(str(character.get("character_key", "")))
+		raw_name = str(character.get("character_name", "")).strip_edges()
+		raw_display_name = str(character.get("display_name", "")).strip_edges()
+	if not existing_key.is_empty():
+		return false
+	if not _matches_template_shell_name(raw_name):
+		return false
+	if raw_display_name.is_empty():
+		return true
+	return _matches_template_shell_name(raw_display_name)
 
 
 static func resolve_outfit_sprite_path(character: Variant, emotion: String, outfit: String = "") -> String:
@@ -178,3 +220,14 @@ static func _collect_outfits(character: Variant) -> Array[String]:
 	if not fallback_outfit.is_empty() and not outfits.has(fallback_outfit):
 		outfits.append(fallback_outfit)
 	return outfits
+
+
+static func _matches_template_shell_name(raw_name: String) -> bool:
+	var normalized_name: String = raw_name.strip_edges().to_lower()
+	if normalized_name.is_empty():
+		return false
+	if normalized_name.begins_with("heroine"):
+		return normalized_name.substr("heroine".length()).is_valid_int()
+	if normalized_name.begins_with("hero"):
+		return normalized_name.substr("hero".length()).is_valid_int()
+	return false

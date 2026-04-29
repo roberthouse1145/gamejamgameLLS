@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/test_work_order_clarification_prompt.gd" id="1"]
+
+[node name="TestWorkOrderClarificationPrompt" type="Node"]
+script = ExtResource("1")

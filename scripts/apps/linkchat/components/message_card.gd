@@ -2,6 +2,7 @@ class_name LinkChatMessageCard
 extends VBoxContainer
 
 const LCTheme := preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
+const UIIconLibraryClass := preload("res://scripts/ui/ui_icon_library.gd")
 
 const CARD_WIDTH: float = 380.0
 const MEDIA_WIDTH: float = 352.0
@@ -230,14 +231,30 @@ func _build_game_card() -> void:
 
 	# 底部按钮区 (购买 / 一起玩)
 	var footer_hbox := HBoxContainer.new()
+	footer_hbox.add_theme_constant_override("separation", 8)
 	content.add_child(footer_hbox)
 
-	var footer_text := str(_card_data.get("footer", ""))
-	var price_lbl := _create_footer_label(footer_text, Color("#A1BA89"))
-	price_lbl.add_theme_font_size_override("font_size", 14)
-	price_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
-	price_lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	footer_hbox.add_child(price_lbl)
+	var price_text := str(_card_data.get("price", "")).strip_edges()
+	if price_text.is_empty():
+		price_text = str(_card_data.get("footer", "")).strip_edges()
+	if not price_text.is_empty():
+		var price_lbl := _create_footer_label(price_text, Color("#A1BA89"))
+		price_lbl.add_theme_font_size_override("font_size", 14)
+		price_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		price_lbl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		footer_hbox.add_child(price_lbl)
+
+	var footer_text := str(_card_data.get("footer", "")).strip_edges()
+	if footer_text == price_text:
+		footer_text = ""
+	if not footer_text.is_empty():
+		var footer_spacer := Control.new()
+		footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		footer_hbox.add_child(footer_spacer)
+		var footer_lbl := _create_footer_label(footer_text, Color("#8F98A0"))
+		footer_lbl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		footer_lbl.size_flags_horizontal = Control.SIZE_SHRINK_END
+		footer_hbox.add_child(footer_lbl)
 
 
 func _build_location_card() -> void:
@@ -804,10 +821,12 @@ func _create_image_media(image_path: String, preview_width: float, preview_heigh
 	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	placeholder.add_child(inner)
 
-	var icon := Label.new()
-	icon.text = "🖼"
-	icon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	icon.add_theme_font_size_override("font_size", 32)
+	var icon := TextureRect.new()
+	icon.texture = UIIconLibraryClass.get_icon("image")
+	icon.custom_minimum_size = Vector2(36, 36)
+	icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.modulate = Color("#7A838F")
 	inner.add_child(icon)
 	return placeholder
 

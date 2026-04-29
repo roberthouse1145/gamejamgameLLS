@@ -1,6 +1,8 @@
 class_name Taskbar extends Panel
 ## Taskbar component showing running application window buttons.
 
+const WindowIconRendererClass = preload("res://scripts/ui/window_icon_renderer.gd")
+
 const T_SURFACE: Color = Color("#FFFFFF")
 const T_SURFACE_ALT: Color = Color("#EEF2F8")
 const T_TEXT: Color = Color("#1A1D27")
@@ -96,6 +98,10 @@ func _apply_theme() -> void:
 		start_btn.add_theme_color_override("font_focus_color", T_TEXT)
 		start_btn.add_theme_color_override("font_hover_pressed_color", T_ACCENT)
 		start_btn.add_theme_font_size_override("font_size", 26)
+		# 用代码绘制的汉堡图标替换 ☰ 文字
+		start_btn.text = ""
+		start_btn.icon = WindowIconRendererClass.create_hamburger_icon(T_TEXT)
+		start_btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 	var phase_label := get_node_or_null("HBoxContainer/Clock") as Label
 	if phase_label != null:

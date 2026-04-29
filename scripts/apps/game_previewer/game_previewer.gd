@@ -13,6 +13,9 @@ const AVGTitleConfigClass = preload("res://scripts/avg/resources/avg_title_confi
 signal preview_started()
 ## Emitted when preview stops
 signal preview_stopped()
+## Emitted when a preview reaches a natural ending or exits from the in-game quit flow.
+## payload: { completed, scene_id, project_name, project_path }
+signal preview_completed(payload: Dictionary)
 ## Emitted when an error occurs during preview
 signal error_occurred(error_message: String)
 
@@ -64,6 +67,8 @@ var _selected_scene_index: int = 0
 
 ## Variable manager reference for debug display
 var _variable_manager: RefCounted = null
+## Last project loaded into the runner; opening the app itself should not force-load it.
+var _runner_loaded_project: Resource = null
 
 ## Dictionary to track variable labels in debug panel
 var _variable_labels: Dictionary = {}
@@ -98,11 +103,12 @@ func _ready() -> void:
 	
 	# 监听全局项目变化
 	StorageManager.current_project_changed.connect(_on_global_project_changed)
+	StorageManager.project_content_changed.connect(_on_project_content_changed)
 	
 	# 如果已有当前项目，加载它
 	if StorageManager.current_project != null:
 		set_project(StorageManager.current_project)
-		print("[GamePreviewer] Loaded existing project: %s" % StorageManager.current_project.project_name)
+		print("[GamePreviewer] Ready with existing project: %s" % StorageManager.current_project.project_name)
 	
 	# Deferred initial layout
 	call_deferred("_on_content_resized")
@@ -129,6 +135,16 @@ func _input(event: InputEvent) -> void:
 				if is_playing:
 					stop_preview()
 				get_viewport().set_input_as_handled()
+
+
+func _process(_delta: float) -> void:
+	if not is_playing or scene_runner == null or not is_instance_valid(scene_runner):
+		return
+	if scene_runner.has_method("is_playback_complete") and scene_runner.is_playback_complete():
+		if scene_runner.has_method("stop"):
+			scene_runner.stop()
+		else:
+			_on_scene_ended("")
 
 
 func _setup_connections() -> void:
@@ -229,6 +245,7 @@ func set_project(project: Resource) -> void:
 	
 	current_project = project
 	_selected_scene_index = 0
+	_runner_loaded_project = null
 	
 	# Read project resolution and update viewport
 	if project and "resolution" in project:
@@ -245,13 +262,10 @@ func set_project(project: Resource) -> void:
 	
 	# Update scene selector
 	_populate_scene_selector()
-	
-	# Load project into scene runner
-	if scene_runner and project:
-		scene_runner.load_project(project)
-	
-	# Connect to variable manager for debug display
-	_connect_variable_manager()
+
+	# 切换项目时先清掉旧调试引用，真正播放时再懒加载 runner。
+	_disconnect_variable_manager()
+	_clear_variable_display()
 	
 	_update_ui_state()
 
@@ -310,12 +324,7 @@ func _on_scene_selected(index: int) -> void:
 	
 	# If currently playing, restart with selected target
 	if is_playing:
-		if scene_runner:
-			scene_runner.hide_title_screen()
-			scene_runner.stop()
-			scene_runner.reset()
-			scene_runner.load_project(current_project)
-			_connect_variable_manager()
+		_prepare_scene_runner_for_preview()
 		if _selected_scene_index == TITLE_SCREEN_INDEX:
 			if scene_runner:
 				scene_runner.show_title_screen()
@@ -353,11 +362,36 @@ func start_preview() -> void:
 	
 	if selected_id == TITLE_SCREEN_INDEX:
 		# 选中了"标题界面" → 显示标题
+		_prepare_scene_runner_for_preview()
 		if scene_runner:
 			scene_runner.show_title_screen()
 	else:
 		# 选中了具体场景 → 直接进入
 		_start_from_scene_index(selected_id)
+
+
+func start_story_preview(scene_id: String = "", use_title_screen: bool = false) -> bool:
+	if current_project == null:
+		_show_error("No project loaded")
+		return false
+
+	if is_playing:
+		stop_preview()
+
+	if scene_id.is_empty():
+		if use_title_screen and _project_has_enabled_title_screen():
+			_select_scene_selector_id(TITLE_SCREEN_INDEX)
+		else:
+			_select_scene_selector_id(_get_effective_start_index())
+	else:
+		var scene_index: int = _find_scene_index_by_id(scene_id)
+		if scene_index < 0:
+			_show_error("Scene not found: %s" % scene_id)
+			return false
+		_select_scene_selector_id(scene_index)
+
+	start_preview()
+	return is_playing
 
 
 ## 从指定场景索引开始游戏
@@ -382,8 +416,28 @@ func _start_from_scene_index(scene_index: int) -> void:
 		_selected_scene_index = scene_index
 	
 	if scene_runner:
+		_prepare_scene_runner_for_preview()
 		scene_runner.load_scene(target_scene)
 		scene_runner.start()
+
+
+func _prepare_scene_runner_for_preview() -> void:
+	if scene_runner == null:
+		return
+	scene_runner.hide_title_screen()
+	scene_runner.stop()
+	scene_runner.reset()
+	_ensure_scene_runner_project_loaded()
+
+
+func _ensure_scene_runner_project_loaded(force_reload: bool = false) -> bool:
+	if scene_runner == null or current_project == null:
+		return false
+	if force_reload or _runner_loaded_project != current_project:
+		scene_runner.load_project(current_project)
+		_runner_loaded_project = current_project
+	_connect_variable_manager()
+	return true
 
 
 ## 获取有效的初始场景索引（从 title_config.first_scene_id 解析）
@@ -394,6 +448,35 @@ func _get_effective_start_index() -> int:
 		if current_project.title_config.has_method("resolve_first_scene_index"):
 			return current_project.title_config.resolve_first_scene_index(current_project)
 	return 0
+
+
+func _find_scene_index_by_id(scene_id: String) -> int:
+	if current_project == null or scene_id.is_empty():
+		return -1
+	for i in range(current_project.scenes.size()):
+		var scene = current_project.scenes[i]
+		if scene == null:
+			continue
+		var existing_scene_id: String = str(scene.scene_id if "scene_id" in scene else "").strip_edges()
+		if existing_scene_id == scene_id:
+			return i
+	return -1
+
+
+func _project_has_enabled_title_screen() -> bool:
+	return current_project != null and current_project.title_config != null and current_project.title_config is AVGTitleConfigClass and current_project.title_config.enabled
+
+
+func _select_scene_selector_id(target_id: int) -> void:
+	if scene_selector == null:
+		_selected_scene_index = target_id
+		return
+	for i in range(scene_selector.get_item_count()):
+		if scene_selector.get_item_id(i) == target_id:
+			scene_selector.select(i)
+			_selected_scene_index = target_id
+			return
+	_selected_scene_index = target_id
 
 
 ## 标题界面"开始游戏"回调
@@ -435,8 +518,24 @@ func _on_scene_started(scene_id: String) -> void:
 ## Handle scene ended signal
 func _on_scene_ended(scene_id: String) -> void:
 	print("GamePreviewer: Scene ended - %s" % scene_id)
+	call_deferred("_finalize_scene_ended", scene_id)
+
+
+func _finalize_scene_ended(scene_id: String) -> void:
+	# JUMP_SCENE 的无转场路径会先 stop 当前 scene，再立刻 load/start 下一 scene。
+	# 这里只在 runner 仍未重新进入运行态时，才把它视为真正的试玩结束。
+	if scene_runner != null and is_instance_valid(scene_runner) and bool(scene_runner.get("is_running")):
+		return
 	is_playing = false
 	_update_ui_state()
+	preview_completed.emit({
+		"completed": true,
+		"closed": false,
+		"end_reason": "completed",
+		"scene_id": scene_id,
+		"project_name": str(current_project.project_name if current_project != null else ""),
+		"project_path": str(StorageManager.current_project_path),
+	})
 
 
 ## Handle command executed signal
@@ -452,11 +551,7 @@ func _on_command_executed(_command_type: String, _command_index: int) -> void:
 
 ## Connect to variable manager for debug display
 func _connect_variable_manager() -> void:
-	# Disconnect from previous variable manager
-	if _variable_manager != null:
-		if _variable_manager.is_connected("variable_changed", _on_variable_changed):
-			_variable_manager.variable_changed.disconnect(_on_variable_changed)
-	
+	_disconnect_variable_manager()
 	_variable_manager = null
 	
 	# Get variable manager from scene runner
@@ -464,6 +559,19 @@ func _connect_variable_manager() -> void:
 		_variable_manager = scene_runner.get_variable_manager()
 		if _variable_manager != null:
 			_variable_manager.variable_changed.connect(_on_variable_changed)
+
+
+func _disconnect_variable_manager() -> void:
+	if _variable_manager != null and _variable_manager.is_connected("variable_changed", _on_variable_changed):
+		_variable_manager.variable_changed.disconnect(_on_variable_changed)
+
+
+func _clear_variable_display() -> void:
+	if variable_display == null:
+		return
+	for child in variable_display.get_children():
+		child.queue_free()
+	_variable_labels.clear()
 
 
 ## Handle debug toggle
@@ -488,11 +596,11 @@ func _hide_debug_panel() -> void:
 
 
 ## Handle variable changed signal
-func _on_variable_changed(variable_name: String, _old_value: Variant, new_value: Variant) -> void:
+func _on_variable_changed(variable_key: String, _old_value: Variant, new_value: Variant) -> void:
 	if not debug_panel or not debug_panel.visible:
 		return
 	
-	_update_single_variable(variable_name, new_value)
+	_update_single_variable(variable_key, new_value)
 
 
 ## Update the entire variable display
@@ -500,10 +608,7 @@ func _update_variable_display() -> void:
 	if variable_display == null or _variable_manager == null:
 		return
 	
-	# Clear existing labels
-	for child in variable_display.get_children():
-		child.queue_free()
-	_variable_labels.clear()
+	_clear_variable_display()
 	
 	# Get all variables
 	var var_names: Array = _variable_manager.get_all_variable_names()
@@ -652,3 +757,20 @@ func get_scene_runner() -> Control:
 func _on_global_project_changed(project: Resource) -> void:
 	print("[GamePreviewer] Global project changed: %s" % (project.project_name if project else "null"))
 	set_project(project)
+
+
+## Handle in-place project content updates.
+## ProjectManager usually edits the same Resource instance instead of replacing it,
+## so we must invalidate the runner cache and refresh lightweight UI manually.
+func _on_project_content_changed() -> void:
+	if current_project == null:
+		return
+	print("[GamePreviewer] Project content changed, invalidating runner cache")
+	_runner_loaded_project = null
+	if "resolution" in current_project:
+		_project_resolution = Vector2(current_project.resolution)
+	else:
+		_project_resolution = Vector2(2560, 1440)
+	_on_content_resized()
+	_populate_scene_selector()
+	_update_ui_state()

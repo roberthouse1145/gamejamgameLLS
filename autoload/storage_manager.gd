@@ -1,9 +1,9 @@
 extends Node
 ## StorageManager Autoload
 ## 管理项目文件的保存和加载，支持三种存储模式：
-## - user://projects/ - 用户项目（运行时可读写）
+## - user://projects/ - 用户/开发者可编辑项目（运行时可读写）
 ## - res://templates/ - 范例项目（只读，可复制到user://）
-## - res://projects/ - 开发者模式项目（仅编辑器内可写）
+## - user://run/ - 运行期挂载与工作副本目录
 
 # 预加载AVGProject类（确保类型可用）
 const AVGProjectClass = preload("res://scripts/avg/resources/avg_project.gd")
@@ -12,10 +12,11 @@ const AVGAssetManifestClass = preload("res://scripts/avg/assets/avg_asset_manife
 # 存储路径常量
 const USER_PROJECTS_PATH: String = "user://projects/"
 const RES_TEMPLATES_PATH: String = "res://templates/"
-const RES_PROJECTS_PATH: String = "res://projects/" # 开发者模式
+const LEGACY_RES_PROJECTS_PATH: String = "res://projects/"
 const RUNTIME_RUN_ROOT_PATH: String = "user://run/"
 const RUNTIME_PLAYER_PROJECT_PATH: String = RUNTIME_RUN_ROOT_PATH + "player_project/"
 const ASSET_MANIFEST_RELATIVE_PATH: String = "manifests/asset_aliases.json"
+const DEBUG_USE_RUNTIME_PROJECT_IN_EDITOR_SETTING: String = "application/run/debug_use_runtime_project_in_editor"
 
 ## RTP（Runtime Package）机制：模板初始化时排除的大体积目录
 ## 这些目录不复制到 user://，运行时通过回退查找 res://templates/ 中的原始文件
@@ -61,6 +62,13 @@ var current_project: Resource = null
 
 # 运行期固定挂载的玩家工程目录
 var runtime_project_path: String = ""
+var _is_persisting_project_state: bool = false
+
+## Template 编辑模式：仅限 test_lab 之类的工具场景打开。开启后
+## `ensure_writable_project_root` 不再把 res:// 物化到 user://，
+## 所有子系统的 save 自然写回 res://templates/...。
+## 永远不要在正常运行流程里打开这个开关。
+var template_edit_mode: bool = false
 
 # 信号：当前项目改变时发出
 signal current_project_changed(project: Resource)
@@ -90,6 +98,29 @@ var is_trunk_active: bool:
 	get: return not _main_project_path.is_empty()
 
 
+## 确保当前项目根目录可写。
+## 若当前仍指向 res://templates/...，则先物化到 user://projects/...，避免写回模板。
+func ensure_writable_project_root() -> Error:
+	if current_project_path.is_empty():
+		return ERR_UNCONFIGURED
+	if current_project_path.begins_with("user://"):
+		return OK
+	# Template 编辑模式：显式保留 res:// 根，不再物化副本
+	if template_edit_mode:
+		return OK
+	if current_project == null:
+		return ERR_UNCONFIGURED
+
+	var source_path: String = current_project_path
+	var save_err: Error = _save_project_core(current_project)
+	if save_err != OK:
+		push_error("[StorageManager] Failed to materialize writable project copy: %s" % error_string(save_err))
+		return save_err
+
+	print("[StorageManager] Materialized writable project copy: %s -> %s" % [source_path, current_project_path])
+	return OK
+
+
 ## 创建 trunk：将 main 项目的数据文件复制到 trunk 目录，切换写入路径
 ## 排除 assets/（体积大、Agent 很少修改）和 work_orders/（元数据始终写 main）
 func create_trunk() -> Error:
@@ -98,6 +129,10 @@ func create_trunk() -> Error:
 
 	if current_project_path.is_empty():
 		return ERR_UNCONFIGURED
+
+	var writable_err: Error = ensure_writable_project_root()
+	if writable_err != OK:
+		return writable_err
 
 	_main_project_path = current_project_path
 
@@ -203,12 +238,39 @@ func _ready() -> void:
 
 	if developer_mode:
 		print("[StorageManager] Developer mode enabled")
+		_log_legacy_project_notice()
 		_auto_load_default_project()
 
 
 ## 开发者模式下自动加载默认项目
-## 从 res://templates/tutorial_project/ 加载教程项目作为默认项目
+## 默认读取模板工程；仅当 editor/dev mode 的 runtime 开关开启时改为挂载 runtime 工程
 func _auto_load_default_project() -> void:
+	if should_use_runtime_project_in_editor():
+		var mount_err: Error = mount_runtime_project(DEFAULT_PROJECT_NAME)
+		if mount_err == OK:
+			print("[StorageManager] Auto-mounted runtime project in editor/dev mode")
+			return
+		push_warning("[StorageManager] Failed to auto-mount runtime project in editor/dev mode, fallback to template. error=%s" % mount_err)
+
+	_auto_load_template_project()
+
+
+func should_use_runtime_project_in_editor() -> bool:
+	if not OS.has_feature("editor"):
+		return false
+	if not developer_mode:
+		return false
+	return bool(ProjectSettings.get_setting(DEBUG_USE_RUNTIME_PROJECT_IN_EDITOR_SETTING, false))
+
+
+func should_boot_into_runtime_project() -> bool:
+	if OS.has_feature("editor") and developer_mode:
+		return should_use_runtime_project_in_editor()
+	return true
+
+
+## 从 res://templates/tutorial_project/ 加载教程项目作为默认项目
+func _auto_load_template_project() -> void:
 	var default_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/"
 	var project_file: String = default_path + "project.tres"
 	
@@ -225,20 +287,25 @@ func _auto_load_default_project() -> void:
 	print("[StorageManager] Auto-loaded default project: " + project.project_name)
 
 
+func _log_legacy_project_notice() -> void:
+	var legacy_projects: Array[String] = list_legacy_editor_projects()
+	if legacy_projects.is_empty():
+		return
+	push_warning("[StorageManager] Found %d legacy res://projects/ entries. Use purge_legacy_editor_projects() to delete them." % legacy_projects.size())
+
+
 ## 获取项目保存路径
-## 根据developer_mode决定保存位置
-## - 开发者模式: res://projects/
-## - 普通模式: user://projects/
+## 开发者模式与普通模式统一保存到 user://projects/
+## 例外：运行期挂载工程和 trunk 工作副本仍保存到各自的 user://run/... 目录
 func get_save_path(project: Resource) -> String:
 	if not runtime_project_path.is_empty():
 		return runtime_project_path
-	if developer_mode:
-		# If the project is already loaded from a specific path (e.g., templates), save it back there
-		if not current_project_path.is_empty() and current_project_path.begins_with("res://"):
-			return current_project_path
-		return RES_PROJECTS_PATH + project.project_name + "/"
-	else:
-		return USER_PROJECTS_PATH + project.project_name + "/"
+	if not current_project_path.is_empty() and current_project_path.begins_with("user://"):
+		return current_project_path
+	# Template 编辑模式：允许直接写 res:// 根（仅 test_lab 工具场景）
+	if template_edit_mode and not current_project_path.is_empty() and current_project_path.begins_with("res://"):
+		return current_project_path
+	return USER_PROJECTS_PATH + project.project_name + "/"
 
 
 ## 创建新项目
@@ -283,6 +350,73 @@ func reset_runtime_state(emit_change: bool = false) -> void:
 ## 将项目保存为.tres资源文件
 ## 返回Error.OK表示成功，其他值表示失败
 func save_project(project: Resource) -> Error:
+	if project == null:
+		return ERR_INVALID_PARAMETER
+	if _is_persisting_project_state:
+		return _save_project_core(project)
+
+	_is_persisting_project_state = true
+	var save_err: Error = _save_project_core(project)
+	if save_err == OK:
+		var dependency_err: Error = _save_project_dependencies(project)
+		if dependency_err != OK:
+			save_err = dependency_err
+	_is_persisting_project_state = false
+	return save_err
+
+
+## 把 project 显式保存到指定路径（用于 template 编辑器直接写回 res://templates/...）。
+## 只允许在编辑器 + developer_mode 下使用；非 res:// 路径会被拒绝以避免绕过 get_save_path 的常规逻辑。
+## 不会修改 current_project_path。
+func save_project_to_path(project: Resource, target_path: String) -> Error:
+	if project == null:
+		return ERR_INVALID_PARAMETER
+	var normalized: String = target_path.strip_edges()
+	if normalized.is_empty():
+		return ERR_INVALID_PARAMETER
+	if not normalized.ends_with("/"):
+		normalized += "/"
+	if not normalized.begins_with("res://"):
+		push_warning("[StorageManager] save_project_to_path only allows res:// targets, got: %s" % normalized)
+		return ERR_UNAUTHORIZED
+	if not OS.has_feature("editor") or not developer_mode:
+		push_warning("[StorageManager] save_project_to_path requires editor + developer_mode")
+		return ERR_UNAUTHORIZED
+
+	# 准备目录结构
+	if not DirAccess.dir_exists_absolute(normalized):
+		var path_err: Error = DirAccess.make_dir_recursive_absolute(normalized)
+		if path_err != OK:
+			return path_err
+	var subdirs: Array[String] = ["scenes", "characters", "events", "variables", "shared_nodes", "screen_configs", "configs", "assets", "assets/images", "assets/audio", "assets/fonts", "documents", "documents/plot", "documents/characters", "documents/scripts", "documents/guides", "manifests"]
+	for subdir: String in subdirs:
+		var subdir_path: String = normalized + subdir
+		if not DirAccess.dir_exists_absolute(subdir_path):
+			var subdir_err: Error = DirAccess.make_dir_recursive_absolute(subdir_path)
+			if subdir_err != OK:
+				push_warning("Failed to create subdirectory: " + subdir_path)
+
+	# 写 project 与子资源
+	if "project_root_path" in project:
+		project.set("project_root_path", normalized)
+	var subresource_err: Error = _save_external_project_resources(project, normalized)
+	if subresource_err != OK:
+		return subresource_err
+	var save_err: Error = ResourceSaver.save(project, normalized + "project.tres")
+	if save_err != OK:
+		return save_err
+
+	# KB sidecar 同步：仅当保存的是当前激活项目时跟随保存
+	if project == current_project:
+		var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
+		if kb != null and kb.has_method("save_data"):
+			var kb_result: Variant = kb.call("save_data")
+			if kb_result is int and int(kb_result) != OK:
+				push_warning("[StorageManager] save_project_to_path: KB save_data failed, err=%s" % error_string(int(kb_result) as Error))
+	return OK
+
+
+func _save_project_core(project: Resource) -> Error:
 	var save_path: String = get_save_path(project)
 	
 	# 确保目录存在
@@ -290,20 +424,13 @@ func save_project(project: Resource) -> Error:
 	if dir == null and not developer_mode:
 		return ERR_CANT_CREATE
 	
-	# 创建项目目录结构
-	var base_path: String = USER_PROJECTS_PATH if not developer_mode else RES_PROJECTS_PATH
-	if not DirAccess.dir_exists_absolute(base_path):
-		var base_err: Error = DirAccess.make_dir_recursive_absolute(base_path)
-		if base_err != OK:
-			return base_err
-	
 	if not DirAccess.dir_exists_absolute(save_path):
 		var path_err: Error = DirAccess.make_dir_recursive_absolute(save_path)
 		if path_err != OK:
 			return path_err
 	
 	# 创建子目录
-	var subdirs: Array[String] = ["scenes", "characters", "events", "variables", "assets", "assets/images", "assets/audio", "assets/fonts", "documents", "documents/plot", "documents/characters", "documents/scripts", "documents/guides", "manifests"]
+	var subdirs: Array[String] = ["scenes", "characters", "events", "variables", "shared_nodes", "screen_configs", "configs", "assets", "assets/images", "assets/audio", "assets/fonts", "documents", "documents/plot", "documents/characters", "documents/scripts", "documents/guides", "manifests"]
 	for subdir: String in subdirs:
 		var subdir_path: String = save_path + subdir
 		if not DirAccess.dir_exists_absolute(subdir_path):
@@ -323,6 +450,22 @@ func save_project(project: Resource) -> Error:
 		current_project_path = save_path
 	
 	return save_err
+
+
+func _save_project_dependencies(project: Resource) -> Error:
+	if project != current_project:
+		return OK
+
+	var knowledge_base_manager: Node = get_node_or_null("/root/KnowledgeBaseManager")
+	if knowledge_base_manager != null and knowledge_base_manager.has_method("save_data"):
+		var kb_save_result: Variant = knowledge_base_manager.call("save_data")
+		if kb_save_result is int:
+			var kb_save_err: Error = int(kb_save_result) as Error
+			if kb_save_err != OK:
+				push_error("[StorageManager] Failed to save knowledge base sidecar: %s" % error_string(kb_save_err))
+				return kb_save_err
+
+	return OK
 
 
 ## 加载项目
@@ -421,6 +564,13 @@ func _sync_project_resources(project: Resource, project_path: String) -> void:
 
 	# 导出后 res:// 无法被 DirAccess 扫描，跳过
 	if project_path.begins_with("res://") and not OS.has_feature("editor"):
+		return
+
+	# 导出版里彻底跳过同步：发布版没有玩家手动增删 .tres 的场景；
+	# 同时 DirAccess 在 PCK 中对 res:// 子目录的枚举可能漏文件（Godot 4 已知行为），
+	# 如果此时运行 sync 会把 project.tres 里合法的资源引用误判为"磁盘上不存在"并删除，
+	# 造成运行时项目被永久瘦身。
+	if not OS.has_feature("editor"):
 		return
 
 	var sync_map: Array[Dictionary] = [
@@ -587,6 +737,85 @@ func list_template_projects() -> Array[String]:
 func copy_template_to_user(template_name: String, new_name: String) -> Error:
 	var target_path: String = USER_PROJECTS_PATH + new_name + "/"
 	return _copy_template_to_path(template_name, target_path, new_name, true)
+
+
+## 列出历史遗留的编辑器项目（旧版保存在 res://projects/）
+func list_legacy_editor_projects() -> Array[String]:
+	var projects: Array[String] = []
+	var dir: DirAccess = DirAccess.open(LEGACY_RES_PROJECTS_PATH)
+	if dir == null:
+		return projects
+
+	dir.list_dir_begin()
+	var dir_name: String = dir.get_next()
+	while dir_name != "":
+		if dir.current_is_dir() and not dir_name.begins_with("."):
+			var project_file: String = LEGACY_RES_PROJECTS_PATH + dir_name + "/project.tres"
+			if ResourceLoader.exists(project_file):
+				projects.append(dir_name)
+		dir_name = dir.get_next()
+	dir.list_dir_end()
+	return projects
+
+
+## 删除旧版 res://projects/ 中的遗留项目
+func purge_legacy_editor_projects() -> Dictionary:
+	var result: Dictionary = {
+		"deleted": [],
+		"failed": [],
+	}
+
+	for project_name in list_legacy_editor_projects():
+		var legacy_path: String = LEGACY_RES_PROJECTS_PATH + project_name + "/"
+		var delete_err: Error = _remove_directory_recursive(legacy_path)
+		if delete_err == OK:
+			result["deleted"].append(project_name)
+		else:
+			result["failed"].append({"project": project_name, "error": delete_err})
+
+	return result
+
+
+## 将当前项目的最新内容回灌到指定 template 目录，仅供开发者模式下使用
+func merge_current_project_to_template(template_name: String = DEFAULT_PROJECT_NAME) -> Error:
+	if not developer_mode:
+		push_warning("[StorageManager] merge_current_project_to_template() is only available in developer mode")
+		return ERR_UNCONFIGURED
+	if current_project == null:
+		return ERR_UNCONFIGURED
+
+	var target_template_name: String = template_name.strip_edges()
+	if target_template_name.is_empty():
+		target_template_name = DEFAULT_PROJECT_NAME
+	var target_path: String = RES_TEMPLATES_PATH + target_template_name + "/"
+	if not ResourceLoader.exists(target_path + "project.tres"):
+		return ERR_FILE_NOT_FOUND
+
+	var save_err: Error = save_project(current_project)
+	if save_err != OK:
+		return save_err
+
+	var resource_path_snapshot: Array[Dictionary] = _capture_resource_paths(current_project)
+	var active_project_path: String = current_project_path
+
+	if "project_root_path" in current_project:
+		current_project.set("project_root_path", target_path)
+
+	var external_save_err: Error = _save_external_project_resources(current_project, target_path)
+	if external_save_err != OK:
+		_restore_resource_paths(resource_path_snapshot)
+		if "project_root_path" in current_project:
+			current_project.set("project_root_path", active_project_path)
+		return external_save_err
+
+	var template_save_err: Error = ResourceSaver.save(current_project, target_path + "project.tres")
+	_restore_resource_paths(resource_path_snapshot)
+	if "project_root_path" in current_project:
+		current_project.set("project_root_path", active_project_path)
+
+	if template_save_err == OK:
+		print("[StorageManager] Synced current project to template: %s" % target_template_name)
+	return template_save_err
 
 
 ## 递归复制目录
@@ -872,6 +1101,9 @@ func list_directory(relative_dir: String) -> Dictionary:
 ## 在 assets 下创建文件夹
 ## relative_dir: 相对于项目根的路径，如 "assets/images/characters/"
 func make_directory(relative_dir: String) -> Error:
+	var writable_err: Error = ensure_writable_project_root()
+	if writable_err != OK:
+		return writable_err
 	var abs_path: String = current_project_path + relative_dir
 	return DirAccess.make_dir_recursive_absolute(abs_path)
 
@@ -879,12 +1111,18 @@ func make_directory(relative_dir: String) -> Error:
 ## 删除资源文件
 ## relative_path: 相对于项目根的路径
 func delete_asset(relative_path: String) -> Error:
+	var writable_err: Error = ensure_writable_project_root()
+	if writable_err != OK:
+		return writable_err
 	var abs_path: String = current_project_path + relative_path
 	return DirAccess.remove_absolute(abs_path)
 
 
 ## 删除空文件夹
 func delete_directory(relative_dir: String) -> Error:
+	var writable_err: Error = ensure_writable_project_root()
+	if writable_err != OK:
+		return writable_err
 	var abs_path: String = current_project_path + relative_dir
 	# 检查是否为空
 	var dir: DirAccess = DirAccess.open(abs_path)
@@ -905,6 +1143,9 @@ func delete_directory(relative_dir: String) -> Error:
 ## source_path: 系统绝对路径
 ## target_relative_path: 相对于项目根的目标路径，如 "assets/images/bg.png"
 func import_asset(source_path: String, target_relative_path: String) -> Error:
+	var writable_err: Error = ensure_writable_project_root()
+	if writable_err != OK:
+		return writable_err
 	var abs_target: String = current_project_path + target_relative_path
 	# 确保目标目录存在
 	var target_dir: String = abs_target.get_base_dir()
@@ -922,6 +1163,10 @@ func import_asset(source_path: String, target_relative_path: String) -> Error:
 func import_project_asset(source_path: String, asset_type: String, alias: String = "", target_subdir: String = "", overwrite: bool = false) -> Dictionary:
 	if current_project_path.is_empty():
 		return {"success": false, "error": "未打开项目"}
+
+	var writable_err: Error = ensure_writable_project_root()
+	if writable_err != OK:
+		return {"success": false, "error": "项目当前不可写", "error_code": writable_err}
 
 	var normalized_type: String = asset_type.strip_edges().to_lower()
 	if not IMPORTABLE_ASSET_TYPES.has(normalized_type):
@@ -1132,12 +1377,15 @@ func _apply_rtp_fallback(abs_path: String) -> String:
 	if FileAccess.file_exists(abs_path):
 		return abs_path
 
-	# 从 user://run/player_project/assets/xxx → res://templates/tutorial_project/assets/xxx
-	if abs_path.begins_with(RUNTIME_PLAYER_PROJECT_PATH):
-		var relative: String = abs_path.substr(RUNTIME_PLAYER_PROJECT_PATH.length())
-		var template_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/" + relative
-		if ResourceLoader.exists(template_path) or FileAccess.file_exists(template_path):
-			return template_path
+	# 从 user://run/*/assets/xxx → res://templates/tutorial_project/assets/xxx
+	if abs_path.begins_with(RUNTIME_RUN_ROOT_PATH):
+		var after_run_root: String = abs_path.substr(RUNTIME_RUN_ROOT_PATH.length())
+		var run_slash_pos: int = after_run_root.find("/")
+		if run_slash_pos >= 0:
+			var run_relative: String = after_run_root.substr(run_slash_pos + 1)
+			var run_template_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/" + run_relative
+			if ResourceLoader.exists(run_template_path) or FileAccess.file_exists(run_template_path):
+				return run_template_path
 
 	# 通用 user://projects/ 回退（未来扩展）
 	if abs_path.begins_with(USER_PROJECTS_PATH):
@@ -1270,17 +1518,26 @@ func _save_external_project_resources(project: Resource, project_root: String) -
 	var resources: Array[Resource] = []
 	_collect_project_resources(project, resources)
 	var visited: Dictionary = {}
+	var newly_assigned_paths: Array[String] = []
 	for resource in resources:
 		if resource == null:
 			continue
 		var resource_path: String = str(resource.resource_path).strip_edges()
 
+		# 模板项目中的外部资源需要迁移到当前项目目录，避免继续引用 res://templates/...。
+		if not resource_path.is_empty() and not resource_path.contains("::") and not resource_path.begins_with(project_root):
+			resource_path = _assign_resource_path(resource, project_root, project)
+			if not resource_path.is_empty():
+				resource.resource_path = resource_path
+				newly_assigned_paths.append(resource_path)
+
 		# 新建的资源没有路径（或是内联 sub_resource），需要分配独立文件路径
 		if resource_path.is_empty() or resource_path.contains("::"):
-			resource_path = _assign_resource_path(resource, project_root)
+			resource_path = _assign_resource_path(resource, project_root, project)
 			if resource_path.is_empty():
 				continue # 无法确定类型，跳过
 			resource.resource_path = resource_path
+			newly_assigned_paths.append(resource_path)
 
 		if not resource_path.begins_with(project_root):
 			continue
@@ -1291,11 +1548,13 @@ func _save_external_project_resources(project: Resource, project_root: String) -
 		if save_err != OK:
 			push_warning("[StorageManager] Failed to save subresource: %s" % resource_path)
 			return save_err
+	if not newly_assigned_paths.is_empty():
+		print("[StorageManager] Assigned paths for %d project resources under %s" % [newly_assigned_paths.size(), project_root])
 	return OK
 
 
 ## 为没有路径的资源自动分配文件路径
-func _assign_resource_path(resource: Resource, project_root: String) -> String:
+func _assign_resource_path(resource: Resource, project_root: String, project: Resource = null) -> String:
 	var dir_name: String = ""
 	var file_name: String = ""
 
@@ -1311,6 +1570,27 @@ func _assign_resource_path(resource: Resource, project_root: String) -> String:
 	elif "event_id" in resource:
 		dir_name = "events"
 		file_name = str(resource.event_id).strip_edges()
+	elif project != null and "dialog_settings" in project and project.dialog_settings == resource:
+		dir_name = "configs"
+		file_name = "dialog_settings"
+	elif project != null and "title_config" in project and project.title_config == resource:
+		dir_name = "configs"
+		file_name = "title_config"
+	elif project != null and "game_ui_config" in project and project.game_ui_config == resource:
+		dir_name = "configs"
+		file_name = "game_ui_config"
+	elif project != null and "shared_nodes" in project and project.shared_nodes.has(resource):
+		dir_name = "shared_nodes"
+		if "shared_node_id" in resource:
+			file_name = str(resource.shared_node_id).strip_edges()
+		elif "node_id" in resource:
+			file_name = str(resource.node_id).strip_edges()
+	elif project != null and "screen_configs" in project:
+		for screen_key in project.screen_configs.keys():
+			if project.screen_configs.get(screen_key) == resource:
+				dir_name = "screen_configs"
+				file_name = str(screen_key).strip_edges()
+				break
 	else:
 		return ""
 
@@ -1322,7 +1602,6 @@ func _assign_resource_path(resource: Resource, project_root: String) -> String:
 		DirAccess.make_dir_recursive_absolute(dir_path)
 
 	var path: String = dir_path + file_name + ".tres"
-	print("[StorageManager] Assigned path for new resource: %s" % path)
 	return path
 
 
@@ -1353,3 +1632,30 @@ func _collect_project_resources(project: Resource, out_resources: Array[Resource
 	for config in project.screen_configs.values():
 		if config is Resource:
 			out_resources.append(config)
+
+
+func _capture_resource_paths(project: Resource) -> Array[Dictionary]:
+	var resources: Array[Resource] = [project]
+	_collect_project_resources(project, resources)
+	var snapshot: Array[Dictionary] = []
+	var seen: Dictionary = {}
+	for resource in resources:
+		if resource == null:
+			continue
+		var instance_id: int = resource.get_instance_id()
+		if seen.has(instance_id):
+			continue
+		seen[instance_id] = true
+		snapshot.append({
+			"resource": resource,
+			"path": str(resource.resource_path).strip_edges(),
+		})
+	return snapshot
+
+
+func _restore_resource_paths(snapshot: Array[Dictionary]) -> void:
+	for item in snapshot:
+		var resource: Resource = item.get("resource", null)
+		if resource == null:
+			continue
+		resource.resource_path = str(item.get("path", ""))

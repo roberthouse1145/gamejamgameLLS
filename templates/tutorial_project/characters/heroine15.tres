@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "07"
 }
 profile = "活力四射的冒险少女，红发护目镜蓝眸，皮革背心探险装束"
+display_offset = Vector2(0, 0.15)
 

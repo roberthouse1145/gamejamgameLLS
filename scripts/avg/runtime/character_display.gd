@@ -16,18 +16,21 @@ signal effect_finished(character_id: String)
 const AVGCharacterClass = preload("res://scripts/avg/resources/avg_character.gd")
 
 ## Predefined screen positions (normalized 0-1)
+## AVG portrait sprites are tall-narrow, so the visual body extends outward from the anchor.
+## far_left/far_right are the "edge" positions (where old left/right used to feel too spread).
+## left/right are the comfortable two-shot positions slightly inward from the far variants.
 const POSITIONS: Dictionary = {
-	"left": Vector2(0.2, 0.5),
-	"center": Vector2(0.5, 0.5),
-	"right": Vector2(0.8, 0.5),
-	"far_left": Vector2(0.1, 0.5),
-	"far_right": Vector2(0.9, 0.5),
+	"left":      Vector2(0.35, 0.5),  # standard left  (slightly inward for portrait sprites)
+	"center":    Vector2(0.5,  0.5),
+	"right":     Vector2(0.65, 0.5),  # standard right
+	"far_left":  Vector2(0.3,  0.5),  # edge left  (old left value)
+	"far_right": Vector2(0.7,  0.5),  # edge right (old right value)
 }
 const STAGE_LAYOUTS: Dictionary = {
 	0: [],
-	1: [Vector2(0.5, 0.5)],
-	2: [Vector2(0.33, 0.5), Vector2(0.67, 0.5)],
-	3: [Vector2(0.2, 0.5), Vector2(0.5, 0.5), Vector2(0.8, 0.5)],
+	1: [Vector2(0.5,  0.5)],
+	2: [Vector2(0.35, 0.5), Vector2(0.65, 0.5)],                                   # matches left/right
+	3: [Vector2(0.3,  0.5), Vector2(0.5, 0.5), Vector2(0.7, 0.5)],                 # far_left / center / far_right
 	4: [Vector2(0.12, 0.5), Vector2(0.37, 0.5), Vector2(0.63, 0.5), Vector2(0.88, 0.5)],
 	5: [Vector2(0.08, 0.5), Vector2(0.28, 0.5), Vector2(0.5, 0.5), Vector2(0.72, 0.5), Vector2(0.92, 0.5)],
 }
@@ -63,10 +66,14 @@ var _active_characters: Dictionary = {}
 var _character_state: Dictionary = {}
 ## character_id -> AVGCharacter data dict
 var _character_data: Dictionary = {}
+## asset_ref/path -> Texture2D
+var _texture_cache: Dictionary = {}
 ## character_id -> active Tween (for cancellation)
 var _active_tweens: Dictionary = {}
 ## character_id -> crossfade overlay TextureRect (if mid-transition)
 var _crossfade_overlays: Dictionary = {}
+## Optional loader for alias/path based sprite refs.
+var _texture_loader: Callable = Callable()
 
 ## Dialog settings reference (for default_expression_transition)
 var _dialog_settings: Resource = null
@@ -93,6 +100,12 @@ func set_dialog_settings(settings: Resource) -> void:
 ## Set character data for sprite lookup
 func set_character_data(characters: Dictionary) -> void:
 	_character_data = characters
+	_texture_cache.clear()
+
+
+func set_texture_loader(loader: Callable) -> void:
+	_texture_loader = loader
+	_texture_cache.clear()
 
 
 # =============================================================================
@@ -158,6 +171,9 @@ func hide_all(fade_duration: float = 0.3) -> void:
 ## 根据传入顺序自动排位舞台角色，并补齐登场/离场/补位逻辑。
 func stage_set(character_refs: Array, emotions_spec: String = "", outfits_spec: String = "", duration: float = 0.35, enter_effect: String = "fade", exit_effect: String = "fade", enter_distance: float = 0.08, exit_distance: float = 0.08, enter_easing: String = "ease_out", exit_easing: String = "ease_in", move_easing: String = "ease_in_out") -> void:
 	var target_ids: Array[String] = _resolve_stage_character_ids(character_refs)
+	if target_ids.is_empty() and not character_refs.is_empty():
+		push_warning("CharacterDisplay: stage_set ignored because no drawable characters were resolved")
+		return
 	if not STAGE_LAYOUTS.has(target_ids.size()):
 		push_warning("CharacterDisplay: stage_set supports up to 5 characters, got %d" % target_ids.size())
 		return
@@ -440,9 +456,16 @@ func _resolve_stage_character_ids(character_refs: Array) -> Array[String]:
 		var resolved_id: String = _resolve_character_reference(trimmed_ref)
 		if resolved_id.is_empty() or seen.has(resolved_id):
 			continue
+		if not _can_stage_character(resolved_id):
+			push_warning("CharacterDisplay: ignoring non-stageable character '%s'" % trimmed_ref)
+			continue
 		seen[resolved_id] = true
 		result.append(resolved_id)
 	return result
+
+
+func _can_stage_character(character_id: String) -> bool:
+	return _character_data.has(character_id) or _active_characters.has(character_id)
 
 
 func _parse_stage_override_list(raw_spec: String, expected_size: int) -> Array[String]:
@@ -1036,7 +1059,8 @@ func _get_character_texture(character_id: String, emotion: String, outfit: Strin
 	if emotion.is_empty():
 		emotion = "default"
 
-	var dynamic_texture: Texture2D = AVGCharacterClass.resolve_texture_from_character(char_data, emotion, resolved_outfit)
+	var dynamic_path: String = AVGCharacterClass.resolve_outfit_sprite_path(char_data, emotion, resolved_outfit)
+	var dynamic_texture: Texture2D = _resolve_texture_entry(dynamic_path)
 	if dynamic_texture != null:
 		return dynamic_texture
 
@@ -1044,15 +1068,62 @@ func _get_character_texture(character_id: String, emotion: String, outfit: Strin
 	var outfit_default_key: String = _build_outfit_emotion_key(resolved_outfit, "default")
 
 	if not outfit_emotion_key.is_empty() and sprites.has(outfit_emotion_key):
-		return sprites[outfit_emotion_key]
+		return _resolve_texture_entry(sprites[outfit_emotion_key])
 	elif sprites.has(emotion):
-		return sprites[emotion]
+		return _resolve_texture_entry(sprites[emotion])
 	elif not outfit_default_key.is_empty() and sprites.has(outfit_default_key):
-		return sprites[outfit_default_key]
+		return _resolve_texture_entry(sprites[outfit_default_key])
 	elif sprites.has("default"):
-		return sprites["default"]
+		return _resolve_texture_entry(sprites["default"])
 	elif sprites.size() > 0:
-		return sprites.values()[0]
+		return _resolve_texture_entry(sprites.values()[0])
+	return null
+
+
+func _resolve_texture_entry(entry: Variant) -> Texture2D:
+	if entry is Texture2D:
+		return entry as Texture2D
+
+	var asset_ref: String = str(entry).strip_edges()
+	if asset_ref.is_empty():
+		return null
+	if _texture_cache.has(asset_ref):
+		var cached: Variant = _texture_cache.get(asset_ref, null)
+		return cached as Texture2D if cached is Texture2D else null
+
+	var texture: Texture2D = null
+	if _texture_loader.is_valid():
+		var loaded: Variant = _texture_loader.call(asset_ref)
+		if loaded is Texture2D:
+			texture = loaded as Texture2D
+	if texture == null:
+		texture = _load_texture_direct(asset_ref)
+	if texture != null:
+		_texture_cache[asset_ref] = texture
+	return texture
+
+
+func _load_texture_direct(asset_ref: String) -> Texture2D:
+	var normalized_ref: String = asset_ref.strip_edges()
+	if normalized_ref.is_empty():
+		return null
+
+	if ResourceLoader.exists(normalized_ref):
+		var resource: Resource = ResourceLoader.load(normalized_ref)
+		if resource is Texture2D:
+			return resource as Texture2D
+
+	var global_path: String = normalized_ref
+	if normalized_ref.begins_with("user://"):
+		global_path = ProjectSettings.globalize_path(normalized_ref)
+	if not FileAccess.file_exists(global_path):
+		return null
+
+	var extension: String = normalized_ref.get_extension().to_lower()
+	if extension in ["png", "jpg", "jpeg", "webp", "bmp", "tga"]:
+		var image := Image.new()
+		if image.load(global_path) == OK:
+			return ImageTexture.create_from_image(image)
 	return null
 
 

@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
 [ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
 [ext_resource type="PackedScene" path="res://scenes/apps/shop/shop_app.tscn" id="3_entry_scene"]
-[ext_resource type="Texture2D" path="res://icon.svg" id="4_icon"]
+[ext_resource type="Texture2D" path="res://Assets/images/app_icons/icon_shop.png" id="4_icon"]
 
 [sub_resource type="Resource" id="Resource_shop_window"]
 script = ExtResource("2_constraints")

@@ -11,6 +11,15 @@ signal document_changed(doc_id: String)
 
 ## 有效的文档分类
 const VALID_CATEGORIES: Array[String] = ["world", "characters", "story", "notes"]
+const VALID_DOC_KINDS: Array[String] = [
+	"canonical",
+	"brief",
+	"open_questions",
+	"backbone",
+	"decision_log",
+	"reference",
+]
+const VALID_DOC_STATES: Array[String] = ["draft", "confirmed", "superseded"]
 
 const KB_DIR_NAME = "knowledge_base"
 const DOCS_DIR_NAME = "docs"
@@ -20,6 +29,7 @@ const LEGACY_FILE_NAME = "knowledge_base.json"
 ## 文档列表 — 每个元素是 Dictionary:
 ## { "doc_id": String, "title": String, "content": String,
 ##   "category": String, "tags": Array[String], "author": String,
+##   "doc_kind": String, "state": String,
 ##   "updated_at": String,
 ##   "position_x": float, "position_y": float }  ← UI 卡片位置（可选）
 var documents: Array[Dictionary] = []
@@ -84,18 +94,22 @@ func get_categories() -> Array[String]:
 
 ## 创建或更新文档。doc_id 已存在则更新，不存在则创建。
 func upsert_document(doc_id: String, title: String, content: String,
-		category: String, tags: Array = [], author: String = "") -> void:
+		category: String, tags: Array = [], author: String = "", metadata: Dictionary = {}) -> void:
 	var now: String = Time.get_datetime_string_from_system(true)
 	for i in range(documents.size()):
 		if documents[i].get("doc_id", "") == doc_id:
-			documents[i]["title"] = title
-			documents[i]["content"] = content
-			documents[i]["category"] = category
+			var updated_doc: Dictionary = documents[i].duplicate(true)
+			updated_doc["title"] = title
+			updated_doc["content"] = content
+			updated_doc["category"] = category
 			if tags.size() > 0:
-				documents[i]["tags"] = tags
+				updated_doc["tags"] = tags
 			if not author.is_empty():
-				documents[i]["author"] = author
-			documents[i]["updated_at"] = now
+				updated_doc["author"] = author
+			for key in metadata:
+				updated_doc[key] = metadata[key]
+			updated_doc["updated_at"] = now
+			documents[i] = _normalize_document(updated_doc)
 			document_changed.emit(doc_id)
 			return
 	# 创建新文档
@@ -110,7 +124,9 @@ func upsert_document(doc_id: String, title: String, content: String,
 		"position_x": randf_range(50.0, 400.0),
 		"position_y": randf_range(50.0, 400.0),
 	}
-	documents.append(doc)
+	for key in metadata:
+		doc[key] = metadata[key]
+	documents.append(_normalize_document(doc))
 	document_changed.emit(doc_id)
 
 ## 删除文档
@@ -124,6 +140,7 @@ func delete_document(doc_id: String) -> bool:
 
 ## 生成唯一 doc_id（基于分类前缀 + 时间戳）
 func generate_doc_id(category: String) -> String:
+	category = _normalize_category(category)
 	_id_counter += 1
 	return "%s_%s_%d" % [category, str(Time.get_ticks_msec()), _id_counter]
 
@@ -174,7 +191,7 @@ func _load_from_docs_dir(docs_dir: String) -> void:
 			var file_path: String = docs_dir.path_join(file_name)
 			var doc: Dictionary = _read_json_file(file_path)
 			if not doc.is_empty() and doc.has("doc_id"):
-				documents.append(doc)
+				documents.append(_normalize_document(doc))
 		file_name = dir.get_next()
 	dir.list_dir_end()
 	print("[KnowledgeBaseManager] Loaded %d documents from %s" % [documents.size(), docs_dir])
@@ -187,7 +204,8 @@ func _load_from_legacy_file(file_path: String) -> void:
 
 	if data.has("documents"):
 		for d in data["documents"]:
-			documents.append(d)
+			if d is Dictionary:
+				documents.append(_normalize_document(d))
 	else:
 		_migrate_legacy(data)
 
@@ -200,9 +218,15 @@ func _load_from_legacy_file(file_path: String) -> void:
 		da.rename(file_path, bak_path)
 		print("[KnowledgeBaseManager] Legacy file backed up to %s" % bak_path)
 
-func save_data() -> void:
+func save_data() -> Error:
 	if _storage_manager == null or _storage_manager.current_project_path.is_empty():
-		return
+		return ERR_UNCONFIGURED
+
+	if _storage_manager.has_method("ensure_writable_project_root"):
+		var writable_err: Error = _storage_manager.ensure_writable_project_root()
+		if writable_err != OK:
+			push_error("[KnowledgeBaseManager] Failed to switch project to writable root: %s" % error_string(writable_err))
+			return writable_err
 
 	var docs_dir: String = _get_docs_dir()
 	# 确保 docs/ 目录存在
@@ -210,11 +234,13 @@ func save_data() -> void:
 		var err := DirAccess.make_dir_recursive_absolute(docs_dir)
 		if err != OK:
 			push_error("[KnowledgeBaseManager] Failed to create directory: %s" % docs_dir)
-			return
+			return err
 
 	# 收集当前有效的 doc_id（用于清理已删除的文档文件）
 	var active_ids: Dictionary = {}
-	for doc in documents:
+	for i in range(documents.size()):
+		var doc := _normalize_document(documents[i])
+		documents[i] = doc
 		var doc_id: String = doc.get("doc_id", "")
 		if doc_id.is_empty():
 			continue
@@ -229,6 +255,7 @@ func save_data() -> void:
 
 	data_saved.emit()
 	print("[KnowledgeBaseManager] Saved %d documents to %s" % [documents.size(), docs_dir])
+	return OK
 
 func _write_doc_file(docs_dir: String, doc: Dictionary) -> void:
 	var doc_id: String = doc.get("doc_id", "")
@@ -255,15 +282,18 @@ func _write_index() -> void:
 	var index_path: String = _get_index_path()
 	var entries: Array[Dictionary] = []
 	for doc in documents:
+		var normalized_doc := _normalize_document(doc)
 		entries.append({
-			"doc_id": doc.get("doc_id", ""),
-			"title": doc.get("title", ""),
-			"category": doc.get("category", ""),
-			"tags": doc.get("tags", []),
-			"author": doc.get("author", ""),
-			"updated_at": doc.get("updated_at", ""),
-			"position_x": doc.get("position_x", 0.0),
-			"position_y": doc.get("position_y", 0.0),
+			"doc_id": normalized_doc.get("doc_id", ""),
+			"title": normalized_doc.get("title", ""),
+			"category": normalized_doc.get("category", ""),
+			"tags": normalized_doc.get("tags", []),
+			"author": normalized_doc.get("author", ""),
+			"doc_kind": normalized_doc.get("doc_kind", "canonical"),
+			"state": normalized_doc.get("state", "confirmed"),
+			"updated_at": normalized_doc.get("updated_at", ""),
+			"position_x": normalized_doc.get("position_x", 0.0),
+			"position_y": normalized_doc.get("position_y", 0.0),
 		})
 	var payload: Dictionary = {"documents": entries}
 
@@ -313,6 +343,70 @@ func _sanitize_filename(doc_id: String) -> String:
 		safe = safe.replace(ch, "_")
 	return safe
 
+
+func _normalize_document(raw_doc: Dictionary) -> Dictionary:
+	var doc: Dictionary = raw_doc.duplicate(true)
+	doc["category"] = _normalize_category(str(doc.get("category", "")))
+
+	var doc_kind: String = str(doc.get("doc_kind", "")).strip_edges()
+	if doc_kind.is_empty():
+		doc_kind = _infer_doc_kind_from_doc(doc)
+	elif doc_kind not in VALID_DOC_KINDS:
+		doc_kind = "canonical"
+	doc["doc_kind"] = doc_kind
+
+	var state: String = str(doc.get("state", "")).strip_edges()
+	if state.is_empty():
+		state = _infer_doc_state_from_doc(doc)
+	elif state not in VALID_DOC_STATES:
+		state = "confirmed"
+	doc["state"] = state
+
+	if not doc.has("tags") or not (doc.get("tags", []) is Array):
+		doc["tags"] = []
+	if str(doc.get("author", "")).strip_edges().is_empty():
+		doc["author"] = "player"
+	if not doc.has("updated_at"):
+		doc["updated_at"] = Time.get_datetime_string_from_system(true)
+	if not doc.has("position_x"):
+		doc["position_x"] = randf_range(50.0, 400.0)
+	if not doc.has("position_y"):
+		doc["position_y"] = randf_range(50.0, 400.0)
+
+	return doc
+
+
+func _normalize_category(category: String) -> String:
+	var normalized := category.strip_edges()
+	if normalized.is_empty():
+		return "notes"
+	if VALID_CATEGORIES.has(normalized):
+		return normalized
+	if normalized == "creative_brief":
+		return "notes"
+	return "notes"
+
+
+func _infer_doc_kind_from_doc(doc: Dictionary) -> String:
+	var doc_id: String = str(doc.get("doc_id", "")).strip_edges()
+	var raw_category: String = str(doc.get("category", "")).strip_edges()
+	if raw_category == "creative_brief" or doc_id == "creative_brief":
+		return "brief"
+	match doc_id:
+		"open_design_questions":
+			return "open_questions"
+		"seed_development_backbone":
+			return "backbone"
+		_:
+			return "canonical"
+
+
+func _infer_doc_state_from_doc(doc: Dictionary) -> String:
+	var content: String = str(doc.get("content", "")).strip_edges()
+	if content.is_empty():
+		return "draft"
+	return "confirmed"
+
 # =============================================================================
 # Legacy Migration — 旧格式 → 统一文档模型
 # =============================================================================
@@ -325,7 +419,7 @@ func _migrate_legacy(data: Dictionary) -> void:
 	var game_title: String = data.get("game_title", "")
 	var synopsis: String = data.get("synopsis", "")
 	if not game_title.is_empty() or not synopsis.is_empty():
-		documents.append({
+		documents.append(_normalize_document({
 			"doc_id": "world_core",
 			"title": game_title if not game_title.is_empty() else "核心策划案",
 			"content": synopsis,
@@ -335,13 +429,13 @@ func _migrate_legacy(data: Dictionary) -> void:
 			"updated_at": now,
 			"position_x": 100.0,
 			"position_y": 100.0,
-		})
+		}))
 
 	# characters → 每个角色一篇 characters 文档
 	var chars: Array = data.get("characters", [])
 	for c in chars:
 		var cid: String = c.get("character_id", generate_doc_id("characters"))
-		documents.append({
+		documents.append(_normalize_document({
 			"doc_id": cid,
 			"title": c.get("full_name", "Unknown"),
 			"content": c.get("personality", c.get("notes", "")),
@@ -351,13 +445,13 @@ func _migrate_legacy(data: Dictionary) -> void:
 			"updated_at": now,
 			"position_x": c.get("position_x", randf_range(50.0, 400.0)),
 			"position_y": c.get("position_y", randf_range(50.0, 400.0)),
-		})
+		}))
 
 	# beats → 每个节拍一篇 story 文档
 	var beats: Array = data.get("beats", [])
 	for b in beats:
 		var bid: String = b.get("beat_id", generate_doc_id("story"))
-		documents.append({
+		documents.append(_normalize_document({
 			"doc_id": bid,
 			"title": b.get("title", "Untitled"),
 			"content": b.get("content", ""),
@@ -367,7 +461,7 @@ func _migrate_legacy(data: Dictionary) -> void:
 			"updated_at": now,
 			"position_x": b.get("position_x", randf_range(50.0, 400.0)),
 			"position_y": b.get("position_y", randf_range(50.0, 400.0)),
-		})
+		}))
 
 	# 迁移后自动保存新格式
 	print("[KnowledgeBaseManager] Migration complete: %d documents." % documents.size())

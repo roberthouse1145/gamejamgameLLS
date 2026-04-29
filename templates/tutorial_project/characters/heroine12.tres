@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "13"
 }
 profile = "自信迷人的尖耳魔女，粉色长发红瞳，穿露腰礼裙戴花饰尖顶帽，手持魔杖"
+display_offset = Vector2(0, 0.15)
 

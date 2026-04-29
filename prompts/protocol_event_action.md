@@ -34,7 +34,7 @@
 - `post_moment` — 以 NPC 身份发朋友圈。参数：`content`（必填）、`npc_id`、`image_hint`、`likes`
 - `lock_app_window` — 锁定窗口。参数：`app_id`（必填）、`close_locked`、`minimize_locked`、`focus`
 - `unlock_app_window` — 解锁窗口。参数：`app_id`（必填）
-- `generate_work_order` — 根据对话内容让 LLM 生成结构化工单并派发。参数：`title`（必填，工单提示标题）、`prompt`（可选，指定工单应覆盖的要点）、`assignee`（可选，默认当前 NPC）
+- `generate_work_order` — 根据对话内容让 LLM 生成结构化工单并派发。参数：`title`（必填，工单提示标题）、`prompt`（可选，指定工单应覆盖的要点）
 
 示例：
 ```

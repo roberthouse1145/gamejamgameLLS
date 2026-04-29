@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "19"
 }
 profile = "活力四射的萌系少女，橙发双马尾，紫底星眸，穿红绿配色彩裙，系爱心蝴蝶结"
+display_offset = Vector2(0, 0.15)
 

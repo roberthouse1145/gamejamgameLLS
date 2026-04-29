@@ -1,6 +1,6 @@
-[gd_scene load_steps=8 format=3 uid="uid://cx6mshqy6m037"]
+[gd_scene format=3 uid="uid://cx6mshqy6m037"]
 
-[ext_resource type="Script" path="res://scripts/pseudo_os/boot_screen.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cxn420fml8qht" path="res://scripts/pseudo_os/boot_screen.gd" id="1_script"]
 
 [sub_resource type="Gradient" id="Gradient_boot_bg"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -45,7 +45,7 @@ shadow_offset = Vector2(0, 4)
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
 
-[node name="BootScreen" type="Control"]
+[node name="BootScreen" type="Control" unique_id=937289827]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -54,7 +54,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="Background" type="TextureRect" parent="."]
+[node name="Background" type="TextureRect" parent="." unique_id=2146192110]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -63,7 +63,7 @@ grow_horizontal = 2
 grow_vertical = 2
 texture = SubResource("GradientTexture2D_boot_bg")
 
-[node name="Margin" type="MarginContainer" parent="."]
+[node name="Margin" type="MarginContainer" parent="." unique_id=1980103739]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -75,12 +75,12 @@ theme_override_constants/margin_top = 64
 theme_override_constants/margin_right = 64
 theme_override_constants/margin_bottom = 64
 
-[node name="LogContainer" type="VBoxContainer" parent="Margin"]
+[node name="LogContainer" type="VBoxContainer" parent="Margin" unique_id=1400779204]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="WarningPopup" type="CenterContainer" parent="."]
+[node name="WarningPopup" type="CenterContainer" parent="." unique_id=1892466858]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -89,48 +89,48 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="PanelContainer" parent="WarningPopup"]
+[node name="Panel" type="PanelContainer" parent="WarningPopup" unique_id=1565981896]
 custom_minimum_size = Vector2(500, 260)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_glass_popup")
 
-[node name="Margin" type="MarginContainer" parent="WarningPopup/Panel"]
+[node name="Margin" type="MarginContainer" parent="WarningPopup/Panel" unique_id=1022510318]
 layout_mode = 2
 theme_override_constants/margin_left = 32
 theme_override_constants/margin_top = 32
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 32
 
-[node name="VBox" type="VBoxContainer" parent="WarningPopup/Panel/Margin"]
+[node name="VBox" type="VBoxContainer" parent="WarningPopup/Panel/Margin" unique_id=458611437]
 layout_mode = 2
 theme_override_constants/separation = 24
 alignment = 1
 
-[node name="Title" type="Label" parent="WarningPopup/Panel/Margin/VBox"]
+[node name="Title" type="Label" parent="WarningPopup/Panel/Margin/VBox" unique_id=1545930596]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 24
 text = "系统提示与协议确认"
 horizontal_alignment = 1
 
-[node name="Content" type="Label" parent="WarningPopup/Panel/Margin/VBox"]
+[node name="Content" type="Label" parent="WarningPopup/Panel/Margin/VBox" unique_id=1135538708]
 custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.9)
 theme_override_font_sizes/font_size = 16
 text = "本终端内包含的所有登场人物均已确认年满18岁且纯属虚构。请确认您已成年，并准备好进入开发环境。"
 horizontal_alignment = 1
-autowrap_mode = 2
+autowrap_mode = 3
 
-[node name="AgreeButton" type="Button" parent="WarningPopup/Panel/Margin/VBox"]
+[node name="AgreeButton" type="Button" parent="WarningPopup/Panel/Margin/VBox" unique_id=155600852]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(200, 48)
 layout_mode = 2
 size_flags_horizontal = 4
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 18
-theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
-theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_normal")
 theme_override_styles/normal = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_btn_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_btn_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "我已成年并同意"

@@ -20,11 +20,10 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var node_id: String = params.get("node_id", "")
-	var norm_x: float = float(params.get("norm_x", 0.0))
-	var norm_y: float = float(params.get("norm_y", 0.0))
-	var duration: float = float(params.get("duration", 0.3))
+	var node_id: String = _get_param(command, "node_id", "")
+	var norm_x: float = _get_param(command, "norm_x", 0.0)
+	var norm_y: float = _get_param(command, "norm_y", 0.0)
+	var duration: float = _get_param(command, "duration", 0.3)
 	var runner: Node = context.scene_runner
 	if runner == null:
 		return CommandResultClass.error("MOVE_NODE: no scene_runner")

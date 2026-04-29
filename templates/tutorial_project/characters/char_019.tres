@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_cu5u5"]
+
+[resource]
+script = ExtResource("1_cu5u5")
+character_id = "char_019"
+character_name = "Heroine19"
+display_name = "Heroine19"
+sprites = {
+"angry": "assets/images/character/heroine19/heroine19_cos11.png",
+"crying": "assets/images/character/heroine19/heroine19_cos12.png",
+"default": "assets/images/character/heroine19/heroine19_cos01.png",
+"happy": "assets/images/character/heroine19/heroine19_cos04.png",
+"sad": "assets/images/character/heroine19/heroine19_cos02.png",
+"serious": "assets/images/character/heroine19/heroine19_cos05.png",
+"shy": "assets/images/character/heroine19/heroine19_cos16.png",
+"smug": "assets/images/character/heroine19/heroine19_cos14.png",
+"surprised": "assets/images/character/heroine19/heroine19_cos13.png",
+"thinking": "assets/images/character/heroine19/heroine19_cos03.png",
+"worried": "assets/images/character/heroine19/heroine19_cos08.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "11",
+"crying": "12",
+"default": "01",
+"happy": "04",
+"sad": "02",
+"serious": "05",
+"shy": "16",
+"smug": "14",
+"surprised": "13",
+"thinking": "03",
+"worried": "08"
+}
+profile = "纤小沉默的死灵系魔女，紫发猫耳黑篷，手持骷髅法杖"
+display_offset = Vector2(0, 0.15)

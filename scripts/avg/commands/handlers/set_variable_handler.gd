@@ -21,7 +21,7 @@ func _create_schema() -> ParamSchemaClass:
 
 	schema.add_param(ParamDef.variable_ref_param(
 		"variable_id",
-		"Target variable ID (e.g., var_001)",
+		"Target variable reference (usually variable ID from editor)",
 		true,
 		"变量ID"
 	))
@@ -60,7 +60,7 @@ func _create_schema() -> ParamSchemaClass:
 	# --- variable source ---
 	schema.add_param(ParamDef.variable_ref_param(
 		"source_variable_id",
-		"Source variable ID to read from (when value_source=variable)",
+		"Source variable reference to read from (when value_source=variable)",
 		false,
 		"源变量ID"
 	))
@@ -101,12 +101,13 @@ func _create_schema() -> ParamSchemaClass:
 
 ## Execute the SET_VARIABLE command
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var variable_id: String = _get_param(command, "variable_id", "")
-	# Backward compat
-	if variable_id.is_empty():
-		variable_id = _get_param(command, "variable_name", "")
-	if variable_id.is_empty():
-		return CommandResultClass.error("variable_id is required")
+	var variable_ref: String = _get_param(command, "variable_id", "")
+	if variable_ref.is_empty():
+		variable_ref = _get_param(command, "variable_key", "")
+	if variable_ref.is_empty():
+		variable_ref = _get_param(command, "variable_name", "")
+	if variable_ref.is_empty():
+		return CommandResultClass.error("variable reference is required")
 
 	var operation: String = _get_param(command, "operation", "set")
 	var value_source: String = _get_param(command, "value_source", "constant")
@@ -124,12 +125,11 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 	if resolved_value == null:
 		return CommandResultClass.error("value is required")
 
-	# Execute — scope is determined by ID prefix (var_NNN=global, lvar_NNN=local)
 	if context.variable_manager != null:
-		context.variable_manager.set_value_by_id(variable_id, resolved_value, operation)
+		context.variable_manager.set_value_by_ref(variable_ref, resolved_value, operation)
 
 	return CommandResultClass.ok({
-		"variable_id": variable_id,
+		"variable_ref": variable_ref,
 		"operation": operation,
 		"value_source": value_source,
 		"resolved_value": resolved_value,
@@ -143,12 +143,14 @@ func _resolve_value(command: Resource, context: RefCounted, source: String) -> V
 			return _get_param(command, "value", null)
 
 		"variable":
-			var src_id: String = _get_param(command, "source_variable_id", "")
-			if src_id.is_empty():
-				push_warning("SET_VARIABLE: source_variable_id is empty")
+			var src_ref: String = _get_param(command, "source_variable_id", "")
+			if src_ref.is_empty():
+				src_ref = _get_param(command, "source_variable_key", "")
+			if src_ref.is_empty():
+				push_warning("SET_VARIABLE: source variable ref is empty")
 				return null
 			if context.variable_manager != null:
-				return context.variable_manager.get_value_by_id(src_id)
+				return context.variable_manager.get_value_by_ref(src_ref)
 			return null
 
 		"random":
@@ -172,8 +174,7 @@ func _resolve_value(command: Resource, context: RefCounted, source: String) -> V
 func _get_game_data(key: String, context: RefCounted) -> Variant:
 	match key:
 		"play_time":
-			# Engine uptime in seconds (float)
-			return Time.get_ticks_msec() / 1000.0
+			return int(Time.get_ticks_msec() / 1000.0)
 		"click_count":
 			# From command context if tracked
 			if context != null and "click_count" in context:

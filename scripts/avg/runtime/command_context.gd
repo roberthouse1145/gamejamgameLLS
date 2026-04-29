@@ -153,18 +153,18 @@ func change_background(texture: Texture2D, fade_duration: float = 0.0) -> void:
 
 
 ## Get a variable value from the variable manager
-## @param variable_name: Name of the variable
+## @param variable_key: Key of the variable
 ## @return: The variable value or null
-func get_variable(variable_name: String) -> Variant:
+func get_variable(variable_key: String) -> Variant:
 	if variable_manager != null:
-		return variable_manager.get_value(variable_name)
+		return variable_manager.get_value(variable_key)
 	return null
 
 
 ## Set a variable value in the variable manager
-## @param variable_name: Name of the variable
+## @param variable_key: Key of the variable
 ## @param value: Value to set
 ## @param operation: Operation to perform
-func set_variable(variable_name: String, value: Variant, operation: String = "set") -> void:
+func set_variable(variable_key: String, value: Variant, operation: String = "set") -> void:
 	if variable_manager != null:
-		variable_manager.set_value(variable_name, value, operation)
+		variable_manager.set_value(variable_key, value, operation)

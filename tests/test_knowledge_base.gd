@@ -47,6 +47,23 @@ func _run_test() -> void:
 		print("FAIL: Test3 - tags 更新异常: %s" % str(tags))
 		fail_count += 1
 
+	# --- Test 3b: 非标准 category 会被归一化，并保留文档用途元数据 ---
+	kb.upsert_document(
+		"creative_brief",
+		"项目企划书",
+		"这是立项摘要。",
+		"creative_brief",
+		["brief"],
+		"player"
+	)
+	var brief_doc = kb.get_document("creative_brief")
+	if brief_doc.get("category") == "notes" and brief_doc.get("doc_kind") == "brief":
+		print("PASS: Test3b - creative_brief 被归一化到 notes + brief")
+		pass_count += 1
+	else:
+		print("FAIL: Test3b - creative_brief 归一化异常: %s" % str(brief_doc))
+		fail_count += 1
+
 	# --- Test 4: get_document 查找不存在的 ID ---
 	var empty = kb.get_document("nonexistent_999")
 	if empty.is_empty():
@@ -64,11 +81,11 @@ func _run_test() -> void:
 
 	# --- Test 5a: get_documents 无过滤 → 返回全部 ---
 	var all_docs = kb.get_documents()
-	if all_docs.size() == 5:
-		print("PASS: Test5a - get_documents 无过滤返回全部 (5)")
+	if all_docs.size() == 6:
+		print("PASS: Test5a - get_documents 无过滤返回全部 (6)")
 		pass_count += 1
 	else:
-		print("FAIL: Test5a - 应为 5 篇，实际 %d" % all_docs.size())
+		print("FAIL: Test5a - 应为 6 篇，实际 %d" % all_docs.size())
 		fail_count += 1
 
 	# --- Test 5b: get_documents 按 category 过滤 ---
@@ -129,8 +146,8 @@ func _run_test() -> void:
 
 	# --- Test 9: get_categories ---
 	var cats = kb.get_categories()
-	if "world" in cats and "characters" in cats and "story" in cats and "notes" not in cats:
-		print("PASS: Test9 - get_categories 正确 (notes 已删除)")
+	if "world" in cats and "characters" in cats and "story" in cats and "notes" in cats:
+		print("PASS: Test9 - get_categories 正确 (brief 已归入 notes)")
 		pass_count += 1
 	else:
 		print("FAIL: Test9 - get_categories 异常: %s" % str(cats))

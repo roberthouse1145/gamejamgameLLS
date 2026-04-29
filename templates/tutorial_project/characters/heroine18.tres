@@ -34,4 +34,5 @@ emotion_slots = {
 "worried": "12"
 }
 profile = "干练成熟的炼金术师，粉短发红眼，黑色风衣随身携药瓶"
+display_offset = Vector2(0, 0.15)
 

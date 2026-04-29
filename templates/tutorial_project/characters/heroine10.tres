@@ -32,4 +32,5 @@ emotion_slots = {
 "worried": "06"
 }
 profile = "灵动可爱的森林花仙子，淡绿渐变长发紫眸，戴扶桑花饰，身着花瓣短裙，背后有大型彩色透明翅膀"
+display_offset = Vector2(0, 0.15)
 

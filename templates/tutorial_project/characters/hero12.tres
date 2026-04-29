@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "17"
 }
 profile = "呆萌可爱的兽人少年，银发红瞳，身穿深色露脐短斗篷配宽松长裤，带有条纹大尾巴"
+display_offset = Vector2(0, 0.15)

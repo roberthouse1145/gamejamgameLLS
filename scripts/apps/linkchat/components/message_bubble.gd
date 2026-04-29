@@ -10,6 +10,7 @@ class_name ChatMessageBubble extends MarginContainer
 
 const LCTheme := preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
 const MessageCardClass := preload("res://scripts/apps/linkchat/components/message_card.gd")
+const UIIconLibraryClass := preload("res://scripts/ui/ui_icon_library.gd")
 
 enum BubbleType {NPC, PLAYER, SYSTEM}
 
@@ -343,11 +344,13 @@ func _create_image_placeholder(description: String) -> PanelContainer:
 	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panel.add_child(inner)
 
-	var icon_label := Label.new()
-	icon_label.text = "🖼"
-	icon_label.add_theme_font_size_override("font_size", 32)
-	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inner.add_child(icon_label)
+	var icon_rect := TextureRect.new()
+	icon_rect.texture = UIIconLibraryClass.get_icon("image")
+	icon_rect.custom_minimum_size = Vector2(36, 36)
+	icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon_rect.modulate = LCTheme.COLOR_TEXT_MUTED
+	inner.add_child(icon_rect)
 
 	var desc_label := Label.new()
 	desc_label.text = description

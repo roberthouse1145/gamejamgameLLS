@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_jyknw"]
+
+[resource]
+script = ExtResource("1_jyknw")
+character_id = "char_025"
+character_name = "Hero04"
+display_name = "Hero04"
+sprites = {
+"angry": "assets/images/character/hero04/hero_04_cos04.png",
+"default": "assets/images/character/hero04/hero_04_cos01.png",
+"happy": "assets/images/character/hero04/hero_04_cos08.png",
+"laugh": "assets/images/character/hero04/hero_04_cos09.png",
+"sad": "assets/images/character/hero04/hero_04_cos10.png",
+"serious": "assets/images/character/hero04/hero_04_cos02.png",
+"shy": "assets/images/character/hero04/hero_04_cos19.png",
+"surprised": "assets/images/character/hero04/hero_04_cos20.png",
+"thinking": "assets/images/character/hero04/hero_04_cos11.png",
+"worried": "assets/images/character/hero04/hero_04_cos15.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+display_offset = Vector2(0, 0.15)

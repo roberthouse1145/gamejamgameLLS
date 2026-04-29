@@ -95,27 +95,28 @@ func _validate_param_type(value: Variant, param) -> String:
 	
 	match param.type:
 		"string", "character_ref", "scene_ref":
-			if not value is String:
+			if not _is_string_like_value(value):
+				return "Parameter '%s' must be a string" % param.name
+		"variable_ref":
+			if not _is_string_like_value(value):
 				return "Parameter '%s' must be a string" % param.name
 		"int":
-			if not (value is int or value is float):
+			if not _is_number_like_value(value):
 				return "Parameter '%s' must be an integer" % param.name
 		"float":
-			if not (value is int or value is float):
+			if not _is_number_like_value(value):
 				return "Parameter '%s' must be a number" % param.name
 		"bool":
-			if not value is bool:
+			if not _is_bool_like_value(value):
 				return "Parameter '%s' must be a boolean" % param.name
 		"choices":
-			if not value is String:
+			if not _is_string_like_value(value):
 				return "Parameter '%s' must be a string" % param.name
-			if param.options.size() > 0 and not param.options.has(value):
-				return "Parameter '%s' must be one of: %s" % [param.name, ", ".join(param.options)]
 		"color":
-			if not value is Color:
+			if not _is_color_like_value(value):
 				return "Parameter '%s' must be a Color" % param.name
 		"vector2":
-			if not value is Vector2:
+			if not _is_vector2_like_value(value):
 				return "Parameter '%s' must be a Vector2" % param.name
 	
 	return ""
@@ -123,13 +124,190 @@ func _validate_param_type(value: Variant, param) -> String:
 
 ## Helper to get a parameter value with default fallback
 func _get_param(command: Resource, param_name: String, default: Variant = null) -> Variant:
-	if command.params.has(param_name):
-		return command.params[param_name]
-	
+	var fallback: Variant = default
 	var schema = get_schema()
+	var param = null
 	if schema != null:
-		var param = schema.get_param(param_name)
+		param = schema.get_param(param_name)
+		if fallback == null and param != null:
+			fallback = param.default_value
+
+	if command.params.has(param_name):
+		var raw_value: Variant = command.params[param_name]
+		if param != null:
+			return _coerce_param_value(raw_value, param, fallback)
+		return raw_value
+	
+	if schema != null:
 		if param != null:
 			return param.default_value
 	
 	return default
+
+
+func _coerce_param_value(value: Variant, param, fallback: Variant) -> Variant:
+	match param.type:
+		"string", "character_ref", "scene_ref", "variable_ref", "texture", "audio":
+			return _coerce_string_value(value, fallback)
+		"choices":
+			return _coerce_choice_value(value, param.options, fallback)
+		"int":
+			return _coerce_int_value(value, fallback)
+		"float":
+			return _coerce_float_value(value, fallback)
+		"bool":
+			return _coerce_bool_value(value, fallback)
+		"color":
+			return _coerce_color_value(value, fallback)
+		"vector2":
+			return _coerce_vector2_value(value, fallback)
+	return value
+
+
+func _coerce_string_value(value: Variant, fallback: Variant) -> String:
+	if value == null:
+		return str(fallback)
+	if value is String:
+		return value
+	if _is_string_like_value(value):
+		return str(value)
+	return str(fallback)
+
+
+func _coerce_choice_value(value: Variant, options: Array, fallback: Variant) -> String:
+	var text: String = _coerce_string_value(value, fallback).strip_edges()
+	if text.is_empty():
+		return str(fallback)
+
+	for option in options:
+		var option_text: String = str(option).strip_edges()
+		if option_text == text:
+			return option_text
+		if not option_text.is_empty() and option_text.to_lower() == text.to_lower():
+			return option_text
+
+	return str(fallback)
+
+
+func _coerce_int_value(value: Variant, fallback: Variant) -> int:
+	var fallback_int: int = int(_coerce_float_value(fallback, 0.0))
+	if value == null:
+		return fallback_int
+	if value is int or value is float:
+		return int(value)
+	if value is bool:
+		return 1 if value else 0
+	if value is String:
+		var text: String = value.strip_edges()
+		if text.is_empty():
+			return fallback_int
+		if text.is_valid_int() or text.is_valid_float():
+			return int(text.to_float())
+	return fallback_int
+
+
+func _coerce_float_value(value: Variant, fallback: Variant) -> float:
+	var fallback_float: float = 0.0
+	if fallback is int or fallback is float:
+		fallback_float = float(fallback)
+	elif fallback is String and (fallback.is_valid_int() or fallback.is_valid_float()):
+		fallback_float = fallback.to_float()
+
+	if value == null:
+		return fallback_float
+	if value is int or value is float:
+		return float(value)
+	if value is bool:
+		return 1.0 if value else 0.0
+	if value is String:
+		var text: String = value.strip_edges()
+		if text.is_empty():
+			return fallback_float
+		if text.is_valid_int() or text.is_valid_float():
+			return text.to_float()
+	return fallback_float
+
+
+func _coerce_bool_value(value: Variant, fallback: Variant) -> bool:
+	var fallback_bool: bool = bool(fallback)
+	if value == null:
+		return fallback_bool
+	if value is bool:
+		return value
+	if value is int or value is float:
+		return float(value) != 0.0
+	if value is String:
+		var text: String = value.strip_edges().to_lower()
+		if text.is_empty():
+			return fallback_bool
+		if text in ["true", "1", "yes", "y", "on", "enable", "enabled", "是", "开"]:
+			return true
+		if text in ["false", "0", "no", "n", "off", "disable", "disabled", "否", "关"]:
+			return false
+	return fallback_bool
+
+
+func _coerce_color_value(value: Variant, fallback: Variant) -> Color:
+	var fallback_color: Color = fallback if fallback is Color else Color.WHITE
+	if value == null:
+		return fallback_color
+	if value is Color:
+		return value
+	if value is String:
+		var text: String = value.strip_edges()
+		if text.is_empty():
+			return fallback_color
+		return Color.from_string(text, fallback_color)
+	return fallback_color
+
+
+func _coerce_vector2_value(value: Variant, fallback: Variant) -> Vector2:
+	var fallback_vector: Vector2 = fallback if fallback is Vector2 else Vector2.ZERO
+	if value == null:
+		return fallback_vector
+	if value is Vector2:
+		return value
+	if value is Array and value.size() >= 2:
+		return Vector2(
+			_coerce_float_value(value[0], fallback_vector.x),
+			_coerce_float_value(value[1], fallback_vector.y)
+		)
+	if value is String:
+		var text: String = value.strip_edges()
+		if text.is_empty():
+			return fallback_vector
+		text = text.trim_prefix("(").trim_suffix(")")
+		text = text.trim_prefix("[").trim_suffix("]")
+		var parts: PackedStringArray = text.split(",", false)
+		if parts.size() >= 2:
+			var x_text: String = parts[0].strip_edges()
+			var y_text: String = parts[1].strip_edges()
+			if (x_text.is_valid_int() or x_text.is_valid_float()) and (y_text.is_valid_int() or y_text.is_valid_float()):
+				return Vector2(x_text.to_float(), y_text.to_float())
+	return fallback_vector
+
+
+func _is_string_like_value(value: Variant) -> bool:
+	return value is String or value is int or value is float or value is bool
+
+
+func _is_number_like_value(value: Variant) -> bool:
+	if value is int or value is float or value is bool:
+		return true
+	return value is String
+
+
+func _is_bool_like_value(value: Variant) -> bool:
+	if value is bool or value is int or value is float:
+		return true
+	return value is String
+
+
+func _is_color_like_value(value: Variant) -> bool:
+	return value is Color or value is String
+
+
+func _is_vector2_like_value(value: Variant) -> bool:
+	if value is Vector2 or value is String:
+		return true
+	return value is Array and value.size() >= 2

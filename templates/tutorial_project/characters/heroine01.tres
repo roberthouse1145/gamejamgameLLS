@@ -36,3 +36,4 @@ emotion_slots = {
 "worried": "20"
 }
 profile = "可爱活泼的魔法少女，褐发紫瞳，头戴法师帽，身穿粉紫相间的蕾丝边短裙"
+display_offset = Vector2(0, 0.15)

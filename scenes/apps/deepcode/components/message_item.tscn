@@ -1,8 +1,8 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bw66pjpbjh0am"]
 
 [ext_resource type="Script" path="res://scripts/apps/deepcode/components/message_item.gd" id="1_script"]
 
-[node name="MessageItem" type="MarginContainer"]
+[node name="MessageItem" type="MarginContainer" unique_id=1793333475]
 anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 20.0
@@ -13,25 +13,25 @@ theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 0
 script = ExtResource("1_script")
 
-[node name="VBoxContainer" type="VBoxContainer" parent="."]
+[node name="VBoxContainer" type="VBoxContainer" parent="." unique_id=241022346]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="Separator" type="HSeparator" parent="VBoxContainer"]
+[node name="Separator" type="HSeparator" parent="VBoxContainer" unique_id=1463468295]
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="AuthorRow" type="HBoxContainer" parent="VBoxContainer"]
+[node name="AuthorRow" type="HBoxContainer" parent="VBoxContainer" unique_id=1438778367]
 layout_mode = 2
 theme_override_constants/separation = 6
 
-[node name="AuthorLabel" type="Label" parent="VBoxContainer/AuthorRow"]
+[node name="AuthorLabel" type="Label" parent="VBoxContainer/AuthorRow" unique_id=2017223286]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 13
 text = "DeepCode"
 
-[node name="BlocksContainer" type="VBoxContainer" parent="VBoxContainer"]
+[node name="BlocksContainer" type="VBoxContainer" parent="VBoxContainer" unique_id=1904401807]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 2

@@ -16,8 +16,9 @@ const ParserClass = preload("res://scripts/avg/dsl/avg_dsl_parser_v2.gd")
 const ValidatorClass = preload("res://scripts/avg/dsl/avg_dsl_validator.gd")
 
 const REPAIR_ROLE: String = "dsl_repair"
-const FALLBACK_ROLES: PackedStringArray = ["date_scene_writer", "avg_dev_writer", "chat_default"]
+const FALLBACK_ROLES: PackedStringArray = ["date_scene_writer", "chat_default"]
 const MAX_TOOL_ITERATIONS: int = 10
+const SYSTEM_PROMPT_KEY: String = "dsl_repair_system"
 
 var _repair_service: AIService = null
 var _repair_ready: bool = false
@@ -166,7 +167,6 @@ func attempt_repair(
 
 	var request_id: String = _repair_service.chat_with_tools(messages, [], "auto", {
 		"temperature": 0.2,
-		"max_tokens": 1200,
 		"auto_execute": true,
 	})
 
@@ -415,6 +415,15 @@ func _validate_dsl_full(dsl_text: String) -> Dictionary:
 
 
 func _build_system_prompt(asset_manifest: String) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("has_prompt") and pm.has_method("resolve_with_vars"):
+		if pm.has_prompt(SYSTEM_PROMPT_KEY):
+			var resolved := str(pm.resolve_with_vars(SYSTEM_PROMPT_KEY, {
+				"asset_manifest": asset_manifest,
+			})).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+
 	var lines: Array[String] = []
 	lines.append("You are a DSL repair assistant. Your job is to fix validation errors in AVG DSL V2 code.")
 	lines.append("You have access to tools to patch the DSL text. Each patch triggers automatic re-validation.")

@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "14"
 }
 profile = "元气满满的魔法学院校服少女，粉发呆毛红眼，笑容灿烂"
+display_offset = Vector2(0, 0.15)
 

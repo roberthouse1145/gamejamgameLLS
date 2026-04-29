@@ -1,0 +1,71 @@
+[gd_resource type="Resource" script_class="AVGGameUIConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_ui_button.gd" id="1_51bpx"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_game_ui_config.gd" id="2_q1bpa"]
+
+[sub_resource type="Resource" id="Resource_hnumh"]
+script = ExtResource("1_51bpx")
+button_id = "save"
+display_text = "存档"
+action = "save"
+norm_position = Vector2(0.55, 0.96)
+
+[sub_resource type="Resource" id="Resource_q6xkn"]
+script = ExtResource("1_51bpx")
+button_id = "load"
+display_text = "读档"
+action = "load"
+norm_position = Vector2(0.605, 0.96)
+order = 1
+
+[sub_resource type="Resource" id="Resource_5uy3t"]
+script = ExtResource("1_51bpx")
+button_id = "auto"
+display_text = "自动"
+action = "auto"
+norm_position = Vector2(0.66, 0.96)
+order = 2
+
+[sub_resource type="Resource" id="Resource_5gqdg"]
+script = ExtResource("1_51bpx")
+button_id = "skip"
+display_text = "快进"
+action = "skip"
+norm_position = Vector2(0.715, 0.96)
+order = 3
+
+[sub_resource type="Resource" id="Resource_u8nxi"]
+script = ExtResource("1_51bpx")
+button_id = "log"
+display_text = "历史"
+action = "log"
+norm_position = Vector2(0.77, 0.96)
+order = 4
+
+[sub_resource type="Resource" id="Resource_okrvf"]
+script = ExtResource("1_51bpx")
+button_id = "hide_ui"
+display_text = "隐藏"
+action = "hide_ui"
+norm_position = Vector2(0.825, 0.96)
+order = 5
+
+[sub_resource type="Resource" id="Resource_uu6y8"]
+script = ExtResource("1_51bpx")
+button_id = "settings"
+display_text = "设置"
+action = "settings"
+norm_position = Vector2(0.88, 0.96)
+order = 6
+
+[sub_resource type="Resource" id="Resource_duwfn"]
+script = ExtResource("1_51bpx")
+button_id = "menu"
+display_text = "菜单"
+action = "menu"
+norm_position = Vector2(0.935, 0.96)
+order = 7
+
+[resource]
+script = ExtResource("2_q1bpa")
+buttons = [SubResource("Resource_hnumh"), SubResource("Resource_q6xkn"), SubResource("Resource_5uy3t"), SubResource("Resource_5gqdg"), SubResource("Resource_u8nxi"), SubResource("Resource_okrvf"), SubResource("Resource_uu6y8"), SubResource("Resource_duwfn")]

@@ -70,7 +70,7 @@ func _refresh_list() -> void:
 		
 		var display: String
 		if v != null:
-			display = "%s: %s = %s" % [var_id, v.variable_name, str(v.default_value)]
+			display = "%s: %s [%s] = %s" % [var_id, AVGVariableClass.get_key(v), AVGVariableClass.get_value_type(v), str(v.default_value)]
 		else:
 			display = "%s: (空)" % var_id
 		
@@ -121,7 +121,8 @@ func _create_variable_at_slot(slot: int) -> void:
 	
 	var new_var: Resource = AVGVariableClass.new()
 	new_var.variable_id = AVGVariableClass.make_id(slot)
-	new_var.variable_name = "变量%03d" % slot
+	AVGVariableClass.apply_key(new_var, AVGVariableClass.make_default_key(slot))
+	new_var.value_type = AVGVariableClass.VALUE_TYPE_INT
 	new_var.default_value = 0
 	
 	_project.variables.append(new_var)
@@ -149,5 +150,7 @@ func _on_clear_pressed() -> void:
 
 
 func _on_property_changed(_prop_name: String, _old_val: Variant, _new_val: Variant) -> void:
-	# 变量类型已统一为 int，不再需要复杂的类型转换逻辑
+	var variable: Resource = get_selected_variable()
+	if variable != null:
+		AVGVariableClass.apply_key(variable, AVGVariableClass.get_key(variable))
 	_refresh_list()

@@ -79,13 +79,20 @@ func consume_ap(amount: int, action_type: String = "", detail: String = "") -> b
 
 	if current_ap <= 0:
 		ap_exhausted.emit()
-		call_deferred("_advance_phase")
+		call_deferred("_advance_phase", current_day, phase_before)
 
 	ap_changed.emit(current_ap, max_ap_per_day)
 	return true
 
 
-func _advance_phase() -> void:
+func _advance_phase(expected_day: int = -1, expected_phase: int = -1) -> void:
+	if _is_stale_phase_advance(expected_day, expected_phase):
+		print("[GameLoopManager] Skip stale phase advance for Day %d / %s" % [
+			expected_day,
+			get_phase_name(expected_phase as TimePhase) if expected_phase >= 0 else "UNKNOWN",
+		])
+		return
+
 	match time_phase:
 		TimePhase.MORNING:
 			time_phase = TimePhase.AFTERNOON
@@ -101,7 +108,40 @@ func _advance_phase() -> void:
 			print("[GameLoopManager] Phase advanced: AFTERNOON -> NIGHT")
 		TimePhase.NIGHT:
 			print("[GameLoopManager] Day %d complete — advancing to next day" % current_day)
+			# 给玩家 1 秒阅读当晚行动反馈的时间，再切换日期
+			await get_tree().create_timer(1.0).timeout
+			if _is_stale_phase_advance(expected_day, expected_phase):
+				print("[GameLoopManager] Skip stale next-day advance for Day %d / NIGHT" % expected_day)
+				return
 			advance_to_next_day()
+
+
+func _is_stale_phase_advance(expected_day: int, expected_phase: int) -> bool:
+	if expected_day > 0 and current_day != expected_day:
+		return true
+	if expected_phase >= 0 and int(time_phase) != expected_phase:
+		return true
+	return false
+
+
+func set_day(day: int) -> void:
+	var target_day: int = clampi(day, 1, MAX_DAYS)
+	if current_day == target_day:
+		return
+
+	current_day = target_day
+	current_ap = max_ap_per_day
+	_today_actions.clear()
+
+	print("[GameLoopManager] ==== Set Day %d ====" % current_day)
+
+	var gm: Node = get_node_or_null("/root/GameManager")
+	if gm != null and gm.has_method("on_new_day"):
+		gm.on_new_day()
+
+	day_changed.emit(current_day)
+	ap_changed.emit(current_ap, max_ap_per_day)
+	_check_milestones()
 
 
 func advance_to_next_day() -> void:

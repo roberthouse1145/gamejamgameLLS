@@ -18,127 +18,59 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.08, 0.1, 0.14, 1)
+color = Color(0.972549, 0.976471, 0.984314, 1)
 
-[node name="TaskPanel" type="VBoxContainer" parent="."]
-unique_name_in_owner = true
+[node name="Root" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/separation = 0
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 28
 
-[node name="Header" type="PanelContainer" parent="TaskPanel"]
+[node name="Column" type="VBoxContainer" parent="Root"]
 layout_mode = 2
+theme_override_constants/separation = 20
 
-[node name="HeaderMargin" type="MarginContainer" parent="TaskPanel/Header"]
+[node name="HeaderRow" type="HBoxContainer" parent="Root/Column"]
 layout_mode = 2
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 12
+theme_override_constants/separation = 16
 
-[node name="HeaderVBox" type="VBoxContainer" parent="TaskPanel/Header/HeaderMargin"]
+[node name="HeaderText" type="VBoxContainer" parent="Root/Column/HeaderRow"]
 layout_mode = 2
-theme_override_constants/separation = 6
+size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
-[node name="Title" type="Label" parent="TaskPanel/Header/HeaderMargin/HeaderVBox"]
+[node name="Title" type="Label" parent="Root/Column/HeaderRow/HeaderText"]
 layout_mode = 2
-text = "开发工作"
-theme_override_font_sizes/font_size = 28
+text = "今天要做的事"
+theme_override_colors/font_color = Color(0.058824, 0.090196, 0.164706, 1)
+theme_override_font_sizes/font_size = 34
 
-[node name="StatsLabel" type="Label" parent="TaskPanel/Header/HeaderMargin/HeaderVBox"]
+[node name="Subtitle" type="Label" parent="Root/Column/HeaderRow/HeaderText"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "完成度 0  |  质量 0  |  稳定 0  |  热度 0"
-theme_override_font_sizes/font_size = 20
+text = "和林夏一起，把工程一点一点往前推"
+theme_override_colors/font_color = Color(0.392157, 0.454902, 0.545098, 1)
+theme_override_font_sizes/font_size = 18
 
-[node name="ContentScroll" type="ScrollContainer" parent="TaskPanel"]
+[node name="StatsBar" type="HBoxContainer" parent="Root/Column/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="ContentScroll" type="ScrollContainer" parent="Root/Column"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ContentMargin" type="MarginContainer" parent="TaskPanel/ContentScroll"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 12
-
-[node name="TaskList" type="VBoxContainer" parent="TaskPanel/ContentScroll/ContentMargin"]
+[node name="TaskList" type="VBoxContainer" parent="Root/Column/ContentScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 10
-
-[node name="StatusBar" type="PanelContainer" parent="TaskPanel"]
-layout_mode = 2
-
-[node name="StatusMargin" type="MarginContainer" parent="TaskPanel/StatusBar"]
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 6
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 6
-
-[node name="StatusLabel" type="Label" parent="TaskPanel/StatusBar/StatusMargin"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "选择一项开发任务"
-theme_override_font_sizes/font_size = 18
-
-[node name="MinigameContainer" type="Control" parent="."]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ResultPanel" type="PanelContainer" parent="."]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="ResultCenter" type="CenterContainer" parent="ResultPanel"]
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 3
-
-[node name="ResultVBox" type="VBoxContainer" parent="ResultPanel/ResultCenter"]
-layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="ResultTitle" type="Label" parent="ResultPanel/ResultCenter/ResultVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "任务完成"
-theme_override_font_sizes/font_size = 32
-horizontal_alignment = 1
-
-[node name="ResultDetail" type="Label" parent="ResultPanel/ResultCenter/ResultVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-text = "评分详情"
-theme_override_font_sizes/font_size = 22
-horizontal_alignment = 1
-autowrap_mode = 2
-
-[node name="ResultButton" type="Button" parent="ResultPanel/ResultCenter/ResultVBox"]
-unique_name_in_owner = true
-layout_mode = 2
-custom_minimum_size = Vector2(160, 48)
-size_flags_horizontal = 4
-text = "确认"
-theme_override_font_sizes/font_size = 22
+theme_override_constants/separation = 18

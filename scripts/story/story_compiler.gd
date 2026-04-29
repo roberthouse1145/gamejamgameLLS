@@ -76,6 +76,10 @@ static func build_chapter_from_dict(data: Dictionary) -> Resource:
 	chapter.chapter_id = str(data.get("chapter_id", ""))
 	chapter.chapter_name = str(data.get("chapter_name", ""))
 	chapter.description = str(data.get("description", ""))
+	var trigger_raw: Variant = data.get("trigger", {})
+	if trigger_raw is Dictionary:
+		chapter.trigger = (trigger_raw as Dictionary).duplicate(true)
+	chapter.priority = int(data.get("priority", 0))
 	chapter.next_chapter = str(data.get("next_chapter", ""))
 
 	var steps_data: Array = data.get("steps", [])

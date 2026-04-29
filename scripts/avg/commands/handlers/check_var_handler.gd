@@ -22,7 +22,7 @@ func _create_schema() -> ParamSchemaClass:
 
 	schema.add_param(ParamDef.variable_ref_param(
 		"variable_id",
-		"Variable ID to check (e.g., var_001)",
+		"Variable reference to check (usually variable ID from editor)",
 		true,
 		"变量ID"
 	))
@@ -59,7 +59,7 @@ func _create_schema() -> ParamSchemaClass:
 	# --- variable ---
 	schema.add_param(ParamDef.variable_ref_param(
 		"source_variable_id",
-		"Variable ID to compare against (when value_source=variable)",
+		"Variable reference to compare against (when value_source=variable)",
 		false,
 		"源变量ID"
 	))

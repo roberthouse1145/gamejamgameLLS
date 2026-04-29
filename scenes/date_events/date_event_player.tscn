@@ -1,24 +1,42 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/date_events/date_event_player.gd" id="1_player"]
 [ext_resource type="Theme" uid="uid://c7c4qoevl14xp" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_scene_runner.tscn" id="2_runner"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar"]
-content_margin_left = 4.0
-content_margin_top = 4.0
-content_margin_right = 4.0
-content_margin_bottom = 4.0
-bg_color = Color(0.96, 0.97, 0.98, 1)
-border_width_right = 1
-border_color = Color(0.9, 0.92, 0.95, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
+content_margin_left = 20.0
+content_margin_top = 10.0
+content_margin_right = 20.0
+content_margin_bottom = 10.0
+bg_color = Color(1, 1, 1, 1)
+border_width_bottom = 1
+border_color = Color(0.88, 0.92, 0.95, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav_active"]
-content_margin_left = 8.0
+content_margin_left = 14.0
 content_margin_top = 6.0
-content_margin_right = 8.0
+content_margin_right = 14.0
 content_margin_bottom = 6.0
-bg_color = Color(0.9, 0.93, 0.98, 1)
+bg_color = Color(0.9, 0.96, 1, 1)
+border_width_bottom = 2
+border_color = Color(0, 0.631373, 0.839216, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav_normal"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+bg_color = Color(1, 1, 1, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav_hover"]
+content_margin_left = 14.0
+content_margin_top = 6.0
+content_margin_right = 14.0
+content_margin_bottom = 6.0
+bg_color = Color(0.95, 0.98, 1, 1)
 corner_radius_top_left = 6
 corner_radius_top_right = 6
 corner_radius_bottom_right = 6
@@ -41,9 +59,9 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.98, 0.985, 0.99, 1)
+color = Color(0.965, 0.976, 0.988, 1)
 
-[node name="MainLayout" type="HBoxContainer" parent="."]
+[node name="MainLayout" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -52,61 +70,71 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="Sidebar" type="PanelContainer" parent="MainLayout"]
+[node name="TopBar" type="PanelContainer" parent="MainLayout"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(64, 0)
 layout_mode = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar")
+theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 
-[node name="SidebarVBox" type="VBoxContainer" parent="MainLayout/Sidebar"]
+[node name="TopBarHBox" type="HBoxContainer" parent="MainLayout/TopBar"]
 layout_mode = 2
-theme_override_constants/separation = 2
+theme_override_constants/separation = 18
 
-[node name="Header" type="MarginContainer" parent="MainLayout/Sidebar/SidebarVBox"]
-layout_mode = 2
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_bottom = 10
-
-[node name="Logo" type="Label" parent="MainLayout/Sidebar/SidebarVBox/Header"]
+[node name="LogoTriangle" type="Label" parent="MainLayout/TopBar/TopBarHBox"]
 layout_mode = 2
 text = "▶"
-horizontal_alignment = 1
 theme_override_font_sizes/font_size = 22
-theme_override_colors/font_color = Color(0.3, 0.5, 0.9, 0.9)
+theme_override_colors/font_color = Color(0, 0.631373, 0.839216, 1)
 
-[node name="NavHomeBtn" type="Button" parent="MainLayout/Sidebar/SidebarVBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(56, 44)
+[node name="LogoText" type="Label" parent="MainLayout/TopBar/TopBarHBox"]
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_vertical = 4
+text = "dilidili"
+theme_override_font_sizes/font_size = 22
+theme_override_colors/font_color = Color(0, 0.631373, 0.839216, 1)
+
+[node name="NavSpacer" type="Control" parent="MainLayout/TopBar/TopBarHBox"]
+custom_minimum_size = Vector2(12, 0)
+layout_mode = 2
+
+[node name="NavHomeBtn" type="Button" parent="MainLayout/TopBar/TopBarHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
 theme_override_colors/font_color = Color(0.2, 0.25, 0.3, 1)
-theme_override_colors/font_hover_color = Color(0.3, 0.5, 0.9, 1)
-theme_override_colors/font_focus_color = Color(0.2, 0.25, 0.3, 1)
+theme_override_colors/font_hover_color = Color(0, 0.631373, 0.839216, 1)
+theme_override_colors/font_pressed_color = Color(0, 0.631373, 0.839216, 1)
+theme_override_colors/font_focus_color = Color(0, 0.631373, 0.839216, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_nav_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_nav_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_nav_active")
+theme_override_styles/focus = SubResource("StyleBoxFlat_nav_normal")
 text = "首页"
-flat = true
 
-[node name="NavHistoryBtn" type="Button" parent="MainLayout/Sidebar/SidebarVBox"]
+[node name="NavHistoryBtn" type="Button" parent="MainLayout/TopBar/TopBarHBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(56, 44)
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_vertical = 4
 theme_override_colors/font_color = Color(0.2, 0.25, 0.3, 1)
-theme_override_colors/font_hover_color = Color(0.3, 0.5, 0.9, 1)
-theme_override_colors/font_focus_color = Color(0.2, 0.25, 0.3, 1)
-text = "记录"
-flat = true
+theme_override_colors/font_hover_color = Color(0, 0.631373, 0.839216, 1)
+theme_override_colors/font_pressed_color = Color(0, 0.631373, 0.839216, 1)
+theme_override_colors/font_focus_color = Color(0, 0.631373, 0.839216, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_nav_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_nav_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_nav_active")
+theme_override_styles/focus = SubResource("StyleBoxFlat_nav_normal")
+text = "历史"
 
-[node name="Spacer" type="Control" parent="MainLayout/Sidebar/SidebarVBox"]
+[node name="TopBarGrow" type="Control" parent="MainLayout/TopBar/TopBarHBox"]
 layout_mode = 2
-size_flags_vertical = 3
-
-[node name="SidebarBorder" type="VSeparator" parent="MainLayout"]
-layout_mode = 2
+size_flags_horizontal = 3
 
 [node name="ContentArea" type="Control" parent="MainLayout"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+size_flags_vertical = 3
 
 [node name="HomePage" type="ScrollContainer" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
@@ -116,14 +144,15 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+horizontal_scroll_mode = 0
 
 [node name="HomeContent" type="VBoxContainer" parent="MainLayout/ContentArea/HomePage"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 16
+theme_override_constants/separation = 20
 
-[node name="HistoryPage" type="VBoxContainer" parent="MainLayout/ContentArea"]
+[node name="HistoryPage" type="ScrollContainer" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -132,28 +161,13 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+horizontal_scroll_mode = 0
 
-[node name="HistoryHeader" type="MarginContainer" parent="MainLayout/ContentArea/HistoryPage"]
-layout_mode = 2
-theme_override_constants/margin_left = 24
-theme_override_constants/margin_top = 20
-theme_override_constants/margin_bottom = 8
-
-[node name="Label" type="Label" parent="MainLayout/ContentArea/HistoryPage/HistoryHeader"]
-layout_mode = 2
-text = "播放记录"
-theme_override_font_sizes/font_size = 20
-theme_override_colors/font_color = Color(0.15, 0.2, 0.25, 1)
-
-[node name="HistoryScroll" type="ScrollContainer" parent="MainLayout/ContentArea/HistoryPage"]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="HistoryList" type="VBoxContainer" parent="MainLayout/ContentArea/HistoryPage/HistoryScroll"]
+[node name="HistoryList" type="VBoxContainer" parent="MainLayout/ContentArea/HistoryPage"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 8
+theme_override_constants/separation = 16
 
 [node name="PlaybackPage" type="Control" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true
@@ -164,6 +178,15 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="PlaybackBackground" type="ColorRect" parent="MainLayout/ContentArea/PlaybackPage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.08, 0.11, 1)
 
 [node name="ContentContainer" type="Control" parent="MainLayout/ContentArea/PlaybackPage"]
 unique_name_in_owner = true
@@ -201,6 +224,6 @@ grow_horizontal = 2
 [node name="TitleLabel" type="Label" parent="MainLayout/ContentArea/PlaybackPage/TopOverlay"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "重要约会"
+text = ""
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(0.921569, 0.945098, 1, 0.72)

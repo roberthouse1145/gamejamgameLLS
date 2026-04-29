@@ -21,6 +21,8 @@ static func get_instance() -> AIConfigManager:
 var _profiles: Dictionary = {}
 ## role_name -> profile_name
 var _roles: Dictionary = {}
+## role_name -> 覆盖设置
+var _role_settings: Dictionary = {}
 ## [dev] 节的键值对
 var _dev_settings: Dictionary = {}
 ## 加载来源描述
@@ -47,6 +49,7 @@ func is_quiet_logs_enabled() -> bool:
 func load_config() -> bool:
 	_profiles.clear()
 	_roles.clear()
+	_role_settings.clear()
 	_dev_settings.clear()
 	_loaded_from = ""
 	
@@ -67,7 +70,9 @@ func get_config_for_role(role: String) -> Dictionary:
 	var profile_name: String = _roles.get(role, "")
 	if profile_name.is_empty():
 		return {}
-	return _profiles.get(profile_name, {}).duplicate()
+	var config: Dictionary = _profiles.get(profile_name, {}).duplicate()
+	config.merge(_role_settings.get(role, {}), true)
+	return config
 
 
 ## 将配置应用到 AIService 实例。
@@ -87,6 +92,13 @@ func apply_to_service(ai_service: Node, role: String) -> bool:
 	ai_service.api_base_url = config.get("base_url", "")
 	ai_service.api_key = config.get("api_key", "")
 	ai_service.model = config.get("model", "")
+	ai_service.default_thinking = str(config.get("thinking", "disabled"))
+	ai_service.default_enable_thinking = _is_truthy(config.get("enable_thinking", false))
+	ai_service.default_reasoning_effort = str(config.get("reasoning_effort", ""))
+	for property_info in ai_service.get_property_list():
+		if str(property_info.get("name", "")) == "service_role":
+			ai_service.set("service_role", role)
+			break
 	return true
 
 
@@ -155,6 +167,7 @@ func _load_file(path: String) -> bool:
 				"api_key": config.get_value(section, "api_key", ""),
 				"model": config.get_value(section, "model", ""),
 			}
+			_apply_llm_runtime_settings(config, section, _profiles[profile_name])
 			if verbose:
 				print("[AIConfigManager] Loaded profile: %s" % profile_name)
 		elif section == "roles":
@@ -162,6 +175,13 @@ func _load_file(path: String) -> bool:
 				_roles[key] = config.get_value("roles", key, "")
 				if verbose:
 					print("[AIConfigManager] Loaded role: %s -> %s" % [key, _roles[key]])
+		elif section.begins_with("role_settings/"):
+			var role_name: String = section.substr("role_settings/".length())
+			var role_settings: Dictionary = {}
+			_apply_llm_runtime_settings(config, section, role_settings)
+			_role_settings[role_name] = role_settings
+			if verbose:
+				print("[AIConfigManager] Loaded role settings: %s -> %s" % [role_name, str(role_settings)])
 		elif section == "dev":
 			for key in config.get_section_keys("dev"):
 				_dev_settings[key] = config.get_value("dev", key, "")
@@ -169,6 +189,12 @@ func _load_file(path: String) -> bool:
 					print("[AIConfigManager] Loaded dev setting: %s = %s" % [key, str(_dev_settings[key])])
 	
 	return true
+
+
+func _apply_llm_runtime_settings(config: ConfigFile, section: String, target: Dictionary) -> void:
+	for key in ["thinking", "enable_thinking", "reasoning_effort"]:
+		if config.has_section_key(section, key):
+			target[key] = config.get_value(section, key)
 
 
 func _is_truthy(value: Variant) -> bool:

@@ -77,9 +77,9 @@ static func check_topic_complete(response_json: Dictionary) -> bool:
 		return false
 
 	var last_msg: String = str(messages[-1])
-	return "[TOPIC_COMPLETE]" in last_msg
+	return "[TOPIC_COMPLETE]" in last_msg or "[TOPIC_FAILED]" in last_msg
 
 
 ## 清理消息中的标记
 static func clean_message(message: String) -> String:
-	return message.replace("[TOPIC_COMPLETE]", "").strip_edges()
+	return message.replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "").strip_edges()

@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "15"
 }
 profile = "张扬野性的兽耳少女，红发短碎，橘瞳虎牙，身着黑色清凉战甲，身后拖着深灰大尾巴"
+display_offset = Vector2(0, 0.15)
 

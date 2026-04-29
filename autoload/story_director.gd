@@ -9,6 +9,15 @@ const StoryChapterIndexClass = preload("res://scripts/story/resources/story_chap
 const StoryCompilerClass = preload("res://scripts/story/story_compiler.gd")
 const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
 const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
+const AVGSceneGeneratorClass = preload("res://scripts/activity/avg_scene_generator.gd")
+const SceneWindowClass = preload("res://scripts/activity/scene_window.gd")
+
+const _CONDITION_OPERATORS: Array[String] = [">=", "<=", "==", "!=", ">", "<"]
+const STORY_AVG_GENERATION_TRANSIT_STAGES: Array[String] = [
+	"正在整理刚才的对话上下文...",
+	"LLM 正在生成 AVG 脚本...",
+	"正在准备打开场景...",
+]
 
 # =============================================================================
 # Signals
@@ -20,6 +29,8 @@ signal chapter_completed(chapter_id: String)
 signal chapter_started(chapter_id: String)
 signal story_variable_changed(key: String, value: Variant)
 signal all_chapters_completed()
+signal avg_scene_ended(scene_id: String, outcome: Dictionary)
+signal project_preview_finished(preview_id: String, payload: Dictionary)
 
 # =============================================================================
 # State
@@ -55,6 +66,15 @@ var _started: bool = false
 
 ## 所有已加载的章节（chapter_id -> StoryChapter）
 var _chapters: Dictionary = {}
+var _trigger_scan_queued: bool = false
+var _story_avg_generator: Node = null
+var _story_avg_scene_adapter: Variant = null
+var _story_avg_requests: Dictionary = {}
+var _story_avg_counter: int = 0
+var _project_preview_adapter: Variant = null
+var _project_preview_sessions: Dictionary = {}
+var _last_wait_payload: Dictionary = {}
+var _current_step_action_failed: bool = false
 
 
 # =============================================================================
@@ -66,6 +86,7 @@ func _ready() -> void:
 	_delay_timer.one_shot = true
 	add_child(_delay_timer)
 	_load_all_chapters()
+	_connect_trigger_sources()
 	print("[StoryDirector] Initialized. %d chapters loaded." % _chapters.size())
 
 
@@ -81,6 +102,7 @@ func start_chapter(chapter_id: String) -> bool:
 		return false
 
 	_disconnect_all_waits()
+	_last_wait_payload.clear()
 	current_chapter = chapter
 	current_step = null
 	_started = true
@@ -236,6 +258,7 @@ func load_run_state(data: Dictionary) -> bool:
 		current_step = null
 		_waiting = false
 		_started = false
+		_request_trigger_scan()
 		return true
 
 	if step_id.is_empty():
@@ -269,8 +292,18 @@ func get_player_college_prompt() -> String:
 	return str(get_variable("player_college", "")).strip_edges()
 
 
+## 当前是否仍由 StoryDirector 接管玩家节奏。
+## 用于判断是否仍处于剧情强控，而不是判断是否存在剧情历史。
+func is_taking_control() -> bool:
+	return current_chapter != null or current_step != null or _waiting
+
+
 func has_active_story() -> bool:
 	return _started or current_chapter != null or current_step != null or not completed_steps.is_empty() or not completed_chapters.is_empty()
+
+
+func evaluate_triggers() -> bool:
+	return _try_start_triggered_chapter()
 
 
 func reset_runtime_state() -> void:
@@ -285,6 +318,9 @@ func reset_runtime_state() -> void:
 	_pending_activity_guidance.clear()
 	_waiting = false
 	_started = false
+	_story_avg_requests.clear()
+	_story_avg_counter = 0
+	_last_wait_payload.clear()
 
 
 func rebuild_story_cache() -> bool:
@@ -293,7 +329,10 @@ func rebuild_story_cache() -> bool:
 		return false
 
 	var index_resource: Resource = StoryCompilerClass.compile_all()
-	return _load_compiled_chapters(index_resource)
+	var rebuilt: bool = _load_compiled_chapters(index_resource)
+	if rebuilt:
+		_request_trigger_scan()
+	return rebuilt
 
 
 # =============================================================================
@@ -304,6 +343,7 @@ func _enter_step(step: Resource) -> void:
 	_disconnect_all_waits()
 	current_step = step
 	_waiting = false
+	_current_step_action_failed = false
 
 	print("[StoryDirector] >> Enter step: %s" % step.step_id)
 	step_entered.emit(current_chapter.chapter_id, step.step_id)
@@ -311,6 +351,9 @@ func _enter_step(step: Resource) -> void:
 	# 执行所有 actions
 	for action in step.actions:
 		_execute_action(action)
+		if _current_step_action_failed:
+			push_warning("[StoryDirector] Step action failed; wait setup skipped for %s" % step.step_id)
+			return
 
 	# 设置等待
 	var wait_type: String = str(step.wait_for.get("type", "immediate"))
@@ -366,6 +409,8 @@ func _complete_chapter() -> void:
 	# 自动开始下一章节
 	if not next_chapter_id.is_empty():
 		call_deferred("start_chapter", next_chapter_id)
+	elif _has_pending_triggered_chapters():
+		_request_trigger_scan()
 	else:
 		all_chapters_completed.emit()
 
@@ -389,10 +434,14 @@ func _execute_action(action: Dictionary) -> void:
 			_action_modify_stats(action)
 		"play_avg":
 			_action_play_avg(action)
+		"preview_current_project":
+			_action_preview_current_project(action)
 		"open_browser":
 			_action_open_browser(action)
 		"post_moment":
 			_action_post_moment(action)
+		"play_transit":
+			_action_play_transit(action)
 		"set_variable":
 			_action_set_variable(action)
 		"delay":
@@ -403,18 +452,30 @@ func _execute_action(action: Dictionary) -> void:
 			_action_stop_bgm(action)
 		"launch_app":
 			_action_launch_app(action)
+		"install_app":
+			_action_install_app(action)
+		"uninstall_app":
+			_action_uninstall_app(action)
+		"set_desktop_app_visibility":
+			_action_set_desktop_app_visibility(action)
 		"close_app":
 			_action_close_app(action)
 		"focus_app":
 			_action_focus_app(action)
+		"minimize_app_window":
+			_action_minimize_app_window(action)
 		"lock_app_window":
 			_action_lock_app_window(action)
 		"unlock_app_window":
 			_action_unlock_app_window(action)
+		"consume_ap":
+			_action_consume_ap(action)
 		"set_activity_lock":
 			_action_set_activity_lock(action)
 		"clear_activity_lock":
 			_action_clear_activity_lock(action)
+		"ensure_dev_work_task":
+			_action_ensure_dev_work_task(action)
 		"dispatch_work_order":
 			_action_dispatch_work_order(action)
 		"generate_work_order":
@@ -428,16 +489,16 @@ func _execute_action(action: Dictionary) -> void:
 func _action_activate_topic(action: Dictionary) -> void:
 	var topic_path: String = _interpolate(str(action.get("topic_path", "")))
 	if topic_path.is_empty():
-		push_warning("[StoryDirector] activate_topic: missing topic_path")
+		_fail_current_step_action("[StoryDirector] activate_topic: missing topic_path")
 		return
 
 	if not ResourceLoader.exists(topic_path):
-		push_warning("[StoryDirector] activate_topic: resource not found: %s" % topic_path)
+		_fail_current_step_action("[StoryDirector] activate_topic: resource not found: %s" % topic_path)
 		return
 
 	var topic: ChatTopic = load(topic_path) as ChatTopic
 	if topic == null:
-		push_warning("[StoryDirector] activate_topic: failed to load: %s" % topic_path)
+		_fail_current_step_action("[StoryDirector] activate_topic: failed to load: %s" % topic_path)
 		return
 
 	# 注入剧情变量到 context_data
@@ -452,11 +513,22 @@ func _action_activate_topic(action: Dictionary) -> void:
 
 	var chat: Node = get_node_or_null("/root/ChatManager")
 	if chat == null or not chat.has_method("activate_topic"):
-		push_warning("[StoryDirector] activate_topic: ChatManager not available")
+		_fail_current_step_action("[StoryDirector] activate_topic: ChatManager not available")
 		return
 
+	var already_active_topic: ChatTopic = _get_active_topic_for_chat(chat, topic.channel_id)
+	if already_active_topic != null and already_active_topic.topic_id == topic.topic_id:
+		print("[StoryDirector] Topic already active: %s" % topic.topic_id)
+		_present_linkchat_topic(already_active_topic, open_linkchat_mode)
+		return
+
+	if not _prepare_topic_channel_for_activation(chat, topic, action):
+		return
+
+	_capture_topic_message_start_index(chat, topic)
+
 	if not chat.activate_topic(topic):
-		push_warning("[StoryDirector] activate_topic: failed to activate topic %s" % topic.topic_id)
+		_fail_current_step_action("[StoryDirector] activate_topic: failed to activate topic %s" % topic.topic_id)
 		return
 
 	print("[StoryDirector] Topic activated: %s" % topic.topic_id)
@@ -471,7 +543,64 @@ func _action_activate_topic(action: Dictionary) -> void:
 		var auto_complete: bool = bool(action.get("auto_complete", false))
 		auto_complete = auto_complete or bool(topic.context_data.get("complete_after_first_reply", false))
 		if chat.has_method("request_topic_npc_reply"):
-			chat.request_topic_npc_reply(topic.channel_id, seed_msg, auto_store, auto_complete)
+			if not chat.request_topic_npc_reply(topic.channel_id, seed_msg, auto_store, auto_complete):
+				_cancel_active_topic(chat, topic, "initial_reply_request_failed")
+				_fail_current_step_action("[StoryDirector] activate_topic: failed to request initial NPC reply for %s" % topic.topic_id)
+
+
+func _prepare_topic_channel_for_activation(chat: Node, topic: ChatTopic, action: Dictionary) -> bool:
+	var active_topic: ChatTopic = _get_active_topic_for_chat(chat, topic.channel_id)
+	if active_topic == null:
+		return true
+
+	if active_topic.topic_id == topic.topic_id:
+		return true
+
+	if not _can_supersede_active_topic(active_topic, topic, action):
+		_fail_current_step_action("[StoryDirector] activate_topic: channel %s is busy with active topic %s" % [topic.channel_id, active_topic.topic_id])
+		return false
+
+	if chat.has_method("cancel_pending_ai_request"):
+		chat.cancel_pending_ai_request(topic.channel_id, "superseded_by_story_topic:%s" % topic.topic_id)
+	if not _cancel_active_topic(chat, active_topic, "superseded_by_story_topic:%s" % topic.topic_id):
+		_fail_current_step_action("[StoryDirector] activate_topic: failed to supersede active topic %s" % active_topic.topic_id)
+		return false
+
+	print("[StoryDirector] Superseded active story topic %s with %s on %s" % [
+		active_topic.topic_id,
+		topic.topic_id,
+		topic.channel_id,
+	])
+	return true
+
+
+func _get_active_topic_for_chat(chat: Node, channel_id: String) -> ChatTopic:
+	if chat == null or not chat.has_method("get_active_topic"):
+		return null
+	return chat.get_active_topic(channel_id)
+
+
+func _can_supersede_active_topic(active_topic: ChatTopic, next_topic: ChatTopic, action: Dictionary) -> bool:
+	if bool(action.get("supersede_active_topic", true)) == false:
+		return false
+	return active_topic.topic_type == "story_event" and next_topic.topic_type == "story_event"
+
+
+func _cancel_active_topic(chat: Node, topic: ChatTopic, reason: String) -> bool:
+	if topic == null:
+		return false
+	if not ("topic_manager" in chat):
+		return false
+	var topic_manager: Variant = chat.get("topic_manager")
+	if topic_manager == null or not topic_manager.has_method("cancel_topic"):
+		return false
+	topic_manager.cancel_topic(topic, reason)
+	return true
+
+
+func _fail_current_step_action(message: String) -> void:
+	_current_step_action_failed = true
+	push_warning(message)
 
 
 func _action_set_activity_guidance(action: Dictionary) -> void:
@@ -716,6 +845,7 @@ func _action_set_phase(action: Dictionary) -> void:
 			glm.set_day(day)
 		else:
 			glm.current_day = day
+			_sync_day_transition_overlay(day)
 			print("[StoryDirector] Set day: %d (direct)" % day)
 
 	if action.has("phase"):
@@ -734,6 +864,17 @@ func _action_set_phase(action: Dictionary) -> void:
 			if glm.has_signal("phase_changed"):
 				glm.phase_changed.emit(phase_value)
 			print("[StoryDirector] Set phase: %s" % phase_name)
+
+
+func _sync_day_transition_overlay(day: int) -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var overlay: Node = tree.get_first_node_in_group("day_transition_overlay")
+	if overlay == null or not is_instance_valid(overlay):
+		return
+	if overlay.has_method("sync_day_baseline"):
+		overlay.call("sync_day_baseline", day)
 
 
 ## modify_stats — 修改 GameManager 数值
@@ -758,10 +899,622 @@ func _action_modify_stats(action: Dictionary) -> void:
 ## play_avg — 播放 AVG 场景
 ## { "type": "play_avg", "project_path": "res://...", "scene_id": "..." }
 func _action_play_avg(action: Dictionary) -> void:
-	# TODO: 与 AVGSceneRunner / NarrativeProjectManager 集成
-	var project_path: String = _interpolate(str(action.get("project_path", "")))
-	var scene_id: String = _interpolate(str(action.get("scene_id", "")))
-	print("[StoryDirector] play_avg: project=%s scene=%s (TODO: implement)" % [project_path, scene_id])
+	var logical_scene_id := _resolve_story_avg_scene_id(action)
+	if _should_generate_story_avg(action):
+		_start_generated_story_avg(action, logical_scene_id)
+		return
+	_start_prebuilt_story_avg(action, logical_scene_id)
+
+
+## preview_current_project — 打开 GamePreviewer 并自动开始试玩当前 AVG 工程
+## {
+##   "type": "preview_current_project",
+##   "preview_id": "lin_xia_demo",
+##   "scene_id": "scene_001",
+##   "use_title_screen": false,
+##   "window_title": "试玩林夏的 Demo"
+## }
+func _action_preview_current_project(action: Dictionary) -> void:
+	var preview_id: String = _resolve_project_preview_id(action)
+	if _project_preview_adapter != null and _project_preview_adapter.has_method("start_preview"):
+		_project_preview_sessions[preview_id] = {
+			"preview_id": preview_id,
+			"adapter": true,
+		}
+		var started_via_adapter: bool = bool(_project_preview_adapter.call(
+			"start_preview",
+			preview_id,
+			action.duplicate(true),
+			Callable(self, "_on_project_preview_adapter_completed").bind(preview_id)
+		))
+		if not started_via_adapter:
+			_finish_project_preview_session(preview_id, {
+				"completed": false,
+				"error": "preview_adapter_start_failed",
+			})
+		return
+
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("launch_app"):
+		push_warning("[StoryDirector] preview_current_project: AppManager not available")
+		_finish_project_preview_session(preview_id, {
+			"completed": false,
+			"error": "app_manager_unavailable",
+		})
+		return
+
+	var window: Control = app_mgr.launch_app("game_previewer", true)
+	if window == null:
+		push_warning("[StoryDirector] preview_current_project: failed to launch game_previewer")
+		_finish_project_preview_session(preview_id, {
+			"completed": false,
+			"error": "game_previewer_launch_failed",
+		})
+		return
+
+	var previewer: Node = _find_game_previewer_node(window)
+	if previewer == null:
+		push_warning("[StoryDirector] preview_current_project: GamePreviewer content not found")
+		_finish_project_preview_session(preview_id, {
+			"completed": false,
+			"error": "game_previewer_not_found",
+		})
+		return
+
+	var window_title: String = _interpolate(str(action.get("window_title", action.get("title", "")))).strip_edges()
+	if not window_title.is_empty() and "window_title" in window:
+		window.window_title = window_title
+
+	var session: Dictionary = {
+		"preview_id": preview_id,
+		"window": window,
+		"previewer": previewer,
+	}
+	var preview_completed_cb := Callable(self, "_on_project_preview_completed").bind(preview_id)
+	if previewer.has_signal("preview_completed") and not previewer.preview_completed.is_connected(preview_completed_cb):
+		previewer.preview_completed.connect(preview_completed_cb, CONNECT_ONE_SHOT)
+		session["preview_completed_cb"] = preview_completed_cb
+	var app_closed_cb := Callable(self, "_on_project_preview_app_closed").bind(preview_id)
+	if app_mgr.has_signal("app_closed") and not app_mgr.app_closed.is_connected(app_closed_cb):
+		app_mgr.app_closed.connect(app_closed_cb)
+		session["app_closed_cb"] = app_closed_cb
+	_project_preview_sessions[preview_id] = session
+
+	var scene_id: String = _interpolate(str(action.get("scene_id", ""))).strip_edges()
+	var use_title_screen: bool = bool(action.get("use_title_screen", false))
+	if not previewer.has_method("start_story_preview"):
+		_finish_project_preview_session(preview_id, {
+			"completed": false,
+			"error": "game_previewer_missing_start_story_preview",
+		})
+		return
+	var started: bool = bool(previewer.call("start_story_preview", scene_id, use_title_screen))
+	if not started:
+		_finish_project_preview_session(preview_id, {
+			"completed": false,
+			"error": "game_previewer_start_failed",
+		})
+		return
+
+	print("[StoryDirector] Project preview started: %s" % preview_id)
+
+
+func _should_generate_story_avg(action: Dictionary) -> bool:
+	return action.has("prompt") or action.has("prompt_key") or action.has("scene_prompt") or action.has("scene_prompt_key")
+
+
+func _start_generated_story_avg(action: Dictionary, logical_scene_id: String) -> void:
+	var prompt_text := _resolve_story_avg_prompt(action)
+	if prompt_text.is_empty():
+		push_warning("[StoryDirector] play_avg: empty prompt for scene '%s'" % logical_scene_id)
+		_emit_story_avg_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "empty_story_avg_prompt",
+		})
+		return
+
+	var generator := _ensure_story_avg_generator()
+	if generator == null or not generator.has_method("generate_for_session"):
+		push_warning("[StoryDirector] play_avg: AVGSceneGenerator unavailable")
+		_emit_story_avg_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "story_avg_generator_unavailable",
+		})
+		return
+
+	var session_id := _reserve_story_avg_request(logical_scene_id, action)
+	_maybe_start_story_avg_generation_transit(action, session_id, logical_scene_id)
+	var session := _build_story_avg_session(action, logical_scene_id, prompt_text)
+	if not generator.generate_for_session(session_id, session):
+		_finish_story_avg_generation_transit(session_id, true)
+		_story_avg_requests.erase(session_id)
+		push_warning("[StoryDirector] play_avg: failed to request generation for '%s'" % logical_scene_id)
+		_emit_story_avg_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "story_avg_generation_request_failed",
+		})
+		return
+
+	print("[StoryDirector] Direct AVG generation requested: %s" % logical_scene_id)
+
+
+func _start_prebuilt_story_avg(action: Dictionary, logical_scene_id: String) -> void:
+	var session_id := _reserve_story_avg_request(logical_scene_id, action)
+	var package := _build_prebuilt_story_avg_package(action, session_id)
+	if package.is_empty():
+		_story_avg_requests.erase(session_id)
+		push_warning("[StoryDirector] play_avg: invalid prebuilt AVG package for '%s'" % logical_scene_id)
+		_emit_story_avg_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "invalid_story_avg_package",
+		})
+		return
+	_open_story_avg_package(session_id, package)
+
+
+func _ensure_story_avg_generator() -> Node:
+	if _story_avg_generator == null or not is_instance_valid(_story_avg_generator):
+		_story_avg_generator = AVGSceneGeneratorClass.new()
+		_story_avg_generator.name = "StoryAVGSceneGenerator"
+		add_child(_story_avg_generator)
+	if _story_avg_generator.has_signal("scene_generated") and not _story_avg_generator.is_connected("scene_generated", _on_story_avg_scene_generated):
+		_story_avg_generator.connect("scene_generated", _on_story_avg_scene_generated)
+	if _story_avg_generator.has_signal("scene_failed") and not _story_avg_generator.is_connected("scene_failed", _on_story_avg_scene_failed):
+		_story_avg_generator.connect("scene_failed", _on_story_avg_scene_failed)
+	return _story_avg_generator
+
+
+func _reserve_story_avg_request(logical_scene_id: String, action: Dictionary) -> String:
+	_story_avg_counter += 1
+	var session_id := "story_avg_%04d" % _story_avg_counter
+	_story_avg_requests[session_id] = {
+		"scene_id": logical_scene_id,
+		"title": _resolve_story_avg_window_title(action, logical_scene_id),
+	}
+	return session_id
+
+
+func _build_story_avg_session(action: Dictionary, logical_scene_id: String, prompt_text: String) -> Dictionary:
+	var game_state := _collect_game_state()
+	var phase_name := str(game_state.get("phase", "MORNING")).strip_edges().to_lower()
+	var session: Dictionary = {
+		"activity_type": "story",
+		"entry_id": logical_scene_id,
+		"session_origin": "story_director",
+		"scene_window_title": _resolve_story_avg_window_title(action, logical_scene_id),
+		"scene_project_prefix": _resolve_story_avg_project_prefix(action),
+		"story_scene_id": logical_scene_id,
+		"story_scene_title": _resolve_story_avg_window_title(action, logical_scene_id),
+		"story_scene_prompt": prompt_text,
+		"story_scene_preamble": _resolve_story_avg_preamble(action),
+		"story_guidance_prompt": _resolve_story_avg_guidance(action),
+		"include_chat_history": bool(action.get("include_chat_history", false)),
+		"allow_branching": bool(action.get("allow_branching", true)),
+		"start_day": int(game_state.get("day", 1)),
+		"phase_after_action": phase_name,
+		"start_phase": phase_name,
+	}
+	var trigger_context := _build_story_trigger_context_from_last_wait_payload()
+	if not trigger_context.is_empty():
+		session.merge(trigger_context, true)
+
+	var preview_prompt_key := _interpolate(str(action.get("scene_preview_prompt_key", ""))).strip_edges()
+	if not preview_prompt_key.is_empty():
+		session["scene_preview_prompt_key"] = preview_prompt_key
+
+	var extra_context: Variant = action.get("session_context", {})
+	if extra_context is Dictionary:
+		session.merge(_interpolate_dictionary(extra_context), true)
+
+	return session
+
+
+func _capture_topic_message_start_index(chat: Node, topic: ChatTopic) -> void:
+	if topic.context_data.has("message_start_index"):
+		return
+	if chat == null or not chat.has_method("get_channel"):
+		topic.context_data["message_start_index"] = 0
+		return
+	var channel: Resource = chat.get_channel(str(topic.channel_id))
+	if channel == null or not ("messages" in channel):
+		topic.context_data["message_start_index"] = 0
+		return
+	topic.context_data["message_start_index"] = (channel.messages as Array).size()
+
+
+func _build_story_trigger_context_from_last_wait_payload() -> Dictionary:
+	if _last_wait_payload.is_empty():
+		return {}
+	var result: Variant = _last_wait_payload.get("result", {})
+	if not (result is Dictionary):
+		return {}
+	var result_dict: Dictionary = result as Dictionary
+	var context: Dictionary = {}
+	var conversation: Variant = result_dict.get("conversation_messages", [])
+	if conversation is Array and not (conversation as Array).is_empty():
+		context["story_trigger_conversation"] = (conversation as Array).duplicate(true)
+	var player_messages: Variant = result_dict.get("player_messages", [])
+	if player_messages is Array and not (player_messages as Array).is_empty():
+		context["story_trigger_player_messages"] = (player_messages as Array).duplicate(true)
+	var npc_messages: Variant = result_dict.get("npc_messages", [])
+	if npc_messages is Array and not (npc_messages as Array).is_empty():
+		context["story_trigger_npc_messages"] = (npc_messages as Array).duplicate(true)
+	return context
+
+
+func _build_topic_conversation_messages(topic: ChatTopic, result: Dictionary) -> Array[Dictionary]:
+	var conversation: Array[Dictionary] = []
+	var chat: Node = get_node_or_null("/root/ChatManager")
+	if chat != null and chat.has_method("get_channel"):
+		var channel: Resource = chat.get_channel(str(topic.channel_id))
+		if channel != null and ("messages" in channel):
+			var start_index: int = int(topic.context_data.get("message_start_index", 0))
+			var all_messages: Array = channel.messages
+			for i in range(maxi(start_index, 0), all_messages.size()):
+				var entry: Variant = all_messages[i]
+				if not (entry is Dictionary):
+					continue
+				var data: Dictionary = entry as Dictionary
+				var content: String = str(data.get("content", "")).replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "").strip_edges()
+				if content.is_empty():
+					continue
+				var speaker_id: String = str(data.get("speaker", data.get("sender_id", ""))).strip_edges()
+				if speaker_id.is_empty():
+					speaker_id = "unknown"
+				var speaker_name: String = str(data.get("sender_name", data.get("speaker_name", ""))).strip_edges()
+				if speaker_name.is_empty() and chat.has_method("resolve_sender_name"):
+					speaker_name = str(chat.call("resolve_sender_name", speaker_id)).strip_edges()
+				conversation.append({
+					"speaker_id": speaker_id,
+					"speaker_name": speaker_name if not speaker_name.is_empty() else speaker_id,
+					"content": content,
+				})
+	if not conversation.is_empty():
+		return conversation
+	var raw_messages: Variant = result.get("messages", [])
+	if raw_messages is Array:
+		for raw_message in raw_messages:
+			if not (raw_message is Dictionary):
+				continue
+			var message: Dictionary = raw_message as Dictionary
+			var content: String = str(message.get("content", "")).replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "").strip_edges()
+			if content.is_empty():
+				continue
+			var speaker_id: String = str(message.get("speaker", message.get("sender_id", topic.npc_id))).strip_edges()
+			conversation.append({
+				"speaker_id": speaker_id,
+				"speaker_name": speaker_id,
+				"content": content,
+			})
+	return conversation
+
+
+func _extract_player_messages_from_conversation(conversation: Array[Dictionary]) -> Array[String]:
+	var player_messages: Array[String] = []
+	for entry in conversation:
+		var speaker_id: String = str(entry.get("speaker_id", "")).strip_edges()
+		if speaker_id != "player":
+			continue
+		var content: String = str(entry.get("content", "")).strip_edges()
+		if not content.is_empty():
+			player_messages.append(content)
+	return player_messages
+
+
+func _extract_npc_messages_from_conversation(topic: ChatTopic, conversation: Array[Dictionary]) -> Array[String]:
+	var npc_messages: Array[String] = []
+	for entry in conversation:
+		var speaker_id: String = str(entry.get("speaker_id", "")).strip_edges()
+		if speaker_id == "player" or speaker_id == "system":
+			continue
+		if not topic.npc_id.is_empty() and speaker_id != topic.npc_id:
+			continue
+		var content: String = str(entry.get("content", "")).strip_edges()
+		if not content.is_empty():
+			npc_messages.append(content)
+	return npc_messages
+
+
+func _build_prebuilt_story_avg_package(action: Dictionary, session_id: String) -> Dictionary:
+	var project_path := _interpolate(str(action.get("project_path", ""))).strip_edges()
+	if project_path.is_empty() or not ResourceLoader.exists(project_path):
+		return {}
+
+	var project: Resource = load(project_path)
+	if project == null or not ("scenes" in project):
+		return {}
+
+	var target_scene_id := _interpolate(str(action.get("scene_id", ""))).strip_edges()
+	var selected_scene: Resource = null
+	for scene in project.scenes:
+		if scene == null:
+			continue
+		if target_scene_id.is_empty() or str(scene.scene_id) == target_scene_id or str(scene.scene_name) == target_scene_id:
+			selected_scene = scene
+			break
+
+	if selected_scene == null and project.scenes.size() > 0:
+		selected_scene = project.scenes[0]
+	if selected_scene == null:
+		return {}
+
+	var title := _resolve_story_avg_window_title(action, str(selected_scene.scene_name))
+	return {
+		"session_id": session_id,
+		"title": title,
+		"project": project,
+		"scene": selected_scene,
+		"scene_outline": AVGSceneGeneratorClass.build_narrative_outline_from_scene(selected_scene),
+		"choice_labels": {},
+		"choice_var_id": "var_001",
+	}
+
+
+func _open_story_avg_package(session_id: String, scene_package: Dictionary) -> void:
+	var request: Dictionary = _story_avg_requests.get(session_id, {}).duplicate(true)
+	if request.is_empty():
+		return
+
+	_update_story_avg_generation_transit(session_id, 0.92)
+	var result := _open_story_avg_window(
+		str(request.get("title", scene_package.get("title", "剧情事件"))),
+		scene_package,
+		Callable(self, "_on_story_avg_playback_finished")
+	)
+	if result.is_empty():
+		_finish_story_avg_generation_transit(session_id, true)
+		_finish_story_avg_request(session_id, {
+			"success": false,
+			"error": "story_avg_window_open_failed",
+		})
+		return
+
+	_finish_story_avg_generation_transit(session_id)
+	request["scene_package"] = scene_package.duplicate(true)
+	request["window"] = result.get("window", null)
+	_story_avg_requests[session_id] = request
+	print("[StoryDirector] Direct AVG playback started: %s" % str(request.get("scene_id", session_id)))
+
+
+func _open_story_avg_window(title: String, scene_package: Dictionary, playback_callback: Callable) -> Dictionary:
+	if _story_avg_scene_adapter != null and _story_avg_scene_adapter.has_method("open"):
+		return _story_avg_scene_adapter.call("open", title, scene_package, playback_callback)
+	return SceneWindowClass.open(title, scene_package, playback_callback)
+
+
+func _on_story_avg_scene_generated(session_id: String, package: Dictionary) -> void:
+	if not _story_avg_requests.has(session_id):
+		return
+	_update_story_avg_generation_transit(session_id, 0.72)
+	var request: Dictionary = _story_avg_requests.get(session_id, {})
+	var package_dup := package.duplicate(true)
+	if request.has("title"):
+		package_dup["title"] = str(request.get("title", package_dup.get("title", "剧情事件")))
+	_open_story_avg_package(session_id, package_dup)
+
+
+func _on_story_avg_scene_failed(session_id: String, error: String) -> void:
+	if not _story_avg_requests.has(session_id):
+		return
+	_finish_story_avg_generation_transit(session_id, true)
+	_finish_story_avg_request(session_id, {
+		"success": false,
+		"error": error,
+	})
+
+
+func _on_story_avg_playback_finished(session_id: String, outcome: Dictionary) -> void:
+	if not _story_avg_requests.has(session_id):
+		return
+	_finish_story_avg_request(session_id, outcome)
+
+
+func _finish_story_avg_request(session_id: String, outcome: Dictionary) -> void:
+	var request: Dictionary = _story_avg_requests.get(session_id, {}).duplicate(true)
+	_story_avg_requests.erase(session_id)
+	if request.is_empty():
+		return
+
+	var logical_scene_id := str(request.get("scene_id", session_id)).strip_edges()
+	var normalized_outcome := outcome.duplicate(true)
+	normalized_outcome["session_id"] = session_id
+	normalized_outcome["scene_id"] = logical_scene_id
+	_emit_story_avg_completed_deferred(logical_scene_id, normalized_outcome)
+
+
+func _emit_story_avg_completed_deferred(scene_id: String, outcome: Dictionary) -> void:
+	call_deferred("emit_signal", "avg_scene_ended", scene_id, outcome)
+
+
+func _resolve_story_avg_scene_id(action: Dictionary) -> String:
+	var explicit_id: String = _interpolate(str(action.get("scene_id", ""))).strip_edges()
+	if not explicit_id.is_empty():
+		return explicit_id
+	var chapter_id: String = current_chapter.chapter_id if current_chapter != null else "story"
+	var step_id: String = current_step.step_id if current_step != null else "step"
+	return "%s_%s" % [chapter_id, step_id]
+
+
+func _resolve_story_avg_window_title(action: Dictionary, fallback: String) -> String:
+	var title: String = _interpolate(str(action.get("window_title", action.get("title", "")))).strip_edges()
+	if title.is_empty() and current_step != null:
+		title = current_step.description.strip_edges()
+	if title.is_empty():
+		title = fallback
+	return title
+
+
+func _resolve_story_avg_project_prefix(action: Dictionary) -> String:
+	var prefix: String = _interpolate(str(action.get("scene_project_prefix", "story_scene"))).strip_edges()
+	if prefix.is_empty():
+		return "story_scene"
+	return prefix
+
+
+func _resolve_story_avg_prompt(action: Dictionary) -> String:
+	return _resolve_action_prompt(action, ["prompt_key", "scene_prompt_key"], ["prompt", "scene_prompt"])
+
+
+func _resolve_story_avg_guidance(action: Dictionary) -> String:
+	return _resolve_action_prompt(action, ["guidance_prompt_key"], ["guidance_prompt"])
+
+
+func _resolve_project_preview_id(action: Dictionary) -> String:
+	var explicit_id: String = _interpolate(str(action.get("preview_id", action.get("session_id", "")))).strip_edges()
+	if not explicit_id.is_empty():
+		return explicit_id
+	var chapter_id: String = current_chapter.chapter_id if current_chapter != null else "story"
+	var step_id: String = current_step.step_id if current_step != null else "preview"
+	return "%s_%s_preview" % [chapter_id, step_id]
+
+
+func _find_game_previewer_node(window: Control) -> Node:
+	if window == null or not is_instance_valid(window):
+		return null
+	if "content" in window:
+		var root_content: Variant = window.get("content")
+		if root_content is Node and (root_content as Node).has_method("start_story_preview"):
+			return root_content as Node
+	for child in window.get_children():
+		if child is Node:
+			var result: Node = _find_game_previewer_node(child)
+			if result != null:
+				return result
+	return null
+
+
+func _on_project_preview_completed(payload: Dictionary, preview_id: String) -> void:
+	var normalized_payload: Dictionary = payload.duplicate(true)
+	normalized_payload["completed"] = bool(normalized_payload.get("completed", true))
+	_finish_project_preview_session(preview_id, normalized_payload)
+
+
+func _on_project_preview_adapter_completed(payload: Dictionary, preview_id: String) -> void:
+	_on_project_preview_completed(payload, preview_id)
+
+
+func _on_project_preview_app_closed(app_id: String, preview_id: String) -> void:
+	if app_id != "game_previewer":
+		return
+	if not _project_preview_sessions.has(preview_id):
+		return
+	_finish_project_preview_session(preview_id, {
+		"completed": false,
+		"closed": true,
+		"end_reason": "closed",
+	})
+
+
+func _finish_project_preview_session(preview_id: String, payload: Dictionary) -> void:
+	var session: Dictionary = _project_preview_sessions.get(preview_id, {}).duplicate(true)
+	if not session.is_empty():
+		var app_mgr: Node = get_node_or_null("/root/AppManager")
+		var app_closed_cb: Variant = session.get("app_closed_cb", null)
+		if app_mgr != null and app_closed_cb is Callable and app_mgr.has_signal("app_closed") and app_mgr.app_closed.is_connected(app_closed_cb):
+			app_mgr.app_closed.disconnect(app_closed_cb)
+	_project_preview_sessions.erase(preview_id)
+	call_deferred("emit_signal", "project_preview_finished", preview_id, payload.duplicate(true))
+
+
+func _resolve_story_avg_preamble(action: Dictionary) -> String:
+	return _resolve_action_prompt(action, ["preamble_key"], ["preamble"])
+
+
+func _maybe_start_story_avg_generation_transit(action: Dictionary, session_id: String, logical_scene_id: String) -> void:
+	if not bool(action.get("show_generation_transit", true)):
+		return
+
+	var transit: Node = get_node_or_null("/root/TransitManager")
+	if transit == null or not transit.has_method("play_transit"):
+		return
+
+	var request: Dictionary = _story_avg_requests.get(session_id, {}).duplicate(true)
+	if request.is_empty():
+		return
+
+	var transit_id := "story_avg_generation_%s" % session_id
+	transit.call("play_transit", {
+		"id": transit_id,
+		"source": "story_director",
+		"window_title": _resolve_story_avg_generation_transit_window_title(action),
+		"title": _resolve_story_avg_generation_transit_title(action, logical_scene_id),
+		"stages": _resolve_story_avg_generation_transit_stages(action),
+		"icon": _interpolate(str(action.get("generation_transit_icon", "•"))).strip_edges(),
+		"accent_color": _interpolate(str(action.get("generation_transit_accent_color", "#8FA5FF"))).strip_edges(),
+		"bg_color": _interpolate(str(action.get("generation_transit_bg_color", "#FFFFFF"))).strip_edges(),
+		"text_color": _interpolate(str(action.get("generation_transit_text_color", "#202124"))).strip_edges(),
+		"subtext_color": _interpolate(str(action.get("generation_transit_subtext_color", "#5F6368"))).strip_edges(),
+		"eta_active": _interpolate(str(action.get("generation_transit_eta_active", "生成中..."))).strip_edges(),
+		"eta_done": _interpolate(str(action.get("generation_transit_eta_done", "即将打开"))).strip_edges(),
+		"progress": 0.08,
+	})
+	request["generation_transit_id"] = transit_id
+	_story_avg_requests[session_id] = request
+
+
+func _update_story_avg_generation_transit(session_id: String, progress: float) -> void:
+	var request: Dictionary = _story_avg_requests.get(session_id, {})
+	var transit_id: String = str(request.get("generation_transit_id", "")).strip_edges()
+	if transit_id.is_empty():
+		return
+
+	var transit: Node = get_node_or_null("/root/TransitManager")
+	if transit == null or not transit.has_method("update_transit"):
+		return
+
+	transit.call("update_transit", transit_id, progress)
+
+
+func _finish_story_avg_generation_transit(session_id: String, cancel: bool = false) -> void:
+	var request: Dictionary = _story_avg_requests.get(session_id, {}).duplicate(true)
+	var transit_id: String = str(request.get("generation_transit_id", "")).strip_edges()
+	if transit_id.is_empty():
+		return
+
+	request.erase("generation_transit_id")
+	_story_avg_requests[session_id] = request
+
+	var transit: Node = get_node_or_null("/root/TransitManager")
+	if transit == null:
+		return
+	if cancel and transit.has_method("cancel_transit"):
+		transit.call("cancel_transit", transit_id)
+		return
+	if transit.has_method("finish_transit"):
+		transit.call("finish_transit", transit_id)
+
+
+func _resolve_story_avg_generation_transit_window_title(action: Dictionary) -> String:
+	var title := _interpolate(str(action.get("generation_transit_window_title", "剧情生成中"))).strip_edges()
+	if title.is_empty():
+		return "剧情生成中"
+	return title
+
+
+func _resolve_story_avg_generation_transit_title(action: Dictionary, logical_scene_id: String) -> String:
+	var title := _interpolate(str(action.get("generation_transit_title", ""))).strip_edges()
+	if title.is_empty():
+		title = _resolve_story_avg_window_title(action, logical_scene_id)
+	if title.is_empty():
+		title = "剧情生成中"
+	return title
+
+
+func _resolve_story_avg_generation_transit_stages(action: Dictionary) -> Array[String]:
+	var raw_stages: Variant = action.get("generation_transit_stages", [])
+	var stages: Array[String] = []
+	if raw_stages is Array:
+		for item in raw_stages:
+			var text: String = _interpolate(str(item)).strip_edges()
+			if not text.is_empty():
+				stages.append(text)
+	elif raw_stages is String:
+		var text := _interpolate(str(raw_stages)).strip_edges()
+		if not text.is_empty():
+			stages.append(text)
+	if stages.is_empty():
+		return STORY_AVG_GENERATION_TRANSIT_STAGES.duplicate()
+	return stages
 
 
 ## open_browser — 请求打开浏览器页面
@@ -794,6 +1547,43 @@ func _action_post_moment(action: Dictionary) -> void:
 	var image_hint: String = str(action.get("image_hint", ""))
 	chat.post_moment(npc_id, content, image_hint)
 	print("[StoryDirector] Moment posted by %s" % npc_id)
+
+
+## play_transit — 播放一个独立于 App 的全局 transit 演出
+## { "type": "play_transit", "id": "story_walk_home", "title": "回家路上",
+##   "window_title": "转场", "stages": ["路灯亮起", "风有点凉", "快到了"],
+##   "duration": 4.0, "icon": "•", "accent_color": "#8FA5FF" }
+func _action_play_transit(action: Dictionary) -> void:
+	var transit: Node = get_node_or_null("/root/TransitManager")
+	if transit == null or not transit.has_method("play_timed_transit"):
+		push_warning("[StoryDirector] play_transit: TransitManager not available")
+		return
+
+	var request: Dictionary = {
+		"id": _interpolate(str(action.get("id", ""))),
+		"source": "story_director",
+		"window_title": _interpolate(str(action.get("window_title", "转场"))),
+		"title": _interpolate(str(action.get("title", "进行中"))),
+		"duration": float(action.get("duration", 3.0)),
+		"icon": _interpolate(str(action.get("icon", "•"))),
+		"accent_color": _interpolate(str(action.get("accent_color", "#8FA5FF"))),
+		"bg_color": _interpolate(str(action.get("bg_color", "#FFFFFF"))),
+		"text_color": _interpolate(str(action.get("text_color", "#202124"))),
+		"subtext_color": _interpolate(str(action.get("subtext_color", "#5F6368"))),
+		"eta_active": _interpolate(str(action.get("eta_active", "进行中..."))),
+		"eta_done": _interpolate(str(action.get("eta_done", "即将完成"))),
+	}
+	var stages: Array[String] = []
+	var raw_stages: Variant = action.get("stages", [])
+	if raw_stages is Array:
+		for item in raw_stages:
+			var text: String = _interpolate(str(item)).strip_edges()
+			if not text.is_empty():
+				stages.append(text)
+	request["stages"] = stages
+
+	transit.play_timed_transit(request)
+	print("[StoryDirector] Transit started: %s" % str(request.get("id", "")))
 
 
 ## set_variable — 设置剧情变量
@@ -859,6 +1649,82 @@ func _action_launch_app(action: Dictionary) -> void:
 		print("[StoryDirector] App launched: %s" % app_id)
 
 
+## install_app — 运行时安装/注册 APP，并可选择显示桌面图标或直接打开
+## { "type": "install_app", "resource_path": "res://resources/apps/scene_editor_app.tres",
+##   "show_on_desktop": true, "launch": false }
+func _action_install_app(action: Dictionary) -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null:
+		push_warning("[StoryDirector] install_app: AppManager not available")
+		return
+
+	var resource_path: String = _interpolate(str(action.get("resource_path", ""))).strip_edges()
+	var app_id: String = str(action.get("app_id", "")).strip_edges()
+
+	if not resource_path.is_empty():
+		if not app_mgr.has_method("install_app_from_path") or not bool(app_mgr.install_app_from_path(resource_path)):
+			push_warning("[StoryDirector] install_app: failed to install %s" % resource_path)
+			return
+		if app_id.is_empty() and app_mgr.has_method("get_registered_apps"):
+			for definition in app_mgr.get_registered_apps():
+				if definition != null and str(definition.resource_path) == resource_path:
+					app_id = str(definition.app_id).strip_edges()
+					break
+	elif not app_id.is_empty():
+		if app_mgr.has_method("is_app_registered") and not bool(app_mgr.is_app_registered(app_id)):
+			push_warning("[StoryDirector] install_app: app '%s' is not registered and no resource_path was provided" % app_id)
+			return
+	else:
+		push_warning("[StoryDirector] install_app: missing resource_path/app_id")
+		return
+
+	if app_id.is_empty():
+		push_warning("[StoryDirector] install_app: could not resolve app_id")
+		return
+
+	if action.has("show_on_desktop") and app_mgr.has_method("set_app_desktop_visible"):
+		app_mgr.set_app_desktop_visible(app_id, bool(action.get("show_on_desktop", true)))
+
+	if bool(action.get("launch", false)) and app_mgr.has_method("launch_app"):
+		app_mgr.launch_app(app_id, bool(action.get("force_launch", true)))
+
+	print("[StoryDirector] App installed: %s" % app_id)
+
+
+## uninstall_app — 运行时卸载/移除 APP
+## { "type": "uninstall_app", "app_id": "scene_editor", "close_running": true }
+func _action_uninstall_app(action: Dictionary) -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("unregister_app"):
+		push_warning("[StoryDirector] uninstall_app: AppManager not available")
+		return
+
+	var app_id: String = str(action.get("app_id", "")).strip_edges()
+	if app_id.is_empty():
+		push_warning("[StoryDirector] uninstall_app: missing app_id")
+		return
+
+	app_mgr.unregister_app(app_id, bool(action.get("close_running", true)))
+	print("[StoryDirector] App uninstalled: %s" % app_id)
+
+
+## set_desktop_app_visibility — 控制指定 APP 桌面图标显隐
+## { "type": "set_desktop_app_visibility", "app_id": "scene_editor", "visible": true }
+func _action_set_desktop_app_visibility(action: Dictionary) -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("set_app_desktop_visible"):
+		push_warning("[StoryDirector] set_desktop_app_visibility: AppManager not available")
+		return
+
+	var app_id: String = str(action.get("app_id", "")).strip_edges()
+	if app_id.is_empty():
+		push_warning("[StoryDirector] set_desktop_app_visibility: missing app_id")
+		return
+
+	app_mgr.set_app_desktop_visible(app_id, bool(action.get("visible", true)))
+	print("[StoryDirector] Desktop app visibility changed: %s -> %s" % [app_id, str(bool(action.get("visible", true)))])
+
+
 ## close_app — 关闭指定 APP
 ## { "type": "close_app", "app_id": "browser" }
 func _action_close_app(action: Dictionary) -> void:
@@ -881,6 +1747,53 @@ func _action_focus_app(action: Dictionary) -> void:
 	if not app_id.is_empty():
 		app_mgr.focus_app(app_id, force_launch)
 		print("[StoryDirector] App focused: %s" % app_id)
+
+
+## minimize_app_window — 最小化指定 APP 窗口
+## { "type": "minimize_app_window", "app_id": "avg_player" }
+func _action_minimize_app_window(action: Dictionary) -> void:
+	var app_id: String = _interpolate(str(action.get("app_id", SceneWindowClass.APP_ID))).strip_edges()
+	if app_id.is_empty():
+		push_warning("[StoryDirector] minimize_app_window: missing app_id")
+		return
+
+	if app_id == SceneWindowClass.APP_ID and _story_avg_scene_adapter != null and _story_avg_scene_adapter.has_method("minimize"):
+		_story_avg_scene_adapter.call("minimize")
+		print("[StoryDirector] App window minimized: %s" % app_id)
+		return
+
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null or not app_mgr.has_method("get_app_window"):
+		push_warning("[StoryDirector] minimize_app_window: AppManager not available")
+		return
+
+	var window: Control = app_mgr.get_app_window(app_id)
+	if window == null or not is_instance_valid(window):
+		if not bool(action.get("ignore_missing", true)):
+			push_warning("[StoryDirector] minimize_app_window: app not running: %s" % app_id)
+		return
+
+	if "is_minimized" in window and window.is_minimized:
+		return
+
+	if app_mgr.has_method("unlock_app_window"):
+		app_mgr.unlock_app_window(app_id)
+
+	var window_manager: Node = app_mgr.window_manager
+	if window_manager != null and window_manager.has_method("minimize_window_with_callback"):
+		window_manager.minimize_window_with_callback(window)
+		print("[StoryDirector] App window minimized: %s" % app_id)
+		return
+	if window_manager != null and window_manager.has_method("minimize_window"):
+		window_manager.minimize_window(window)
+		print("[StoryDirector] App window minimized: %s" % app_id)
+		return
+	if window.has_method("minimize"):
+		window.minimize()
+		print("[StoryDirector] App window minimized: %s" % app_id)
+		return
+
+	push_warning("[StoryDirector] minimize_app_window: no minimize path for %s" % app_id)
 
 
 func _action_lock_app_window(action: Dictionary) -> void:
@@ -909,10 +1822,40 @@ func _action_unlock_app_window(action: Dictionary) -> void:
 	print("[StoryDirector] App window unlocked: %s" % app_id)
 
 
+## consume_ap — 消耗行动力
+## { "type": "consume_ap", "amount": 1, "action_type": "story", "detail": "sleep_invite" }
+func _action_consume_ap(action: Dictionary) -> void:
+	var glm: Node = get_node_or_null("/root/GameLoopManager")
+	if glm == null or not glm.has_method("consume_ap"):
+		push_warning("[StoryDirector] consume_ap: GameLoopManager not available")
+		return
+
+	var raw_amount: Variant = action.get("amount", action.get("ap", action.get("ap_cost", 1)))
+	var amount: int = 1
+	if raw_amount is String:
+		amount = int(_interpolate(str(raw_amount)).strip_edges())
+	else:
+		amount = int(raw_amount)
+	if amount <= 0:
+		push_warning("[StoryDirector] consume_ap: amount must be > 0")
+		return
+
+	var action_type: String = _interpolate(str(action.get("action_type", "story"))).strip_edges()
+	if action_type.is_empty():
+		action_type = "story"
+	var detail: String = _interpolate(str(action.get("detail", current_step.step_id if current_step != null else "story"))).strip_edges()
+	var consumed: bool = bool(glm.call("consume_ap", amount, action_type, detail))
+	if not consumed:
+		push_warning("[StoryDirector] consume_ap: failed to consume %d AP for %s" % [amount, detail])
+		return
+
+	print("[StoryDirector] Consumed AP: %d (%s / %s)" % [amount, action_type, detail])
+
+
 ## set_activity_lock — 叙事活动锁，按活动类型选择性禁用
 ## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["date", "part_time", "gift"], "reason": "先把报名搞定" }
 ## { "type": "set_activity_lock", "mode": "whitelist", "activities": ["chat_casual", "rest"], "reason": "今天只能待在家里" }
-## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["browser", "watch_event"], "reason": "先别分心刷网页" }
+## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["browser", "follow_contest"], "reason": "先别分心发帖了" }
 func _action_set_activity_lock(action: Dictionary) -> void:
 	var mode: String = str(action.get("mode", "blacklist")).strip_edges().to_lower()
 	var raw_activities: Variant = action.get("activities", [])
@@ -934,9 +1877,60 @@ func _action_clear_activity_lock(_action: Dictionary) -> void:
 	print("[StoryDirector] Activity lock cleared")
 
 
+## ensure_dev_work_task — 确保一项剧情安排的 Dev Work 已加入任务池
+## { "type": "ensure_dev_work_task", "template_path": "res://resources/dev_work/story_tasks/day1_creative_brief.json" }
+func _action_ensure_dev_work_task(action: Dictionary) -> void:
+	var dcm: Node = get_node_or_null("/root/DevCycleManager")
+	if dcm == null or not dcm.has_method("add_dynamic_task"):
+		push_warning("[StoryDirector] ensure_dev_work_task: DevCycleManager not available")
+		return
+
+	var task: Dictionary = {}
+	var template_path := _interpolate(str(action.get("template_path", ""))).strip_edges()
+	if not template_path.is_empty():
+		task = _load_dev_work_task_template(template_path)
+	if task.is_empty():
+		push_warning("[StoryDirector] ensure_dev_work_task: empty task template")
+		return
+
+	task = _interpolate_dictionary(task)
+	var task_id := str(task.get("task_id", "")).strip_edges()
+	if task_id.is_empty():
+		push_warning("[StoryDirector] ensure_dev_work_task: task_id missing")
+		return
+
+	if dcm.has_method("get_task"):
+		var existing: Dictionary = dcm.get_task(task_id)
+		if not existing.is_empty():
+			print("[StoryDirector] Dev Work task already exists: %s" % task_id)
+			return
+
+	var added_id := str(dcm.add_dynamic_task(task))
+	if added_id.is_empty():
+		push_warning("[StoryDirector] ensure_dev_work_task: failed to add task %s" % task_id)
+	else:
+		print("[StoryDirector] Dev Work task ensured: %s" % added_id)
+
+
+func _load_dev_work_task_template(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		push_warning("[StoryDirector] Dev Work task template not found: %s" % path)
+		return {}
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		push_warning("[StoryDirector] Failed to open Dev Work task template: %s" % path)
+		return {}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if parsed is Dictionary:
+		return (parsed as Dictionary).duplicate(true)
+	push_warning("[StoryDirector] Invalid Dev Work task template JSON: %s" % path)
+	return {}
+
+
 ## dispatch_work_order — 直接创建并派发工单
 ## { "type": "dispatch_work_order", "title": "...", "description": "...",
-##   "assignee": "npc_lin_xia", "priority": 2, "save_order_id": "var_name" }
+##   "priority": 2, "save_order_id": "var_name" }
 func _action_dispatch_work_order(action: Dictionary) -> void:
 	var wom: Node = get_node_or_null("/root/WorkOrderManager")
 	if wom == null:
@@ -953,7 +1947,6 @@ func _action_dispatch_work_order(action: Dictionary) -> void:
 		"source_type": "story_event",
 		"source_id": str(action.get("id", "")),
 	})
-	order.assignee_npc_id = str(action.get("assignee", "npc_lin_xia"))
 	order.priority = int(action.get("priority", 2))
 
 	var save_var: String = str(action.get("save_order_id", ""))
@@ -969,7 +1962,7 @@ func _action_dispatch_work_order(action: Dictionary) -> void:
 
 ## generate_work_order — 通过 LLM 生成工单内容后自动派发
 ## { "type": "generate_work_order", "prompt": "...",
-##   "assignee": "npc_lin_xia", "priority": 2, "role": "work_order",
+##   "priority": 2, "role": "work_order",
 ##   "save_order_id": "var_name" }
 func _action_generate_work_order(action: Dictionary) -> void:
 	var wom: Node = get_node_or_null("/root/WorkOrderManager")
@@ -985,14 +1978,11 @@ func _action_generate_work_order(action: Dictionary) -> void:
 	# 收集 KB 摘要作为上下文
 	var kb_context: String = _build_kb_context_for_generation()
 
-	var system_prompt: String = """你是一个游戏开发项目的任务拆解助手。
-根据用户的指令，生成一个详细的工单。
-
-你必须严格使用以下 JSON 格式回复，不要输出任何其他内容：
-{"title": "工单标题（简洁描述任务）", "description": "工单详细描述（包含背景、目标、具体要求）"}
-
-当前项目知识库摘要：
-%s""" % kb_context
+	var system_prompt: String = _resolve_prompt_template(
+		"work_order_generation_system",
+		{"kb_context": kb_context},
+		"你是游戏开发项目的任务拆解助手。只输出 JSON：{\"title\":\"工单标题\",\"description\":\"详细需求\"}\n\n当前项目知识库摘要：\n%s" % kb_context
+	)
 
 	# 创建一次性 AIService
 	var ai: AIService = AIService.new()
@@ -1001,14 +1991,13 @@ func _action_generate_work_order(action: Dictionary) -> void:
 	add_child(ai)
 	AIConfigManager.get_instance().apply_to_service(ai, role_name)
 
-	var assignee: String = str(action.get("assignee", "npc_lin_xia"))
 	var priority: int = int(action.get("priority", 2))
 	var save_var: String = str(action.get("save_order_id", ""))
 
 	# 异步回调
 	ai.request_completed.connect(
 		func(_request_id: String, response: Dictionary) -> void:
-			_on_generate_work_order_completed(response, wom, assignee, priority, save_var)
+			_on_generate_work_order_completed(response, wom, priority, save_var)
 			ai.queue_free()
 	)
 	ai.request_failed.connect(
@@ -1020,7 +2009,7 @@ func _action_generate_work_order(action: Dictionary) -> void:
 	ai.chat_simple(user_prompt, system_prompt)
 
 
-func _on_generate_work_order_completed(response: Dictionary, wom: Node, assignee: String, priority: int, save_var: String) -> void:
+func _on_generate_work_order_completed(response: Dictionary, wom: Node, priority: int, save_var: String) -> void:
 	var content: String = ""
 	var choices: Array = response.get("choices", [])
 	if choices.size() > 0:
@@ -1055,7 +2044,6 @@ func _on_generate_work_order_completed(response: Dictionary, wom: Node, assignee
 		"source_type": "story_event",
 		"source_id": "generated",
 	})
-	order.assignee_npc_id = assignee
 	order.priority = priority
 
 	if not save_var.is_empty():
@@ -1107,9 +2095,15 @@ func _setup_wait(wait: Dictionary) -> void:
 		"home_activity_completed":
 			_wait_on_signal("/root/HomeActivityManager", "activity_completed", _on_wait_home_activity_completed)
 		"avg_scene_ended":
-			_wait_on_signal_dynamic("scene_ended", _on_wait_avg_scene_ended)
+			avg_scene_ended.connect(_on_wait_avg_scene_ended)
+			_wait_connections.append({"signal": "avg_scene_ended", "callable": _on_wait_avg_scene_ended, "self": true})
+		"project_preview_finished":
+			project_preview_finished.connect(_on_wait_project_preview_finished)
+			_wait_connections.append({"signal": "project_preview_finished", "callable": _on_wait_project_preview_finished, "self": true})
 		"sbeam_completed":
 			_wait_on_signal("/root/SbeamManager", "play_session_completed", _on_wait_sbeam_completed)
+		"transit_completed":
+			_wait_on_signal("/root/TransitManager", "transit_finished", _on_wait_transit_completed)
 		"phase_reached":
 			_wait_on_signal("/root/GameLoopManager", "phase_changed", _on_wait_phase_reached)
 		"day_reached":
@@ -1122,6 +2116,11 @@ func _setup_wait(wait: Dictionary) -> void:
 			_wait_on_signal("/root/WorkOrderManager", "order_status_changed", _on_wait_work_order_completed)
 		"work_order_dispatched":
 			_wait_on_signal("/root/WorkOrderManager", "order_dispatched", _on_wait_work_order_dispatched)
+		"dev_task_completed":
+			if _is_expected_dev_task_completed():
+				call_deferred("_on_wait_satisfied", {"already_completed": true})
+			else:
+				_wait_on_signal("/root/DevCycleManager", "task_status_changed", _on_wait_dev_task_completed)
 		_:
 			push_warning("[StoryDirector] Unknown wait type: %s" % wait_type)
 
@@ -1176,6 +2175,7 @@ func _on_wait_satisfied(data: Dictionary = {}) -> void:
 	if not _waiting or current_step == null:
 		return
 	_waiting = false
+	_last_wait_payload = data.duplicate(true)
 
 	# 处理 capture
 	if not current_step.capture.is_empty():
@@ -1195,7 +2195,13 @@ func _on_wait_topic_completed(topic: Resource, result: Dictionary) -> void:
 	var expected_id: String = str(current_step.wait_for.get("topic_id", ""))
 	if not expected_id.is_empty() and topic.topic_id != expected_id:
 		return
-	_on_wait_satisfied({"topic": topic, "result": result})
+	var enriched_result: Dictionary = result.duplicate(true)
+	var conversation: Array[Dictionary] = _build_topic_conversation_messages(topic, enriched_result)
+	if not conversation.is_empty():
+		enriched_result["conversation_messages"] = conversation
+		enriched_result["player_messages"] = _extract_player_messages_from_conversation(conversation)
+		enriched_result["npc_messages"] = _extract_npc_messages_from_conversation(topic, conversation)
+	_on_wait_satisfied({"topic": topic, "result": enriched_result})
 
 
 func _on_wait_url_opened(url: String, _design_prompt: String, _page_context: String) -> void:
@@ -1208,24 +2214,51 @@ func _on_wait_url_opened(url: String, _design_prompt: String, _page_context: Str
 	_on_wait_satisfied({"url": url})
 
 
+func _on_wait_dev_task_completed(task_id: String, new_status: String) -> void:
+	if current_step == null:
+		return
+	if new_status != "completed":
+		return
+	var expected_task_id := _interpolate(str(current_step.wait_for.get("task_id", ""))).strip_edges()
+	if not expected_task_id.is_empty() and task_id != expected_task_id:
+		return
+	_on_wait_satisfied({"task_id": task_id, "status": new_status})
+
+
+func _is_expected_dev_task_completed() -> bool:
+	if current_step == null:
+		return false
+	var expected_task_id := _interpolate(str(current_step.wait_for.get("task_id", ""))).strip_edges()
+	if expected_task_id.is_empty():
+		return false
+	var dcm: Node = get_node_or_null("/root/DevCycleManager")
+	if dcm == null or not dcm.has_method("get_task"):
+		return false
+	var task: Dictionary = dcm.get_task(expected_task_id)
+	return str(task.get("status", "")) == "completed"
+
+
 func _on_wait_app_opened(app_id: String, _window: Control) -> void:
 	if current_step == null:
 		return
 	var expected_app: String = str(current_step.wait_for.get("app_id", ""))
 	if not expected_app.is_empty() and app_id != expected_app:
 		return
+	_complete_story_topic_for_current_step_event("玩家已打开 APP: %s" % app_id, {"app_id": app_id})
 	_on_wait_satisfied({"app_id": app_id})
 
 
 func _on_wait_date_started(session_id: String, payload: Dictionary) -> void:
 	if current_step == null:
 		return
+	_complete_story_topic_for_current_step_event("玩家已开始约会", {"session_id": session_id, "payload": payload})
 	_on_wait_satisfied({"session_id": session_id, "payload": payload})
 
 
 func _on_wait_date_completed(session_id: String, payload: Dictionary) -> void:
 	if current_step == null:
 		return
+	_complete_story_topic_for_current_step_event("玩家已完成约会", {"session_id": session_id, "payload": payload})
 	_on_wait_satisfied({"session_id": session_id, "payload": payload})
 
 
@@ -1235,6 +2268,7 @@ func _on_wait_home_activity_started(activity_id: String, payload: Dictionary) ->
 	var expected_activity: String = str(current_step.wait_for.get("activity_id", "")).strip_edges()
 	if not expected_activity.is_empty() and activity_id != expected_activity:
 		return
+	_complete_story_topic_for_current_step_event("玩家已开始活动: %s" % activity_id, {"activity_id": activity_id, "payload": payload})
 	_on_wait_satisfied({"activity_id": activity_id, "payload": payload})
 
 
@@ -1244,20 +2278,25 @@ func _on_wait_home_activity_completed(activity_id: String, payload: Dictionary) 
 	var expected_activity: String = str(current_step.wait_for.get("activity_id", "")).strip_edges()
 	if not expected_activity.is_empty() and activity_id != expected_activity:
 		return
+	_complete_story_topic_for_current_step_event("玩家已完成活动: %s" % activity_id, {"activity_id": activity_id, "payload": payload})
 	_on_wait_satisfied({"activity_id": activity_id, "payload": payload})
 
 
 func _complete_story_topic_for_current_step_url(url: String) -> void:
+	_complete_story_topic_for_current_step_event("玩家已打开 %s" % url, {"url": url})
+
+
+func _complete_story_topic_for_current_step_event(summary: String, result: Dictionary = {}) -> bool:
 	if current_step == null:
-		return
+		return false
 
 	var chat: Node = get_node_or_null("/root/ChatManager")
 	if chat == null:
-		return
+		return false
 	if not chat.has_method("get_active_topic"):
-		return
+		return false
 	if not ("topic_manager" in chat):
-		return
+		return false
 
 	for action in current_step.actions:
 		if not (action is Dictionary):
@@ -1282,29 +2321,49 @@ func _complete_story_topic_for_current_step_url(url: String) -> void:
 
 		var topic_manager: Variant = chat.get("topic_manager")
 		if topic_manager == null or not topic_manager.has_method("complete_topic"):
-			return
+			return false
 
-		var summary: String = "玩家已打开 %s" % url
-		topic_manager.complete_topic(active_topic, {
-			"url": url,
-			"summary": summary,
-		})
-		return
+		var normalized_result: Dictionary = result.duplicate(true)
+		if not normalized_result.has("summary"):
+			normalized_result["summary"] = summary
+		if chat.has_method("cancel_pending_ai_request"):
+			chat.cancel_pending_ai_request(active_topic.channel_id, "story_wait_event_completed_topic:%s" % active_topic.topic_id)
+		topic_manager.complete_topic(active_topic, normalized_result)
+		return true
+	return false
 
 
-func _on_wait_avg_scene_ended(scene_id: String) -> void:
+func _on_wait_avg_scene_ended(scene_id: String, outcome: Dictionary = {}) -> void:
 	if current_step == null:
 		return
 	var expected_scene: String = str(current_step.wait_for.get("scene_id", ""))
 	if not expected_scene.is_empty() and scene_id != expected_scene:
 		return
-	_on_wait_satisfied({"scene_id": scene_id})
+	_on_wait_satisfied({"scene_id": scene_id, "outcome": outcome})
+
+
+func _on_wait_project_preview_finished(preview_id: String, payload: Dictionary = {}) -> void:
+	if current_step == null:
+		return
+	var expected_preview_id: String = _interpolate(str(current_step.wait_for.get("preview_id", current_step.wait_for.get("session_id", "")))).strip_edges()
+	if not expected_preview_id.is_empty() and preview_id != expected_preview_id:
+		return
+	_on_wait_satisfied({"preview_id": preview_id, "payload": payload})
 
 
 func _on_wait_sbeam_completed(session_id: String, payload: Dictionary) -> void:
 	if current_step == null:
 		return
 	_on_wait_satisfied({"session_id": session_id, "payload": payload})
+
+
+func _on_wait_transit_completed(transit_id: String, payload: Dictionary) -> void:
+	if current_step == null:
+		return
+	var expected_id: String = _interpolate(str(current_step.wait_for.get("id", current_step.wait_for.get("transit_id", "")))).strip_edges()
+	if not expected_id.is_empty() and transit_id != expected_id:
+		return
+	_on_wait_satisfied({"transit_id": transit_id, "payload": payload})
 
 
 func _on_wait_phase_reached(new_phase: int) -> void:
@@ -1351,13 +2410,13 @@ func _on_wait_work_order_completed(order_id: String, old_status: String, new_sta
 	_on_wait_satisfied({"order_id": order_id, "old_status": old_status, "new_status": new_status})
 
 
-func _on_wait_work_order_dispatched(order_id: String, assignee_npc_id: String) -> void:
+func _on_wait_work_order_dispatched(order_id: String) -> void:
 	if current_step == null:
 		return
 	var expected_id: String = _interpolate(str(current_step.wait_for.get("order_id", "")))
 	if not expected_id.is_empty() and order_id != expected_id:
 		return
-	_on_wait_satisfied({"order_id": order_id, "assignee_npc_id": assignee_npc_id})
+	_on_wait_satisfied({"order_id": order_id})
 
 
 # =============================================================================
@@ -1397,6 +2456,251 @@ func _load_compiled_chapters(index_resource: Resource) -> bool:
 
 
 # =============================================================================
+# Trigger Evaluation
+# =============================================================================
+
+func _connect_trigger_sources() -> void:
+	var glm: Node = get_node_or_null("/root/GameLoopManager")
+	if glm != null:
+		_connect_trigger_signal(glm, "day_changed", _on_trigger_day_changed)
+		_connect_trigger_signal(glm, "phase_changed", _on_trigger_phase_changed)
+
+	var gm: Node = get_node_or_null("/root/GameManager")
+	if gm != null:
+		_connect_trigger_signal(gm, "stats_changed", _on_trigger_stats_changed)
+
+	if has_signal("story_variable_changed") and not is_connected("story_variable_changed", _on_trigger_story_variable_changed):
+		story_variable_changed.connect(_on_trigger_story_variable_changed)
+
+
+func _connect_trigger_signal(node: Node, signal_name: String, callback: Callable) -> void:
+	if node == null or not node.has_signal(signal_name):
+		return
+	if node.is_connected(signal_name, callback):
+		return
+	node.connect(signal_name, callback)
+
+
+func _on_trigger_day_changed(_new_day: int) -> void:
+	_request_trigger_scan()
+
+
+func _on_trigger_phase_changed(_new_phase: int) -> void:
+	_request_trigger_scan()
+
+
+func _on_trigger_story_variable_changed(_key: String, _value: Variant) -> void:
+	_request_trigger_scan()
+
+
+func _on_trigger_stats_changed() -> void:
+	_request_trigger_scan()
+
+
+func _request_trigger_scan() -> void:
+	if _trigger_scan_queued:
+		return
+	_trigger_scan_queued = true
+	call_deferred("_flush_trigger_scan")
+
+
+func _flush_trigger_scan() -> void:
+	_trigger_scan_queued = false
+	_try_start_triggered_chapter()
+
+
+func _try_start_triggered_chapter() -> bool:
+	if current_chapter != null or current_step != null or _waiting:
+		return false
+
+	var chapter: Resource = _get_next_triggered_chapter()
+	if chapter == null:
+		return false
+	return start_chapter(chapter.chapter_id)
+
+
+func _get_next_triggered_chapter() -> Resource:
+	var selected: Resource = null
+	var selected_priority: int = -2147483648
+	var selected_id: String = ""
+
+	for chapter_value in _chapters.values():
+		if not (chapter_value is StoryChapterClass):
+			continue
+		var chapter: Resource = chapter_value
+		if not _can_auto_trigger_chapter(chapter):
+			continue
+
+		var chapter_priority: int = int(chapter.priority)
+		var chapter_id: String = str(chapter.chapter_id)
+		if selected == null \
+		or chapter_priority > selected_priority \
+		or (chapter_priority == selected_priority and chapter_id.nocasecmp_to(selected_id) < 0):
+			selected = chapter
+			selected_priority = chapter_priority
+			selected_id = chapter_id
+
+	return selected
+
+
+func _can_auto_trigger_chapter(chapter: Resource) -> bool:
+	if chapter == null or not (chapter is StoryChapterClass):
+		return false
+	if chapter.trigger.is_empty():
+		return false
+	if bool(completed_chapters.get(chapter.chapter_id, false)):
+		return false
+	return _matches_chapter_trigger(chapter.trigger)
+
+
+func _has_pending_triggered_chapters() -> bool:
+	for chapter_value in _chapters.values():
+		if not (chapter_value is StoryChapterClass):
+			continue
+		var chapter: Resource = chapter_value
+		if chapter.trigger.is_empty():
+			continue
+		if bool(completed_chapters.get(chapter.chapter_id, false)):
+			continue
+		return true
+	return false
+
+
+func _matches_chapter_trigger(trigger: Dictionary) -> bool:
+	if trigger.is_empty():
+		return false
+
+	var game_state: Dictionary = _collect_game_state()
+	var current_day: int = int(game_state.get("current_day", 0))
+	if trigger.has("day") and current_day != int(trigger.get("day", 0)):
+		return false
+	if trigger.has("min_day") and current_day < int(trigger.get("min_day", 0)):
+		return false
+	if trigger.has("max_day") and current_day > int(trigger.get("max_day", 0)):
+		return false
+
+	var current_phase: String = str(game_state.get("phase", "")).to_upper()
+	var expected_phase: String = str(trigger.get("phase", "")).strip_edges().to_upper()
+	if not expected_phase.is_empty() and current_phase != expected_phase:
+		return false
+
+	for required_chapter_id in _to_string_array(trigger.get("required_chapters", [])):
+		if not bool(completed_chapters.get(required_chapter_id, false)):
+			return false
+
+	for excluded_chapter_id in _to_string_array(trigger.get("excluded_chapters", [])):
+		if bool(completed_chapters.get(excluded_chapter_id, false)):
+			return false
+
+	for expr in _to_string_array(trigger.get("conditions", [])):
+		if not _evaluate_story_condition(expr, story_variables, game_state):
+			return false
+
+	return true
+
+
+func _evaluate_story_condition(expr: String, variables: Dictionary, game_state: Dictionary) -> bool:
+	var stripped_expr: String = expr.strip_edges()
+	if stripped_expr.is_empty():
+		return false
+
+	for op in _CONDITION_OPERATORS:
+		var needle: String = " %s " % op
+		var op_pos: int = stripped_expr.find(needle)
+		if op_pos < 0:
+			continue
+
+		var left: String = stripped_expr.substr(0, op_pos).strip_edges()
+		var right: String = stripped_expr.substr(op_pos + needle.length()).strip_edges()
+		if left.is_empty() or right.is_empty():
+			return false
+
+		var actual: Variant = _resolve_condition_actual_value(left, variables, game_state)
+		if actual == null:
+			return false
+		var expected: Variant = _parse_condition_literal(right)
+		return _compare_condition_values(actual, expected, op)
+
+	return false
+
+
+func _resolve_condition_actual_value(key: String, variables: Dictionary, game_state: Dictionary) -> Variant:
+	if key.begins_with("story."):
+		return variables.get(key.substr(6), null)
+	if key.begins_with("game."):
+		return game_state.get(key.substr(5), null)
+	if key.begins_with("completed_chapters."):
+		return bool(completed_chapters.get(key.substr("completed_chapters.".length()), false))
+	if key.begins_with("completed_steps."):
+		return bool(completed_steps.get(key.substr("completed_steps.".length()), false))
+	if variables.has(key):
+		return variables.get(key)
+	if game_state.has(key):
+		return game_state.get(key)
+	return null
+
+
+func _parse_condition_literal(raw_value: String) -> Variant:
+	var stripped_value: String = raw_value.strip_edges()
+	if stripped_value.length() >= 2:
+		var first_char: String = stripped_value.left(1)
+		var last_char: String = stripped_value.right(1)
+		if (first_char == '"' and last_char == '"') or (first_char == "'" and last_char == "'"):
+			return stripped_value.substr(1, stripped_value.length() - 2)
+	if stripped_value == "true":
+		return true
+	if stripped_value == "false":
+		return false
+	if stripped_value.is_valid_int():
+		return stripped_value.to_int()
+	if stripped_value.is_valid_float():
+		return stripped_value.to_float()
+	return stripped_value
+
+
+func _compare_condition_values(actual: Variant, expected: Variant, op: String) -> bool:
+	match op:
+		"==":
+			return _values_equal(actual, expected)
+		"!=":
+			return not _values_equal(actual, expected)
+		">=", "<=", ">", "<":
+			if not _is_numeric_variant(actual) or not _is_numeric_variant(expected):
+				return false
+			var actual_num: float = float(actual)
+			var expected_num: float = float(expected)
+			match op:
+				">=":
+					return actual_num >= expected_num
+				"<=":
+					return actual_num <= expected_num
+				">":
+					return actual_num > expected_num
+				"<":
+					return actual_num < expected_num
+	return false
+
+
+func _values_equal(actual: Variant, expected: Variant) -> bool:
+	if _is_numeric_variant(actual) and _is_numeric_variant(expected):
+		return is_equal_approx(float(actual), float(expected))
+	if actual is bool or expected is bool:
+		return _to_bool(actual) == _to_bool(expected)
+	return str(actual) == str(expected)
+
+
+func _is_numeric_variant(value: Variant) -> bool:
+	return value is int or value is float
+
+
+func _to_bool(value: Variant) -> bool:
+	if value is bool:
+		return value
+	var normalized: String = str(value).strip_edges().to_lower()
+	return normalized == "true" or normalized == "1"
+
+
+# =============================================================================
 # Utilities
 # =============================================================================
 
@@ -1409,24 +2713,43 @@ func _interpolate(text: String) -> String:
 
 
 func _resolve_activity_guidance_prompt(action: Dictionary) -> String:
+	return _resolve_action_prompt(action, ["prompt_key"], ["prompt"])
+
+
+func _resolve_action_prompt(action: Dictionary, prompt_key_fields: Array[String], prompt_text_fields: Array[String]) -> String:
 	var prompt_manager: Node = get_node_or_null("/root/PromptManager")
 	var vars := story_variables.duplicate(true)
 
-	var prompt_key := _interpolate(str(action.get("prompt_key", ""))).strip_edges()
-	if not prompt_key.is_empty():
+	for key_field in prompt_key_fields:
+		var prompt_key := _interpolate(str(action.get(key_field, ""))).strip_edges()
+		if prompt_key.is_empty():
+			continue
 		if prompt_manager != null and prompt_manager.has_method("resolve_with_vars") and prompt_manager.has_method("has_prompt"):
 			if prompt_manager.has_prompt(prompt_key):
 				return str(prompt_manager.resolve_with_vars(prompt_key, vars)).strip_edges()
-			push_warning("[StoryDirector] set_activity_guidance: prompt_key not found: %s" % prompt_key)
+			push_warning("[StoryDirector] prompt_key not found: %s" % prompt_key)
 		else:
-			push_warning("[StoryDirector] set_activity_guidance: PromptManager unavailable for prompt_key '%s'" % prompt_key)
+			push_warning("[StoryDirector] PromptManager unavailable for prompt_key '%s'" % prompt_key)
 
-	var prompt_text := _interpolate(str(action.get("prompt", ""))).strip_edges()
-	if prompt_text.is_empty():
-		return ""
-	if prompt_manager != null and prompt_manager.has_method("resolve_template_with_vars"):
-		return str(prompt_manager.resolve_template_with_vars(prompt_text, vars)).strip_edges()
-	return prompt_text
+	for text_field in prompt_text_fields:
+		var prompt_text := _interpolate(str(action.get(text_field, ""))).strip_edges()
+		if prompt_text.is_empty():
+			continue
+		if prompt_manager != null and prompt_manager.has_method("resolve_template_with_vars"):
+			return str(prompt_manager.resolve_template_with_vars(prompt_text, vars)).strip_edges()
+		return prompt_text
+
+	return ""
+
+
+func _resolve_prompt_template(prompt_key: String, vars: Dictionary, fallback: String) -> String:
+	var prompt_manager: Node = get_node_or_null("/root/PromptManager")
+	if prompt_manager != null and prompt_manager.has_method("has_prompt") and prompt_manager.has_method("resolve_with_vars"):
+		if prompt_manager.has_prompt(prompt_key):
+			var resolved := str(prompt_manager.resolve_with_vars(prompt_key, vars)).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+	return fallback
 
 
 ## 检查 wait_for 的附加数据是否匹配
@@ -1471,6 +2794,9 @@ func _collect_game_state() -> Dictionary:
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm != null:
 		state["current_day"] = glm.current_day
+		state["day"] = glm.current_day
 		state["time_phase"] = glm.time_phase
+		if glm.has_method("get_phase_name"):
+			state["phase"] = str(glm.get_phase_name(glm.time_phase)).to_upper()
 
 	return state

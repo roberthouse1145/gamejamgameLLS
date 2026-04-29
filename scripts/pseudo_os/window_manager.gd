@@ -241,6 +241,11 @@ func focus_window(window: Control) -> void:
 	if not window or not is_instance_valid(window):
 		return
 
+	# If window is minimized, restore it first
+	if "is_minimized" in window and window.is_minimized:
+		restore_window(window)
+		return
+
 	if window == focused_window and _is_window_frontmost(window):
 		return
 

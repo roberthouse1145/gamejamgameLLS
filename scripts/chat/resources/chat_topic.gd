@@ -26,8 +26,8 @@ class_name ChatTopic extends Resource
 ## 上下文数据（工单内容、剧情变量等）
 @export var context_data: Dictionary = {}
 
-## 最大对话轮数（0=无限制）
-@export var max_turns: int = 10
+## 已停用：保留字段仅为兼容旧数据
+@export var max_turns: int = 0
 
 ## 超时时间（秒，0=无限制）
 @export var timeout_seconds: int = 300

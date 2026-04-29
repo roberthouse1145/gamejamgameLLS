@@ -17,8 +17,7 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var duration: float = float(params.get("duration", 1.0))
+	var duration: float = _get_param(command, "duration", 1.0)
 	var runner: Node = context.scene_runner
 	if runner == null:
 		return CommandResultClass.error("CAMERA_RESET: no scene_runner")

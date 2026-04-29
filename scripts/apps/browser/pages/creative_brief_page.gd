@@ -54,51 +54,10 @@ const TONE_TAGS: PackedStringArray = [
 const MIN_TAGS: int = 1
 const MAX_TAGS: int = 3
 
-# ── 审核 Prompt ──────────────────────────────────────────────────────────
-const REVIEW_SYSTEM_PROMPT: String = """你负责审核 GameJam 项目立案页面中的企划信息。这是一个纯合规检查，不涉及创意评价。
-
-【审核原则】
-- 默认通过，只有明确违规才拒绝
-- 拿不准时一律通过
-
-【拒绝条件】（仅限以下明确情形）
-- 包含色情、暴力、血腥、恐怖等 NSFW 内容
-- 包含歧视、仇恨、反社会言论
-- 作品名称或大纲为纯乱码、纯符号、纯数字
-- 大纲内容与"日式魔法异世界学院"主题完全无关（比如"火星殖民"）
-
-【不应拒绝的情况】
-- 常见创意方向（恋爱、悬疑、冒险等）
-- 简短或模糊的大纲（可以通过，由后续流程补强）
-- 自定义类型名称（只要不违规就通过）
-- 大纲留空的情况（这种情况不会提交给你审核）
-
-仅返回 JSON：
-{
-  "approved": true/false,
-  "reason": "拒绝原因（通过时留空字符串）"
-}"""
-
-# ── 大纲生成 Prompt ────────────────────────────────────────────────────
-const OUTLINE_SYSTEM_PROMPT_TEMPLATE: String = """你是林夏，正在帮搭档为 GameJam 参赛作品构思故事大纲。
-
-【你是谁】
-{{heroine/lin_xia_core}}
-
-【比赛主题】日式魔法异世界学院
-【比赛约束——必须遵守】
-- 这是一个 AVG（视觉小说），不能设计需要复杂系统的玩法
-- 总开发周期约 45 天，两人团队（你负责美术/设计，搭档负责策划/文案/代码）
-- 规模控制在 3-5 章、每章 10-20 分钟游玩时长
-- 可用素材：官方素材包（魔法学院风格立绘、背景、UI）
-- 不要设计需要大量原创美术资源的内容
-
-【要求】
-- 150字以内
-- 包含：主角设定（1句）、核心冲突（1句）、大致走向（1-2句）
-- 风格贴合所选类型和基调
-- 不要写得太具体，留出展开空间
-- 只输出大纲文本，不要加标题或格式标记"""
+const REVIEW_PROMPT_KEY: String = "browser/creative_brief_review"
+const OUTLINE_PROMPT_KEY: String = "browser/creative_brief_outline"
+const REVIEW_SYSTEM_FALLBACK: String = "审核 GameJam 企划，只做合规检查。默认通过，只有明确违规才拒绝。只输出 JSON：{\"approved\": true/false, \"reason\": \"\"}"
+const OUTLINE_SYSTEM_FALLBACK: String = "你是林夏，帮搭档构思日式魔法异世界学院 AVG 大纲。150字以内，只输出大纲文本。"
 
 # ── 状态 ─────────────────────────────────────────────────────────────────
 var _browser_app: Node = null
@@ -893,7 +852,6 @@ func _ensure_review_service() -> void:
 		_review_enabled = false
 		return
 	_review_service.default_temperature = 0.3
-	_review_service.default_max_tokens = 512
 	_review_service.request_completed.connect(_on_review_completed)
 	_review_service.request_failed.connect(_on_review_failed)
 	add_child(_review_service)
@@ -914,7 +872,6 @@ func _ensure_outline_service() -> void:
 		_outline_enabled = false
 		return
 	_outline_service.default_temperature = 0.7
-	_outline_service.default_max_tokens = 512
 	_outline_service.request_completed.connect(_on_outline_completed)
 	_outline_service.request_failed.connect(_on_outline_failed)
 	add_child(_outline_service)
@@ -976,10 +933,10 @@ func _start_review(title_text: String, genre: String, tags: PackedStringArray, o
 		title_text, genre, ", ".join(tags), FIXED_THEME, outline
 	]
 	var messages: Array = [
-		{"role": "system", "content": REVIEW_SYSTEM_PROMPT},
+		{"role": "system", "content": _resolve_prompt(REVIEW_PROMPT_KEY, REVIEW_SYSTEM_FALLBACK)},
 		{"role": "user", "content": user_msg},
 	]
-	_pending_review_id = _review_service.chat(messages, {"temperature": 0.3, "max_tokens": 512})
+	_pending_review_id = _review_service.chat(messages, {"temperature": 0.3})
 
 
 func _on_review_completed(request_id: String, response: Dictionary) -> void:
@@ -1069,15 +1026,11 @@ func _start_outline_generation(title_text: String, genre: String, tags: PackedSt
 		return
 
 	var user_msg := "作品名称: %s\n作品类型: %s\n基调: %s" % [title_text, genre, ", ".join(tags)]
-	var resolved_prompt := OUTLINE_SYSTEM_PROMPT_TEMPLATE
-	var pm: Node = get_node_or_null("/root/PromptManager")
-	if pm != null and pm.has_method("resolve_template"):
-		resolved_prompt = pm.resolve_template(OUTLINE_SYSTEM_PROMPT_TEMPLATE)
 	var messages: Array = [
-		{"role": "system", "content": resolved_prompt},
+		{"role": "system", "content": _resolve_prompt(OUTLINE_PROMPT_KEY, OUTLINE_SYSTEM_FALLBACK)},
 		{"role": "user", "content": user_msg},
 	]
-	_pending_outline_id = _outline_service.chat(messages, {"temperature": 0.7, "max_tokens": 512})
+	_pending_outline_id = _outline_service.chat(messages, {"temperature": 0.7})
 
 
 func _on_outline_completed(request_id: String, response: Dictionary) -> void:
@@ -1143,6 +1096,16 @@ func _generate_fallback_outline(title_text: String, genre: String, tags: PackedS
 	var tone := ", ".join(tags) if tags.size() > 0 else "日常"
 	return "在一所以魔法闻名的学院中，一位新入学的少年发现自己拥有独特的天赋。在%s的氛围下，围绕「%s」的主题，一段%s的故事就此展开。" % [tone, title_text, genre]
 
+
+func _resolve_prompt(prompt_key: String, fallback: String) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("has_prompt") and pm.has_method("resolve"):
+		if pm.has_prompt(prompt_key):
+			var resolved := str(pm.resolve(prompt_key)).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+	return fallback
+
 #endregion
 
 
@@ -1155,10 +1118,9 @@ func _do_approve(title_text: String, genre: String, tags: PackedStringArray,
 	# ── 写入 KB ──
 	_write_to_knowledge_base(title_text, genre, tags, outline)
 
-	# ── 设置 StoryDirector 变量 ──
+	# ── 设置 StoryDirector 变量（先写入企划信息，暂不标记提交完成）──
 	var story_director: Node = get_node_or_null("/root/StoryDirector")
 	if story_director != null and story_director.has_method("set_variable"):
-		story_director.set_variable("creative_brief_submitted", "true")
 		story_director.set_variable("game_title", title_text)
 		story_director.set_variable("game_genre", genre)
 		story_director.set_variable("game_tags", ", ".join(tags))
@@ -1167,8 +1129,15 @@ func _do_approve(title_text: String, genre: String, tags: PackedStringArray,
 	_lock_submission()
 	_set_status("info", "审核通过，林夏正在看你的企划……")
 
+	# ── 发送伪消息：将企划内容注入聊天上下文 ──
+	_send_brief_context_message(title_text, genre, tags, outline)
+
 	# ── 林夏反馈 topic（审核通过的正面反应）──
-	await _activate_feedback_topic(title_text, genre, tags, outline)
+	_activate_feedback_topic(title_text, genre, tags, outline)
+
+	# ── 立案提交状态立即生效；剧情推进改由 day1 等待 feedback topic 完成 ──
+	if story_director != null and story_director.has_method("set_variable"):
+		story_director.set_variable("creative_brief_submitted", "true")
 
 	# ── 通知 DevCycleManager：企划完成 → 触发开发计划生成 ──
 	var dcm: Node = get_node_or_null("/root/DevCycleManager")
@@ -1197,7 +1166,7 @@ func _do_approve(title_text: String, genre: String, tags: PackedStringArray,
 			"success_status": "立案通过",
 		})
 
-	_set_status("success", "立案通过！开发即将开始。")
+	_set_status("success", "立案通过！林夏应该已经看到你的企划了。")
 
 
 func _write_to_knowledge_base(title_text: String, genre: String,
@@ -1210,13 +1179,23 @@ func _write_to_knowledge_base(title_text: String, genre: String,
 	var content := "## 基本信息\n- 作品名称：%s\n- 作品类型：%s\n- 基调标签：%s\n- 比赛主题：%s\n\n## 故事大纲\n%s" % [
 		title_text, genre, ", ".join(tags), FIXED_THEME, outline
 	]
-	kb.upsert_document("creative_brief", "项目企划书", content, "creative_brief",
-		["brief", "direction", genre], "player")
+	kb.upsert_document(
+		"creative_brief",
+		"项目企划书",
+		content,
+		"notes",
+		["brief", "direction", genre],
+		"player",
+		{
+			"doc_kind": "brief",
+			"state": "confirmed",
+		}
+	)
 
 
 func _activate_feedback_topic(title_text: String, genre: String,
-		tags: PackedStringArray, outline: String) -> void:
-	await _fire_lin_xia_topic_and_wait("brief_feedback",
+		tags: PackedStringArray, outline: String) -> String:
+	return _fire_lin_xia_topic_with_id("brief_feedback", "day1_brief_feedback",
 		"搭档提交的 GameJam 企划书已通过审核。\n\n"
 		+ "【企划信息】\n"
 		+ "- 作品名称：%s\n" % title_text
@@ -1225,6 +1204,21 @@ func _activate_feedback_topic(title_text: String, genre: String,
 		+ "- 故事大纲：%s\n\n" % outline
 		+ "用 1-3 句话表达对这个企划的反应。可以期待、兴奋、好奇、或善意吐槽。"
 		+ "不要重复企划内容。")
+
+
+func _send_brief_context_message(title_text: String, genre: String,
+		tags: PackedStringArray, outline: String) -> void:
+	var chat: Node = get_node_or_null("/root/ChatManager")
+	if chat == null or not chat.has_method("store_player_message_data"):
+		return
+	chat.store_player_message_data("dm_lin_xia", {
+		"content": "我把企划卡第一版提交了。\n作品名称：%s\n作品类型：%s\n基调标签：%s\n故事大纲：%s" % [
+			title_text,
+			genre,
+			", ".join(tags),
+			outline,
+		]
+	})
 
 #endregion
 
@@ -1235,18 +1229,21 @@ func _activate_feedback_topic(title_text: String, genre: String,
 
 ## 创建一次性 topic 让林夏通过 LLM 自然说话
 func _fire_lin_xia_topic(id_prefix: String, system_prompt: String) -> String:
+	return _fire_lin_xia_topic_with_id(id_prefix, "", system_prompt)
+
+
+func _fire_lin_xia_topic_with_id(id_prefix: String, explicit_topic_id: String, system_prompt: String) -> String:
 	var chat: Node = get_node_or_null("/root/ChatManager")
 	if chat == null:
 		return ""
 
 	var topic := ChatTopic.new()
-	topic.topic_id = "%s_%d" % [id_prefix, int(Time.get_unix_time_from_system())]
+	topic.topic_id = explicit_topic_id if not explicit_topic_id.is_empty() else "%s_%d" % [id_prefix, int(Time.get_unix_time_from_system())]
 	topic.topic_type = "casual_interaction"
 	topic.display_title = id_prefix.replace("_", " ").capitalize()
 	topic.npc_id = "npc_lin_xia"
 	topic.channel_id = "dm_lin_xia"
 	topic.system_prompt = system_prompt
-	topic.max_turns = 1
 	topic.context_data = {
 		"complete_after_first_reply": true,
 		"linkchat_open_mode": "force",

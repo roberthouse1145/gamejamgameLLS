@@ -1,40 +1,58 @@
 class_name WorkOrderApp extends Control
-## 任务列表App — 简化版（无 AP 消耗）
-## 玩家创建工单 → 直接派发给 LLM Controller → 等待完成
+## 任务列表App主界面 (Task App)
+## 面向玩家的经过包装的"待办清单"。玩家在此消耗 AP 推进工作。
 
-@warning_ignore("unused_signal")
+# 信号
 signal close_requested()
 
-enum FilterOption { ALL, IN_PROGRESS, PENDING, COMPLETED }
+# 过滤选项
+enum FilterOption {
+	ALL, ## 全部
+	IN_PROGRESS, ## 进行中
+	PENDING, ## 待处理
+	COMPLETED ## 已完成
+}
 
+# 当前过滤选项
 var _current_filter: FilterOption = FilterOption.ALL
+
+# 当前选中的工单ID
 var _selected_order_id: String = ""
-var _is_creating: bool = false
 
+# Autoload引用
 var _work_order_manager: Node = null
+var _game_loop_manager: Node = null
 
-@onready var new_button: Button = %NewButton
+# UI节点引用
 @onready var filter_dropdown: OptionButton = %FilterDropdown
 @onready var order_list: ItemList = %OrderList
+
 @onready var detail_panel: Control = %DetailPanel
 @onready var title_edit: LineEdit = %TitleEdit
 @onready var status_label: Label = %StatusLabel
 @onready var description_edit: TextEdit = %DescriptionEdit
-@onready var dispatch_button: Button = %ConsumeAPButton
+
+@onready var spec_container: VBoxContainer = %SpecContainer
+@onready var requirements_label: RichTextLabel = %RequirementsLabel
+@onready var tasks_container: VBoxContainer = %TasksContainer
+
+@onready var consume_ap_button: Button = %ConsumeAPButton
 @onready var delete_button: Button = %DeleteButton
 @onready var empty_hint: Label = %EmptyHint
 
 
 func _ready() -> void:
 	_work_order_manager = get_node_or_null("/root/WorkOrderManager")
+	_game_loop_manager = get_node_or_null("/root/GameLoopManager")
+	
 	if _work_order_manager == null:
 		push_error("[WorkOrderApp] WorkOrderManager autoload not found!")
 		return
-
+		
+	# 强行隐藏只读组件
 	title_edit.editable = false
 	description_edit.editable = false
-	dispatch_button.hide()
-
+	
 	_setup_filter_dropdown()
 	_setup_connections()
 	_refresh_order_list()
@@ -42,7 +60,7 @@ func _ready() -> void:
 
 
 func _setup_filter_dropdown() -> void:
-	if not filter_dropdown: return
+	if filter_dropdown == null: return
 	filter_dropdown.clear()
 	filter_dropdown.add_item("全部", FilterOption.ALL)
 	filter_dropdown.add_item("进行中", FilterOption.IN_PROGRESS)
@@ -51,23 +69,30 @@ func _setup_filter_dropdown() -> void:
 
 
 func _setup_connections() -> void:
-	new_button.pressed.connect(_on_new_pressed)
+	# UI信号
 	if filter_dropdown: filter_dropdown.item_selected.connect(_on_filter_changed)
 	order_list.item_selected.connect(_on_order_selected)
-	dispatch_button.pressed.connect(_on_dispatch_pressed)
+	
+	if consume_ap_button: consume_ap_button.pressed.connect(_on_consume_ap_pressed)
 	if delete_button: delete_button.pressed.connect(_on_delete_pressed)
+	
+	# WorkOrderManager信号
+	_work_order_manager.order_created.connect(_on_order_created)
+	_work_order_manager.order_updated.connect(_on_order_updated)
+	_work_order_manager.order_deleted.connect(_on_order_deleted)
+	_work_order_manager.order_status_changed.connect(_on_order_status_changed)
+	
+	# GameLoopManager 信号 (用于刷新 AP 按钮状态)
+	if _game_loop_manager:
+		if _game_loop_manager.has_signal("ap_changed"):
+			_game_loop_manager.ap_changed.connect(_on_ap_changed)
+		if _game_loop_manager.has_signal("phase_changed"):
+			_game_loop_manager.phase_changed.connect(_on_phase_changed)
 
-	_work_order_manager.order_created.connect(func(_id: String) -> void: _refresh_order_list())
-	_work_order_manager.order_updated.connect(func(_id: String) -> void:
-		_refresh_order_list(); _update_detail_panel())
-	_work_order_manager.order_deleted.connect(func(_id: String) -> void:
-		if _selected_order_id == _id:
-			_selected_order_id = ""
-			_update_detail_panel()
-		_refresh_order_list())
-	_work_order_manager.order_status_changed.connect(func(_id: String, _o: String, _n: String) -> void:
-		_refresh_order_list(); _update_detail_panel())
 
+# =============================================================================
+# API Updates
+# =============================================================================
 
 func refresh_ui() -> void:
 	_refresh_order_list()
@@ -75,68 +100,7 @@ func refresh_ui() -> void:
 
 
 # =============================================================================
-# 新建 & 派发
-# =============================================================================
-
-func _on_new_pressed() -> void:
-	if _is_creating:
-		return # 已经在创建模式，忽略
-	_is_creating = true
-	_selected_order_id = ""
-	empty_hint.hide()
-	detail_panel.show()
-	title_edit.editable = true
-	title_edit.text = ""
-	title_edit.placeholder_text = "输入工单标题..."
-	description_edit.editable = true
-	description_edit.text = ""
-	description_edit.placeholder_text = "描述你想让 AI 完成的任务..."
-	status_label.text = "新建"
-	status_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
-	dispatch_button.show()
-	dispatch_button.text = "派发工单"
-	dispatch_button.disabled = false
-	if delete_button:
-		delete_button.text = "取消"
-
-
-func _on_dispatch_pressed() -> void:
-	if not _is_creating:
-		return
-	var title: String = title_edit.text.strip_edges()
-	var desc: String = description_edit.text.strip_edges()
-	if title.is_empty():
-		status_label.text = "请输入标题"
-		return
-	if desc.is_empty():
-		status_label.text = "请输入需求描述"
-		return
-
-	var order: Resource = _work_order_manager.create_order(title, desc, {
-		"source_type": "manual",
-		"source_id": "",
-	})
-	order.assignee_npc_id = "npc_lin_xia"
-	_work_order_manager.dispatch_order(order.id)
-
-	_exit_create_mode()
-	_selected_order_id = order.id
-	_refresh_order_list()
-	_update_detail_panel()
-	print("[WorkOrderApp] 工单已派发: %s" % order.id)
-
-
-func _exit_create_mode() -> void:
-	_is_creating = false
-	title_edit.editable = false
-	description_edit.editable = false
-	dispatch_button.hide()
-	new_button.text = "新建工单"
-	if delete_button: delete_button.text = "放弃"
-
-
-# =============================================================================
-# 事件处理
+# Event Handlers: UI
 # =============================================================================
 
 func _on_filter_changed(index: int) -> void:
@@ -145,82 +109,181 @@ func _on_filter_changed(index: int) -> void:
 
 
 func _on_order_selected(index: int) -> void:
-	if _is_creating:
-		_exit_create_mode()
 	_selected_order_id = order_list.get_item_metadata(index)
 	_update_detail_panel()
 
 
-func _on_delete_pressed() -> void:
-	if _is_creating:
-		_exit_create_mode()
-		_update_detail_panel()
-		return
+func _on_consume_ap_pressed() -> void:
 	if _selected_order_id.is_empty(): return
+	
+	if _game_loop_manager == null or not _game_loop_manager.has_method("consume_ap"):
+		push_error("[WorkOrderApp] GameLoopManager.consume_ap missing!")
+		return
+		
+	# 检查玩家是否有能力花这个 AP
+	if not _game_loop_manager.can_consume_ap(1):
+		# TODO: 显示一个漂浮提示"本时段已行动", 或者是系统提示声
+		return
+		
+	# 尝试扣属性
+	var success = _game_loop_manager.consume_ap(1, "work_order")
+	if success:
+		# 推进进度
+		_work_order_manager.progress_order(_selected_order_id, 1)
+		_update_detail_panel()
+
+
+func _on_delete_pressed() -> void:
+	if _selected_order_id.is_empty(): return
+	# 玩家手动放弃任务
 	_work_order_manager.delete_order(_selected_order_id)
 	_selected_order_id = ""
 	_update_detail_panel()
 
 
 # =============================================================================
-# UI 刷新
+# Event Handlers: WorkOrderManager & GameLoopManager
+# =============================================================================
+
+func _on_order_created(_order_id: String) -> void: _refresh_order_list()
+func _on_order_updated(_order_id: String) -> void:
+	_refresh_order_list()
+	_update_detail_panel()
+	
+func _on_order_deleted(_order_id: String) -> void:
+	if _selected_order_id == _order_id:
+		_selected_order_id = ""
+		_update_detail_panel()
+	_refresh_order_list()
+	
+func _on_order_status_changed(_order_id: String, _old_status: String, _new_status: String) -> void:
+	_refresh_order_list()
+	_update_detail_panel()
+
+func _on_ap_changed(_current_ap: int, _max_ap: int) -> void:
+	_update_consume_button_state()
+	
+func _on_phase_changed(_new_phase: int) -> void:
+	_update_consume_button_state()
+
+# =============================================================================
+# UI Updaters
 # =============================================================================
 
 func _refresh_order_list() -> void:
 	order_list.clear()
 	var orders: Array = _work_order_manager.get_all_orders()
+	
+	# 按创建时间降序排序
 	orders.sort_custom(func(a, b): return a.created_at > b.created_at)
-
+	
 	for order in orders:
-		var surf: String = order.surface_status
-		if surf.is_empty():
-			surf = order.status
-		if _current_filter == FilterOption.IN_PROGRESS and surf not in ["in_progress", "milestone_ready"]:
-			continue
-		if _current_filter == FilterOption.PENDING and surf not in ["pending", "needs_input", "awaiting_player"]:
-			continue
-		if _current_filter == FilterOption.COMPLETED and surf not in ["completed", "delivered"]:
-			continue
-
+		# 过滤隐藏系统私有或后台生成的
+		var surf_status = order.has_method("get") and order.get("surface_status")
+		if not surf_status: surf_status = order.surface_status
+			
+		# 根据过滤选项筛选
+		if surf_status != "pending" and surf_status != "in_progress" and surf_status != "completed":
+			continue # 忽略未处理状态
+			
+		if _current_filter == FilterOption.IN_PROGRESS and surf_status != "in_progress": continue
+		if _current_filter == FilterOption.PENDING and surf_status != "pending": continue
+		if _current_filter == FilterOption.COMPLETED and surf_status != "completed": continue
+		
+		# 添加列表项
 		var item_text: String = "[待办] " + order.title
-		match surf:
-			"completed", "delivered":
-				item_text = "[完成] " + order.title
-			"in_progress":
-				item_text = "[制作中] " + order.title
-			"needs_input":
-				item_text = "[待确认] " + order.title
-			"awaiting_player":
-				item_text = "[待讨论] " + order.title
-			"milestone_ready":
-				item_text = "[可预览] " + order.title
-
+		if surf_status == "completed": item_text = "[完成] " + order.title
+		elif surf_status == "in_progress": item_text = "[进行中] " + order.title
+		
 		order_list.add_item(item_text)
-		var idx: int = order_list.item_count - 1
-		order_list.set_item_metadata(idx, order.id)
+		var item_idx: int = order_list.item_count - 1
+		order_list.set_item_metadata(item_idx, order.id)
+		
+		# 恢复选中状态
 		if order.id == _selected_order_id:
-			order_list.select(idx)
+			order_list.select(item_idx)
 
 
 func _update_detail_panel() -> void:
-	if _is_creating: return
 	if _selected_order_id.is_empty():
 		detail_panel.hide()
 		empty_hint.show()
 		return
-
+		
 	var order: Resource = _work_order_manager.get_order(_selected_order_id)
 	if order == null:
 		_selected_order_id = ""
 		detail_panel.hide()
 		empty_hint.show()
 		return
-
+		
 	empty_hint.hide()
 	detail_panel.show()
-	dispatch_button.hide()
+	
+	# 基本信息显示（只读）
 	title_edit.text = order.title
 	description_edit.text = order.description
 	status_label.text = order.get_status_display_name()
 	status_label.add_theme_color_override("font_color", order.get_status_color())
-	if delete_button: delete_button.disabled = (order.surface_status == "completed")
+	
+	# 从知识库自动拉取的Spec需求部分（如果不空）
+	if order.spec and not order.spec.get("tasks", []).is_empty():
+		spec_container.show()
+		requirements_label.text = order.spec.get("requirements_text", "")
+		_refresh_tasks_ui(order)
+	else:
+		spec_container.hide()
+		
+	_update_consume_button_state()
+	
+	# 允许玩家主动放弃处于早期阶段的任务
+	delete_button.disabled = false
+
+
+func _refresh_tasks_ui(order: Resource) -> void:
+	# 清空现有任务条目
+	for child in tasks_container.get_children():
+		child.queue_free()
+		
+	# 任务列表显示（只读）
+	var tasks: Array = order.spec.get("tasks", [])
+	if tasks.is_empty():
+		var empty_lbl: Label = Label.new()
+		empty_lbl.text = "暂无具体任务列表"
+		empty_lbl.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		tasks_container.add_child(empty_lbl)
+		return
+		
+	for task in tasks:
+		var cb: CheckBox = CheckBox.new()
+		cb.text = task.get("description", "Unknown Task")
+		cb.button_pressed = task.get("done", false)
+		cb.disabled = true # 玩家不能手动点，由Worker或全局进度推送
+		tasks_container.add_child(cb)
+
+
+func _update_consume_button_state() -> void:
+	if _selected_order_id.is_empty() or not consume_ap_button: return
+	var order: Resource = _work_order_manager.get_order(_selected_order_id)
+	if not order: return
+	
+	# 判断是否能投入 AP
+	var can_consume: bool = true
+	var current = order.current_progress_ap
+	var req = order.required_ap
+	
+	consume_ap_button.text = "投入当前时段行动 - 进度: %d/%d" % [current, req]
+
+	if order.surface_status == "completed":
+		can_consume = false
+		consume_ap_button.text = "任务已完成"
+		
+	elif current >= req:
+		can_consume = false
+		consume_ap_button.text = "时间投入已满，等待完工"
+		
+	elif _game_loop_manager != null and not _game_loop_manager.can_consume_ap(1):
+		can_consume = false
+		consume_ap_button.text = "本时段已行动，稍后再来"
+		
+	consume_ap_button.disabled = not can_consume

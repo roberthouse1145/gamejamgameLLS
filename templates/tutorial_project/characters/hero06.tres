@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "09"
 }
 profile = "威严沧桑的中年骑士，金灰短发蓝瞳，身披厚重黑铠与红披风，脸部留有伤疤"
+display_offset = Vector2(0, 0.15)

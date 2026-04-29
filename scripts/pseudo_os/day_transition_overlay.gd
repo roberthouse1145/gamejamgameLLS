@@ -55,6 +55,7 @@ var _track_width: float = 0.0
 
 func _ready() -> void:
 	layer = 100
+	add_to_group("day_transition_overlay")
 	_font = load(FONT_PATH) as Font
 	_build_ui()
 	_root.visible = false
@@ -63,6 +64,10 @@ func _ready() -> void:
 	if glm:
 		_last_known_day = glm.current_day
 		glm.day_changed.connect(_on_day_changed)
+
+
+func sync_day_baseline(day: int) -> void:
+	_last_known_day = max(1, day)
 
 
 func _build_ui() -> void:

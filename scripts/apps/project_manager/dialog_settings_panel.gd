@@ -210,7 +210,12 @@ func _update_choice_preview() -> void:
 		choice_container.add_child(btn)
 	
 	# 选项居中放置
-	await get_tree().process_frame
+	var tree := get_tree()
+	if tree == null:
+		return
+	await tree.process_frame
+	if not is_inside_tree():
+		return
 	if is_instance_valid(choice_container):
 		var container_size: Vector2 = choice_container.size
 		choice_container.position = Vector2(

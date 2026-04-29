@@ -34,4 +34,5 @@ emotion_slots = {
 "worried": "09"
 }
 profile = "灵动神秘的精灵少女，淡紫短发金瞳，穿蓝绿渐变羽饰异域装，尖耳特征明显"
+display_offset = Vector2(0, 0.15)
 

@@ -46,6 +46,8 @@ func _test_prompt_loading() -> void:
 	})).strip_edges()
 	_assert("prompt 非空", not text.is_empty())
 	_assert("prompt 包含 [DATE_EVENT]", text.find("[DATE_EVENT]") >= 0)
+	_assert("prompt 强调公开字段只写出发前信息", text.find("出发前就能知道") >= 0)
+	_assert("prompt 明确 detail_prompt 承载隐藏展开", text.find("detail_prompt") >= 0)
 	print("  prompt 长度: %d 字符" % text.length())
 
 
@@ -70,12 +72,12 @@ reward_stress=-2
 
 [DATE_EVENT]
 event_id=day3_library_rain
-title=图书馆避雨
+title=图书馆靠窗位
 location_title=蓝鲸大学
 location_id=school
-subtitle=突然下雨，刚好旁边是图书馆
-description=出门的时候天还好好的，走到半路突然下了暴雨，只好窜进图书馆。里面很安静，窗外哗哗响。
-detail_prompt=大学图书馆二楼的自习区，落地窗外暴雨如注。空调嗡嗡响，远处有人在小声打电话。
+subtitle=午后的云压得很低，图书馆里刚好还有空位
+description=教学楼这边有点闷，图书馆二楼靠窗的位置居然空着。可以先进去坐会儿，顺手翻翻杂志再决定待多久。
+detail_prompt=刚坐下没多久，窗外就突然下起了暴雨，玻璃上很快全是水痕。空调嗡嗡响，远处有人在小声打电话。
 activity_hint=一起在图书馆避雨，翻翻杂志，或者什么都不做就坐着听雨。
 valid_phases=AFTERNOON
 map_position=0.4|0.55
@@ -108,7 +110,7 @@ reward_stress=-1
 
 	if parsed.size() >= 2:
 		var second: Dictionary = parsed[1]
-		_assert("第2个 title=图书馆避雨", str(second.get("title", "")) == "图书馆避雨")
+		_assert("第2个 title=图书馆靠窗位", str(second.get("title", "")) == "图书馆靠窗位")
 		_assert("第2个 location_id=school", str(second.get("location_id", "")) == "school")
 		var phases: Variant = second.get("valid_phases", [])
 		_assert("第2个 valid_phases 包含 AFTERNOON", phases is Array and "AFTERNOON" in phases)

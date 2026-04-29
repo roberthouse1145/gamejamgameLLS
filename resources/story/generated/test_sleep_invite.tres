@@ -1,0 +1,120 @@
+[gd_resource type="Resource" script_class="StoryChapter" format=3]
+
+[ext_resource type="Script" path="res://scripts/story/resources/story_chapter.gd" id="1_hlyw2"]
+[ext_resource type="Script" path="res://scripts/story/resources/story_step.gd" id="2_ln5ac"]
+
+[sub_resource type="Resource" id="Resource_gtyxq"]
+script = ExtResource("2_ln5ac")
+step_id = "test_sleep_invite_01_init"
+description = "初始化测试环境"
+actions = Array[Dictionary]([{
+"day": 1,
+"phase": "NIGHT",
+"type": "set_phase"
+}, {
+"key": "player_name",
+"type": "set_variable",
+"value": "测试玩家"
+}, {
+"key": "player_real_name",
+"type": "set_variable",
+"value": "张三"
+}, {
+"key": "team_name",
+"type": "set_variable",
+"value": "测试小队"
+}, {
+"key": "player_college",
+"type": "set_variable",
+"value": "蓝鲸大学计算机学院"
+}, {
+"key": "signup_completed",
+"type": "set_variable",
+"value": true
+}])
+next = "test_sleep_invite_02_topic"
+
+[sub_resource type="Resource" id="Resource_asmpb"]
+script = ExtResource("2_ln5ac")
+step_id = "test_sleep_invite_02_topic"
+description = "林夏先发来邀约。玩家答应才继续生成剧情 AVG。"
+actions = Array[Dictionary]([{
+"npc_speaks_first": true,
+"topic_path": "res://resources/story/topics/test_sleep_invite.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "test_sleep_invite",
+"type": "topic_completed"
+}
+capture = {
+"invite_rejected": "result.topic_failed"
+}
+next_conditions = Array[Dictionary]([{
+"if": "invite_rejected == true",
+"next": "test_sleep_invite_04_declined"
+}, {
+"default": true,
+"next": "test_sleep_invite_03_play_avg"
+}])
+
+[sub_resource type="Resource" id="Resource_w2bit"]
+script = ExtResource("2_ln5ac")
+step_id = "test_sleep_invite_03_play_avg"
+description = "玩家答应后，直接让 StoryDirector 生成并播放 AVG。"
+actions = Array[Dictionary]([{
+"generation_transit_stages": ["正在读取刚才的邀约气氛...", "LLM 正在生成 AVG 脚本...", "马上进入卧室场景..."],
+"generation_transit_title": "今晚一起睡",
+"generation_transit_window_title": "剧情生成中",
+"prompt": "林夏刚刚认真地邀请玩家今晚一起睡。她不是为了挑逗，而是因为忙了一整天后很依赖玩家，想在关灯后靠在玩家身边，带着一点紧张和一点安心入睡。请把刚才整段对话里已经形成的情绪、犹豫、接受方式和亲密边界完整延续进这段 AVG，不要脱离前文重写关系状态。场景基调要温柔、克制、亲密，但不要出现任何露骨性描写。重点是临睡前的呼吸、犹豫、靠近、安心感，以及两个人关系被轻轻推进了一步。",
+"scene_id": "test_sleep_invite_avg",
+"title": "今晚一起睡",
+"type": "play_avg",
+"window_title": "今晚一起睡"
+}])
+wait_for = {
+"scene_id": "test_sleep_invite_avg",
+"type": "avg_scene_ended"
+}
+capture = {
+"sleep_invite_avg_summary": "outcome.summary"
+}
+next = "test_sleep_invite_05_cleanup"
+
+[sub_resource type="Resource" id="Resource_y4vwk"]
+script = ExtResource("2_ln5ac")
+step_id = "test_sleep_invite_04_declined"
+description = "玩家拒绝则只记录分支，不生成 AVG。"
+actions = Array[Dictionary]([{
+"key": "sleep_invite_declined",
+"type": "set_variable",
+"value": true
+}])
+next = "test_sleep_invite_06_done"
+
+[sub_resource type="Resource" id="Resource_eyrmf"]
+script = ExtResource("2_ln5ac")
+step_id = "test_sleep_invite_05_cleanup"
+description = "AVG 播放结束后收尾：最小化播放器并消耗 1 点 AP。"
+actions = Array[Dictionary]([{
+"app_id": "avg_player",
+"type": "minimize_app_window"
+}, {
+"action_type": "story",
+"amount": 1,
+"detail": "test_sleep_invite_avg",
+"type": "consume_ap"
+}])
+next = "test_sleep_invite_06_done"
+
+[sub_resource type="Resource" id="Resource_i34fw"]
+script = ExtResource("2_ln5ac")
+step_id = "test_sleep_invite_06_done"
+description = "测试结束，占位步骤。"
+
+[resource]
+script = ExtResource("1_hlyw2")
+chapter_id = "test_sleep_invite"
+chapter_name = "测试 - 一起睡觉邀约"
+description = "测试用章节。打开桌面后直接进入林夏的邀约话题；玩家答应后触发 StoryDirector 直连的 AVG 生成与播放。"
+steps = Array[Resource]([SubResource("Resource_gtyxq"), SubResource("Resource_asmpb"), SubResource("Resource_w2bit"), SubResource("Resource_y4vwk"), SubResource("Resource_eyrmf"), SubResource("Resource_i34fw")])

@@ -1,0 +1,59 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/test_lab_template_editor.gd" id="1_script"]
+
+[node name="TestLabTemplateEditor" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 4
+
+[node name="TopBar" type="PanelContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="TopBarContent" type="HBoxContainer" parent="VBoxContainer/TopBar"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="VBoxContainer/TopBar/TopBarContent"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "⚠ Template Edit Mode — 保存会直接写 res://templates/tutorial_project/"
+
+[node name="SaveButton" type="Button" parent="VBoxContainer/TopBar/TopBarContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "💾 保存到 res://"
+
+[node name="ReloadButton" type="Button" parent="VBoxContainer/TopBar/TopBarContent"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "🔄 重载模板"
+
+[node name="TabBar" type="HBoxContainer" parent="VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ContentHost" type="Control" parent="VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="StatusLabel" type="Label" parent="VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "等待加载模板项目..."

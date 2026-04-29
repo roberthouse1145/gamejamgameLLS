@@ -37,7 +37,7 @@ func _ready() -> void:
 	print("========== SCREEN_SHAKE Handler Tests ==========")
 
 	_test_semantic_intensity_validation()
-	_test_invalid_intensity_rejected()
+	_test_invalid_intensity_falls_back()
 	_test_semantic_intensity_execution()
 	_test_numeric_string_execution()
 	_test_display_with_semantic_intensity()
@@ -73,17 +73,22 @@ func _test_semantic_intensity_validation() -> void:
 	)
 
 
-func _test_invalid_intensity_rejected() -> void:
+func _test_invalid_intensity_falls_back() -> void:
 	var registry: RefCounted = _build_registry()
+	var runner := MockSceneRunner.new()
+	var context := MockContext.new(runner)
 	var command := AVGCommandClass.new("SCREEN_SHAKE", {
 		"intensity": "chaos",
 	})
 	var validation = registry.validate_command(command)
+	var result = registry.execute_command(command, context)
 	_assert_true(
-		"invalid intensity rejected",
-		validation.is_invalid(),
-		"validation should fail for unknown preset"
+		"invalid intensity validate",
+		validation.is_valid(),
+		validation.get_error_string("; ")
 	)
+	_assert_true("invalid intensity execute", result.is_success(), result.error_message)
+	_assert_float_eq("invalid intensity fallback", runner.last_call.get("intensity", -1.0), 10.0)
 
 
 func _test_semantic_intensity_execution() -> void:

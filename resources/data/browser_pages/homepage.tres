@@ -5,8 +5,8 @@
 [resource]
 script = ExtResource("1_script")
 url = "browser://home"
-title = "PixelNet - 浏览首页"
-hint = "浏览器主页，用来查看赛事资讯、赛程、帮助和剧情网页。"
+title = "PixelNet - 起始页"
+hint = "PixelNet 起始页，聚合今日热点、AGJ 入口和最近浏览内容。"
 content = "<vbox sep=0>
 
   <panel bg=#080B12>
@@ -27,8 +27,8 @@ content = "<vbox sep=0>
   <panel bg=#0A0D18>
     <margin 40>
       <vbox sep=4>
-        <label size=18 color=#5B8AFF>Arcade Grand Jam 2027  路  新星赛道</label>
-        <label size=15 color=#5A6580>已开放报名、可查看公告与赛程。浏览器现在只承担网页与叙事页面的访问功能。</label>
+        <label size=18 color=#5B8AFF>LanJing Node  |  今日热点</label>
+        <label size=15 color=#5A6580>校园网节点已同步 AGJ 报名公告，创作者社区热度持续上升。</label>
       </vbox>
     </margin>
   </panel>
@@ -39,39 +39,39 @@ content = "<vbox sep=0>
 
         <vbox sep=12>
           <hbox sep=10>
-            <panelcontainer bg=#1E3A8A border=#3D6FFF shrink><margin 4><label size=14 color=#3D6FFF nowrap>快速导航</label></margin></panelcontainer>
-            <label size=16 color=#3D4460>鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣</label>
+            <panelcontainer bg=#1E3A8A border=#3D6FFF shrink><margin 4><label size=14 color=#3D6FFF nowrap>站点速览</label></margin></panelcontainer>
+            <label size=16 color=#3D4460>━━━━━━━━━━━━━━━━━━━━</label>
           </hbox>
           <hbox sep=10>
             <panel bg=#0D1020 border=#1A1F35 fill>
               <margin 16>
                 <vbox sep=4>
-                  <label size=17 color=#ECEEF8>赛事资讯</label>
-                  <label size=13 color=#5A6580>NEWS / ANNOUNCEMENT</label>
+                  <link size=17 color=#ECEEF8 action=open_url url=gamejam://news>赛事资讯</link>
+                  <label size=13 color=#5A6580>报名开放、规则预告、官方公告</label>
                 </vbox>
               </margin>
             </panel>
             <panel bg=#0D1020 border=#1A1F35 fill>
               <margin 16>
                 <vbox sep=4>
-                  <label size=17 color=#ECEEF8>官方赛程</label>
-                  <label size=13 color=#5A6580>SCHEDULE</label>
+                  <link size=17 color=#ECEEF8 action=open_url url=gamejam://schedule>官方赛程</link>
+                  <label size=13 color=#5A6580>报名、主题公布、Demo 节点</label>
                 </vbox>
               </margin>
             </panel>
             <panel bg=#0D1020 border=#1A1F35 fill>
               <margin 16>
                 <vbox sep=4>
-                  <label size=17 color=#ECEEF8>帮助说明</label>
-                  <label size=13 color=#5A6580>FAQ</label>
+                  <link size=17 color=#ECEEF8 action=open_url url=gamejam://faq>帮助说明</link>
+                  <label size=13 color=#5A6580>规则问答、素材限制、提交须知</label>
                 </vbox>
               </margin>
             </panel>
             <panel bg=#0D1020 border=#1A1F35 fill>
               <margin 16>
                 <vbox sep=4>
-                  <label size=17 color=#ECEEF8>浏览记录</label>
-                  <label size=13 color=#5A6580>HISTORY</label>
+                  <link size=17 color=#ECEEF8 action=open_history_page>浏览记录</link>
+                  <label size=13 color=#5A6580>刚才看过的页面会留在这里</label>
                 </vbox>
               </margin>
             </panel>
@@ -80,16 +80,16 @@ content = "<vbox sep=0>
 
         <vbox sep=12>
           <hbox sep=10>
-            <panelcontainer bg=#7A3010 border=#E8622A shrink><margin 4><label size=14 color=#E8622A nowrap>当前说明</label></margin></panelcontainer>
-            <label size=14 color=#3D4460>浏览器定位</label>
-            <label size=16 color=#3D4460>鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣鈹佲攣</label>
+            <panelcontainer bg=#7A3010 border=#E8622A shrink><margin 4><label size=14 color=#E8622A nowrap>TRENDING</label></margin></panelcontainer>
+            <label size=14 color=#3D4460>今日热搜</label>
+            <label size=16 color=#3D4460>━━━━━━━━━━━━━━━━━━━━</label>
           </hbox>
 
           <panel bg=#0D1020 border=#1A1F35>
             <margin 20>
               <vbox sep=10>
-                <label size=22 color=#ECEEF8>浏览器只负责打开网页</label>
-                <label size=15 color=#7A82A0>你可以继续用它查看报名页、官方公告、赛程、帮助页和其他剧情网页。需要消耗 AP 的互联网行动，已经迁移到独立的 Community 应用中。</label>
+                <label size=22 color=#ECEEF8>AGJ 2027 新星赛道报名开启</label>
+                <label size=15 color=#7A82A0>官方页面显示，本届新星赛道将把评审重点放回创意本身。报名页开放后，校园网和创作者社区都开始讨论队伍规模、主题猜测和阶段性 Demo 提交。</label>
               </vbox>
             </margin>
           </panel>
@@ -98,23 +98,23 @@ content = "<vbox sep=0>
             <panel bg=#0D1020 border=#1A1F35 fill>
               <margin 20>
                 <vbox sep=10>
-                  <label size=20 color=#ECEEF8>网页浏览</label>
-                  <label size=14 color=#7A82A0>从上方导航继续查看资讯、赛程和帮助页面。这些内容不会消耗行动力，也更适合承接叙事流程。</label>
+                  <label size=20 color=#ECEEF8>校园热搜</label>
+                  <label size=14 color=#7A82A0>#新星赛道报名  #组队招募  #统一素材包  #阶段性Demo</label>
                 </vbox>
               </margin>
             </panel>
             <panel bg=#0D1020 border=#1A1F35 fill>
               <margin 20>
                 <vbox sep=10>
-                  <label size=20 color=#ECEEF8>Community 应用</label>
-                  <label size=14 color=#7A82A0>论坛围观、发布宣传、查看赛事动向等互联网行动，已经统一放到单独的桌面应用中处理。</label>
+                  <label size=20 color=#ECEEF8>创作者在看</label>
+                  <label size=14 color=#7A82A0>有人在猜主题，有人在整理避坑清单，也有人已经开始找队友和晒企划草图。</label>
                 </vbox>
               </margin>
             </panel>
           </hbox>
         </vbox>
 
-        <label size=13 color=#3D4460 align=center>PixelNet Portal v3.2  路  Arcade Grand Jam 2027 Official Partner</label>
+        <label size=13 color=#3D4460 align=center>PixelNet Portal v3.2  |  Arcade Grand Jam 2027 Official Partner</label>
         <spacer 20/>
 
       </vbox>

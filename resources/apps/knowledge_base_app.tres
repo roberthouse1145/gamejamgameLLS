@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
 [ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
 [ext_resource type="PackedScene" uid="uid://kbase_main_kbase" path="res://scenes/apps/knowledge_base/knowledge_base_app.tscn" id="3_entry_scene"]
-[ext_resource type="Texture2D" uid="uid://ddxmxgyyfy8mn" path="res://icon.svg" id="4_icon"]
+[ext_resource type="Texture2D" path="res://Assets/images/app_icons/icon_knowledge_base.png" id="4_icon"]
 
 [sub_resource type="Resource" id="Resource_wc"]
 script = ExtResource("2_constraints")
@@ -16,6 +16,6 @@ default_size = Vector2(1024, 768)
 script = ExtResource("1_app_def")
 app_id = "knowledge_base"
 app_name = "设定集 (KB)"
-app_icon = ExtResource("4_icon")
+icon = ExtResource("4_icon")
 entry_scene = ExtResource("3_entry_scene")
 window_constraints = SubResource("Resource_wc")

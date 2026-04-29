@@ -1,6 +1,8 @@
 class_name ActivityLockUtils
 extends RefCounted
 
+const DesktopNotificationUtilsClass = preload("res://scripts/pseudo_os/desktop_notification_utils.gd")
+
 const DEFAULT_EVENT_BLOCK_REASON: String = "当前有事件正在进行，请先等待反馈。"
 const DEFAULT_CHAT_BLOCK_REASON: String = "当前有对话事件正在等待回复，请先等待反馈。"
 const DEFAULT_NARRATIVE_BLOCK_REASON: String = "当前叙事阶段无法进行此活动。"
@@ -73,9 +75,7 @@ static func get_blocking_reason(context: Node) -> String:
 static func notify_blocked(_context: Node, reason: String) -> void:
 	if reason.is_empty():
 		return
-	var desktop := Desktop.instance()
-	if desktop != null:
-		desktop.show_system_notification("无法执行操作", reason)
+	DesktopNotificationUtilsClass.show_system_notification("无法执行操作", reason, "warning", 5.0)
 
 
 static func _find_registered_blocking_reason(registry: Dictionary) -> String:
@@ -109,8 +109,11 @@ static func get_free_period_block_reason() -> String:
 	var root: Node = Engine.get_main_loop().root if Engine.get_main_loop() != null else null
 	if root != null:
 		var story: Node = root.get_node_or_null("StoryDirector")
-		if story != null and "current_chapter" in story and story.current_chapter != null:
-			return STORY_FREE_PERIOD_BLOCK_REASON
+		if story != null:
+			if story.has_method("is_taking_control") and bool(story.call("is_taking_control")):
+				return STORY_FREE_PERIOD_BLOCK_REASON
+			if "current_chapter" in story and story.current_chapter != null:
+				return STORY_FREE_PERIOD_BLOCK_REASON
 	return ""
 
 

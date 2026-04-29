@@ -34,4 +34,5 @@ emotion_slots = {
 "worried": "05"
 }
 profile = "开朗活泼的乡村少女，金棕短发蓝眸，白色蓬裙朴素可爱"
+display_offset = Vector2(0, 0.15)
 

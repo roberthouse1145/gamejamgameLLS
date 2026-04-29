@@ -21,27 +21,29 @@ func _create_schema() -> ParamSchemaClass:
 
 
 func execute(command: Resource, context: RefCounted) -> CommandResultClass:
-	var params: Dictionary = command.params if command.params else {}
-	var zoom: float = float(params.get("zoom", 1.5))
-	var duration: float = float(params.get("duration", 1.0))
+	var zoom: float = _get_param(command, "zoom", 1.5)
+	var duration: float = _get_param(command, "duration", 1.0)
 	var runner: Node = context.scene_runner
 	if runner == null:
 		return CommandResultClass.error("CAMERA_ZOOM: no scene_runner")
 
-	var focus_pos: Vector2 = _resolve_focus(params, runner)
+	var focus_pos: Vector2 = _resolve_focus(command, runner)
 	runner.camera_zoom(zoom, focus_pos.x, focus_pos.y, duration)
 	return CommandResultClass.ok()
 
 
 ## 解析焦点目标，返回归一化坐标 (0~1)
 ## 优先级：显式 focus_x/focus_y > 语义化 focus 参数 > 自动推断
-func _resolve_focus(params: Dictionary, runner: Node) -> Vector2:
+func _resolve_focus(command: Resource, runner: Node) -> Vector2:
 	# 1. 显式坐标覆盖（向后兼容）
-	if params.has("focus_x") or params.has("focus_y"):
-		return Vector2(float(params.get("focus_x", 0.5)), float(params.get("focus_y", 0.5)))
+	if command != null and command.params != null and (command.params.has("focus_x") or command.params.has("focus_y")):
+		return Vector2(
+			_get_param(command, "focus_x", 0.5),
+			_get_param(command, "focus_y", 0.5)
+		)
 
 	var char_display: Control = runner.character_display if runner else null
-	var focus_str: String = str(params.get("focus", ""))
+	var focus_str: String = str(_get_param(command, "focus", "")).strip_edges()
 
 	# 2. 语义化焦点目标
 	if not focus_str.is_empty():

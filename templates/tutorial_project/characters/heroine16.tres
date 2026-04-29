@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "13"
 }
 profile = "慵懒爱睡的天使少女，金发光环小翅膀，抱着星月枕头"
+display_offset = Vector2(0, 0.15)
 

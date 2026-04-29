@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "08"
 }
 profile = "纤小沉默的死灵系魔女，紫发猫耳黑篷，手持骷髅法杖"
+display_offset = Vector2(0, 0.15)
 

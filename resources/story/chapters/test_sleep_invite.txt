@@ -1,0 +1,96 @@
+chapter: test_sleep_invite
+name: 测试 - 一起睡觉邀约
+desc: 测试用章节。打开桌面后直接进入林夏的邀约话题；玩家答应后触发 StoryDirector 直连的 AVG 生成与播放。
+next_chapter:
+
+=== test_sleep_invite_01_init ===
+# 初始化测试环境
+
+[set_phase]
+day: 1
+phase: NIGHT
+
+[set_variable]
+key: player_name
+value: 测试玩家
+
+[set_variable]
+key: player_real_name
+value: 张三
+
+[set_variable]
+key: team_name
+value: 测试小队
+
+[set_variable]
+key: player_college
+value: 蓝鲸大学计算机学院
+
+[set_variable]
+key: signup_completed
+value: true
+
+wait: immediate
+-> test_sleep_invite_02_topic
+
+=== test_sleep_invite_02_topic ===
+# 林夏先发来邀约。玩家答应才继续生成剧情 AVG。
+
+[activate_topic]
+topic_path: res://resources/story/topics/test_sleep_invite.tres
+npc_speaks_first: true
+
+wait: topic_completed
+  topic_id: test_sleep_invite
+capture:
+  invite_rejected: result.topic_failed
+next_conditions:
+  invite_rejected == true -> test_sleep_invite_04_declined
+  default -> test_sleep_invite_03_play_avg
+
+=== test_sleep_invite_03_play_avg ===
+# 玩家答应后，直接让 StoryDirector 生成并播放 AVG。
+
+[play_avg]
+scene_id: test_sleep_invite_avg
+title: 今晚一起睡
+window_title: 今晚一起睡
+prompt: 林夏刚刚认真地邀请玩家今晚一起睡。她不是为了挑逗，而是因为忙了一整天后很依赖玩家，想在关灯后靠在玩家身边，带着一点紧张和一点安心入睡。请把刚才整段对话里已经形成的情绪、犹豫、接受方式和亲密边界完整延续进这段 AVG，不要脱离前文重写关系状态。场景基调要温柔、克制、亲密，但不要出现任何露骨性描写。重点是临睡前的呼吸、犹豫、靠近、安心感，以及两个人关系被轻轻推进了一步。
+generation_transit_title: 今晚一起睡
+generation_transit_window_title: 剧情生成中
+generation_transit_stages: 正在读取刚才的邀约气氛...,LLM 正在生成 AVG 脚本...,马上进入卧室场景...
+
+wait: avg_scene_ended
+  scene_id: test_sleep_invite_avg
+capture:
+  sleep_invite_avg_summary: outcome.summary
+-> test_sleep_invite_05_cleanup
+
+=== test_sleep_invite_04_declined ===
+# 玩家拒绝则只记录分支，不生成 AVG。
+
+[set_variable]
+key: sleep_invite_declined
+value: true
+
+wait: immediate
+-> test_sleep_invite_06_done
+
+=== test_sleep_invite_05_cleanup ===
+# AVG 播放结束后收尾：最小化播放器并消耗 1 点 AP。
+
+[minimize_app_window]
+app_id: avg_player
+
+[consume_ap]
+amount: 1
+action_type: story
+detail: test_sleep_invite_avg
+
+wait: immediate
+-> test_sleep_invite_06_done
+
+=== test_sleep_invite_06_done ===
+# 测试结束，占位步骤。
+
+wait: immediate

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="AVGDialogSettings" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_style_box.gd" id="1_84gs1"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_dialog_settings.gd" id="2_7ue52"]
+
+[sub_resource type="Resource" id="Resource_h7ib7"]
+script = ExtResource("1_84gs1")
+
+[resource]
+script = ExtResource("2_7ue52")
+box_style = SubResource("Resource_h7ib7")
+text_font_size = 48
+name_norm_offset = Vector2(-0.0023805664, -0.26967397)
+name_font_size = 32
+choice_font_size = 32

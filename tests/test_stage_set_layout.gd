@@ -29,6 +29,7 @@ func _run_tests() -> void:
 	_test_validator_stage_enter_exit()
 	await _test_character_display_stage_set()
 	await _test_character_display_stage_enter_exit()
+	await _test_text_npc_stage_fallbacks()
 
 	if _all_passed:
 		print("✅ ALL TESTS PASSED")
@@ -126,6 +127,28 @@ func _test_validator_stage_enter_exit() -> void:
 	var exit_result: Dictionary = _validator.validate_commands([valid_exit], project, "res://")
 	_assert_true("validator accepts valid stage_exit", bool(exit_result.get("ok", false)), str(exit_result.get("errors", [])))
 
+	var text_npc_enter := AVGCommandClass.new("STAGE_ENTER", {
+		"characters": ["老板娘"],
+	})
+	var text_npc_enter_result: Dictionary = _validator.validate_commands([text_npc_enter], project, "res://")
+	_assert_true("validator allows text npc stage_enter fallback", bool(text_npc_enter_result.get("ok", false)), str(text_npc_enter_result))
+	_assert_true(
+		"validator warns on text npc stage_enter",
+		_errors_contain(text_npc_enter_result.get("warnings", []), "text-only NPC"),
+		str(text_npc_enter_result.get("warnings", []))
+	)
+
+	var text_npc_exit := AVGCommandClass.new("STAGE_EXIT", {
+		"characters": ["老板娘"],
+	})
+	var text_npc_exit_result: Dictionary = _validator.validate_commands([text_npc_exit], project, "res://")
+	_assert_true("validator allows text npc stage_exit fallback", bool(text_npc_exit_result.get("ok", false)), str(text_npc_exit_result))
+	_assert_true(
+		"validator warns on text npc stage_exit",
+		_errors_contain(text_npc_exit_result.get("warnings", []), "text-only NPC"),
+		str(text_npc_exit_result.get("warnings", []))
+	)
+
 
 func _test_character_display_stage_set() -> void:
 	_character_display = CharacterDisplayClass.new()
@@ -172,8 +195,8 @@ func _test_character_display_stage_set() -> void:
 
 	lin_state = _character_display.get_character_state("LinXia")
 	var shop_state: Dictionary = _character_display.get_character_state("Shopkeeper")
-	_assert_vector2_eq("double left slot", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.33, 0.5))
-	_assert_vector2_eq("double right slot", _vector_from_variant(shop_state.get("position_ratio", Vector2.ZERO)), Vector2(0.67, 0.5))
+	_assert_vector2_eq("double left slot", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.35, 0.5))
+	_assert_vector2_eq("double right slot", _vector_from_variant(shop_state.get("position_ratio", Vector2.ZERO)), Vector2(0.65, 0.5))
 	_assert_true("shopkeeper visible", _character_display.is_character_visible("Shopkeeper"), "Shopkeeper should be visible")
 	_assert_equal("double LinXia emotion", str(lin_state.get("current_emotion", "")), "smile")
 	_assert_equal("double Shopkeeper emotion", str(shop_state.get("current_emotion", "")), "neutral")
@@ -201,8 +224,8 @@ func _test_character_display_stage_enter_exit() -> void:
 	await get_tree().process_frame
 	lin_state = _character_display.get_character_state("LinXia")
 	var shop_state: Dictionary = _character_display.get_character_state("Shopkeeper")
-	_assert_vector2_eq("stage.enter relayout left", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.33, 0.5))
-	_assert_vector2_eq("stage.enter relayout right", _vector_from_variant(shop_state.get("position_ratio", Vector2.ZERO)), Vector2(0.67, 0.5))
+	_assert_vector2_eq("stage.enter relayout left", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.35, 0.5))
+	_assert_vector2_eq("stage.enter relayout right", _vector_from_variant(shop_state.get("position_ratio", Vector2.ZERO)), Vector2(0.65, 0.5))
 	_assert_equal("stage.enter new emotion", str(shop_state.get("current_emotion", "")), "neutral")
 
 	_character_display.stage_exit(["LinXia"], 0.0)
@@ -210,6 +233,35 @@ func _test_character_display_stage_enter_exit() -> void:
 	shop_state = _character_display.get_character_state("Shopkeeper")
 	_assert_true("stage.exit hides LinXia", not _character_display.is_character_visible("LinXia"), "LinXia should be hidden")
 	_assert_vector2_eq("stage.exit recenters remaining", _vector_from_variant(shop_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
+
+
+func _test_text_npc_stage_fallbacks() -> void:
+	_character_display.hide_all(0.0)
+	await get_tree().process_frame
+
+	_character_display.stage_set(["LinXia"], "happy", "casual", 0.0)
+	await get_tree().process_frame
+
+	var lin_state: Dictionary = _character_display.get_character_state("LinXia")
+	_assert_vector2_eq("text npc baseline center", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
+
+	_character_display.stage_enter(["老板娘"], "neutral", "_", 0.0)
+	await get_tree().process_frame
+	lin_state = _character_display.get_character_state("LinXia")
+	_assert_true("text npc stage_enter keeps LinXia visible", _character_display.is_character_visible("LinXia"), "LinXia should stay visible")
+	_assert_vector2_eq("text npc stage_enter does not relayout", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
+
+	_character_display.stage_set(["LinXia", "老板娘"], "surprised,neutral", "casual,_", 0.0)
+	await get_tree().process_frame
+	lin_state = _character_display.get_character_state("LinXia")
+	_assert_vector2_eq("mixed text npc stage_set ignores empty slot", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
+	_assert_equal("mixed text npc stage_set keeps valid emotion", str(lin_state.get("current_emotion", "")), "surprised")
+
+	_character_display.stage_set(["老板娘"], "neutral", "_", 0.0)
+	await get_tree().process_frame
+	_assert_true("text npc only stage_set becomes no-op", _character_display.is_character_visible("LinXia"), "LinXia should remain visible")
+	lin_state = _character_display.get_character_state("LinXia")
+	_assert_vector2_eq("text npc only stage_set keeps layout", _vector_from_variant(lin_state.get("position_ratio", Vector2.ZERO)), Vector2(0.5, 0.5))
 
 
 func _make_character(character_id: String, character_name: String, display_name: String) -> Resource:

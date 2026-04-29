@@ -28,6 +28,8 @@ const UNIVERSITY_NAME: String = "蓝鲸大学"
 const BLOCKED_NAMES: PackedStringArray = [
 	"林夏",
 ]
+const REVIEW_PROMPT_KEY: String = "browser/signup_review"
+const REVIEW_SYSTEM_FALLBACK: String = "审核大学 GameJam 报名信息。默认通过，明确违规才拒绝。只输出 JSON：approved, reason, normalized_player_name, normalized_team_name。"
 const COLLEGE_OPTIONS: PackedStringArray = [
 	"交互媒体学院",
 	"计算机科学学院",
@@ -50,37 +52,6 @@ const COLLEGE_OPTIONS: PackedStringArray = [
 	"教育学院",
 	"医学院",
 ]
-
-const REVIEW_SYSTEM_PROMPT: String = """你负责审核大学 GameJam 报名页面中的真实姓名和队伍名称。
-
-【审核原则】
-- 默认通过，只有明确违规才拒绝
-- 拿不准时一律通过，宁可漏审也不误杀正常报名
-
-【真实姓名审核标准】
-- 允许：任何看起来像正常人名的汉字组合，包括少数民族姓名（如"阿依古丽""扎西""乌兰"）
-- 允许：字数 2-6 个汉字均可
-- 拒绝（仅限以下明确情形）：
-  - 包含脏话、侮辱性词汇、色情词汇
-  - 全是完全相同的重复字（如"啊啊啊""哈哈哈哈"）
-  - 完全是乱码、纯数字、纯符号
-  - 与比赛工作人员"林夏"完全相同
-- 注意：名字与某明星、角色、历史人物重名，不是拒绝理由；只要输入者可能真的叫这个名字，就通过
-
-【队伍名称审核标准】
-- 允许：任何创意队名，包括谐音、缩写、英文混排、含任意人名或地名的队名
-- 特别说明：队伍名中出现任何人名（包括"林夏"在内）完全合规，不受姓名审核规则约束
-- 拒绝（仅限以下明确情形）：
-  - 包含脏话、侮辱性词汇、色情词汇
-  - 包含外链、广告、商业推广内容
-
-【reason 输出规范】
-- 你的身份是"比赛报名系统"，reason 必须以报名平台的口吻书写
-- 严禁在 reason 中提及"游戏""NPC""女主角""角色""虚构"等词汇
-- 拒绝与"林夏"重名时，reason 只说"该姓名与你的学号不匹配，请使用你自己的真实姓名"
-- 拒绝其他情形时，reason 简短说明违规原因即可
-
-仅返回 JSON，包含 approved、reason、normalized_player_name、normalized_team_name。"""
 
 var _browser_app: Node = null
 var _page_payload: Dictionary = {}
@@ -731,7 +702,7 @@ func _populate_college_options() -> void:
 
 func _ensure_review_service() -> void:
 	var config_mgr := AIConfigManager.get_instance()
-	# 优先用 signup_review 角色（doubao-lite），回退到 input_guard
+	# 优先用 signup_review 角色，回退到 input_guard
 	var review_role: String = "signup_review" if not config_mgr.get_config_for_role("signup_review").is_empty() else "input_guard"
 	var config: Dictionary = config_mgr.get_config_for_role(review_role)
 	if config.is_empty():
@@ -744,7 +715,6 @@ func _ensure_review_service() -> void:
 		return
 
 	_review_service.default_temperature = 0.3
-	_review_service.default_max_tokens = 512
 	_review_service.request_completed.connect(_on_review_completed)
 	_review_service.request_failed.connect(_on_review_failed)
 	add_child(_review_service)
@@ -835,10 +805,10 @@ func _submit_with_review(player_name: String, team_name: String, college_idx: in
 	var college_name: String = _college_select.get_item_text(college_idx)
 	var user_msg := "player_name=%s\nuniversity=%s\ncollege=%s\nteam_name=%s" % [player_name, UNIVERSITY_NAME, college_name, team_name]
 	var messages: Array = [
-		{"role": "system", "content": REVIEW_SYSTEM_PROMPT},
+		{"role": "system", "content": _resolve_prompt(REVIEW_PROMPT_KEY, REVIEW_SYSTEM_FALLBACK)},
 		{"role": "user", "content": user_msg},
 	]
-	_pending_review_request_id = _review_service.chat(messages, {"temperature": 0.3, "max_tokens": 512})
+	_pending_review_request_id = _review_service.chat(messages, {"temperature": 0.3})
 
 
 func _on_review_completed(request_id: String, response: Dictionary) -> void:
@@ -1014,6 +984,16 @@ func get_status_text_for_test() -> String:
 	if _status_label == null:
 		return ""
 	return _status_label.text
+
+
+func _resolve_prompt(prompt_key: String, fallback: String) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("has_prompt") and pm.has_method("resolve"):
+		if pm.has_prompt(prompt_key):
+			var resolved := str(pm.resolve(prompt_key)).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+	return fallback
 
 
 func is_submission_locked_for_test() -> bool:

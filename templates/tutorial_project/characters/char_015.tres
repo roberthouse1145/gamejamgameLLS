@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_n8etw"]
+
+[resource]
+script = ExtResource("1_n8etw")
+character_id = "char_015"
+character_name = "Heroine15"
+display_name = "Heroine15"
+sprites = {
+"angry": "assets/images/character/heroine15/heroine15_cos05.png",
+"crying": "assets/images/character/heroine15/heroine15_cos18.png",
+"default": "assets/images/character/heroine15/heroine15_cos01.png",
+"happy": "assets/images/character/heroine15/heroine15_cos06.png",
+"laugh": "assets/images/character/heroine15/heroine15_cos12.png",
+"sad": "assets/images/character/heroine15/heroine15_cos10.png",
+"serious": "assets/images/character/heroine15/heroine15_cos04.png",
+"shy": "assets/images/character/heroine15/heroine15_cos20.png",
+"surprised": "assets/images/character/heroine15/heroine15_cos08.png",
+"thinking": "assets/images/character/heroine15/heroine15_cos11.png",
+"worried": "assets/images/character/heroine15/heroine15_cos07.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "05",
+"crying": "18",
+"default": "01",
+"happy": "06",
+"laugh": "12",
+"sad": "10",
+"serious": "04",
+"shy": "20",
+"surprised": "08",
+"thinking": "11",
+"worried": "07"
+}
+profile = "活力四射的冒险少女，红发护目镜蓝眸，皮革背心探险装束"
+display_offset = Vector2(0, 0.15)

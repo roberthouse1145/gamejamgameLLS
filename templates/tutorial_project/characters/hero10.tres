@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "16"
 }
 profile = "豪迈强壮的红发格斗家，琥珀色双眼，身着露肩毛领背心与宽大黑裤，佩戴黑色腕带"
+display_offset = Vector2(0, 0.15)

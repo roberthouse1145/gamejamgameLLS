@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "20"
 }
 profile = "桀骜不驯的黑发青年，红眼乱发，身着松领带西装，佩戴铆钉腰带与黑色皮手套"
+display_offset = Vector2(0, 0.15)

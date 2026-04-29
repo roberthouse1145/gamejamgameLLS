@@ -226,7 +226,7 @@ theme_override_constants/separation = 10
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "等待对话..."
+placeholder_text = "当前没有进行中的对话"
 editable = false
 
 [node name="SendButton" type="Button" parent="HBoxContainer/ChatArea/InputArea/InputMargin/InputVBox/InputHBox" unique_id=774417638]
@@ -235,9 +235,3 @@ custom_minimum_size = Vector2(88, 0)
 layout_mode = 2
 disabled = true
 text = "发送"
-
-[node name="HintLabel" type="Label" parent="HBoxContainer/ChatArea/InputArea/InputMargin/InputVBox" unique_id=955172295]
-unique_name_in_owner = true
-layout_mode = 2
-text = "当前没有进行中的对话"
-horizontal_alignment = 1

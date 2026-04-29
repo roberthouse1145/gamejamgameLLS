@@ -65,4 +65,3 @@ func _on_agree_pressed() -> void:
 	var tw: Tween = create_tween()
 	tw.tween_property(self, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(func() -> void: boot_finished.emit())
-

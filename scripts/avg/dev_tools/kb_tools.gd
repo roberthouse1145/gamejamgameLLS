@@ -10,7 +10,9 @@ static func register_read_only(ai_service: Node) -> void:
 			"doc_id": {"type": "string", "description": "Optional: fetch a specific document by ID. Returns full content."},
 			"tags": {"type": "array", "items": {"type": "string"}, "description": "Optional: filter documents containing at least one of these tags."}
 		}
-	}, func(args: Dictionary) -> Variant: return _kb_read(args))
+	}, func(args: Dictionary) -> Variant: return _kb_read(args), {
+		"fields": ["success", "data", "note", "error"]
+	})
 
 
 static func register_all(ai_service: Node) -> void:
@@ -22,7 +24,9 @@ static func register_all(ai_service: Node) -> void:
 			"doc_id": {"type": "string", "description": "Optional: fetch a specific document by ID. Returns full content."},
 			"tags": {"type": "array", "items": {"type": "string"}, "description": "Optional: filter documents containing at least one of these tags."}
 		}
-	}, func(args: Dictionary) -> Variant: return _kb_read(args))
+	}, func(args: Dictionary) -> Variant: return _kb_read(args), {
+		"fields": ["success", "data", "note", "error"]
+	})
 
 	# Write
 	ai_service.register_tool("kb_write", "Create or update a document in the Knowledge Base. If doc_id exists, updates it; otherwise creates new.", {
@@ -32,10 +36,14 @@ static func register_all(ai_service: Node) -> void:
 			"title": {"type": "string", "description": "Document title (e.g. character name, chapter title, concept name)."},
 			"content": {"type": "string", "description": "Free-form text content of the document."},
 			"category": {"type": "string", "enum": ["world", "characters", "story", "notes"], "description": "Document category."},
-			"tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags for this document."}
+			"tags": {"type": "array", "items": {"type": "string"}, "description": "Optional tags for this document."},
+			"doc_kind": {"type": "string", "enum": ["canonical", "brief", "open_questions", "backbone", "decision_log", "reference"], "description": "Optional document purpose metadata."},
+			"state": {"type": "string", "enum": ["draft", "confirmed", "superseded"], "description": "Optional lifecycle state metadata."}
 		},
 		"required": ["title", "content", "category"]
-	}, func(args: Dictionary) -> Variant: return _kb_write(args))
+	}, func(args: Dictionary) -> Variant: return _kb_write(args), {
+		"fields": ["success", "doc_id", "error"]
+	})
 
 	# Delete
 	ai_service.register_tool("kb_delete", "Delete a document from the Knowledge Base by its doc_id.", {
@@ -44,7 +52,9 @@ static func register_all(ai_service: Node) -> void:
 			"doc_id": {"type": "string", "description": "The ID of the document to delete."}
 		},
 		"required": ["doc_id"]
-	}, func(args: Dictionary) -> Variant: return _kb_delete(args))
+	}, func(args: Dictionary) -> Variant: return _kb_delete(args), {
+		"fields": ["success", "error"]
+	})
 
 
 static func _get_manager() -> Node:
@@ -94,6 +104,10 @@ static func _kb_write(args: Dictionary) -> Dictionary:
 	var content: String = args.get("content", "")
 	var category: String = args.get("category", "")
 	var tags: Array = args.get("tags", [])
+	var metadata: Dictionary = {}
+	for key in ["doc_kind", "state"]:
+		if args.has(key):
+			metadata[key] = args[key]
 
 	if title.is_empty() or content.is_empty() or category.is_empty():
 		return {"success": false, "error": "title, content, and category are required."}
@@ -102,7 +116,7 @@ static func _kb_write(args: Dictionary) -> Dictionary:
 	if doc_id.is_empty():
 		doc_id = kbm.generate_doc_id(category)
 
-	kbm.upsert_document(doc_id, title, content, category, tags, "lin_xia")
+	kbm.upsert_document(doc_id, title, content, category, tags, "lin_xia", metadata)
 	kbm.save_data()
 	return {"success": true, "doc_id": doc_id}
 
@@ -129,6 +143,8 @@ static func _sanitize_doc(doc: Dictionary, include_content: bool) -> Dictionary:
 		"doc_id": doc.get("doc_id", ""),
 		"title": doc.get("title", ""),
 		"category": doc.get("category", ""),
+		"doc_kind": doc.get("doc_kind", "canonical"),
+		"state": doc.get("state", "confirmed"),
 	}
 	var tags: Array = doc.get("tags", [])
 	if tags.size() > 0:

@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "17"
 }
 profile = "沉稳冷峻的黑发少年，深灰色双眸，身着黑色武士装，单肩披甲，腰系红带"
+display_offset = Vector2(0, 0.15)

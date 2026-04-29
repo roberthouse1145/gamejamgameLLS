@@ -42,7 +42,6 @@ func _run_test() -> void:
 	topic.channel_id = "dm_lin_xia"
 	topic.system_prompt = "测试"
 	topic.goal_description = "测试"
-	topic.max_turns = 1
 	topic.timeout_seconds = 0
 	if not chat.activate_topic(topic):
 		print("[FAIL] failed to activate test topic")

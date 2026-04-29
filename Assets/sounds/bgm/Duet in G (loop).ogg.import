@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/Duet in G (loop).ogg-e83ab344abb865e6b6b8d4d8
 [params]
 
 loop=true
-loop_offset=0
-bpm=0
+loop_offset=0.0
+bpm=0.0
 beat_count=0
 bar_beats=4

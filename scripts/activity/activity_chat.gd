@@ -25,8 +25,8 @@ func connect_signals() -> void:
 		return
 	if not chat.topic_completed.is_connected(_on_topic_completed):
 		chat.topic_completed.connect(_on_topic_completed)
-	if not chat.topic_timeout.is_connected(_on_topic_timeout):
-		chat.topic_timeout.connect(_on_topic_timeout)
+	if chat.has_signal("topic_cancelled") and not chat.topic_cancelled.is_connected(_on_topic_cancelled):
+		chat.topic_cancelled.connect(_on_topic_cancelled)
 
 
 func disconnect_signals() -> void:
@@ -35,8 +35,8 @@ func disconnect_signals() -> void:
 		return
 	if chat.topic_completed.is_connected(_on_topic_completed):
 		chat.topic_completed.disconnect(_on_topic_completed)
-	if chat.topic_timeout.is_connected(_on_topic_timeout):
-		chat.topic_timeout.disconnect(_on_topic_timeout)
+	if chat.has_signal("topic_cancelled") and chat.topic_cancelled.is_connected(_on_topic_cancelled):
+		chat.topic_cancelled.disconnect(_on_topic_cancelled)
 
 
 func start_topic(session_id: String, stage: String, config: Dictionary) -> bool:
@@ -54,11 +54,15 @@ func start_topic(session_id: String, stage: String, config: Dictionary) -> bool:
 	topic.channel_id = DM_CHANNEL_ID
 	topic.system_prompt = str(config.get("system_prompt", ""))
 	topic.goal_description = str(config.get("goal", ""))
-	topic.max_turns = int(config.get("max_turns", 1))
 	topic.timeout_seconds = int(config.get("timeout_seconds", 120))
 	topic.context_data = {
 		"session_id": session_id,
 		_stage_key: stage,
+		"activity_type": _activity_type,
+		"activity_stage": stage,
+		"source": "ActivityChat:%s" % _activity_type,
+		"role": "linkchat",
+		"prompt_key": "activity_topic_%s" % stage,
 		"suppress_system_notice": true,
 	}
 	var extra_context: Dictionary = config.get("extra_context", {})
@@ -76,7 +80,7 @@ func start_topic(session_id: String, stage: String, config: Dictionary) -> bool:
 	if topic_mgr != null:
 		var active_topic: ChatTopic = chat.get_active_topic(DM_CHANNEL_ID)
 		if active_topic != null and active_topic.topic_id == topic.topic_id:
-			topic_mgr.timeout_topic(active_topic)
+			topic_mgr.cancel_topic(active_topic, "initial_reply_request_failed")
 	return false
 
 
@@ -107,7 +111,7 @@ func _on_topic_completed(topic: ChatTopic, result: Dictionary) -> void:
 	stage_completed.emit(session_id, stage, summary)
 
 
-func _on_topic_timeout(topic: ChatTopic) -> void:
+func _on_topic_cancelled(topic: ChatTopic, _reason: String) -> void:
 	if topic == null:
 		return
 	var context: Dictionary = topic.context_data

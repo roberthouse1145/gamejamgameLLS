@@ -5,7 +5,7 @@ class_name DailyMemorySummarizer extends Node
 ## LLM 只负责摘要内容，npc_id 由程序根据频道成员自动分发。
 
 const SUMMARIZER_ROLE: String = "memory_summarizer"
-const FALLBACK_ROLE: String = "doubao-mini"
+const FALLBACK_ROLE: String = "chat_default"
 const MAX_MESSAGES_PER_CHANNEL: int = 50
 
 signal summarize_completed(day: int, memory_count: int)
@@ -28,7 +28,6 @@ var _day_stored_count: int = 0
 
 func _ready() -> void:
 	_ai_service = AIService.new()
-	_ai_service.default_max_tokens = 1024
 	_ai_service.default_temperature = 0.3
 	_ai_service.max_retries = 1
 	add_child(_ai_service)

@@ -1,5 +1,21 @@
 你正在编写角色设定文档。你的产出是"对话生成参考卡"，不是人物传记。每一句都必须直接影响 Writer 写对话或舞台指示。
 
+如果当前任务是在项目中正式落实一个新角色，而不只是纯文档修订，那么这项 skill 的交付物包含两部分：
+
+1. 写好或更新 KB 里的角色设定文档
+2. 从当前项目里选择一个未占用的预置 AVGCharacter 壳子并占用它
+
+你不能创建新角色资源。你只能在现有模板角色壳子中挑选一个视觉/气质最接近且尚未占用的壳子，然后写入它的 `character_key / character_name / display_name / profile`。
+
+这 4 个字段的职责必须严格区分：
+
+- `character_key`：项目内逻辑 key，例如 `heroine_main`、`rival`
+- `character_name`：给 DSL / Writer / 系统引用的稳定角色名。**必须是简短的 ASCII 标识符**，例如 `LinXiaoyue`、`Hero01`、`ProfessorAster`。不要写中文、空格或标点。
+- `display_name`：给玩家看到的显示名。这里可以写中文，例如 `林晓月`
+- `profile`：外观/气质摘要
+
+不要把 `character_name` 和 `display_name` 都写成中文。Writer 在 DSL 中应该引用 `character_name`，不是 `display_name`。
+
 ## 输出格式
 
 使用中文方括号分段，严格按照以下结构：
@@ -30,3 +46,30 @@
 - 写"她是一个温柔善良的女孩"这类通用描述
 - 堆砌无法指导对话的形容词和背景细节
 - 超过 400 字（强制精炼）
+- 创建新的 AVGCharacter 资源
+- 覆盖已经被占用的角色壳子
+- 修改角色壳子的 sprites、emotion_slots、服装或资源路径
+- 把 `character_name` 写成中文、带空格的名字，或其他不适合作为 DSL 对象名的文本
+
+## 落地规则
+
+- 完成 KB 文档后，如果这是一个“让角色进入项目”的任务，必须继续调用 `list_character_shells` 查看可用壳子
+- 只能从 `occupied=false` 的预置壳子中选择
+- 选择壳子时优先依据已有 profile 的视觉气质匹配，不要只按编号挑
+- 绑定时必须调用 `occupy_character_shell`
+- 调用 `occupy_character_shell` 时，`character_name` 必须使用 ASCII 标识符，`display_name` 再写中文名
+- 如果没有合适壳子，不得硬绑到不合适或已占用的壳子；应在最终摘要中明确说明“KB 已完成，但项目角色壳子不足/不匹配”
+- `finish(summary=...)` 时必须写清楚：更新了哪篇角色文档、最终占用了哪个 `char_xxx` 壳子；如果没占用成功，也要明确写出原因
+
+<注释>
+## 未来扩展：角色壳子不足时的降级策略
+
+- 如果当前项目里没有合适的占位角色，则允许新建一个最小占位角色。
+- 这个新角色只负责先占住角色位，不设置表情、服装、sprites、emotion_slots 等美术内容。
+- 创建完最小占位角色后，必须要求上层 controller 追加派发一个“角色美术”工单。
+- 角色美术工单应交给专门的角色美术 agent，由它后续补完立绘、表情、服装和资源路径。
+
+注意：
+- 当前项目尚未实现角色美术 agent，因此这套策略默认禁用。
+- 当未来实现角色美术 agent，并且 planner / controller / tool 权限都补齐后，再解除本注释块即可启用。
+</注释>

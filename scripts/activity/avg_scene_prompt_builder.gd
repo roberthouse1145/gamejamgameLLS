@@ -10,6 +10,8 @@ const PromptPipelineScript = preload("res://scripts/prompt/prompt_pipeline.gd")
 # ---------------------------------------------------------------------------
 static func create_for_session(session: Dictionary) -> AVGScenePromptBuilder:
 	var activity_type := str(session.get("activity_type", "")).strip_edges()
+	if activity_type == "story" or session.has("story_scene_prompt"):
+		return preload("res://scripts/activity/story_prompt_builder.gd").new()
 	if activity_type == "sbeam" or session.has("game"):
 		return preload("res://scripts/activity/sbeam_prompt_builder.gd").new()
 	if activity_type == "part_time" or session.has("job"):

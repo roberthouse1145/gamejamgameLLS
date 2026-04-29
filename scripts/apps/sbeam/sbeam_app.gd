@@ -755,12 +755,10 @@ func _on_play_session_started(session_id: String, payload: Dictionary) -> void:
 	_set_notice("正在准备《%s》的下载..." % str(game.get("title", "未命名作品")))
 
 
-func _on_download_started(session_id: String, payload: Dictionary) -> void:
+func _on_download_started(session_id: String, _payload: Dictionary) -> void:
 	if session_id != _active_session_id:
 		return
 	_download_progress = 0.0
-	_show_download_window(payload.get("game", {}))
-	set_process(true)
 
 
 func _on_download_progress_updated(session_id: String, progress: float, _scene_ready: bool) -> void:
@@ -768,12 +766,6 @@ func _on_download_progress_updated(session_id: String, progress: float, _scene_r
 		return
 
 	_download_progress = progress
-	if _download_progress_bar != null:
-		_download_progress_bar.value = progress * 100.0
-
-	if progress >= 1.0:
-		_close_download_window()
-		set_process(false)
 
 
 func _on_play_session_completed(session_id: String, _payload: Dictionary) -> void:
@@ -782,8 +774,6 @@ func _on_play_session_completed(session_id: String, _payload: Dictionary) -> voi
 
 	_active_session_id = ""
 	_download_progress = 0.0
-	set_process(false)
-	_close_download_window()
 	_update_store_action_state()
 	_update_top_bar()
 	_set_notice("")
@@ -792,8 +782,6 @@ func _on_play_session_completed(session_id: String, _payload: Dictionary) -> voi
 func _on_play_session_failed(error_message: String) -> void:
 	_active_session_id = ""
 	_download_progress = 0.0
-	set_process(false)
-	_close_download_window()
 	_update_store_action_state()
 	_set_notice(error_message)
 
@@ -808,8 +796,17 @@ func _update_store_action_state() -> void:
 	if _start_button == null:
 		return
 
-	_start_button.disabled = _selected_game_id.is_empty() or not _active_session_id.is_empty()
-	_start_button.text = "正在下载..." if not _active_session_id.is_empty() else "一起开玩"
+	var has_selection: bool = not _selected_game_id.is_empty()
+	var is_owned: bool = false
+	if has_selection and _catalog_by_id.has(_selected_game_id):
+		is_owned = bool((_catalog_by_id[_selected_game_id] as Dictionary).get("is_owned", false))
+	_start_button.disabled = not has_selection or not _active_session_id.is_empty() or is_owned
+	if not _active_session_id.is_empty():
+		_start_button.text = "正在下载..."
+	elif is_owned:
+		_start_button.text = "该游戏已在库存里"
+	else:
+		_start_button.text = "一起开玩"
 
 
 func _build_sbeam_preview_payload(entry: Dictionary) -> Dictionary:

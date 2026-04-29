@@ -31,7 +31,7 @@ func _ready() -> void:
 	writer.log_entry.connect(func(e: Dictionary) -> void:
 		print("[WRITER-LOG] %s: %s" % [e.get("type", ""), str(e.get("message", "")).left(200)])
 	)
-	writer.tool_executed.connect(func(_rid: String, tn: String, a: Dictionary, r: Variant) -> void:
+	writer.tool_executed.connect(func(_rid: String, tn: String, a: Dictionary, r: Variant, _tool_call_id: String) -> void:
 		print("[WRITER-TOOL] %s(%s) -> %s" % [tn, str(a).left(80), str(r).left(150)])
 	)
 
@@ -45,7 +45,7 @@ func _on_log(entry: Dictionary) -> void:
 	print("[MAIN-LOG] %s: %s" % [entry.get("type", ""), str(entry.get("message", "")).left(200)])
 
 
-func _on_tool(_rid: String, tn: String, args: Dictionary, result: Variant) -> void:
+func _on_tool(_rid: String, tn: String, args: Dictionary, result: Variant, _tool_call_id: String) -> void:
 	print("[MAIN-TOOL] %s(%s) -> %s" % [tn, str(args).left(80), str(result).left(200)])
 
 

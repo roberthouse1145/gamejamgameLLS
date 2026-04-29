@@ -1,12 +1,11 @@
 {
-	"version": 1,
-	"files": [
-		"res://resources/data/lore/global.json",
-		"res://resources/data/lore/npc_lin_xia.json",
-		"res://resources/data/lore/agj_rules.json",
-		"res://resources/data/lore/player_character.json",
-		"res://resources/data/lore/social_context.json",
-		"res://resources/data/lore/platforms.json",
-		"res://resources/data/lore/geography.json"
-	]
+  "files": [
+	"res://resources/data/lore/global.json",
+	"res://resources/data/lore/npc_lin_xia.json",
+	"res://resources/data/lore/agj_rules.json",
+	"res://resources/data/lore/player_character.json",
+	"res://resources/data/lore/social_context.json",
+	"res://resources/data/lore/platforms.json",
+    "res://resources/data/lore/geography.json"
+  ]
 }

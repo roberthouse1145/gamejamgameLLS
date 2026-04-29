@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_vjsf3"]
+
+[resource]
+script = ExtResource("1_vjsf3")
+character_id = "char_007"
+character_name = "Heroine07"
+display_name = "Heroine07"
+sprites = {
+"angry": "assets/images/character/heroine07/heroine07_cos15.png",
+"crying": "assets/images/character/heroine07/heroine07_cos17.png",
+"default": "assets/images/character/heroine07/heroine07_cos01.png",
+"happy": "assets/images/character/heroine07/heroine07_cos08.png",
+"laugh": "assets/images/character/heroine07/heroine07_cos07.png",
+"sad": "assets/images/character/heroine07/heroine07_cos03.png",
+"serious": "assets/images/character/heroine07/heroine07_cos14.png",
+"shy": "assets/images/character/heroine07/heroine07_cos18.png",
+"smug": "assets/images/character/heroine07/heroine07_cos12.png",
+"thinking": "assets/images/character/heroine07/heroine07_cos06.png",
+"worried": "assets/images/character/heroine07/heroine07_cos10.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "15",
+"crying": "17",
+"default": "01",
+"happy": "08",
+"laugh": "07",
+"sad": "03",
+"serious": "14",
+"shy": "18",
+"smug": "12",
+"thinking": "06",
+"worried": "10"
+}
+profile = "忧郁神秘的洛丽塔少女，金发长编发紫瞳，戴眼罩，身着酒红外套，手提破旧兔公仔"
+display_offset = Vector2(0, 0.15)

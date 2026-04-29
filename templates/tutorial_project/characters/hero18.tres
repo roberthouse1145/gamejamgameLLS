@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "20"
 }
 profile = "邪魅狂野的魔族少年，青绿短发，异色瞳，身披毛领黑外套，长着尖角与深色长尾"
+display_offset = Vector2(0, 0.15)

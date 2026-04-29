@@ -25,6 +25,7 @@ class_name AVGAssetManifest extends RefCounted
 const MANIFEST_RELATIVE_PATH: String = "manifests/asset_aliases.json"
 const IMAGE_ROOT_RELATIVE_PATH: String = "assets/images"
 const AUDIO_ROOT_RELATIVE_PATH: String = "assets/audio"
+const DEFAULT_TEMPLATE_ROOT_PATH: String = "res://templates/tutorial_project/"
 
 static var _manifest_cache: Dictionary = {}
 
@@ -37,23 +38,11 @@ static func load_manifest(project_root_path: String) -> Dictionary:
 	if _manifest_cache.has(normalized_root):
 		return (_manifest_cache[normalized_root] as Dictionary).duplicate(true)
 
-	var manifest_path: String = normalized_root + MANIFEST_RELATIVE_PATH
-	if not FileAccess.file_exists(manifest_path):
-		_manifest_cache[normalized_root] = {}
-		return {}
-
-	var file: FileAccess = FileAccess.open(manifest_path, FileAccess.READ)
-	if file == null:
-		_manifest_cache[normalized_root] = {}
-		return {}
-
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	if not parsed is Dictionary:
-		_manifest_cache[normalized_root] = {}
-		return {}
-
-	var manifest: Dictionary = (parsed as Dictionary).duplicate(true)
+	var manifest: Dictionary = _load_manifest_file(normalized_root)
+	var fallback_root: String = _get_manifest_fallback_root(normalized_root)
+	if not fallback_root.is_empty() and fallback_root != normalized_root:
+		var fallback_manifest: Dictionary = _load_manifest_file(fallback_root)
+		manifest = _merge_manifest_dicts(fallback_manifest, manifest)
 	_manifest_cache[normalized_root] = manifest.duplicate(true)
 	return manifest
 
@@ -87,22 +76,26 @@ static func build_llm_prompt_block(project_root_path: String, project: Resource 
 
 	var character_lines: Array[String] = []
 	for entry in _collect_character_entries(project):
+		var character_name: String = str(entry.get("character_name", "")).strip_edges()
 		var display_name: String = str(entry.get("display_name", "")).strip_edges()
 		var character_id: String = str(entry.get("character_id", "")).strip_edges()
 		var emotions: Array = entry.get("emotions", [])
 		var outfits: Array = entry.get("outfits", [])
 		var profile: String = str(entry.get("profile", "")).strip_edges()
-		if character_id.is_empty():
+		var dsl_name: String = character_name if not character_name.is_empty() else character_id
+		if dsl_name.is_empty():
 			continue
-		var name_text: String = display_name if not display_name.is_empty() else character_id
+		var name_text: String = display_name if not display_name.is_empty() else dsl_name
 		var emotion_text: String = "无"
 		if not emotions.is_empty():
 			emotion_text = "、".join(PackedStringArray(emotions))
 		var outfit_text: String = "无"
 		if not outfits.is_empty():
 			outfit_text = "、".join(PackedStringArray(outfits))
-		character_lines.append("- %s（%s）可用表情：%s" % [character_id, name_text, emotion_text])
+		character_lines.append("- %s（%s）可用表情：%s" % [dsl_name, name_text, emotion_text])
 		character_lines.append("  可用服装：%s" % outfit_text)
+		if not character_id.is_empty() and character_id != dsl_name:
+			character_lines.append("  系统ID：%s" % character_id)
 		if not profile.is_empty():
 			character_lines.append("  备注：%s" % profile)
 
@@ -180,6 +173,60 @@ static func _normalize_project_root(project_root_path: String) -> String:
 	return trimmed_root if trimmed_root.ends_with("/") else trimmed_root + "/"
 
 
+static func _load_manifest_file(project_root_path: String) -> Dictionary:
+	var manifest_path: String = project_root_path + MANIFEST_RELATIVE_PATH
+	if not FileAccess.file_exists(manifest_path):
+		return {}
+
+	var file: FileAccess = FileAccess.open(manifest_path, FileAccess.READ)
+	if file == null:
+		return {}
+
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if not parsed is Dictionary:
+		return {}
+	return (parsed as Dictionary).duplicate(true)
+
+
+static func _get_manifest_fallback_root(project_root_path: String) -> String:
+	var normalized_root: String = _normalize_project_root(project_root_path)
+	if normalized_root.is_empty():
+		return ""
+	if normalized_root.begins_with("res://templates/"):
+		return ""
+	if normalized_root.begins_with("user://run/"):
+		return DEFAULT_TEMPLATE_ROOT_PATH
+	if normalized_root.begins_with("user://run/player_project/"):
+		return DEFAULT_TEMPLATE_ROOT_PATH
+	if normalized_root.begins_with("user://run/trunk/"):
+		return DEFAULT_TEMPLATE_ROOT_PATH
+	if normalized_root.begins_with("user://projects/"):
+		return DEFAULT_TEMPLATE_ROOT_PATH
+	return ""
+
+
+static func _merge_manifest_dicts(base_manifest: Dictionary, override_manifest: Dictionary) -> Dictionary:
+	var merged: Dictionary = base_manifest.duplicate(true)
+	for key in override_manifest.keys():
+		var override_value: Variant = override_manifest.get(key)
+		var base_value: Variant = merged.get(key)
+		if override_value is Dictionary and base_value is Dictionary:
+			var merged_bucket: Dictionary = (base_value as Dictionary).duplicate(true)
+			for bucket_key in (override_value as Dictionary).keys():
+				merged_bucket[bucket_key] = override_value[bucket_key]
+			merged[key] = merged_bucket
+		elif key == "hidden" and override_value is Array and base_value is Array:
+			var hidden_values: Array = (base_value as Array).duplicate()
+			for entry in override_value:
+				if not hidden_values.has(entry):
+					hidden_values.append(entry)
+			merged[key] = hidden_values
+		else:
+			merged[key] = override_value
+	return merged
+
+
 static func _collect_character_entries(project: Resource) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	if project == null or not "characters" in project:
@@ -194,6 +241,7 @@ static func _collect_character_entries(project: Resource) -> Array[Dictionary]:
 			continue
 		entries.append({
 			"character_id": character_id,
+			"character_name": (character.character_name if "character_name" in character else "").strip_edges(),
 			"display_name": (character.display_name if "display_name" in character else "").strip_edges(),
 			"emotions": _collect_emotions(character),
 			"outfits": _collect_outfits(character),

@@ -23,7 +23,8 @@ class TestActivityManager extends ActivitySessionManagerBase:
 			"entry_01",
 			{"title": "Test Entry"},
 			false,
-			0.05
+			0.05,
+			false
 		)
 		session["scene_requested"] = true
 		session["scene_ready"] = true
@@ -46,7 +47,8 @@ class TestActivityManager extends ActivitySessionManagerBase:
 			"entry_01",
 			{"title": "Test Entry"},
 			false,
-			0.05
+			0.05,
+			false
 		)
 		session["scene_active"] = true
 		session["scene_window"] = NodePath("/root/fake_window")
@@ -152,8 +154,8 @@ func _test_departure_prompt_is_not_polluted() -> void:
 	}
 	_assert_departure_context_clean(
 		"DateManager",
-		date_manager._build_topic_prompt(date_session, "departure"),
-		date_manager._build_topic_prompt(date_session, "followup"),
+		date_manager._build_seed_message("departure", date_session),
+		date_manager._build_seed_message("followup", date_session),
 		["IMPORTANT_CHOICE", "IMPORTANT_SUMMARY", "IMPORTANT_OUTLINE", "DATE_CHOICE", "DATE_OUTLINE"]
 	)
 
@@ -165,8 +167,8 @@ func _test_departure_prompt_is_not_polluted() -> void:
 	}
 	_assert_departure_context_clean(
 		"PartTimeJobManager",
-		part_time_manager._build_topic_prompt(part_time_session, "departure"),
-		part_time_manager._build_topic_prompt(part_time_session, "followup"),
+		part_time_manager._build_seed_message("departure", part_time_session),
+		part_time_manager._build_seed_message("followup", part_time_session),
 		["PART_TIME_CHOICE", "PART_TIME_OUTLINE"]
 	)
 
@@ -179,8 +181,8 @@ func _test_departure_prompt_is_not_polluted() -> void:
 	}
 	_assert_departure_context_clean(
 		"SbeamManager",
-		sbeam_manager._build_topic_prompt(sbeam_session, "departure"),
-		sbeam_manager._build_topic_prompt(sbeam_session, "followup"),
+		sbeam_manager._build_seed_message("departure", sbeam_session),
+		sbeam_manager._build_seed_message("followup", sbeam_session),
 		["SBEAM_CHOICE", "SBEAM_OUTLINE"]
 	)
 

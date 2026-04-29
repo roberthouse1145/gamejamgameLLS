@@ -15,29 +15,29 @@ JSON 结构：
   "title": "场景标题",
   "summary": "一句简短概述",
   "segments": {
-    "arrival": [
-      {"speaker": "", "text": "旁白或对白"}
-    ],
-    "activity": [
-      {"speaker": "", "text": "旁白或对白"}
-    ],
-    "choice_prompt": {
-      "speaker": "林夏",
-      "text": "自然引出选择的问题"
-    },
-    "choices": [
-      {
-        "choice_id": 1,
-        "text": "自然接话选项",
-        "result_tag": "英文或拼音短标签",
-        "lines": [
-          {"speaker": "", "text": "选择后的短对白或旁白"}
-        ]
-      }
-    ],
-    "return_home": [
-      {"speaker": "", "text": "回家收束段"}
-    ]
+	"arrival": [
+	  {"speaker": "", "text": "旁白或对白"}
+	],
+	"activity": [
+	  {"speaker": "", "text": "旁白或对白"}
+	],
+	"choice_prompt": {
+	  "speaker": "林夏",
+	  "text": "自然引出选择的问题"
+	},
+	"choices": [
+	  {
+		"choice_id": 1,
+		"text": "自然接话选项",
+		"result_tag": "英文或拼音短标签",
+		"lines": [
+		  {"speaker": "", "text": "选择后的短对白或旁白"}
+		]
+	  }
+	],
+	"return_home": [
+	  {"speaker": "", "text": "回家收束段"}
+	]
   },
   "followup_hint": "回家后 LinkChat 余味方向",
   "memory_tags": ["短标签1", "短标签2"]

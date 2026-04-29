@@ -13,9 +13,13 @@ class_name StoryStep extends Resource
 ## 支持的 type:
 ##   activate_topic  — 激活聊天话题
 ##   set_app_access  — 控制 APP 可用性
+##   install_app     — 运行时安装/注册 APP
+##   uninstall_app   — 运行时卸载 APP
+##   set_desktop_app_visibility — 控制桌面图标显隐
 ##   set_phase       — 设置天数/时段
 ##   modify_stats    — 修改数值
-##   play_avg        — 播放 AVG 场景
+##   play_avg        — 生成并播放剧情 AVG，或播放预制 AVG 资源
+##   preview_current_project — 打开 GamePreviewer 并自动试玩当前玩家工程（未指定 scene_id 时从初始场景开始）
 ##   open_browser    — 打开浏览器页面
 ##   post_moment     — 发朋友圈
 ##   set_variable    — 设置剧情变量
@@ -29,7 +33,8 @@ class_name StoryStep extends Resource
 ##   topic_completed — 等待指定 topic 完成
 ##   url_opened      — 等待玩家打开指定 URL
 ##   form_submitted  — 等待表单提交
-##   avg_scene_ended — 等待 AVG 场景结束
+##   avg_scene_ended — 等待 StoryDirector 触发的 AVG 场景结束
+##   project_preview_finished — 等待 GamePreviewer 试玩结束或玩家手动关闭试玩窗口
 ##   date_started    — 等待约会开始
 ##   date_completed  — 等待约会结束
 ##   home_activity_started   — 等待在家活动开始

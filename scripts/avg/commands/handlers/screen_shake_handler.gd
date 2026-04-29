@@ -13,6 +13,18 @@ const INTENSITY_PRESETS: Dictionary = {
 	"small": 5.0,
 	"medium": 10.0,
 	"large": 15.0,
+	"light": 5.0,
+	"soft": 5.0,
+	"轻": 5.0,
+	"弱": 5.0,
+	"normal": 10.0,
+	"mid": 10.0,
+	"中": 10.0,
+	"普通": 10.0,
+	"heavy": 15.0,
+	"strong": 15.0,
+	"重": 15.0,
+	"强": 15.0,
 }
 
 
@@ -60,9 +72,6 @@ func validate(command: Resource):
 
 	var result := ValidationResultClass.new()
 	var params: Dictionary = command.params if command.params != null else {}
-
-	if not _coerce_intensity(params.get("intensity", null), 10.0).get("valid", false):
-		result.add_error("Parameter 'intensity' must be a number or one of: small, medium, large")
 
 	if not _coerce_number(params.get("duration", null), 0.5).get("valid", false):
 		result.add_error("Parameter 'duration' must be a number")
@@ -117,5 +126,6 @@ func _coerce_number(value: Variant, default_value: float) -> Dictionary:
 			return {"valid": true, "value": default_value}
 		if text.is_valid_int() or text.is_valid_float():
 			return {"valid": true, "value": text.to_float()}
+		return {"valid": true, "value": default_value}
 
 	return {"valid": false, "value": default_value}

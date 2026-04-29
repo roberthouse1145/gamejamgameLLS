@@ -102,7 +102,7 @@ func _build_topic_goal(_stage: String) -> String:
 
 
 ## 构建聊天 seed message
-func _build_seed_message(_stage: String) -> String:
+func _build_seed_message(_stage: String, _session: Dictionary = {}) -> String:
 	if _stage == "departure":
 		return "请根据当前话题直接发送出发前回复。"
 	if _stage == "followup":
@@ -199,7 +199,7 @@ func _collect_used_seeds(_entry_id: String) -> Array:
 # Public API
 # =============================================================================
 
-func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS_DURATION) -> Dictionary:
+func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS_DURATION, skip_departure: bool = false) -> Dictionary:
 	var normalized_id := entry_id.strip_edges()
 	var entry: Dictionary = _find_entry(normalized_id)
 	if entry.is_empty():
@@ -238,7 +238,14 @@ func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS
 	var session_id := "%s_%04d" % [_get_activity_type(), _session_counter]
 	var use_fallback: bool = _is_fallback_mode()
 
-	var session: Dictionary = _build_base_session(session_id, normalized_id, entry, use_fallback, progress_duration)
+	var session: Dictionary = _build_base_session(
+		session_id,
+		normalized_id,
+		entry,
+		use_fallback,
+		progress_duration,
+		skip_departure
+	)
 	var extra: Dictionary = _build_session(session_id, normalized_id, entry)
 	session.merge(extra, true)
 	_pending_sessions[session_id] = session
@@ -247,13 +254,14 @@ func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS
 
 	_on_session_begin(session)
 
-	if use_fallback:
-		_send_local_departure_reply(session_id)
-		_handle_departure_finished(session_id)
+	if skip_departure:
+		# 跳过 departure 阶段，直接进入 progress（邀约对话已充当 departure）
+		call_deferred("_handle_departure_finished", session_id)
+	elif use_fallback:
+		call_deferred("_send_local_departure_and_finish", session_id)
 	else:
 		if not _start_departure_topic(session_id):
-			_send_local_departure_reply(session_id)
-			_handle_departure_finished(session_id)
+			call_deferred("_send_local_departure_and_finish", session_id)
 
 	var payload: Dictionary = {
 		"success": true,
@@ -327,14 +335,23 @@ func _connect_chat_deferred() -> void:
 # Session Template
 # =============================================================================
 
-func _build_base_session(session_id: String, entry_id: String, entry: Dictionary, use_fallback: bool, progress_duration: float) -> Dictionary:
+func _build_base_session(
+		session_id: String,
+		entry_id: String,
+		entry: Dictionary,
+		use_fallback: bool,
+		progress_duration: float,
+		skip_departure: bool
+) -> Dictionary:
 	var activity_type := _get_activity_type()
 	var used_seeds: Array = _collect_used_seeds(entry_id)
 	var story_guidance_prompt := _consume_story_guidance(activity_type)
+	var session_origin: String = "npc_initiative" if skip_departure else "player"
 	return {
 		"session_id": session_id,
 		"activity_type": activity_type,
 		"entry_id": entry_id,
+		"session_origin": session_origin,
 		"entry": entry.duplicate(true),
 		"start_day": ActivityUtilsClass.get_current_day(),
 		"phase_after_action": ActivityUtilsClass.get_phase_name(),
@@ -460,7 +477,7 @@ func _start_departure_topic(session_id: String) -> bool:
 		"display_label": _get_display_label(session),
 		"system_prompt": _build_topic_prompt(session, "departure"),
 		"goal": _build_topic_goal("departure"),
-		"seed_message": _build_seed_message("departure"),
+		"seed_message": _build_seed_message("departure", session),
 		"extra_context": {"entry_id": str(session.get("entry_id", ""))},
 	})
 	return result
@@ -475,6 +492,11 @@ func _send_local_departure_reply(session_id: String) -> void:
 	_chat.send_local_message(_build_local_departure_reply(session))
 	session["departure_done"] = true
 	_pending_sessions[session_id] = session
+
+
+func _send_local_departure_and_finish(session_id: String) -> void:
+	_send_local_departure_reply(session_id)
+	_handle_departure_finished(session_id)
 
 
 func _handle_departure_finished(session_id: String) -> void:
@@ -670,7 +692,7 @@ func _start_followup_topic(session_id: String) -> bool:
 		"display_label": _get_display_label(session),
 		"system_prompt": _build_topic_prompt(session, "followup"),
 		"goal": _build_topic_goal("followup"),
-		"seed_message": _build_seed_message("followup"),
+		"seed_message": _build_seed_message("followup", session),
 		"extra_context": {"entry_id": str(session.get("entry_id", ""))},
 	})
 	return result
@@ -698,6 +720,8 @@ func _start_moment(session_id: String) -> bool:
 		"user_prompt": _build_moment_user_prompt(session),
 		"local_fallback_text": _build_local_moment_text(session),
 		"image_hint": _get_moment_hint(session),
+		"source": "ActivityMoment:%s" % _get_activity_type(),
+		"prompt_key": "activity_moment_system",
 	})
 
 

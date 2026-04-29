@@ -6,12 +6,14 @@ const LAYER_SCENE: PackedScene = preload("res://scenes/ui/activity_preview/activ
 const PSEUDO_OS_LIGHT_THEME: Theme = preload("res://resources/themes/pseudo_os_light.tres")
 const CURSOR_OFFSET := Vector2(18, 18)
 const SCREEN_MARGIN := 12.0
+const FADE_DURATION: float = 0.08
 
 var _panel: PanelContainer = null
 var _panel_style: StyleBoxFlat = null
 var _title_label: Label = null
 var _body_label: Label = null
 var _current_source: Control = null
+var _motion_tween: Tween = null
 
 
 static func ensure_for(host: Control) -> Control:
@@ -69,6 +71,7 @@ func show_preview(source: Control, payload: Dictionary) -> void:
 	set_process(true)
 	_panel.reset_size()
 	_position_panel()
+	_play_show_motion()
 
 
 func hide_preview(source: Control = null) -> void:
@@ -76,6 +79,7 @@ func hide_preview(source: Control = null) -> void:
 		return
 
 	_current_source = null
+	_stop_motion_tween()
 	visible = false
 	_panel.visible = false
 	set_process(false)
@@ -93,6 +97,8 @@ func _build_ui() -> void:
 	_panel = PanelContainer.new()
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.visible = false
+	_panel.modulate.a = 0.0
+	_panel.scale = Vector2(0.98, 0.98)
 	add_child(_panel)
 
 	_panel_style = StyleBoxFlat.new()
@@ -153,3 +159,21 @@ func _position_panel() -> void:
 	target_pos.x = clampf(target_pos.x, SCREEN_MARGIN, maxf(SCREEN_MARGIN, size.x - panel_size.x - SCREEN_MARGIN))
 	target_pos.y = clampf(target_pos.y, SCREEN_MARGIN, maxf(SCREEN_MARGIN, size.y - panel_size.y - SCREEN_MARGIN))
 	_panel.position = target_pos
+
+
+func _play_show_motion() -> void:
+	_stop_motion_tween()
+	_panel.pivot_offset = _panel.get_combined_minimum_size() * 0.5
+	_panel.modulate.a = 0.0
+	_panel.scale = Vector2(0.98, 0.98)
+	_motion_tween = create_tween()
+	_motion_tween.set_trans(Tween.TRANS_CUBIC)
+	_motion_tween.set_ease(Tween.EASE_OUT)
+	_motion_tween.parallel().tween_property(_panel, "modulate:a", 1.0, FADE_DURATION)
+	_motion_tween.parallel().tween_property(_panel, "scale", Vector2.ONE, FADE_DURATION)
+
+
+func _stop_motion_tween() -> void:
+	if _motion_tween != null and is_instance_valid(_motion_tween):
+		_motion_tween.kill()
+	_motion_tween = null

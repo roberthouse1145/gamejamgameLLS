@@ -85,7 +85,7 @@ func _get_money_reward(job: Dictionary) -> int:
 	return int(rewards.get("money", 0))
 
 
-func _build_part_time_activity_block(job: Dictionary, event_seed: String = "") -> String:
+func _build_part_time_activity_block(_job: Dictionary, event_seed: String = "") -> String:
 	var activity_text: String = "这次兼职的自然活动应该贴合岗位本身，不要写成泛泛的职场日常。"
 
 	var lines: Array[String] = [activity_text]

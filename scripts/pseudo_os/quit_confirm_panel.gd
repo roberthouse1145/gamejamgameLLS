@@ -1,6 +1,8 @@
 class_name QuitConfirmPanel extends VBoxContainer
 ## 退出确认面板 - 作为 PseudoWindow 的内容显示
 
+const UIIconLibraryClass = preload("res://scripts/ui/ui_icon_library.gd")
+
 signal confirmed
 signal cancelled
 
@@ -40,12 +42,13 @@ func _build_ui() -> void:
 	panel_wrap.add_child(inner)
 
 	# 图标
-	var icon_label := Label.new()
-	icon_label.text = "⏻"
-	icon_label.add_theme_font_size_override("font_size", 48)
-	icon_label.add_theme_color_override("font_color", DANGER)
-	icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	inner.add_child(icon_label)
+	var icon_rect := TextureRect.new()
+	icon_rect.texture = UIIconLibraryClass.get_icon("power")
+	icon_rect.custom_minimum_size = Vector2(52, 52)
+	icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon_rect.modulate = DANGER
+	inner.add_child(icon_rect)
 
 	# 提示文字
 	var msg := Label.new()

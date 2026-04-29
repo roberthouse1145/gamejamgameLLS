@@ -11,6 +11,7 @@ const CommandContextClass = preload("res://scripts/avg/runtime/command_context.g
 const CommandRegistryClass = preload("res://scripts/avg/commands/command_registry.gd")
 const CommandInitializerClass = preload("res://scripts/avg/commands/command_initializer.gd")
 const ParallelExecutorClass = preload("res://scripts/avg/runtime/parallel_executor.gd")
+const AVGVariableClass = preload("res://scripts/avg/resources/avg_variable.gd")
 const AVGCanvasLayerNodeClass = preload("res://scripts/avg/resources/nodes/avg_canvas_layer_node.gd")
 const HistoryManagerClass = preload("res://scripts/avg/runtime/history_manager.gd")
 const AVGSaveManagerClass = preload("res://scripts/avg/runtime/save_manager.gd")
@@ -112,6 +113,12 @@ var _time_of_day_layer: ColorRect = null
 var _image_layer: Control = null
 ## 已显示的图片: image_id -> TextureRect
 var _displayed_images: Dictionary = {}
+## 图片层过渡 tween: image_id -> Tween
+var _image_transition_tweens: Dictionary = {}
+## 图片层旧图 overlay: image_id -> TextureRect
+var _image_transition_overlays: Dictionary = {}
+## 图片层黑场 overlay: image_id -> ColorRect
+var _image_black_overlays: Dictionary = {}
 ## 摄像机动画 tween
 var _camera_tween: Tween = null
 ## 转场动画 tween
@@ -747,8 +754,12 @@ func _resolve_check_value(params: Dictionary, source: String) -> Variant:
 	match source:
 		"variable":
 			var src_id: String = params.get("source_variable_id", "")
-			if not src_id.is_empty() and _variable_manager != null:
-				return _variable_manager.get_value_by_id(src_id)
+			var src_key: String = params.get("source_variable_key", params.get("source_variable_name", ""))
+			if _variable_manager != null:
+				if not src_id.is_empty():
+					return _variable_manager.get_value_by_id(src_id)
+				if not src_key.is_empty():
+					return _variable_manager.get_value(src_key)
 			return 0
 		"game_data":
 			var key: String = params.get("game_data_key", "")
@@ -761,7 +772,7 @@ func _resolve_check_value(params: Dictionary, source: String) -> Variant:
 func _resolve_game_data(key: String) -> Variant:
 	match key:
 		"play_time":
-			return Time.get_ticks_msec() / 1000.0
+			return int(Time.get_ticks_msec() / 1000.0)
 		"click_count":
 			if _command_context != null and "click_count" in _command_context:
 				return _command_context.click_count
@@ -812,37 +823,70 @@ func _eval_condition_if(params: Dictionary) -> bool:
 
 ## 解析条件值字符串为对应类型
 func _parse_condition_value(value) -> Variant:
-	if value is int or value is float or value is bool:
-		return value
-	var value_str: String = str(value)
-	if value_str.is_valid_int():
-		return value_str.to_int()
-	elif value_str.is_valid_float():
-		return value_str.to_float()
-	elif value_str == "true":
-		return true
-	elif value_str == "false":
-		return false
-	return value_str
+	return AVGVariableClass.normalize_script_literal(value)
 
 
 ## 比较两个值
 func _compare_values(actual: Variant, op: String, expected: Variant) -> bool:
+	var lhs_value: Variant = AVGVariableClass.normalize_runtime_value(actual)
+	var rhs_value: Variant = AVGVariableClass.normalize_runtime_value(expected)
+	var lhs_numeric: bool = lhs_value is int
+	var rhs_numeric: bool = rhs_value is int
+	var same_string_type: bool = lhs_value is String and rhs_value is String
+	if same_string_type:
+		match op:
+			"==":
+				return lhs_value == rhs_value
+			"!=":
+				return lhs_value != rhs_value
+			">":
+				return str(lhs_value) > str(rhs_value)
+			">=":
+				return str(lhs_value) >= str(rhs_value)
+			"<":
+				return str(lhs_value) < str(rhs_value)
+			"<=":
+				return str(lhs_value) <= str(rhs_value)
+			_:
+				return false
+
+	if lhs_numeric and rhs_numeric:
+		return _compare_numeric_values(int(lhs_value), op, int(rhs_value))
+
+	push_warning("AVGSceneRunner: mixed CHECK_VAR comparison %s %s %s; string values will be coerced as empty=0 / non-empty=1" % [_type_label(lhs_value), op, _type_label(rhs_value)])
+	var lhs_mixed: int = AVGVariableClass.coerce_mixed_comparison_number(lhs_value)
+	var rhs_mixed: int = AVGVariableClass.coerce_mixed_comparison_number(rhs_value)
+	return _compare_numeric_values(lhs_mixed, op, rhs_mixed)
+
+
+func _compare_numeric_values(lhs_num: int, op: String, rhs_num: int) -> bool:
 	match op:
 		"==":
-			return actual == expected
+			return lhs_num == rhs_num
 		"!=":
-			return actual != expected
+			return lhs_num != rhs_num
 		">":
-			return actual > expected
+			return lhs_num > rhs_num
 		">=":
-			return actual >= expected
+			return lhs_num >= rhs_num
 		"<":
-			return actual < expected
+			return lhs_num < rhs_num
 		"<=":
-			return actual <= expected
+			return lhs_num <= rhs_num
 		_:
 			return false
+
+
+func _type_label(value: Variant) -> String:
+	if value is int:
+		return "int"
+	if value is String:
+		return "String"
+	if value is bool:
+		return "bool"
+	if value == null:
+		return "null"
+	return type_string(typeof(value))
 
 
 ## 构建标签索引
@@ -1058,8 +1102,9 @@ func _on_clickable_node_input(event: InputEvent, node_id: String) -> void:
 		handle_node_click(node_id)
 
 
-## 从项目加载角色数据
-## sprites 字典中的值可能是路径字符串或 Texture2D，统一转为 Texture2D
+## 从项目加载角色数据。
+## 保留原始 sprite 引用（alias / 路径 / Texture2D），由 CharacterDisplay 按需解析并缓存，
+## 避免 load_project 时同步预载整套角色贴图。
 func _setup_character_data() -> void:
 	if current_project == null or character_display == null:
 		return
@@ -1070,22 +1115,10 @@ func _setup_character_data() -> void:
 		var char_id: String = character.character_id if "character_id" in character else ""
 		if char_id.is_empty():
 			continue
-		# 将 sprites 中的路径字符串转为 Texture2D
-		var raw_sprites: Dictionary = character.sprites if "sprites" in character else {}
-		var resolved_sprites: Dictionary = {}
-		for expr_name in raw_sprites:
-			var val = raw_sprites[expr_name]
-			if val is Texture2D:
-				resolved_sprites[expr_name] = val
-			elif val is String and not val.is_empty():
-				var tex: Texture2D = load_texture_from_project(val)
-				if tex != null:
-					resolved_sprites[expr_name] = tex
-			# 空字符串或 null 跳过
 		char_data[char_id] = {
 			"character_name": character.character_name if "character_name" in character else "",
 			"display_name": character.display_name if "display_name" in character else "",
-			"sprites": resolved_sprites,
+			"sprites": character.sprites if "sprites" in character else {},
 			"default_outfit": character.default_outfit if "default_outfit" in character else "",
 			"available_outfits": character.available_outfits if "available_outfits" in character else [],
 			"emotion_slots": character.emotion_slots if "emotion_slots" in character else {},
@@ -1097,6 +1130,8 @@ func _setup_character_data() -> void:
 		}
 	if character_display.has_method("set_character_data"):
 		character_display.set_character_data(char_data)
+	if character_display.has_method("set_texture_loader"):
+		character_display.set_texture_loader(Callable(self, "load_texture_from_project"))
 	if dialog_box != null and dialog_box.has_method("set_character_data"):
 		dialog_box.set_character_data(char_data)
 
@@ -1200,11 +1235,16 @@ func reset() -> void:
 	_all_event_nodes.clear()
 	_node_active_tab.clear()
 	_needs_reevaluation = false
-	_clear_rendered_nodes()
 	current_scene = null
 	if _variable_manager != null:
 		_variable_manager.clear_local()
 		_variable_manager.reset_to_defaults()
+	_clear_scene_presentation_state()
+
+
+func _clear_scene_presentation_state() -> void:
+	_clear_rendered_nodes()
+	_stop_runtime_audio()
 	if dialog_box != null and dialog_box.has_method("clear"):
 		dialog_box.clear()
 	if character_display != null and character_display.has_method("hide_all"):
@@ -1921,6 +1961,7 @@ func _on_scene_jump_requested(scene_id: String) -> void:
 				_pressed_nodes.clear()
 				if dialog_box != null and dialog_box.has_method("hide_box"):
 					dialog_box.hide_box()
+				_clear_scene_presentation_state()
 				# 设置 _pending_transition 让 start() 播放 transition_in
 				_pending_transition = transition_info
 				load_scene(scene)
@@ -1928,6 +1969,7 @@ func _on_scene_jump_requested(scene_id: String) -> void:
 			else:
 				# 无转场 → 硬跳转
 				stop()
+				_clear_scene_presentation_state()
 				load_scene(scene)
 				start()
 			return
@@ -2388,51 +2430,120 @@ func _reset_screen_effects() -> void:
 # =============================================================================
 
 ## 显示图片到图片层
-func show_image(image_id: String, image_path: String, norm_pos: Vector2, norm_size: Vector2, fade_duration: float, z_order: int) -> void:
+func show_image(image_id: String, image_path: String, norm_pos: Vector2, norm_size: Vector2, fade_duration: float, z_order: int, transition: String = "") -> void:
 	if _image_layer == null:
 		return
 
-	# 如果已存在同 id 的图片，先移除
-	if _displayed_images.has(image_id):
-		var old_node: Control = _displayed_images[image_id]
-		if is_instance_valid(old_node):
-			old_node.queue_free()
-		_displayed_images.erase(image_id)
+	if image_id.is_empty():
+		push_warning("AVGSceneRunner: Image id is required")
+		return
 
-	# 加载纹理
 	var texture: Texture2D = load_texture_from_project(image_path)
 	if texture == null:
 		push_warning("AVGSceneRunner: Could not load image '%s'" % image_path)
 		return
 
-	var tex_rect := TextureRect.new()
-	tex_rect.name = image_id
-	tex_rect.texture = texture
-	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	tex_rect.position = norm_pos * _project_resolution
-	tex_rect.size = norm_size * _project_resolution
-	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	tex_rect.z_index = z_order
+	var mode: String = _resolve_image_transition_mode(image_id, transition)
+	var duration: float = maxf(fade_duration, 0.0)
+	var target_rect: TextureRect = _build_image_rect(image_id, texture, image_path, norm_pos, norm_size, z_order)
+	var existing_rect: TextureRect = _displayed_images.get(image_id, null)
 
-	if fade_duration > 0:
-		tex_rect.modulate.a = 0.0
+	_cancel_image_transition(image_id)
 
-	tex_rect.set_meta("image_path", image_path)
-	tex_rect.set_meta("norm_pos", norm_pos)
-	tex_rect.set_meta("norm_size", norm_size)
-	tex_rect.set_meta("z_order", z_order)
+	if existing_rect != null and is_instance_valid(existing_rect):
+		match mode:
+			"instant":
+				existing_rect.queue_free()
+				_image_layer.add_child(target_rect)
+				_displayed_images[image_id] = target_rect
+			"crossfade":
+				if duration <= 0.0:
+					_image_layer.add_child(target_rect)
+					_displayed_images[image_id] = target_rect
+					existing_rect.queue_free()
+					return
+				_image_layer.add_child(target_rect)
+				existing_rect.z_index = target_rect.z_index + 1
+				_displayed_images[image_id] = target_rect
+				_image_transition_overlays[image_id] = existing_rect
+				var crossfade_tween: Tween = create_tween()
+				_image_transition_tweens[image_id] = crossfade_tween
+				crossfade_tween.set_trans(Tween.TRANS_QUAD)
+				crossfade_tween.set_ease(Tween.EASE_OUT)
+				crossfade_tween.tween_property(existing_rect, "modulate:a", 0.0, duration)
+				crossfade_tween.finished.connect(func():
+					if not is_instance_valid(self):
+						return
+					if is_instance_valid(existing_rect):
+						existing_rect.queue_free()
+					_image_transition_tweens.erase(image_id)
+					if _image_transition_overlays.get(image_id, null) == existing_rect:
+						_image_transition_overlays.erase(image_id)
+				)
+			"fade_through_black":
+				_image_layer.add_child(target_rect)
+				_displayed_images[image_id] = target_rect
+				if duration <= 0.0:
+					existing_rect.queue_free()
+					return
+				target_rect.modulate.a = 0.0
+				var black_overlay: ColorRect = _create_image_black_overlay(image_id, target_rect)
+				_image_black_overlays[image_id] = black_overlay
+				var half: float = duration / 2.0
+				var fade_tween: Tween = create_tween()
+				_image_transition_tweens[image_id] = fade_tween
+				fade_tween.set_parallel(true)
+				fade_tween.tween_property(existing_rect, "modulate:a", 0.0, half)
+				fade_tween.tween_property(black_overlay, "modulate:a", 1.0, half)
+				fade_tween.set_parallel(false)
+				fade_tween.tween_callback(func():
+					if is_instance_valid(existing_rect):
+						existing_rect.queue_free()
+				)
+				fade_tween.set_parallel(true)
+				fade_tween.tween_property(target_rect, "modulate:a", 1.0, half)
+				fade_tween.tween_property(black_overlay, "modulate:a", 0.0, half)
+				fade_tween.finished.connect(func():
+					if not is_instance_valid(self):
+						return
+					_image_transition_tweens.erase(image_id)
+					if _image_black_overlays.get(image_id, null) == black_overlay:
+						_image_black_overlays.erase(image_id)
+					if is_instance_valid(black_overlay):
+						black_overlay.queue_free()
+				)
+			_:
+				existing_rect.queue_free()
+				_image_layer.add_child(target_rect)
+				_displayed_images[image_id] = target_rect
+				if duration > 0.0:
+					target_rect.modulate.a = 0.0
+					var fade_tween: Tween = create_tween()
+					_image_transition_tweens[image_id] = fade_tween
+					fade_tween.tween_property(target_rect, "modulate:a", 1.0, duration)
+					fade_tween.finished.connect(func():
+						if not is_instance_valid(self):
+							return
+						_image_transition_tweens.erase(image_id)
+					)
+		return
 
-	_image_layer.add_child(tex_rect)
-	_displayed_images[image_id] = tex_rect
-
-	if fade_duration > 0:
-		var tween: Tween = create_tween()
-		tween.tween_property(tex_rect, "modulate:a", 1.0, fade_duration)
+	_image_layer.add_child(target_rect)
+	_displayed_images[image_id] = target_rect
+	if mode != "instant" and duration > 0.0:
+		target_rect.modulate.a = 0.0
+		var intro_tween: Tween = create_tween()
+		_image_transition_tweens[image_id] = intro_tween
+		intro_tween.tween_property(target_rect, "modulate:a", 1.0, duration)
+		intro_tween.finished.connect(func():
+			if not is_instance_valid(self):
+				return
+			_image_transition_tweens.erase(image_id)
+		)
 
 
 ## 隐藏/移除图片
-func hide_image(image_id: String, fade_duration: float) -> void:
+func hide_image(image_id: String, fade_duration: float, transition: String = "") -> void:
 	if not _displayed_images.has(image_id):
 		push_warning("AVGSceneRunner: Image '%s' not found" % image_id)
 		return
@@ -2442,27 +2553,114 @@ func hide_image(image_id: String, fade_duration: float) -> void:
 		_displayed_images.erase(image_id)
 		return
 
-	if fade_duration <= 0:
+	_cancel_image_transition(image_id)
+	var normalized_transition: String = str(transition).strip_edges().to_lower()
+	if normalized_transition == "instant" or fade_duration <= 0:
 		tex_rect.queue_free()
 		_displayed_images.erase(image_id)
 		return
 
 	var tween: Tween = create_tween()
+	_image_transition_tweens[image_id] = tween
 	tween.tween_property(tex_rect, "modulate:a", 0.0, fade_duration)
 	var captured_id: String = image_id
 	tween.finished.connect(func():
+		if not is_instance_valid(self):
+			return
 		if is_instance_valid(tex_rect):
 			tex_rect.queue_free()
 		_displayed_images.erase(captured_id)
+		_image_transition_tweens.erase(captured_id)
 	)
 
 
 ## 清除图片层所有图片
 func _clear_image_layer() -> void:
+	for image_id in _displayed_images.keys():
+		_cancel_image_transition(str(image_id))
 	_displayed_images.clear()
 	if _image_layer != null:
 		for child in _image_layer.get_children():
 			child.queue_free()
+
+
+func _build_image_rect(image_id: String, texture: Texture2D, image_path: String, norm_pos: Vector2, norm_size: Vector2, z_order: int) -> TextureRect:
+	var tex_rect := TextureRect.new()
+	tex_rect.name = image_id
+	tex_rect.texture = texture
+	tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	tex_rect.position = norm_pos * _project_resolution
+	tex_rect.size = norm_size * _project_resolution
+	tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tex_rect.z_index = z_order
+	tex_rect.set_meta("image_path", image_path)
+	tex_rect.set_meta("norm_pos", norm_pos)
+	tex_rect.set_meta("norm_size", norm_size)
+	tex_rect.set_meta("z_order", z_order)
+	return tex_rect
+
+
+func _create_image_overlay(image_id: String, source_rect: TextureRect) -> TextureRect:
+	var overlay := TextureRect.new()
+	overlay.name = "%s_overlay" % image_id
+	overlay.texture = source_rect.texture
+	overlay.expand_mode = source_rect.expand_mode
+	overlay.stretch_mode = source_rect.stretch_mode
+	overlay.position = source_rect.position
+	overlay.size = source_rect.size
+	overlay.scale = source_rect.scale
+	overlay.rotation = source_rect.rotation
+	overlay.pivot_offset = source_rect.pivot_offset
+	overlay.modulate = source_rect.modulate
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = source_rect.z_index + 1
+	overlay.set_meta("image_path", source_rect.get_meta("image_path", ""))
+	overlay.set_meta("norm_pos", source_rect.get_meta("norm_pos", Vector2.ZERO))
+	overlay.set_meta("norm_size", source_rect.get_meta("norm_size", Vector2.ONE))
+	overlay.set_meta("z_order", source_rect.get_meta("z_order", source_rect.z_index))
+	return overlay
+
+
+func _create_image_black_overlay(image_id: String, source_rect: TextureRect) -> ColorRect:
+	var overlay := ColorRect.new()
+	overlay.name = "%s_black" % image_id
+	overlay.color = Color.BLACK
+	overlay.position = source_rect.position
+	overlay.size = source_rect.size
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	overlay.z_index = source_rect.z_index + 1
+	overlay.modulate.a = 0.0
+	_image_layer.add_child(overlay)
+	return overlay
+
+
+func _cancel_image_transition(image_id: String) -> void:
+	if _image_transition_tweens.has(image_id):
+		var tween: Tween = _image_transition_tweens[image_id]
+		if tween != null and tween.is_valid():
+			tween.kill()
+		_image_transition_tweens.erase(image_id)
+	if _image_transition_overlays.has(image_id):
+		var overlay: TextureRect = _image_transition_overlays[image_id]
+		if is_instance_valid(overlay):
+			overlay.queue_free()
+		_image_transition_overlays.erase(image_id)
+	if _image_black_overlays.has(image_id):
+		var black_overlay: ColorRect = _image_black_overlays[image_id]
+		if is_instance_valid(black_overlay):
+			black_overlay.queue_free()
+		_image_black_overlays.erase(image_id)
+
+
+func _resolve_image_transition_mode(image_id: String, transition: String) -> String:
+	var normalized: String = transition.strip_edges().to_lower()
+	if normalized.is_empty():
+		return "crossfade" if image_id == "cg" else "fade"
+	if normalized in ["fade", "crossfade", "fade_through_black", "instant"]:
+		return normalized
+	push_warning("AVGSceneRunner: unsupported image transition '%s', falling back to fade" % transition)
+	return "fade"
 
 
 # =============================================================================

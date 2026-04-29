@@ -3,15 +3,23 @@
 [ext_resource type="Script" path="res://scripts/apps/community/community_app.gd" id="1_script"]
 [ext_resource type="Theme" path="res://resources/themes/browser_light.tres" id="2_theme"]
 
-[sub_resource type="StyleBoxFlat" id="header_style"]
-bg_color = Color(0.118, 0.161, 0.247, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_left = 10
-corner_radius_bottom_right = 10
+[sub_resource type="StyleBoxFlat" id="header_bg"]
+bg_color = Color(1, 1, 1, 1)
+border_width_bottom = 1
+border_color = Color(0.898, 0.906, 0.918, 1)
 
-[sub_resource type="StyleBoxFlat" id="status_style"]
-bg_color = Color(0.145, 0.188, 0.278, 1)
+[sub_resource type="StyleBoxFlat" id="tab_bg"]
+bg_color = Color(1, 1, 1, 1)
+border_width_bottom = 1
+border_color = Color(0.898, 0.906, 0.918, 1)
+
+[sub_resource type="StyleBoxFlat" id="bottom_bg"]
+bg_color = Color(1, 1, 1, 1)
+border_width_top = 1
+border_color = Color(0.898, 0.906, 0.918, 1)
+
+[sub_resource type="StyleBoxFlat" id="status_chip"]
+bg_color = Color(1, 1, 1, 1)
 corner_radius_top_left = 8
 corner_radius_top_right = 8
 corner_radius_bottom_left = 8
@@ -34,114 +42,215 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.96, 0.957, 0.949, 1)
+color = Color(0.984, 0.969, 0.973, 1)
 
-[node name="RootMargin" type="MarginContainer" parent="."]
+[node name="MainVBox" type="VBoxContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_bottom = 16
+theme_override_constants/separation = 0
 
-[node name="RootVBox" type="VBoxContainer" parent="RootMargin"]
+[node name="HeaderPanel" type="PanelContainer" parent="MainVBox"]
 layout_mode = 2
-theme_override_constants/separation = 14
+theme_override_styles/panel = SubResource("header_bg")
 
-[node name="HeaderPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
-layout_mode = 2
-theme_override_styles/panel = SubResource("header_style")
-
-[node name="HeaderMargin" type="MarginContainer" parent="RootMargin/RootVBox/HeaderPanel"]
+[node name="HeaderMargin" type="MarginContainer" parent="MainVBox/HeaderPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 20
-theme_override_constants/margin_top = 18
+theme_override_constants/margin_top = 14
 theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 18
+theme_override_constants/margin_bottom = 12
 
-[node name="HeaderVBox" type="VBoxContainer" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin"]
+[node name="HeaderHBox" type="HBoxContainer" parent="MainVBox/HeaderPanel/HeaderMargin"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 10
 
-[node name="TitleLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderVBox"]
+[node name="BrandVBox" type="VBoxContainer" parent="MainVBox/HeaderPanel/HeaderMargin/HeaderHBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 1)
-theme_override_font_sizes/font_size = 26
-text = "社区广场"
+theme_override_constants/separation = 2
 
-[node name="SubtitleLabel" type="Label" parent="RootMargin/RootVBox/HeaderPanel/HeaderMargin/HeaderVBox"]
+[node name="TitleLabel" type="Label" parent="MainVBox/HeaderPanel/HeaderMargin/HeaderHBox/BrandVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.68, 0.78, 1)
-theme_override_font_sizes/font_size = 14
-text = "论坛、比赛消息、宣传——看看大家在聊什么。"
-autowrap_mode = 3
+theme_override_colors/font_color = Color(0.067, 0.094, 0.141, 1)
+theme_override_font_sizes/font_size = 22
+text = "千度贴吧"
 
-[node name="ContentStack" type="Control" parent="RootMargin/RootVBox"]
+[node name="SubtitleLabel" type="Label" parent="MainVBox/HeaderPanel/HeaderMargin/HeaderHBox/BrandVBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.447, 0.502, 1)
+theme_override_font_sizes/font_size = 12
+text = "千万吧友在线交流"
+
+[node name="HeaderSpacer" type="Control" parent="MainVBox/HeaderPanel/HeaderMargin/HeaderHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PagesContainer" type="MarginContainer" parent="MainVBox"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="FeedScroll" type="ScrollContainer" parent="RootMargin/RootVBox/ContentStack"]
+[node name="HomePage" type="VBoxContainer" parent="MainVBox/PagesContainer"]
 unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
+layout_mode = 2
+
+[node name="HomeScroll" type="ScrollContainer" parent="MainVBox/PagesContainer/HomePage"]
+layout_mode = 2
+size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="FeedVBox" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll"]
+[node name="HomePadding" type="MarginContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll"]
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_constants/separation = 14
+size_flags_vertical = 3
+theme_override_constants/margin_left = 14
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 14
+theme_override_constants/margin_bottom = 12
 
-[node name="ActionsSection" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox"]
+[node name="HomeVBox" type="VBoxContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding"]
 layout_mode = 2
-theme_override_constants/separation = 10
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
 
-[node name="ActionsTitle" type="Label" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/ActionsSection"]
+[node name="HeroBanner" type="MarginContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox"]
 layout_mode = 2
-text = "今日动态"
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 4
+theme_override_constants/margin_bottom = 0
 
-[node name="ActionsContainer" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/ActionsSection"]
+[node name="LogoVBox" type="VBoxContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox/HeroBanner"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="LogoLabel" type="Label" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox/HeroBanner/LogoVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.388, 0.4, 0.945, 1)
+theme_override_font_sizes/font_size = 22
+text = "千度贴吧"
+
+[node name="TaglineLabel" type="Label" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox/HeroBanner/LogoVBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.42, 0.447, 0.502, 1)
+theme_override_font_sizes/font_size = 13
+text = "挑一个板块，刷帖、看帖、发帖。"
+
+[node name="ActionsMargin" type="MarginContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox"]
+layout_mode = 2
+theme_override_constants/margin_left = 4
+theme_override_constants/margin_right = 4
+
+[node name="ActionsContainer" type="VBoxContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox/ActionsMargin"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 10
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
 
-[node name="HistorySection" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox"]
+[node name="StatusPanel" type="PanelContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_styles/panel = SubResource("status_chip")
 
-[node name="HistoryTitle" type="Label" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/HistorySection"]
+[node name="StatusMargin" type="MarginContainer" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox/StatusPanel"]
 layout_mode = 2
-text = "浏览足迹"
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 5
 
-[node name="HistoryContainer" type="VBoxContainer" parent="RootMargin/RootVBox/ContentStack/FeedScroll/FeedVBox/HistorySection"]
+[node name="StatusLabel" type="Label" parent="MainVBox/PagesContainer/HomePage/HomeScroll/HomePadding/HomeVBox/StatusPanel/StatusMargin"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_colors/font_color = Color(0.42, 0.447, 0.502, 1)
+theme_override_font_sizes/font_size = 13
+text = ""
+autowrap_mode = 3
 
-[node name="StatusPanel" type="PanelContainer" parent="RootMargin/RootVBox"]
+[node name="FeedPage" type="VBoxContainer" parent="MainVBox/PagesContainer"]
+unique_name_in_owner = true
+visible = false
 layout_mode = 2
-theme_override_styles/panel = SubResource("status_style")
 
-[node name="StatusMargin" type="MarginContainer" parent="RootMargin/RootVBox/StatusPanel"]
+[node name="TabBarPanel" type="PanelContainer" parent="MainVBox/PagesContainer/FeedPage"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("tab_bg")
+
+[node name="TabBarMargin" type="MarginContainer" parent="MainVBox/PagesContainer/FeedPage/TabBarPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 16
-theme_override_constants/margin_top = 10
+theme_override_constants/margin_top = 0
 theme_override_constants/margin_right = 16
-theme_override_constants/margin_bottom = 10
+theme_override_constants/margin_bottom = 0
 
-[node name="StatusLabel" type="Label" parent="RootMargin/RootVBox/StatusPanel/StatusMargin"]
+[node name="TabBar" type="HBoxContainer" parent="MainVBox/PagesContainer/FeedPage/TabBarPanel/TabBarMargin"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(0.65, 0.72, 0.82, 1)
+theme_override_constants/separation = 0
+
+[node name="FeedScroll" type="ScrollContainer" parent="MainVBox/PagesContainer/FeedPage"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="FeedPadding" type="MarginContainer" parent="MainVBox/PagesContainer/FeedPage/FeedScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="FeedContainer" type="VBoxContainer" parent="MainVBox/PagesContainer/FeedPage/FeedScroll/FeedPadding"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="BottomNav" type="PanelContainer" parent="MainVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("bottom_bg")
+
+[node name="BottomNavMargin" type="MarginContainer" parent="MainVBox/BottomNav"]
+layout_mode = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 8
+
+[node name="BottomNavHBox" type="HBoxContainer" parent="MainVBox/BottomNav/BottomNavMargin"]
+layout_mode = 2
+theme_override_constants/separation = 48
+alignment = 1
+
+[node name="NavHomeButton" type="Button" parent="MainVBox/BottomNav/BottomNavMargin/BottomNavHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "首页"
+flat = true
+theme_override_colors/font_color = Color(0.388, 0.4, 0.945, 1)
+theme_override_colors/font_hover_color = Color(0.388, 0.4, 0.945, 0.8)
+theme_override_colors/font_pressed_color = Color(0.388, 0.4, 0.945, 1)
+theme_override_colors/font_focus_color = Color(0.388, 0.4, 0.945, 1)
 theme_override_font_sizes/font_size = 14
-text = "选一个感兴趣的开始刷。"
+
+[node name="NavFeedButton" type="Button" parent="MainVBox/BottomNav/BottomNavMargin/BottomNavHBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "历史帖子"
+flat = true
+theme_override_colors/font_color = Color(0.611, 0.639, 0.686, 1)
+theme_override_colors/font_hover_color = Color(0.611, 0.639, 0.686, 0.8)
+theme_override_colors/font_pressed_color = Color(0.611, 0.639, 0.686, 1)
+theme_override_colors/font_focus_color = Color(0.611, 0.639, 0.686, 1)
+theme_override_font_sizes/font_size = 14
 
 [node name="LoadingView" type="Control" parent="."]
 unique_name_in_owner = true
@@ -155,14 +264,14 @@ grow_vertical = 2
 clip_contents = true
 mouse_filter = 2
 
-[node name="LoadingBackground" type="ColorRect" parent="LoadingView"]
+[node name="LoadingBg" type="ColorRect" parent="LoadingView"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.96, 0.957, 0.949, 1)
+color = Color(0.945, 0.949, 0.957, 1)
 
 [node name="LoadingMargin" type="MarginContainer" parent="LoadingView"]
 layout_mode = 1
@@ -171,36 +280,50 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
+theme_override_constants/margin_left = 0
+theme_override_constants/margin_top = 0
+theme_override_constants/margin_right = 0
+theme_override_constants/margin_bottom = 0
 
 [node name="LoadingVBox" type="VBoxContainer" parent="LoadingView/LoadingMargin"]
 layout_mode = 2
 size_flags_vertical = 3
-theme_override_constants/separation = 12
+theme_override_constants/separation = 0
 
-[node name="LoadingScroll" type="ScrollContainer" parent="LoadingView/LoadingMargin/LoadingVBox"]
+[node name="LoadingHeader" type="PanelContainer" parent="LoadingView/LoadingMargin/LoadingVBox"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("header_bg")
+
+[node name="LoadingHeaderMargin" type="MarginContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingHeader"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 14
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 14
+
+[node name="LoadingHeaderLabel" type="Label" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingHeader/LoadingHeaderMargin"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.067, 0.094, 0.141, 1)
+theme_override_font_sizes/font_size = 20
+text = "千度贴吧 · 正在加载…"
+
+[node name="LoadingScrollPadding" type="MarginContainer" parent="LoadingView/LoadingMargin/LoadingVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="LoadingScroll" type="ScrollContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScrollPadding"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 vertical_scroll_mode = 3
 
-[node name="LoadingContent" type="HBoxContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScroll"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 10
-
-[node name="LeftCol" type="VBoxContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScroll/LoadingContent"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 10
-
-[node name="RightCol" type="VBoxContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScroll/LoadingContent"]
+[node name="LoadingList" type="VBoxContainer" parent="LoadingView/LoadingMargin/LoadingVBox/LoadingScrollPadding/LoadingScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3

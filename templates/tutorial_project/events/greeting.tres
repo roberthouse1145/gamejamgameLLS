@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="AVGEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_command.gd" id="1_4grul"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_event.gd" id="2_d4chm"]
+
+[sub_resource type="Resource" id="cmd_1"]
+script = ExtResource("1_4grul")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "[Event Start] This is a reusable event!"
+}
+
+[sub_resource type="Resource" id="cmd_2"]
+script = ExtResource("1_4grul")
+command_type = "SET_VARIABLE"
+params = {
+"operation": "add",
+"value": 5,
+"variable_name": "score"
+}
+
+[sub_resource type="Resource" id="cmd_3"]
+script = ExtResource("1_4grul")
+command_type = "DIALOGUE"
+params = {
+"speaker": "",
+"text": "[Event End] Score +5 from event. Returning..."
+}
+
+[resource]
+script = ExtResource("2_d4chm")
+event_id = "greeting"
+event_name = "Greeting Event"
+commands = [SubResource("cmd_1"), SubResource("cmd_2"), SubResource("cmd_3")]

@@ -1,0 +1,7 @@
+res://resources/data/lore/agj_rules.txt
+res://resources/data/lore/geography.txt
+res://resources/data/lore/global.txt
+res://resources/data/lore/npc_lin_xia.txt
+res://resources/data/lore/platforms.txt
+res://resources/data/lore/player_character.txt
+res://resources/data/lore/social_context.txt

@@ -21,3 +21,4 @@ sprites = {
 }
 default_outfit = "cos"
 available_outfits = Array[String](["cos"])
+display_offset = Vector2(0, 0.15)

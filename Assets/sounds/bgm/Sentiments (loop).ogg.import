@@ -13,7 +13,7 @@ dest_files=["res://.godot/imported/Sentiments (loop).ogg-ac15668c3c1fe12d17e7366
 [params]
 
 loop=true
-loop_offset=0
-bpm=0
+loop_offset=0.0
+bpm=0.0
 beat_count=0
 bar_beats=4

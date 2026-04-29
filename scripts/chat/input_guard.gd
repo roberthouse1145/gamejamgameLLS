@@ -33,7 +33,6 @@ var _analyze_mutex: bool = false
 func _ready() -> void:
 	_ai_service = AIService.new()
 	_ai_service.timeout = GUARD_TIMEOUT
-	_ai_service.default_max_tokens = 96
 	_ai_service.default_temperature = 0.0
 	_ai_service.max_retries = 0
 	add_child(_ai_service)
@@ -74,7 +73,6 @@ func analyze(text: String) -> Dictionary:
 
 	_pending = true
 	_pending_request_id = _ai_service.chat_simple(text, _system_prompt, {
-		"max_tokens": 96,
 		"temperature": 0.0,
 	})
 

@@ -5,6 +5,7 @@ class_name HideImageHandler
 ## 参数:
 ##   image_id: 要隐藏的图片标识（对应 SHOW_IMAGE 的 image_id）
 ##   fade_duration: 淡出时间（秒），0=立即隐藏
+##   transition: 隐藏方式（fade / instant）
 
 const ParamDef = preload("res://scripts/avg/commands/param_definition.gd")
 
@@ -36,6 +37,15 @@ func _create_schema() -> ParamSchemaClass:
 		"淡出时长"
 	))
 
+	schema.add_param(ParamDef.choices_param(
+		"transition",
+		["", "fade", "instant"],
+		"Hide transition mode",
+		false,
+		"",
+		"切换"
+	))
+
 	return schema
 
 
@@ -45,11 +55,13 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 		return CommandResultClass.error("image_id is required")
 
 	var fade_duration: float = _get_param(command, "fade_duration", 0.0)
+	var transition: String = _get_param(command, "transition", "")
 
 	if context.scene_runner != null and context.scene_runner.has_method("hide_image"):
-		context.scene_runner.hide_image(image_id, fade_duration)
+		context.scene_runner.hide_image(image_id, fade_duration, transition)
 
 	return CommandResultClass.ok({
 		"image_id": image_id,
 		"fade_duration": fade_duration,
+		"transition": transition,
 	})

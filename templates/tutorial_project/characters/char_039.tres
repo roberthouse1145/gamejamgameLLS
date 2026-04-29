@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_0dm55"]
+
+[resource]
+script = ExtResource("1_0dm55")
+character_id = "char_039"
+character_name = "Hero18"
+display_name = "Hero18"
+sprites = {
+"angry": "assets/images/character/hero18/hero_18_cos04.png",
+"default": "assets/images/character/hero18/hero_18_cos01.png",
+"happy": "assets/images/character/hero18/hero_18_cos19.png",
+"laugh": "assets/images/character/hero18/hero_18_cos12.png",
+"sad": "assets/images/character/hero18/hero_18_cos10.png",
+"serious": "assets/images/character/hero18/hero_18_cos02.png",
+"smug": "assets/images/character/hero18/hero_18_cos14.png",
+"surprised": "assets/images/character/hero18/hero_18_cos15.png",
+"thinking": "assets/images/character/hero18/hero_18_cos09.png",
+"worried": "assets/images/character/hero18/hero_18_cos20.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "04",
+"default": "01",
+"happy": "19",
+"laugh": "12",
+"sad": "10",
+"serious": "02",
+"smug": "14",
+"surprised": "15",
+"thinking": "09",
+"worried": "20"
+}
+profile = "邪魅狂野的魔族少年，青绿短发，异色瞳，身披毛领黑外套，长着尖角与深色长尾"
+display_offset = Vector2(0, 0.15)

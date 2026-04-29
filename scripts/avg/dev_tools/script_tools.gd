@@ -17,9 +17,11 @@ static func register_all(ai_service: Node) -> void:
 			"scene_id": {"type": "string", "description": "场景 ID（如 scene_001）"}
 		},
 		"required": ["scene_id"]
-	}, func(args: Dictionary) -> Variant: return _get_scene_script(args))
+	}, func(args: Dictionary) -> Variant: return _get_scene_script(args), {
+		"fields": ["success", "data.scene_id", "data.dsl", "error"]
+	})
 
-	ai_service.register_tool("set_scene_script", "写入场景的 DSL 脚本。支持 replace（全替换）和 patch（片段替换）两种模式", {
+	ai_service.register_tool("set_scene_script", "写入场景的 DSL 脚本。支持 replace（全替换）和 patch（片段替换）两种模式。DSL 中出现的未定义变量 key 会自动创建，默认优先按 int 初始化；如果首次使用就是字符串字面量，会自动推断为 string。当前变量系统只允许 int / string：布尔请用 0/1，float 会被截断成 int。混用 string 和 int 做比较时会在返回结果里给 warning，运行时会把空字符串视为 0、非空字符串视为 1。", {
 		"type": "object",
 		"properties": {
 			"scene_id": {"type": "string", "description": "场景 ID"},
@@ -33,7 +35,9 @@ static func register_all(ai_service: Node) -> void:
 			"new_dsl": {"type": "string", "description": "patch 模式：替换后的新 DSL 片段"}
 		},
 		"required": ["scene_id", "mode"]
-	}, func(args: Dictionary) -> Variant: return _set_scene_script(args))
+	}, func(args: Dictionary) -> Variant: return _set_scene_script(args), {
+		"fields": ["success", "message", "error"]
+	})
 
 
 static func register_read_only(ai_service: Node) -> void:
@@ -43,7 +47,9 @@ static func register_read_only(ai_service: Node) -> void:
 			"scene_id": {"type": "string", "description": "场景 ID（如 scene_001）"}
 		},
 		"required": ["scene_id"]
-	}, func(args: Dictionary) -> Variant: return _get_scene_script(args))
+	}, func(args: Dictionary) -> Variant: return _get_scene_script(args), {
+		"fields": ["success", "data.scene_id", "data.dsl", "error"]
+	})
 
 
 # =============================================================================
@@ -64,7 +70,7 @@ static func _get_scene_script(args: Dictionary) -> Dictionary:
 	if root == null:
 		return {"success": false, "error": "场景没有 Root 节点"}
 
-	var dsl: String = AVGDevDBTools.get_root_dsl(scene)
+	var dsl: String = AVGDevDBTools.get_root_dsl(scene, project)
 	return {"success": true, "data": {"scene_id": scene_id, "dsl": dsl}}
 
 
@@ -90,14 +96,14 @@ static func _set_scene_script(args: Dictionary) -> Dictionary:
 
 	match mode:
 		"replace":
-			return _set_script_replace(root, args)
+			return _set_script_replace(project, scene, root, args)
 		"patch":
-			return _set_script_patch(root, args)
+			return _set_script_patch(project, scene, root, args)
 		_:
 			return {"success": false, "error": "未知模式: " + mode}
 
 
-static func _set_script_replace(root: Resource, args: Dictionary) -> Dictionary:
+static func _set_script_replace(project: Resource, scene: Resource, root: Resource, args: Dictionary) -> Dictionary:
 	var dsl: String = args.get("dsl", "")
 	if dsl.is_empty():
 		# 清空脚本
@@ -110,11 +116,24 @@ static func _set_script_replace(root: Resource, args: Dictionary) -> Dictionary:
 	if not result.success:
 		return {"success": false, "error": "DSL 解析失败: " + str(result.errors)}
 
+	var ensure_result: Dictionary = AVGDevDBTools.ensure_variables_for_commands(project, result.commands)
+	var auto_created_keys: Array = ensure_result.get("created_keys", [])
+
 	root.command_tabs = [ {"mode": 0, "condition_type": 0, "commands": result.commands, "condition_commands": []}]
+	var placeholder_result: Dictionary = AVGDevDBTools.ensure_placeholder_scenes_for_commands(project, scene, result.commands)
+	AVGDevDBTools.clear_placeholder_marker_if_implemented(scene)
 
 	# 语义验证：检查资产引用是否存在
 	var validation: Dictionary = _run_semantic_validation(result.commands)
 	var msg: String = "脚本已替换（%d 条命令）" % result.commands.size()
+	if not auto_created_keys.is_empty():
+		msg += "\n\n已自动创建变量: %s" % ", ".join(PackedStringArray(auto_created_keys))
+	var placeholder_scene_ids: Array = placeholder_result.get("created_scene_ids", [])
+	if not placeholder_scene_ids.is_empty():
+		msg += "\n\n已自动创建占位场景: %s" % ", ".join(PackedStringArray(placeholder_scene_ids))
+	var skipped_placeholder_scene_ids: Array = placeholder_result.get("skipped_invalid_scene_ids", [])
+	if not skipped_placeholder_scene_ids.is_empty():
+		msg += "\n\n⚠ 未自动创建以下跳转目标（scene_id 格式非法）: %s" % ", ".join(PackedStringArray(skipped_placeholder_scene_ids))
 	if not validation.errors.is_empty():
 		msg += "\n\n⚠️ 语义验证发现 %d 个问题（脚本已保存，建议用 patch 模式修复）：" % validation.errors.size()
 		for e in validation.errors:
@@ -126,7 +145,7 @@ static func _set_script_replace(root: Resource, args: Dictionary) -> Dictionary:
 	return {"success": true, "message": msg}
 
 
-static func _set_script_patch(root: Resource, args: Dictionary) -> Dictionary:
+static func _set_script_patch(project: Resource, scene: Resource, root: Resource, args: Dictionary) -> Dictionary:
 	var old_dsl: String = args.get("old_dsl", "")
 	var new_dsl: String = args.get("new_dsl", "")
 
@@ -138,7 +157,7 @@ static func _set_script_patch(root: Resource, args: Dictionary) -> Dictionary:
 	var current_commands: Array = []
 	if "command_tabs" in root and root.command_tabs.size() > 0:
 		current_commands = root.command_tabs[0].get("commands", [])
-	var current_dsl: String = serializer.serialize(current_commands)
+	var current_dsl: String = serializer.serialize(current_commands, 0, AVGDevDBTools._build_variable_lookup(project))
 
 	# 查找替换
 	var normalized_current: String = _normalize_dsl(current_dsl)
@@ -163,11 +182,24 @@ static func _set_script_patch(root: Resource, args: Dictionary) -> Dictionary:
 	if not result.success:
 		return {"success": false, "error": "Patch 后 DSL 解析失败: " + str(result.errors)}
 
+	var ensure_result: Dictionary = AVGDevDBTools.ensure_variables_for_commands(project, result.commands)
+	var auto_created_keys: Array = ensure_result.get("created_keys", [])
+
 	root.command_tabs = [ {"mode": 0, "condition_type": 0, "commands": result.commands, "condition_commands": []}]
+	var placeholder_result: Dictionary = AVGDevDBTools.ensure_placeholder_scenes_for_commands(project, scene, result.commands)
+	AVGDevDBTools.clear_placeholder_marker_if_implemented(scene)
 
 	# 语义验证
 	var validation: Dictionary = _run_semantic_validation(result.commands)
 	var msg: String = "脚本已 patch（%d 条命令）" % result.commands.size()
+	if not auto_created_keys.is_empty():
+		msg += "\n\n已自动创建变量: %s" % ", ".join(PackedStringArray(auto_created_keys))
+	var placeholder_scene_ids: Array = placeholder_result.get("created_scene_ids", [])
+	if not placeholder_scene_ids.is_empty():
+		msg += "\n\n已自动创建占位场景: %s" % ", ".join(PackedStringArray(placeholder_scene_ids))
+	var skipped_placeholder_scene_ids: Array = placeholder_result.get("skipped_invalid_scene_ids", [])
+	if not skipped_placeholder_scene_ids.is_empty():
+		msg += "\n\n⚠ 未自动创建以下跳转目标（scene_id 格式非法）: %s" % ", ".join(PackedStringArray(skipped_placeholder_scene_ids))
 	if not validation.errors.is_empty():
 		msg += "\n\n⚠️ 语义验证发现 %d 个问题（脚本已保存，建议用 patch 模式修复）：" % validation.errors.size()
 		for e in validation.errors:
@@ -247,8 +279,21 @@ static func _run_semantic_validation(commands: Array) -> Dictionary:
 	if project == null:
 		return {"errors": [], "warnings": ["无法获取项目信息，跳过语义验证"]}
 
+	var storage_manager: Node = AVGDevDBTools.get_autoload("StorageManager")
+	if storage_manager != null and storage_manager.has_method("clear_asset_manifest_cache"):
+		storage_manager.clear_asset_manifest_cache()
+	else:
+		AVGDSLValidatorClass.AVGAssetManifestClass.clear_cache()
+
 	var validator = AVGDSLValidatorClass.new()
 	var project_root: String = AVGDSLValidatorClass.AVGAssetManifestClass.get_project_root_from_project(project)
 	var result: Dictionary = validator.validate_commands(commands, project, project_root)
+	var warnings: Array = result.get("warnings", []).duplicate()
+	if not result.get("errors", []).is_empty():
+		var current_project_path: String = ""
+		if storage_manager != null and "current_project_path" in storage_manager:
+			current_project_path = str(storage_manager.get("current_project_path")).strip_edges()
+		warnings.append("验证使用 project_root_path=%s, current_project_path=%s" % [project_root, current_project_path])
+		result["warnings"] = warnings
 
 	return {"errors": result.get("errors", []), "warnings": result.get("warnings", [])}

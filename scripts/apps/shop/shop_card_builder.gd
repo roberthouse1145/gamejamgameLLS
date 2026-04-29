@@ -158,7 +158,7 @@ static func build_order_card(order: Dictionary) -> Control:
 	row.add_child(price_label)
 
 	var status_label := Label.new()
-	status_label.text = "配送中" if is_shipping else "已送达"
+	status_label.text = "配送中" if is_shipping else "已入库"
 	status_label.add_theme_font_size_override("font_size", 13)
 	status_label.add_theme_color_override("font_color", C_SHIPPING if is_shipping else C_DELIVERED)
 	status_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER

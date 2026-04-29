@@ -29,6 +29,7 @@ const GENERATION_PROMPT_KEY: String = "sbeam_catalog_generation"
 var _seed_pool: Array[Dictionary] = []
 var _catalog: Array[Dictionary] = []
 var _pending_next_day_catalog: Array[Dictionary] = []
+var _owned_game_ids: Dictionary = {}
 var _catalog_generator: Node = null
 var _catalog_llm_enabled: bool = false
 var _catalog_request_id: String = ""
@@ -53,9 +54,6 @@ func _on_manager_ready() -> void:
 	_load_seed_pool()
 	_load_initial_catalog()
 	_setup_catalog_ai_service()
-	# Async pre-generate Day 2 catalog
-	var current_day: int = ActivityUtilsClass.get_current_day()
-	_generate_next_day_catalog(current_day + 1)
 
 
 func _get_activity_type() -> String:
@@ -72,13 +70,19 @@ func _find_entry(entry_id: String) -> Dictionary:
 
 ## Override begin_session to handle price/stat checks before AP consumption.
 ## We do this by overriding the full public API method instead.
-func begin_play_session(game_id: String) -> Dictionary:
+func begin_play_session(game_id: String, skip_departure: bool = false) -> Dictionary:
 	var entry: Dictionary = _find_catalog_entry(game_id)
 	if entry.is_empty():
 		var err := "未找到对应的游戏条目"
 		play_session_failed.emit(err)
 		session_failed.emit(err)
 		return {"success": false, "error": err}
+
+	if is_game_owned(game_id):
+		var owned_err := "该游戏已在库存里"
+		play_session_failed.emit(owned_err)
+		session_failed.emit(owned_err)
+		return {"success": false, "error": owned_err}
 
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
@@ -87,7 +91,7 @@ func begin_play_session(game_id: String) -> Dictionary:
 		session_failed.emit(err)
 		return {"success": false, "error": err}
 
-	var price: int = int(entry.get("price", 0))
+	var price: int = _resolve_game_price(entry)
 	if int(gm.money) < price:
 		var err := "钱不够，今晚先别冲动消费"
 		play_session_failed.emit(err)
@@ -106,10 +110,12 @@ func begin_play_session(game_id: String) -> Dictionary:
 		"reaction_summary": _build_reaction_summary(entry),
 	}
 
-	var result := begin_session(game_id, _build_download_duration(entry))
+	var result := begin_session(game_id, _build_download_duration(entry), skip_departure)
 	_pending_sbeam_context = {}
 
 	if result.get("success", false):
+		_owned_game_ids[game_id] = true
+		catalog_refreshed.emit(get_catalog())
 		var sid: String = str(result.get("session_id", ""))
 		play_session_started.emit(sid, result)
 	else:
@@ -126,10 +132,12 @@ var _pending_sbeam_context: Dictionary = {}
 
 func _build_session(_session_id: String, _entry_id: String, entry: Dictionary) -> Dictionary:
 	var ctx: Dictionary = _pending_sbeam_context
+	var price: int = int(ctx.get("price", _resolve_game_price(entry)))
+	var game: Dictionary = _normalize_catalog_entry(entry)
 	return {
 		"game_id": str(entry.get("game_id", _entry_id)),
-		"game": entry.duplicate(true),
-		"price": int(ctx.get("price", entry.get("price", 0))),
+		"game": game,
+		"price": price,
 		"stat_changes": (ctx.get("stat_changes", {}) as Dictionary).duplicate(true),
 		"reaction_summary": str(ctx.get("reaction_summary", _build_reaction_summary(entry))),
 		"scene_window_title": "一起玩: %s" % str(entry.get("title", "今晚游戏时间")),
@@ -138,7 +146,11 @@ func _build_session(_session_id: String, _entry_id: String, entry: Dictionary) -
 
 
 func _on_session_begin(session: Dictionary) -> void:
-	_send_player_game_panel(session.get("game", session.get("entry", {})))
+	var game: Dictionary = session.get("game", session.get("entry", {}))
+	if str(session.get("session_origin", "")).strip_edges() == "npc_initiative":
+		_send_game_panel(game, "npc_lin_xia", "我翻到这个，想和你一起玩。")
+		return
+	_send_game_panel(game, "player")
 
 
 func _get_display_label(session: Dictionary) -> String:
@@ -176,43 +188,20 @@ func _ready() -> void:
 # Topic / Prompt Building
 # =============================================================================
 
-func _build_topic_prompt(session: Dictionary, stage: String) -> String:
-	var game: Dictionary = session.get("game", {})
-	var title := str(game.get("title", "未命名游戏")).strip_edges()
-	var pitch := str(game.get("pitch", "")).strip_edges()
-	var hook_moment := str(game.get("hook_moment", "")).strip_edges()
-	var reaction_summary := str(session.get("reaction_summary", "")).strip_edges()
-	var include_scene_context: bool = stage != "departure"
-	var scene_outline := str(session.get("scene_outline", "")).strip_edges()
-	var scene_result: Dictionary = session.get("scene_result", {})
-	var parts: Array[String] = [
-		"你是林夏。",
-		"今晚玩家通过 SBEAM 发来了一款一起玩的游戏邀请。",
-		"游戏标题: %s" % title,
-	]
-	if not pitch.is_empty():
-		parts.append("作品印象: %s" % pitch)
-	if not hook_moment.is_empty():
-		parts.append("最容易触发情绪的片段: %s" % hook_moment)
-	if not reaction_summary.is_empty():
-		parts.append("整体体验基调: %s" % reaction_summary)
-	if include_scene_context and not scene_result.is_empty():
-		parts.append("刚才场景里玩家的接话选择: %s" % str(scene_result.get("choice_text", "")))
-	if include_scene_context and not scene_outline.is_empty():
-		parts.append("刚才 AVG 场景的文本摘要:\n%s" % scene_outline)
-	match stage:
-		"departure":
-			parts.append("背景：你们同居在校外公寓，现在玩家在家里拉你一起玩游戏。")
-			parts.append("当前时刻: 玩家刚发来游戏面板，准备拉你一起玩。")
-			parts.append("你现在只需要回一条准备开始前的即时短消息。")
-			parts.append("不要提前总结游玩结果，也不要把话题扯去项目开发。")
-		"followup":
-			parts.append("当前时刻: 这一轮一起玩的过程已经结束。")
-			parts.append("你现在只需要发一条玩完后的 followup 短消息。")
-			parts.append("不要写评测，不要讲系统术语，不要像任务汇报。")
-		_:
-			parts.append("请发送一条自然短消息。")
-	return "\n".join(parts)
+func _build_topic_prompt(_session: Dictionary, stage: String) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm == null:
+		return ""
+	var key := ""
+	if stage == "departure":
+		key = "activity_topic_departure"
+	elif stage == "followup":
+		key = "activity_topic_followup"
+	else:
+		return ""
+	return str(pm.resolve_with_vars(key, {
+		"activity_type_label": "一起在家玩游戏",
+	})).strip_edges()
 
 
 func _build_topic_goal(stage: String) -> String:
@@ -223,20 +212,65 @@ func _build_topic_goal(stage: String) -> String:
 	return "发送一条简短自然的消息"
 
 
-func _build_seed_message(stage: String) -> String:
+func _build_seed_message(stage: String, session: Dictionary = {}) -> String:
 	if stage == "departure":
-		return "请直接根据当前话题发送准备开始前的回复。"
+		return _build_departure_seed_message(session)
 	if stage == "followup":
-		return "请直接根据当前话题发送玩完后的回复。"
+		return _build_followup_seed_message(session)
 	return "请根据当前话题直接回复。"
 
 
+func _build_departure_seed_message(session: Dictionary) -> String:
+	var game: Dictionary = session.get("game", {})
+	var title: String = str(game.get("title", "")).strip_edges()
+	var pitch: String = str(game.get("pitch", "")).strip_edges()
+	var hook_moment: String = str(game.get("hook_moment", "")).strip_edges()
+	var parts: Array[String] = ["[本次玩家邀请一起玩的游戏卡片公开信息]"]
+	if not title.is_empty():
+		parts.append("- 游戏标题：《%s》" % title)
+	if not pitch.is_empty():
+		parts.append("- 商店页简介：%s" % pitch)
+	if not hook_moment.is_empty():
+		parts.append("- 商店页亮点：%s" % hook_moment)
+	parts.append("- 背景：你们同居在校外公寓，玩家在家里拉你一起玩。")
+	parts.append("")
+	parts.append("请按 departure 规则回一条准备开始前的短消息。")
+	return "\n".join(parts)
+
+
+func _build_followup_seed_message(session: Dictionary) -> String:
+	var game: Dictionary = session.get("game", {})
+	var title: String = str(game.get("title", "")).strip_edges()
+	var reaction_summary: String = str(session.get("reaction_summary", "")).strip_edges()
+	var scene_outline: String = str(session.get("scene_outline", "")).strip_edges()
+	var scene_result: Dictionary = session.get("scene_result", {})
+	var choice_text: String = str(scene_result.get("choice_text", "")).strip_edges()
+	var parts: Array[String] = ["[本次刚一起玩完的游戏]"]
+	if not title.is_empty():
+		parts.append("- 游戏标题：《%s》" % title)
+	if not reaction_summary.is_empty():
+		parts.append("- 整体体验基调：%s" % reaction_summary)
+	if not choice_text.is_empty():
+		parts.append("- 玩的时候你的关键接话：%s" % choice_text)
+	if not scene_outline.is_empty():
+		parts.append("- 实际游玩过程概要：")
+		parts.append(scene_outline)
+	parts.append("")
+	parts.append("请按 followup 规则回一条玩完后的短消息。")
+	return "\n".join(parts)
+
+
 # =============================================================================
-# Moment Prompt Building (NEW — fixes missing moment bug)
+# Moment Prompt Building
 # =============================================================================
 
 func _build_moment_system_prompt() -> String:
-	return "你是林夏。你要发一条刚和搭档一起玩完游戏后的朋友圈。只返回一条中文纯文本动态，不要 JSON，不要解释，不要加引号，不要超过 36 字。"
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm == null:
+		return "你是林夏。你要发一条刚和搭档一起玩完游戏后的朋友圈。只返回一条中文纯文本动态，不超过 36 字。"
+	return str(pm.resolve_with_vars("activity_moment_system", {
+		"activity_type_label": "一起在家玩游戏",
+	})).strip_edges()
 
 
 func _build_moment_user_prompt(session: Dictionary) -> String:
@@ -247,18 +281,17 @@ func _build_moment_user_prompt(session: Dictionary) -> String:
 	var scene_outline := str(session.get("scene_outline", "")).strip_edges()
 	var scene_result: Dictionary = session.get("scene_result", {})
 	var parts: Array[String] = [
-		"刚一起玩完的游戏: 《%s》" % title,
+		"刚一起玩完的游戏：《%s》" % title,
 	]
 	if not pitch.is_empty():
-		parts.append("作品印象: %s" % pitch)
+		parts.append("作品印象：%s" % pitch)
 	if not reaction_summary.is_empty():
-		parts.append("整体体验基调: %s" % reaction_summary)
+		parts.append("整体体验基调：%s" % reaction_summary)
 	if not scene_result.is_empty():
-		parts.append("玩的时候的互动选择: %s" % str(scene_result.get("choice_text", "")))
+		parts.append("玩的时候的互动选择：%s" % str(scene_result.get("choice_text", "")))
 	if not scene_outline.is_empty():
-		parts.append("AVG 场景文本摘要:\n%s" % scene_outline)
-	parts.append("请根据上面的游戏信息和体验，自行判断最自然的朋友圈语气。")
-	parts.append("输出一条像随手发出的朋友圈，不要提系统，不要写成长文。")
+		parts.append("AVG 场景文本摘要：\n%s" % scene_outline)
+	parts.append("写一条像随手发出的朋友圈，不超过 36 字。")
 	return "\n".join(parts)
 
 
@@ -301,24 +334,39 @@ func _build_local_moment_text(session: Dictionary) -> String:
 # Player Game Panel
 # =============================================================================
 
-func _send_player_game_panel(game: Dictionary) -> void:
+func send_npc_invite_game_panel(game_id: String, content: String = "我翻到这个，想和你一起玩。") -> void:
+	var game := _find_catalog_entry(game_id)
+	if game.is_empty():
+		return
+	_send_game_panel(game, "npc_lin_xia", content)
+
+
+func _send_game_panel(game: Dictionary, sender_id: String = "player", content: String = "") -> void:
 	var chat: Node = ActivityUtilsClass.get_chat_manager()
-	if chat == null or not chat.has_method("store_player_message_data"):
+	if chat == null:
 		return
 	var subtitle := "%s · %s" % [str(game.get("genre", "未知类型")), str(game.get("publisher", "独立发行"))]
-	var footer := "¥ %d · 推荐给你" % int(game.get("price", 0))
-	chat.store_player_message_data(ActivityChatClass.DM_CHANNEL_ID, {
-		"speaker": "player",
+	var price_text := "¥ %d" % _resolve_game_price(game)
+	var message_data := {
+		"speaker": sender_id,
+		"content": content,
 		"card": {
 			"type": "game",
 			"title": str(game.get("title", "未命名作品")),
 			"subtitle": subtitle,
 			"body": str(game.get("pitch", "来看看这个。")),
-			"footer": footer,
+			"price": price_text,
+			"footer": "推荐给你",
 			"badge": "SBEAM 邀请",
 			"accent_color": "#66c0f4",
 		}
-	})
+	}
+	if sender_id == "player":
+		if chat.has_method("store_player_message_data"):
+			chat.store_player_message_data(ActivityChatClass.DM_CHANNEL_ID, message_data)
+		return
+	if chat.has_method("store_npc_message_data"):
+		chat.store_npc_message_data(ActivityChatClass.DM_CHANNEL_ID, message_data)
 
 
 # =============================================================================
@@ -328,8 +376,21 @@ func _send_player_game_panel(game: Dictionary) -> void:
 func get_catalog() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for cat_entry in _catalog:
-		result.append((cat_entry as Dictionary).duplicate(true))
+		var entry: Dictionary = (cat_entry as Dictionary).duplicate(true)
+		entry["is_owned"] = is_game_owned(str(entry.get("game_id", "")))
+		result.append(entry)
 	return result
+
+
+func pre_generate_next_day_catalog() -> void:
+	_generate_next_day_catalog(ActivityUtilsClass.get_current_day() + 1)
+
+
+func is_game_owned(game_id: String) -> bool:
+	var normalized_id := game_id.strip_edges()
+	if normalized_id.is_empty():
+		return false
+	return bool(_owned_game_ids.get(normalized_id, false))
 
 
 func get_featured_game() -> Dictionary:
@@ -344,6 +405,7 @@ func get_run_state() -> Dictionary:
 	return {
 		"catalog": _catalog.duplicate(true),
 		"pending_next_day_catalog": _pending_next_day_catalog.duplicate(true),
+		"owned_game_ids": _owned_game_ids.keys(),
 	}
 
 
@@ -351,13 +413,21 @@ func load_run_state(data: Dictionary) -> bool:
 	_catalog.clear()
 	for item in data.get("catalog", []):
 		if item is Dictionary:
-			_catalog.append((item as Dictionary).duplicate(true))
+			_catalog.append(_normalize_catalog_entry(item as Dictionary))
 	_pending_next_day_catalog.clear()
 	var saved_pending: Variant = data.get("pending_next_day_catalog", [])
 	if saved_pending is Array:
 		for item in (saved_pending as Array):
 			if item is Dictionary:
-				_pending_next_day_catalog.append((item as Dictionary).duplicate(true))
+				_pending_next_day_catalog.append(_normalize_catalog_entry(item as Dictionary))
+	_owned_game_ids.clear()
+	var saved_owned: Variant = data.get("owned_game_ids", [])
+	if saved_owned is Array:
+		for raw_game_id in (saved_owned as Array):
+			var owned_game_id := str(raw_game_id).strip_edges()
+			if owned_game_id.is_empty():
+				continue
+			_owned_game_ids[owned_game_id] = true
 	_is_generating_catalog = false
 	_catalog_request_id = ""
 	if _catalog_generator != null and _catalog_generator.has_method("clear_pending_requests"):
@@ -372,6 +442,7 @@ func load_run_state(data: Dictionary) -> bool:
 func _on_reset_runtime_state() -> void:
 	_catalog.clear()
 	_pending_next_day_catalog.clear()
+	_owned_game_ids.clear()
 	_is_generating_catalog = false
 	_catalog_request_id = ""
 	if _catalog_generator != null and _catalog_generator.has_method("clear_pending_requests"):
@@ -400,7 +471,7 @@ func _on_day_changed(new_day: int) -> void:
 	if not _pending_next_day_catalog.is_empty():
 		_catalog.clear()
 		for item in _pending_next_day_catalog:
-			_catalog.append(item.duplicate(true))
+			_catalog.append(_normalize_catalog_entry(item))
 		_pending_next_day_catalog.clear()
 		# Mark featured
 		_mark_featured_game()
@@ -441,6 +512,8 @@ func _generate_next_day_catalog(target_day: int) -> void:
 	var sys_prompt := "Output only [SBEAM_GAME] ... [/SBEAM_GAME] blocks. No JSON. No markdown. No explanations."
 	_catalog_request_id = _catalog_generator.request_text(prompt, sys_prompt, {
 		"target_day": target_day,
+	}, {
+		"prompt_key": GENERATION_PROMPT_KEY,
 	})
 	if _catalog_request_id.is_empty():
 		_is_generating_catalog = false
@@ -490,9 +563,7 @@ func _load_initial_catalog() -> void:
 		_load_seed_pool()
 	_catalog.clear()
 	for i in range(mini(CATALOG_SIZE, _seed_pool.size())):
-		var entry: Dictionary = _seed_pool[i].duplicate(true)
-		entry["game_id"] = str(entry.get("game_id", "sbeam_%02d" % i))
-		entry["source_type"] = "seed_pool"
+		var entry := _normalize_catalog_entry(_seed_pool[i], "sbeam_%02d" % i, "seed_pool")
 		_catalog.append(entry)
 	_mark_featured_game()
 	catalog_refreshed.emit(get_catalog())
@@ -556,7 +627,7 @@ func _normalize_sbeam_item(raw: Dictionary, target_day: int, local_index: int) -
 			"upvotes": randi_range(5, 300),
 			"review": parts[3].strip_edges(),
 		})
-	return {
+	return _normalize_catalog_entry({
 		"game_id": game_id,
 		"title": title,
 		"genre": str(raw.get("genre", "独立游戏")).strip_edges(),
@@ -574,7 +645,7 @@ func _normalize_sbeam_item(raw: Dictionary, target_day: int, local_index: int) -
 		"user_reviews": user_reviews,
 		"is_featured_today": false,
 		"source_type": "llm_block",
-	}
+	})
 
 
 func _load_generation_prompt(target_day: int) -> String:
@@ -590,8 +661,38 @@ func _load_generation_prompt(target_day: int) -> String:
 func _find_catalog_entry(game_id: String) -> Dictionary:
 	for cat_entry in _catalog:
 		if str((cat_entry as Dictionary).get("game_id", "")) == game_id:
-			return (cat_entry as Dictionary).duplicate(true)
+			return _normalize_catalog_entry(cat_entry as Dictionary)
 	return {}
+
+
+func _normalize_catalog_entry(raw_entry: Dictionary, fallback_game_id: String = "", source_type: String = "") -> Dictionary:
+	var entry := raw_entry.duplicate(true)
+	if not fallback_game_id.is_empty():
+		entry["game_id"] = str(entry.get("game_id", fallback_game_id))
+	if not source_type.is_empty():
+		entry["source_type"] = str(entry.get("source_type", source_type))
+	var price := _resolve_game_price(entry)
+	entry["price"] = price
+	var rewards: Dictionary = {}
+	var raw_rewards: Variant = entry.get("rewards", {})
+	if raw_rewards is Dictionary:
+		rewards = (raw_rewards as Dictionary).duplicate(true)
+	if not rewards.has("money"):
+		rewards["money"] = -price
+	entry["rewards"] = rewards
+	return entry
+
+
+func _resolve_game_price(entry: Dictionary) -> int:
+	var explicit_price := int(entry.get("price", 0))
+	if explicit_price > 0:
+		return explicit_price
+	var raw_rewards: Variant = entry.get("rewards", {})
+	if raw_rewards is Dictionary:
+		var rewards := raw_rewards as Dictionary
+		if rewards.has("money"):
+			return maxi(0, -int(rewards.get("money", 0)))
+	return maxi(0, explicit_price)
 
 
 func _build_stat_changes(cat_entry: Dictionary) -> Dictionary:
@@ -611,5 +712,5 @@ func _build_reaction_summary(cat_entry: Dictionary) -> String:
 
 
 func _build_download_duration(cat_entry: Dictionary) -> float:
-	var price_factor: float = clampf(float(int(cat_entry.get("price", 0))) / 68.0, 0.0, 1.6)
+	var price_factor: float = clampf(float(_resolve_game_price(cat_entry)) / 68.0, 0.0, 1.6)
 	return DEFAULT_DOWNLOAD_DURATION + price_factor

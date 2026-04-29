@@ -7,5 +7,3 @@ VS Code Chat UI 在渲染超长 + 格式复杂的 markdown 时有 bug，具体�
 - 这不是我使用了任何前缀或隐藏技巧
 
 后续策略：长内容我会直接写入文件，聊天中只做简要说明。
-
-报告文件已生成在：docs/worker_agent_system_report.md

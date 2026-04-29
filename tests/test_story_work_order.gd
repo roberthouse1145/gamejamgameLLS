@@ -31,7 +31,6 @@ func _run_test() -> void:
 		"type": "dispatch_work_order",
 		"title": "完成{project_name}的概案",
 		"description": "根据讨论结果整理策划案。项目名称：{project_name}",
-		"assignee": "npc_lin_xia",
 		"priority": 3,
 		"save_order_id": "test_order_id",
 	}
@@ -67,12 +66,12 @@ func _run_test() -> void:
 		print("FAIL: Test1c - 插值异常: %s" % t)
 		fail_count += 1
 
-	# 验证 assignee 和 priority
-	if order != null and order.assignee_npc_id == "npc_lin_xia" and order.priority == 3:
-		print("PASS: Test1d - assignee/priority 正确")
+	# 验证 priority
+	if order != null and order.priority == 3:
+		print("PASS: Test1d - priority 正确")
 		pass_count += 1
 	else:
-		print("FAIL: Test1d - assignee/priority 异常")
+		print("FAIL: Test1d - priority 异常")
 		fail_count += 1
 
 	# --- Test 2: dispatch_work_order 缺少 title 的错误处理 ---
@@ -102,7 +101,6 @@ func _run_test() -> void:
 	var action2: Dictionary = {
 		"type": "generate_work_order",
 		"prompt": "为{project_name}创建一个角色设计任务",
-		"assignee": "npc_lin_xia",
 		"priority": 2,
 		"role": "work_order",
 		"save_order_id": "gen_order_id",

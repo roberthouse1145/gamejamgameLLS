@@ -59,15 +59,15 @@ static func pick_activity_variant(data: Dictionary) -> String:
 
 
 static func extract_topic_summary(result: Dictionary) -> String:
-	var summary := str(result.get("summary", "")).replace("[TOPIC_COMPLETE]", "").strip_edges()
+	var summary := str(result.get("summary", "")).replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "").strip_edges()
 	if not summary.is_empty():
 		return summary
 	var messages: Variant = result.get("messages", [])
 	if messages is Array and not messages.is_empty():
 		var last_msg: Variant = messages[-1]
 		if last_msg is Dictionary:
-			return str(last_msg.get("content", "")).replace("[TOPIC_COMPLETE]", "").strip_edges()
-		return str(last_msg).replace("[TOPIC_COMPLETE]", "").strip_edges()
+			return str(last_msg.get("content", "")).replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "").strip_edges()
+		return str(last_msg).replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "").strip_edges()
 	return ""
 
 

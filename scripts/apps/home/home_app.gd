@@ -2,6 +2,7 @@ class_name HomeApp
 extends Control
 
 const ActivityPreviewHintClass = preload("res://scripts/ui/activity_preview/activity_preview_hint.gd")
+const UIIconLibraryClass = preload("res://scripts/ui/ui_icon_library.gd")
 
 ## Sleep App — 结束一天的唯一入口
 ## 玩家点击「睡觉」后，HomeActivityManager 执行 rest 流程，推进到次日。
@@ -16,6 +17,9 @@ const COLOR_ACTION := Color("#6B88E8")
 const COLOR_ACTION_HOVER := Color("#8EA3F0")
 const COLOR_DISABLED := Color("#353E60")
 const COLOR_TRANSIT_FILL := Color("#6B88E8")
+const COLOR_STRESS_LOW := Color("#80D8B8")
+const COLOR_STRESS_MID := Color("#E9C46A")
+const COLOR_STRESS_HIGH := Color("#F07178")
 const TRANSIT_STAGES: Array[String] = [
 	"正在入睡...",
 	"进入梦乡...",
@@ -28,10 +32,12 @@ var _game_manager: Node = null
 
 var _status_label: Label = null
 var _stress_label: Label = null
+var _stress_bar: ProgressBar = null
 var _sleep_button: Button = null
 var _sleep_preview_hint: Node = null
 var _message_label: Label = null
 var _progress_bar: ProgressBar = null
+var _button_tween: Tween = null
 var _active_session_id: String = ""
 var _transit_progress: float = 0.0
 
@@ -124,8 +130,19 @@ func _build_ui() -> void:
 	_stress_label.add_theme_color_override("font_color", COLOR_MUTED)
 	vbox.add_child(_stress_label)
 
+	_stress_bar = ProgressBar.new()
+	_stress_bar.min_value = 0.0
+	_stress_bar.max_value = 100.0
+	_stress_bar.value = 0.0
+	_stress_bar.show_percentage = false
+	_stress_bar.custom_minimum_size = Vector2(0, 7)
+	_stress_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_stress_bar.add_theme_stylebox_override("background", _make_meter_style(Color("#263052"), 4))
+	_stress_bar.add_theme_stylebox_override("fill", _make_meter_style(COLOR_STRESS_LOW, 4))
+	vbox.add_child(_stress_bar)
+
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 10)
+	spacer.custom_minimum_size = Vector2(0, 4)
 	vbox.add_child(spacer)
 
 	_sleep_button = Button.new()
@@ -135,6 +152,8 @@ func _build_ui() -> void:
 	_sleep_button.custom_minimum_size.y = 54
 	_sleep_button.add_theme_font_size_override("font_size", 20)
 	_apply_button_style(_sleep_button, true)
+	_sleep_button.mouse_entered.connect(_on_sleep_button_hovered.bind(true))
+	_sleep_button.mouse_exited.connect(_on_sleep_button_hovered.bind(false))
 	_sleep_button.pressed.connect(_on_sleep_pressed)
 	_sleep_preview_hint = ActivityPreviewHintClass.new()
 	_sleep_button.add_child(_sleep_preview_hint)
@@ -169,6 +188,8 @@ func _build_ui() -> void:
 
 func _connect_signals() -> void:
 	if _game_loop != null:
+		if _game_loop.has_signal("ap_changed"):
+			_game_loop.ap_changed.connect(func(_current: Variant, _max_ap: Variant) -> void: _refresh())
 		if _game_loop.has_signal("phase_changed"):
 			_game_loop.phase_changed.connect(func(_p: Variant) -> void: _refresh())
 		if _game_loop.has_signal("day_changed"):
@@ -203,16 +224,27 @@ func _refresh() -> void:
 		_stress_label.text = "压力 %d" % stress
 	else:
 		_stress_label.text = "状态不错，压力 %d" % stress
+	_update_stress_meter(stress)
 
-	var busy = _home_manager != null and _home_manager.has_method("has_any_pending_sessions") and _home_manager.has_any_pending_sessions()
-	_sleep_button.disabled = busy
-	_apply_button_style(_sleep_button, not busy)
+	var availability: Dictionary = _get_rest_availability()
+	var busy: bool = _home_manager != null and _home_manager.has_method("has_any_pending_sessions") and _home_manager.has_any_pending_sessions()
+	var enabled: bool = bool(availability.get("enabled", false)) and not busy
+	var disabled_reason: String = str(availability.get("reason", "")).strip_edges()
+	_sleep_button.disabled = not enabled
+	_apply_button_style(_sleep_button, enabled)
 	if busy:
 		_sleep_button.text = "正在入睡..."
-	else:
+	elif enabled:
 		_sleep_button.text = "进入梦乡"
+	else:
+		_sleep_button.text = "暂时不能休息"
 
-	_message_label.text = "休息一下，恢复精力"
+	if busy:
+		_message_label.text = "休息一下，恢复精力"
+	elif not disabled_reason.is_empty():
+		_message_label.text = disabled_reason
+	else:
+		_message_label.text = "休息一下，恢复精力"
 
 
 func _on_sleep_pressed() -> void:
@@ -233,7 +265,6 @@ func _on_activity_completed(_activity_id: String, payload: Dictionary) -> void:
 	_progress_bar.value = 0.0
 	_active_session_id = ""
 	_transit_progress = 0.0
-	_close_transit_window()
 	_refresh()
 	_message_label.text = _build_completion_message(payload)
 
@@ -242,7 +273,6 @@ func _on_session_failed(error_message: String) -> void:
 	_progress_bar.visible = false
 	_progress_bar.value = 0.0
 	_active_session_id = ""
-	_close_transit_window()
 	_message_label.text = "失败: %s" % error_message
 	_refresh()
 
@@ -251,8 +281,6 @@ func _on_transit_started(session_id: String, _payload: Dictionary) -> void:
 	if session_id != _active_session_id:
 		return
 	_transit_progress = 0.0
-	_show_transit_window()
-	set_process(true)
 
 
 func _on_rest_progress_updated(session_id: String, progress: float, _scene_ready: bool = false) -> void:
@@ -261,11 +289,6 @@ func _on_rest_progress_updated(session_id: String, progress: float, _scene_ready
 	_transit_progress = progress
 	_progress_bar.visible = true
 	_progress_bar.value = progress * 100.0
-	if _transit_progress_bar != null:
-		_transit_progress_bar.value = progress * 100.0
-	if progress >= 1.0:
-		_close_transit_window()
-		set_process(false)
 
 
 func _process(_delta: float) -> void:
@@ -347,9 +370,12 @@ func _show_transit_window() -> void:
 	var eta_hbox := HBoxContainer.new()
 	box.add_child(eta_hbox)
 
-	var eta_icon := Label.new()
-	eta_icon.text = "🌙"
-	eta_icon.add_theme_font_size_override("font_size", 14)
+	var eta_icon := TextureRect.new()
+	eta_icon.texture = UIIconLibraryClass.get_icon("night")
+	eta_icon.custom_minimum_size = Vector2(16, 16)
+	eta_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	eta_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	eta_icon.modulate = COLOR_ACTION
 	eta_hbox.add_child(eta_icon)
 
 	_transit_eta_label = Label.new()
@@ -449,14 +475,35 @@ func _format_signed_int(value: int) -> String:
 
 func _build_sleep_preview_payload() -> Dictionary:
 	var rewards: Dictionary = {}
+	var availability: Dictionary = _get_rest_availability()
 	if _home_manager != null and _home_manager.has_method("get_activity_preview_rewards"):
 		rewards = _home_manager.get_activity_preview_rewards("rest")
 
 	return {
 		"title": "休息",
 		"rewards": rewards,
-		"text": "结束当前时段，进入休息流程。",
+		"text": "结束当前时段，恢复状态并推进时间。",
+		"conditions": [_build_rest_condition_text()],
+		"disabled_reason": str(availability.get("reason", "")).strip_edges() if not bool(availability.get("enabled", false)) else "",
 	}
+
+
+func _get_rest_availability() -> Dictionary:
+	if _home_manager == null or not _home_manager.has_method("get_available_activities") or _game_loop == null:
+		return {"enabled": false, "reason": "系统未就绪"}
+	var phase_name: String = str(_game_loop.get_phase_name(_game_loop.time_phase)).strip_edges()
+	var activities: Array = _home_manager.get_available_activities(phase_name)
+	for activity in activities:
+		if not activity is Dictionary:
+			continue
+		var activity_dict: Dictionary = activity
+		if str(activity_dict.get("activity_id", "")).strip_edges() != "rest":
+			continue
+		return {
+			"enabled": bool(activity_dict.get("enabled", false)),
+			"reason": str(activity_dict.get("disabled_reason", "")).strip_edges(),
+		}
+	return {"enabled": false, "reason": "当前不可休息"}
 
 
 func _apply_button_style(button: Button, enabled: bool) -> void:
@@ -480,3 +527,40 @@ func _make_button_style(bg_color: Color) -> StyleBoxFlat:
 	style.content_margin_top = 12
 	style.content_margin_bottom = 12
 	return style
+
+
+func _make_meter_style(bg_color: Color, radius: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.set_corner_radius_all(radius)
+	return style
+
+
+func _update_stress_meter(stress: int) -> void:
+	if _stress_bar == null:
+		return
+	_stress_bar.value = stress
+	var fill_color := COLOR_STRESS_LOW
+	if stress >= 70:
+		fill_color = COLOR_STRESS_HIGH
+	elif stress >= 40:
+		fill_color = COLOR_STRESS_MID
+	_stress_bar.add_theme_stylebox_override("fill", _make_meter_style(fill_color, 4))
+
+
+func _build_rest_condition_text() -> String:
+	if _game_loop == null:
+		return "系统未就绪"
+	return "当前：第%d天 · %s" % [int(_game_loop.get("current_day")), _format_phase()]
+
+
+func _on_sleep_button_hovered(is_hovered: bool) -> void:
+	if _sleep_button == null or _sleep_button.disabled:
+		return
+	if _button_tween != null and is_instance_valid(_button_tween):
+		_button_tween.kill()
+	_sleep_button.pivot_offset = _sleep_button.size * 0.5
+	_button_tween = create_tween()
+	_button_tween.set_trans(Tween.TRANS_CUBIC)
+	_button_tween.set_ease(Tween.EASE_OUT)
+	_button_tween.tween_property(_sleep_button, "scale", Vector2(1.025, 1.025) if is_hovered else Vector2.ONE, 0.12)

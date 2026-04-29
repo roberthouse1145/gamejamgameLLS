@@ -16,3 +16,12 @@ class_name NPCCharacter extends Resource
 
 ## 初始好感度
 @export_range(0, 100) var initial_affection: int = 50
+
+## 项目上下文访问范围
+## none: 普通聊天对象，不知道项目知识库/工单/开发进度
+## collaborator: 协作搭档，可引用项目共享上下文
+@export_enum("none", "collaborator") var project_context_scope: String = "none"
+
+
+func can_access_project_context() -> bool:
+	return project_context_scope == "collaborator"

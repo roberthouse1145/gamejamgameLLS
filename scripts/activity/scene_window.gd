@@ -36,7 +36,7 @@ static func _open_player_window(title: String, playback_callback: Callable, play
 	var player: Control = _find_player(window)
 	if player == null:
 		if app_manager.has_method("close_app"):
-			app_manager.close_app(APP_ID, true)
+			app_manager.close_app(APP_ID)
 		return {}
 
 	_configure_window(window, title)
@@ -143,4 +143,4 @@ static func force_close() -> void:
 		return
 	var app_manager: Node = tree.root.get_node_or_null("/root/AppManager")
 	if app_manager != null and app_manager.has_method("close_app"):
-		app_manager.close_app(APP_ID, true)
+		app_manager.close_app(APP_ID)

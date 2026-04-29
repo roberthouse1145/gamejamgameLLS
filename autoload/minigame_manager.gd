@@ -12,6 +12,16 @@ extends Node
 const MinigameBaseClass = preload("res://scripts/minigame/minigame_base.gd")
 const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
 const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
+const MinigameContentServiceClass = preload("res://scripts/minigame/minigame_content_service.gd")
+
+const REVIEW_TYPE_DESC_FALLBACKS := {
+	"typing_code": "搭档刚刚在 IDE 里清理飘落的代码关键字，努力稳住工程",
+	"find_bugs": "搭档刚刚在做 QA 测试（查找和修复游戏中的 Bug）",
+	"emotion_tag": "搭档刚刚给一批台词做了情绪标注，帮忙校准角色演出的情感基调",
+	"script_fill": "搭档刚刚补完了这场戏里的几个关键空位，给剧本留下了自己的文字印记",
+	"creative_decision": "搭档刚刚和林夏一起做了几轮创意决策，推进了关键方向的讨论",
+	"structured_form": "搭档刚刚把一份结构化方案填完并提交给你确认",
+}
 
 #region 信号
 ## 小游戏启动
@@ -42,11 +52,17 @@ var _used_standalone_window: bool = false
 var _pending_review_topic_id: String = ""
 var _pending_review_task_id: String = ""
 var _pending_review_result: Dictionary = {}
+## 产出型小游戏素材生成服务
+var _content_service: Node = null
+## 正在准备中的产出型小游戏任务
+var _pending_generated_task: Dictionary = {}
+var _pending_generated_request_id: String = ""
 #endregion
 
 
 func _ready() -> void:
 	_register_default_minigames()
+	_setup_content_service()
 	ActivityLockUtilsClass.register_free_period_blocker(
 		name,
 		self,
@@ -80,15 +96,32 @@ func get_registered_types() -> Array[String]:
 
 ## 是否有小游戏正在运行
 func is_running() -> bool:
-	return _current_minigame != null and is_instance_valid(_current_minigame)
+	return (
+		(_current_minigame != null and is_instance_valid(_current_minigame))
+		or not _pending_generated_task.is_empty()
+		or not _chat_task_data.is_empty()
+	)
+
+
+func _setup_content_service() -> void:
+	_content_service = MinigameContentServiceClass.new()
+	_content_service.name = "MinigameContentService"
+	add_child(_content_service)
+	_content_service.content_ready.connect(_on_generated_content_ready)
 
 
 ## 启动小游戏（在独立窗口中打开）
-## task_data: dev_work_tasks.json 中的任务条目
+## task_data: 当前 DevCycleManager 下发的任务条目
 ## 返回是否成功启动
 func start_minigame(task_data: Dictionary) -> bool:
 	if is_running():
 		push_warning("[MinigameManager] A minigame is already running")
+		return false
+
+	var busy_reason := ActivityLockUtilsClass.get_blocking_reason(self)
+	if not busy_reason.is_empty():
+		push_warning("[MinigameManager] Blocked by busy source: %s" % busy_reason)
+		ActivityLockUtilsClass.notify_blocked(self, busy_reason)
 		return false
 
 	var narrative_reason := ActivityLockUtilsClass.get_narrative_blocking_reason("minigame")
@@ -105,6 +138,43 @@ func start_minigame(task_data: Dictionary) -> bool:
 	if not _registry.has(minigame_type):
 		push_warning("[MinigameManager] Unknown minigame type: %s" % minigame_type)
 		return false
+
+	if _is_generated_minigame_type(minigame_type):
+		return _start_generated_minigame(task_data)
+
+	var launched: bool = _launch_minigame_instance(task_data, {})
+	if launched:
+		minigame_started.emit(str(task_data.get("task_id", "")), minigame_type)
+	return launched
+
+
+func _is_generated_minigame_type(minigame_type: String) -> bool:
+	return minigame_type == "script_fill" or minigame_type == "emotion_tag"
+
+
+func _start_generated_minigame(task_data: Dictionary) -> bool:
+	var task_id: String = str(task_data.get("task_id", ""))
+	var window_title: String = str(task_data.get("title", "开发任务"))
+	if not _open_loading_window(window_title, "正在根据当前项目内容生成任务…"):
+		push_warning("[MinigameManager] Failed to open loading window")
+		return false
+
+	_pending_generated_task = task_data.duplicate(true)
+	if _content_service == null:
+		push_warning("[MinigameManager] Content service unavailable, using empty generated content")
+		if not _launch_generated_minigame_from_content({}, true, "content_service_missing"):
+			review_completed.emit(task_id, {"cancelled": true})
+			return false
+	else:
+		_pending_generated_request_id = _content_service.request_content(_pending_generated_task)
+
+	print("[MinigameManager] Preparing generated minigame: %s (type: %s)" % [task_id, str(task_data.get("minigame_type", ""))])
+	minigame_started.emit(task_id, str(task_data.get("minigame_type", "")))
+	return true
+
+
+func _launch_minigame_instance(task_data: Dictionary, generated_content: Dictionary) -> bool:
+	var minigame_type: String = str(task_data.get("minigame_type", ""))
 
 	var scene_path: String = _registry[minigame_type]
 	if not ResourceLoader.exists(scene_path):
@@ -145,11 +215,12 @@ func start_minigame(task_data: Dictionary) -> bool:
 		"day": _get_current_day(),
 		"heroine_mood": _get_heroine_mood(),
 	}
+	if not generated_content.is_empty():
+		config["generated_content"] = generated_content
 	_current_minigame.setup(config)
 
 	var task_id: String = str(task_data.get("task_id", ""))
 	print("[MinigameManager] Started minigame: %s (type: %s)" % [task_id, minigame_type])
-	minigame_started.emit(task_id, minigame_type)
 	return true
 
 
@@ -171,11 +242,19 @@ func _open_minigame_window(title: String, content: Control) -> bool:
 
 	_used_standalone_window = true
 
-	# 设置窗口大小并居中
+	# 设置窗口大小并居中：固定舒适尺寸（1280x800），若屏幕太小则回退到 70% 视口
 	_minigame_window.custom_minimum_size = Vector2(960, 640)
+	var preferred_size: Vector2 = Vector2(1280, 800)
 	var viewport := _minigame_window.get_viewport()
 	if viewport != null:
-		_minigame_window.size = viewport.get_visible_rect().size * 0.85
+		var vp_size: Vector2 = viewport.get_visible_rect().size
+		var max_size: Vector2 = vp_size * 0.7
+		_minigame_window.size = Vector2(
+			minf(preferred_size.x, max_size.x),
+			minf(preferred_size.y, max_size.y)
+		)
+	else:
+		_minigame_window.size = preferred_size
 	if _minigame_window.has_method("center_in_screen"):
 		_minigame_window.center_in_screen()
 
@@ -186,6 +265,44 @@ func _open_minigame_window(title: String, content: Control) -> bool:
 		_minigame_window.set_minimize_locked(true)
 
 	return true
+
+
+func _open_loading_window(title: String, message: String) -> bool:
+	var loading_root := Control.new()
+	loading_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	var bg := ColorRect.new()
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color("#101623")
+	loading_root.add_child(bg)
+
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	loading_root.add_child(center)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(560, 220)
+	center.add_child(panel)
+
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 14)
+	panel.add_child(box)
+
+	var headline := Label.new()
+	headline.text = title
+	headline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	headline.add_theme_font_size_override("font_size", 28)
+	box.add_child(headline)
+
+	var status := Label.new()
+	status.text = message
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status.add_theme_font_size_override("font_size", 15)
+	box.add_child(status)
+
+	return _open_minigame_window(title, loading_root)
 
 
 ## 关闭小游戏窗口
@@ -216,6 +333,13 @@ func _close_minigame_window() -> void:
 
 ## 强制停止当前小游戏
 func force_stop() -> void:
+	if not _pending_generated_task.is_empty():
+		var task_id: String = str(_pending_generated_task.get("task_id", ""))
+		_close_minigame_window()
+		_used_standalone_window = false
+		_cleanup_pending_generated_task()
+		review_completed.emit(task_id, {"cancelled": true})
+		return
 	if _current_minigame != null and is_instance_valid(_current_minigame):
 		_current_minigame.cancel()
 
@@ -284,6 +408,42 @@ func _cleanup() -> void:
 	_used_standalone_window = false
 
 
+func _cleanup_pending_generated_task() -> void:
+	_pending_generated_task = {}
+	_pending_generated_request_id = ""
+
+
+func _on_generated_content_ready(
+	request_id: String,
+	task_id: String,
+	_minigame_type: String,
+	content: Dictionary,
+	used_fallback: bool,
+	error_message: String
+) -> void:
+	if _pending_generated_request_id != request_id:
+		return
+	if str(_pending_generated_task.get("task_id", "")) != task_id:
+		return
+	_launch_generated_minigame_from_content(content, used_fallback, error_message)
+
+
+func _launch_generated_minigame_from_content(content: Dictionary, used_fallback: bool, error_message: String) -> bool:
+	var task_id: String = str(_pending_generated_task.get("task_id", ""))
+	var task_data: Dictionary = _pending_generated_task.duplicate(true)
+	_cleanup_pending_generated_task()
+	_close_minigame_window()
+	_used_standalone_window = false
+
+	if used_fallback:
+		push_warning("[MinigameManager] Generated content fallback used for %s: %s" % [task_id, error_message])
+
+	var launched: bool = _launch_minigame_instance(task_data, content)
+	if not launched:
+		review_completed.emit(task_id, {"cancelled": true})
+	return launched
+
+
 func _get_current_day() -> int:
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm == null:
@@ -305,8 +465,13 @@ func _get_heroine_mood() -> Dictionary:
 ## 注册默认小游戏（后续添加新类型在这里注册）
 func _register_default_minigames() -> void:
 	register_minigame("typing_code", "res://scenes/minigames/typing_code.tscn")
+	register_minigame("find_bugs", "res://scenes/minigames/find_bugs.tscn")
+	register_minigame("code_puzzle", "res://scenes/minigames/code_puzzle.tscn")
+	register_minigame("emotion_tag", "res://scenes/minigames/emotion_tag.tscn")
+	register_minigame("script_fill", "res://scenes/minigames/script_fill.tscn")
+	register_minigame("creative_decision", "res://scenes/minigames/creative_decision.tscn")
+	register_minigame("structured_form", "res://scenes/minigames/structured_form.tscn")
 	# register_minigame("fill_dialogue", "res://scenes/minigames/fill_dialogue.tscn")
-	# register_minigame("find_bugs", "res://scenes/minigames/find_bugs.tscn")
 	# register_minigame("arrange_scene", "res://scenes/minigames/arrange_scene.tscn")
 	# register_minigame("match_bgm", "res://scenes/minigames/match_bgm.tscn")
 	# register_minigame("whack_bugs", "res://scenes/minigames/whack_bugs.tscn")
@@ -323,25 +488,14 @@ func _trigger_review_topic_and_wait(task_id: String, result: Dictionary) -> void
 	var score: float = float(result.get("score", 1.0))
 	var task_title: String = str(_current_task.get("title", "开发任务"))
 	var snippet_title: String = str(result.get("snippet_title", ""))
-	var accuracy: float = float(result.get("accuracy", 1.0))
-	var max_combo: int = int(result.get("max_combo", 0))
-	var _elapsed: float = float(result.get("elapsed", 0.0))
-	var completed_lines: int = int(result.get("completed_lines", 0))
-	var total_lines: int = int(result.get("total_lines", 0))
 	var minigame_type: String = str(_current_task.get("minigame_type", ""))
-	var performance_desc: String = ""
-	if score >= 0.9:
-		performance_desc = "表现非常出色，完成了%d/%d行代码，准确率%.0f%%，最大连击%d" % [completed_lines, total_lines, accuracy * 100.0, max_combo]
-	elif score >= 0.7:
-		performance_desc = "表现还不错，完成了%d/%d行代码，准确率%.0f%%" % [completed_lines, total_lines, accuracy * 100.0]
-	elif score >= 0.5:
-		performance_desc = "表现一般，只完成了%d/%d行代码，准确率%.0f%%" % [completed_lines, total_lines, accuracy * 100.0]
-	else:
-		performance_desc = "表现不太好，只完成了%d/%d行代码，准确率%.0f%%" % [completed_lines, total_lines, accuracy * 100.0]
+	var performance_desc: String = _resolve_review_performance_desc(result, minigame_type, score)
+	var type_desc: String = _resolve_review_type_desc(result, minigame_type)
 
 	var work_desc: String = task_title
 	if not snippet_title.is_empty():
 		work_desc += "（%s）" % snippet_title
+	var creative_summary: String = str(result.get("creative_prompt", "")).strip_edges()
 
 	var topic := ChatTopicClass.new()
 	topic.topic_id = "minigame_review_%d" % int(Time.get_unix_time_from_system())
@@ -349,13 +503,12 @@ func _trigger_review_topic_and_wait(task_id: String, result: Dictionary) -> void
 	topic.display_title = "开发进度汇报"
 	topic.npc_id = "npc_lin_xia"
 	topic.channel_id = "dm_lin_xia"
-	topic.system_prompt = _build_review_prompt(work_desc, performance_desc, score, minigame_type)
+	topic.system_prompt = _build_review_prompt(work_desc, performance_desc, score, type_desc, creative_summary)
 	topic.goal_description = "对玩家刚完成的开发工作做出回应"
 	topic.context_data = {
 		"linkchat_open_mode": "force",
 		"complete_after_first_reply": true,
 	}
-	topic.max_turns = 3
 	topic.timeout_seconds = 0
 
 	if not chat.activate_topic(topic):
@@ -402,8 +555,79 @@ func _on_review_topic_completed(topic, _result: Dictionary) -> void:
 	_pending_review_result = {}
 
 
-## 构建林夏回应的 system prompt
-func _build_review_prompt(work_desc: String, performance_desc: String, score: float, minigame_type: String) -> String:
+func _resolve_review_type_desc(result: Dictionary, minigame_type: String) -> String:
+	var explicit_desc: String = str(result.get("review_type_desc", _current_task.get("review_type_desc", ""))).strip_edges()
+	if not explicit_desc.is_empty():
+		return explicit_desc
+	return str(REVIEW_TYPE_DESC_FALLBACKS.get(minigame_type, "搭档刚刚完成了一项开发工作"))
+
+
+func _resolve_review_performance_desc(result: Dictionary, minigame_type: String, score: float) -> String:
+	var explicit_desc: String = str(result.get("review_performance_desc", _current_task.get("review_performance_desc", ""))).strip_edges()
+	if not explicit_desc.is_empty():
+		return explicit_desc
+	return _build_fallback_review_performance_desc(result, minigame_type, score)
+
+
+func _build_fallback_review_performance_desc(result: Dictionary, minigame_type: String, score: float) -> String:
+	var accuracy: float = float(result.get("accuracy", 1.0))
+	var max_combo: int = int(result.get("max_combo", 0))
+	var completed_lines: int = int(result.get("completed_lines", 0))
+	var total_lines: int = int(result.get("total_lines", 0))
+	var miss_count: int = int(result.get("miss_count", 0))
+	match minigame_type:
+		"typing_code":
+			if score >= 0.9:
+				return "表现非常出色，清掉了%d/%d个飘落关键字，准确率%.0f%%，最大连击%d，几乎没放过任何Bug" % [completed_lines, total_lines, accuracy * 100.0, max_combo]
+			if score >= 0.7:
+				return "表现还不错，清掉了%d/%d个飘落关键字，准确率%.0f%%" % [completed_lines, total_lines, accuracy * 100.0]
+			if score >= 0.5:
+				return "表现一般，清掉了%d/%d个飘落关键字，但漏掉了%d个" % [completed_lines, total_lines, miss_count]
+			return "表现不太好，只清掉了%d/%d个飘落关键字，Bug 堆得有点快" % [completed_lines, total_lines]
+		"find_bugs":
+			var attempts_count: int = int(result.get("attempts", 0))
+			if score >= 0.9:
+				return "表现非常出色，修复了全部%d个Bug，只用了%d次尝试，连续修复%d次" % [total_lines, attempts_count, max_combo]
+			if score >= 0.7:
+				return "表现还不错，修复了%d个Bug，用了%d次尝试" % [total_lines, attempts_count]
+			if score >= 0.5:
+				return "表现一般，修复了%d个Bug，但用了%d次尝试" % [total_lines, attempts_count]
+			return "表现不太好，修复了%d个Bug，效率不太高" % [total_lines]
+		"emotion_tag":
+			var total_items: int = int(result.get("total_items", 0))
+			var correct_count: int = int(result.get("correct_count", 0))
+			if score >= 0.9:
+				return "你几乎把这批句子的情绪都听准了，%d/%d 句没有跑偏。" % [correct_count, total_items]
+			if score >= 0.7:
+				return "你大部分都判断对了，%d/%d 句抓到了情绪落点。" % [correct_count, total_items]
+			if score >= 0.5:
+				return "你先听出了 %d/%d 句的情绪，方向是对的，但还有几句更微妙。" % [correct_count, total_items]
+			return "这批句子的情绪你还没完全听准，目前只有 %d/%d 句判断到位。" % [correct_count, total_items]
+		"script_fill":
+			var slot_count: int = int(result.get("blank_count", result.get("slot_count", 0)))
+			var filled_slots: int = int(result.get("filled_blanks", result.get("filled_slots", 0)))
+			if score >= 0.9:
+				return "你把这场戏的%d/%d处关键空位都补上了，整页稿子已经像能直接排进工程里一样顺了" % [filled_slots, slot_count]
+			if score >= 0.7:
+				return "你补上了%d/%d处关键空位，这场戏已经开始有你自己的味道了" % [filled_slots, slot_count]
+			if score >= 0.5:
+				return "你先补了%d/%d处关键空位，方向有了，但还留着一点没落笔的地方" % [filled_slots, slot_count]
+			return "你只补出了%d/%d处关键空位，像是刚把最难下手的那几处先试着写下来" % [filled_slots, slot_count]
+		"creative_decision":
+			var total_rounds: int = int(result.get("total_rounds", 0))
+			var decision_count: int = int(result.get("decisions", []).size()) if result.get("decisions", []) is Array else 0
+			return "搭档和你一起完成了 %d 轮创意决策，定下了 %d 个关键方向" % [total_rounds, decision_count]
+		_:
+			if score >= 0.9:
+				return "表现非常出色，完成了%d/%d行代码，准确率%.0f%%，最大连击%d" % [completed_lines, total_lines, accuracy * 100.0, max_combo]
+			if score >= 0.7:
+				return "表现还不错，完成了%d/%d行代码，准确率%.0f%%" % [completed_lines, total_lines, accuracy * 100.0]
+			if score >= 0.5:
+				return "表现一般，只完成了%d/%d行代码，准确率%.0f%%" % [completed_lines, total_lines, accuracy * 100.0]
+			return "表现不太好，只完成了%d/%d行代码，准确率%.0f%%" % [completed_lines, total_lines, accuracy * 100.0]
+
+
+func _build_review_prompt(work_desc: String, performance_desc: String, score: float, type_desc: String, creative_summary: String = "") -> String:
 	var mood_hint: String = ""
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm != null and gm.has_method("get_mood_summary"):
@@ -419,18 +643,30 @@ func _build_review_prompt(work_desc: String, performance_desc: String, score: fl
 	else:
 		tone_hint = "搭档做得不太好，你可以吐槽、无奈、或者半开玩笑地嫌弃。"
 
-	var type_desc: String = ""
-	match minigame_type:
-		"typing_code":
-			type_desc = "搭档刚刚在写代码（实现游戏的某个系统模块）"
-		_:
-			type_desc = "搭档刚刚完成了一项开发工作"
+	var creative_block: String = ""
+	if not creative_summary.is_empty():
+		creative_block = "\n【玩家刚写下的内容】\n%s\n" % creative_summary
+
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("has_prompt") and pm.has_method("resolve_with_vars"):
+		if pm.has_prompt("minigame_work_review"):
+			var resolved := str(pm.resolve_with_vars("minigame_work_review", {
+				"work_desc": work_desc,
+				"type_desc": type_desc,
+				"performance_desc": performance_desc,
+				"creative_block": creative_block.strip_edges(),
+				"tone_hint": tone_hint,
+				"mood_hint": mood_hint.strip_edges(),
+			})).strip_edges()
+			if not resolved.is_empty():
+				return resolved
 
 	return """你是林夏，{player_name}的 GameJam 搭档。%s刚完成了一项工作，你要对此做出简短回应。
 
 【工作内容】%s
 【工作类型】%s
 【表现】%s
+%s
 
 %s
 
@@ -438,8 +674,9 @@ func _build_review_prompt(work_desc: String, performance_desc: String, score: fl
 - 用1-2条消息回应，简短自然，像发微信一样
 - 不要复述具体数据（准确率、连击数等），用感性的方式表达
 - 可以评价工作内容本身（比如"存档系统终于搞定了"），也可以评价搭档的状态
+- 如果上面给了“玩家刚写下的内容”，优先像搭档看到了新稿子一样，针对其中一两句做自然反馈
 - 语气要符合你当前的心情和与搭档的关系
-- 回复完毕后在最后一条消息末尾加 [TOPIC_COMPLETE]%s""" % [type_desc, work_desc, type_desc, performance_desc, tone_hint, mood_hint]
+- 回复完毕后在最后一条消息末尾加 [TOPIC_COMPLETE]%s""" % [type_desc, work_desc, type_desc, performance_desc, creative_block, tone_hint, mood_hint]
 
 #endregion
 
@@ -457,11 +694,16 @@ var _chat_task_channel_id: String = ""
 ##   system_prompt: 林夏的对话系统提示词
 ##   kb_category: 注入的 KB 分类（world / characters / story / notes）
 ##   kb_entry_id: 注入的条目 ID（可选，world 类别不需要）
-##   max_turns: 最大对话轮次（默认 6）
 ## 返回是否成功启动
 func start_chat_task(task_data: Dictionary) -> bool:
 	if is_running() or not _chat_task_data.is_empty():
 		push_warning("[MinigameManager] A task is already running")
+		return false
+
+	var busy_reason := ActivityLockUtilsClass.get_blocking_reason(self)
+	if not busy_reason.is_empty():
+		push_warning("[MinigameManager] Blocked by busy source: %s" % busy_reason)
+		ActivityLockUtilsClass.notify_blocked(self, busy_reason)
 		return false
 
 	var narrative_reason := ActivityLockUtilsClass.get_narrative_blocking_reason("minigame")
@@ -484,8 +726,6 @@ func start_chat_task(task_data: Dictionary) -> bool:
 	var task_id: String = str(task_data.get("task_id", ""))
 	var task_title: String = str(task_data.get("title", "讨论"))
 	var sys_prompt: String = str(topic_config.get("system_prompt", ""))
-	var max_turns: int = int(topic_config.get("max_turns", 6))
-
 	var topic := ChatTopicClass.new()
 	topic.topic_id = "chat_task_%s_%d" % [task_id, int(Time.get_unix_time_from_system())]
 	topic.topic_type = "casual_interaction"
@@ -497,7 +737,6 @@ func start_chat_task(task_data: Dictionary) -> bool:
 	topic.context_data = {
 		"linkchat_open_mode": "force",
 	}
-	topic.max_turns = max_turns
 	topic.timeout_seconds = 0
 
 	if not chat.activate_topic(topic):
@@ -651,7 +890,6 @@ func _dispatch_kb_work_order(task_id: String, conversation_log: String) -> void:
 		"source_type": "dev_task",
 		"source_id": task_id,
 	})
-	order.assignee_npc_id = "npc_lin_xia"
 	order.priority = 3  # 高优先级，玩家刚完成讨论
 
 	var requester_order_id: String = str(_chat_task_data.get("_requester_order_id", ""))

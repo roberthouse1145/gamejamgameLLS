@@ -688,23 +688,16 @@ func _on_apply_pressed() -> void:
 	_reload_jobs()
 
 
-func _on_transit_started(session_id: String, payload: Dictionary) -> void:
+func _on_transit_started(session_id: String, _payload: Dictionary) -> void:
 	if session_id != _active_session_id:
 		return
 	_transit_progress = 0.0
-	_show_transit_window(payload.get("location", {}))
-	set_process(true)
 
 
 func _on_transit_progress_updated(session_id: String, progress: float, _scene_ready: bool) -> void:
 	if session_id != _active_session_id:
 		return
 	_transit_progress = progress
-	if _transit_progress_bar != null:
-		_transit_progress_bar.value = progress * 100.0
-	if progress >= 1.0:
-		_close_transit_window()
-		set_process(false)
 
 
 func _process(_delta: float) -> void:
@@ -836,7 +829,6 @@ func _on_job_completed(session_id: String, payload: Dictionary) -> void:
 
 	_active_session_id = ""
 	_transit_progress = 0.0
-	_close_transit_window()
 	var reward_money: int = _get_money_reward(payload)
 	if _detail_status != null:
 		_detail_status.text = "这班结束了，到手 %d 元。林夏应该也已经在 LinkChat 那边有后续反应了。" % reward_money

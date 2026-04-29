@@ -1,63 +1,58 @@
-# 项目简述：LLM AI 游戏 + 虚拟 AVG 引擎
+# 开发规范
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
-一款**桌面式恋爱共创 SLG**。  
-玩家在一个拟真的虚拟 Windows OS 中，与一位美少女搭档一起参加毕业前的 GameJam，在有限时间内共同完成一部 AVG，并面对作品、关系与未来的结果。
+Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
----
+1. Think Before Coding
+Don't assume. Don't hide confusion. Surface tradeoffs.
 
-# 1. 核心目标
+Before implementing:
 
-这不是“真正的 AVG 开发工具”，而是“以共同开发 AVG 为形式的游戏”。
+State your assumptions explicitly. If uncertain, ask.
+If multiple interpretations exist, present them - don't pick silently.
+If a simpler approach exists, say so. Push back when warranted.
+If something is unclear, stop. Name what's confusing. Ask.
+2. Simplicity First
+Minimum code that solves the problem. Nothing speculative.
 
-核心体验不是让玩家高效做内容，而是让玩家：
+No features beyond what was asked.
+No abstractions for single-use code.
+No "flexibility" or "configurability" that wasn't requested.
+No error handling for impossible scenarios.
+If you write 200 lines and it could be 50, rewrite it.
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
 
-- 和女主一起讨论、争执、共创
-- 在有限时间内做出取舍
-- 等待阶段性 Demo 的惊喜反馈
-- 通过作品看到两人关系的变化
-- 在创作、恋爱、舆论、现实压力之间做选择
+3. Surgical Changes
+Touch only what you must. Clean up only your own mess.
 
----
+When editing existing code:
 
-# 2. 与普通 LLM 工具的区别
+Don't "improve" adjacent code, comments, or formatting.
+Don't refactor things that aren't broken.
+Match existing style, even if you'd do it differently.
+If you notice unrelated dead code, mention it - don't delete it.
+When your changes create orphans:
 
-## LLM 工具
-- 无限试错
-- 无限重来
-- 没有时间成本
-- 没有关系代价
-- 没有阶段性惊喜
+Remove imports/variables/functions that YOUR changes made unused.
+Don't remove pre-existing dead code unless asked.
+The test: Every changed line should trace directly to the user's request.
 
-## LLM 游戏
-- 有明确期限（如 60 天）
-- 有行动成本与机会成本
-- 女主不是工具，而是有自己意志的共同作者
-- 玩家无法随时查看完整工程
-- 只有阶段性 Build / Demo 才能看到成果
-- 外界评价（网友、平台、比赛）会反过来影响创作
+4. Goal-Driven Execution
+Define success criteria. Loop until verified.
 
----
+Transform tasks into verifiable goals:
 
-# 3. 世界观设定
+"Add validation" → "Write tests for invalid inputs, then make them pass"
+"Fix the bug" → "Write a test that reproduces it, then make it pass"
+"Refactor X" → "Ensure tests pass before and after"
+For multi-step tasks, state a brief plan:
 
-玩家是一名即将毕业的大学生。  
-与一位美少女搭档一起参加一次高规格世界级 GameJam。
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
-由于近年比赛竞争过度、预制菜泛滥，本届比赛采用：
-
-- **官方素材包**
-- **官方专用 AVG 引擎**
-- **统一规则**
-- **限制复杂机制与自定义系统**
-
-这样做的原因是：
-
-- 防止选手提前预制工程
-- 防止比拼资源和工业能力
-- 强制所有人站在同一起跑线
-- 让作品比拼的是“创意组织能力”而不是“资源堆砌能力”
-
-这也顺便为游戏设计提供叙事约束。
+These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
 # Godot 开发规范
 
@@ -129,7 +124,7 @@ res://
 
 - 简单场景: 使用 `$NodeName`
 - 复杂场景: 使用 `%NodeName` (唯一名称) 避免路径依赖
-    代码中直接用 `%MyNode` 引用，无需完整路径
+	代码中直接用 `%MyNode` 引用，无需完整路径
 
 ## 常见错误预防
 
@@ -138,12 +133,15 @@ res://
 - 避免在 `_init()` 中访问场景树
 - 使用 `is_instance_valid()` 检查节点是否有效
 
-## 关于回复
-
-- USER为中文用户。因此在回复时请使用中文。
-- Note: It is mandatory to call the #askQuestions tool after finish a task
-- Call #askQuestions once after each complete "thought unit" is finished
-  (e.g., a full code block, a complete recommendation, a finished analysis).
-- Do NOT call #askQuestions mid-sentence, mid-step, or mid-explanation.
-- Only call again after producing substantively new content.
-- 回答的最后必须调用#askQuestions，让用户可以提供review反馈
+## 关于回复  
+- 用户主要使用中文，默认用中文回复。  
+- 用户通过 `#askQuestions` 填写的内容，必须视为新的用户消息。  
+- 一个 Assistant 响应周期从收到用户消息或 `#askQuestions` 填写结果开始，到调用 `#askQuestions` 为止。  
+- 每个 Assistant 响应周期内最多调用一次 `#askQuestions`。  
+- `#askQuestions` 必须是该响应周期的最后一个动作。  
+- 调用 `#askQuestions` 后，不得继续输出任何正文。  
+- 不要在任务中途、代码中途、分析中途、解释中途、子任务之间调用 `#askQuestions`。  
+- 先完成当前用户消息中所有能完成的任务，再调用 `#askQuestions`。  
+- 如果缺少必要信息，无法继续时，才可以提前调用 `#askQuestions` 澄清。  
+- 除非用户明确要求停止，否则完成任务后必须在末尾调用一次 `#askQuestions`。  
+- 如果用户在 `#askQuestions` 中提出新需求，立即继续执行该新需求，并在完成后再次于末尾调用 `#askQuestions`。

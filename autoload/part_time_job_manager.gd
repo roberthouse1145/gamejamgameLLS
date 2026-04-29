@@ -4,11 +4,7 @@ const ActivityCatalogProtocolClass = preload("res://scripts/activity/activity_ca
 const ActivityOptionLLMServiceClass = preload("res://scripts/activity/activity_option_llm_service.gd")
 
 # =============================================================================
-# PartTimeJobManager 鈥?鍏艰亴娲诲姩绠＄悊鍣?
-#
-# 缁ф壙 ActivitySessionManager锛岄澶栨彁渚涳細
-# - LLM / fallback catalog 鐢熸垚
-# - rewards 鏁版嵁椹卞姩缁撶畻
+# PartTimeJobManager
 # =============================================================================
 
 signal catalog_refreshed(catalog: Array)
@@ -25,6 +21,7 @@ const CATALOG_SIZE: int = 8
 const CATALOG_ROLE: String = "part_time_generator"
 const FALLBACK_CATALOG_ROLE: String = "chat_default"
 const GENERATION_PROMPT_KEY: String = "part_time_jobs_generation"
+const VALID_PHASES: PackedStringArray = ["MORNING", "AFTERNOON", "NIGHT"]
 
 var _catalog: Array[Dictionary] = []
 var _pending_next_day_catalog: Array[Dictionary] = []
@@ -52,9 +49,6 @@ func _on_manager_ready() -> void:
 	name = "PartTimeJobManager"
 	_setup_ai_service()
 	_load_fallback_catalog_if_empty()
-	# Async pre-generate Day 2 catalog
-	var current_day: int = ActivityUtilsClass.get_current_day()
-	_generate_next_day_catalog(current_day + 1)
 
 
 func _get_activity_type() -> String:
@@ -67,8 +61,9 @@ func _get_chat_stage_key() -> String:
 
 func _find_entry(entry_id: String) -> Dictionary:
 	for job in _catalog:
-		if str(job.get("job_id", "")) == entry_id:
-			return job
+		var entry := _normalize_job_entry(job)
+		if str(entry.get("job_id", "")) == entry_id:
+			return entry
 	return {}
 
 
@@ -85,6 +80,8 @@ func _build_session(_session_id: String, entry_id: String, entry: Dictionary) ->
 
 
 func _on_session_begin(session: Dictionary) -> void:
+	if str(session.get("session_origin", "")).strip_edges() == "npc_initiative":
+		return
 	_send_player_activity_card(session)
 
 
@@ -134,10 +131,11 @@ func get_catalog() -> Array[Dictionary]:
 	var can_act: bool = glm != null and glm.can_consume_ap(1)
 	var result: Array[Dictionary] = []
 	for job in _catalog:
-		var valid_phases: Array = job.get("valid_phases", [])
+		var normalized := _normalize_job_entry(job)
+		var valid_phases: Array = normalized.get("valid_phases", [])
 		if not valid_phases.is_empty() and not valid_phases.has(current_phase):
 			continue
-		var entry: Dictionary = job.duplicate(true)
+		var entry: Dictionary = normalized.duplicate(true)
 		entry["enabled"] = can_act
 		result.append(entry)
 	return result
@@ -164,8 +162,8 @@ func refresh_weekly_catalog(force: bool = false) -> void:
 	refresh_catalog(force)
 
 
-func begin_part_time(job_id: String, transit_duration: float = DEFAULT_TRANSIT_DURATION) -> Dictionary:
-	var result := begin_session(job_id, transit_duration)
+func begin_part_time(job_id: String, transit_duration: float = DEFAULT_TRANSIT_DURATION, skip_departure: bool = false) -> Dictionary:
+	var result := begin_session(job_id, transit_duration, skip_departure)
 	if result.get("success", false):
 		var sid: String = str(result.get("session_id", ""))
 		job_started.emit(sid, result)
@@ -183,13 +181,13 @@ func load_run_state(data: Dictionary) -> bool:
 	_catalog.clear()
 	for item in data.get("catalog", []):
 		if item is Dictionary:
-			_catalog.append((item as Dictionary).duplicate(true))
+			_catalog.append(_normalize_job_entry(item as Dictionary))
 	_pending_next_day_catalog.clear()
 	var saved_pending: Variant = data.get("pending_next_day_catalog", [])
 	if saved_pending is Array:
 		for item in (saved_pending as Array):
 			if item is Dictionary:
-				_pending_next_day_catalog.append((item as Dictionary).duplicate(true))
+				_pending_next_day_catalog.append(_normalize_job_entry(item as Dictionary))
 	_is_generating_catalog = false
 	_catalog_request_id = ""
 	if _catalog_generator != null and _catalog_generator.has_method("clear_pending_requests"):
@@ -214,41 +212,20 @@ func _on_reset_runtime_state() -> void:
 # Topic / Prompt Building
 # =============================================================================
 
-func _build_topic_prompt(session: Dictionary, stage: String) -> String:
-	var job: Dictionary = session.get("job", {})
-	var title := str(job.get("job_title", job.get("title", ""))).strip_edges()
-	if title.is_empty():
-		title = "part-time shift"
-	var company_name := str(job.get("company_name", "")).strip_edges()
-	var detail_prompt := str(session.get("detail_prompt", "")).strip_edges()
-	var include_scene_context: bool = stage != "departure"
-	var scene_outline := str(session.get("scene_outline", "")).strip_edges()
-	var scene_result: Dictionary = session.get("scene_result", {})
-	var parts: Array[String] = [
-		"You are Lin Xia.",
-		"The player invited you to join a part-time shift tonight.",
-		"Job title: %s" % title,
-	]
-	if not company_name.is_empty():
-		parts.append("Company: %s" % company_name)
-	if not detail_prompt.is_empty():
-		parts.append("Work details: %s" % detail_prompt)
-	if include_scene_context and not scene_result.is_empty():
-		parts.append("Recent scene choice: %s" % str(scene_result.get("choice_text", "")))
-	if include_scene_context and not scene_outline.is_empty():
-		parts.append("Recent scene outline:\n%s" % scene_outline)
-	parts.append("Continue naturally from the part-time setup and prior scene. Avoid template-sounding lines.")
+func _build_topic_prompt(_session: Dictionary, stage: String) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm == null:
+		return ""
+	var key := ""
 	if stage == "departure":
-		parts.append("Current moment: the player just sent the job card in chat and you are about to head out together.")
-		parts.append("Reply with one short departure message only.")
-		parts.append("Do not summarize the shift result yet.")
+		key = "activity_topic_departure"
 	elif stage == "followup":
-		parts.append("Current moment: the shift already ended and you are on the way back or just got home.")
-		parts.append("Reply with one short followup message only.")
-		parts.append("Keep the tone personal instead of writing a work report.")
+		key = "activity_topic_followup"
 	else:
-		parts.append("Reply with one short natural message.")
-	return "\n".join(parts)
+		return ""
+	return str(pm.resolve_with_vars(key, {
+		"activity_type_label": "兼职打工",
+	})).strip_edges()
 
 
 func _build_topic_goal(stage: String) -> String:
@@ -259,35 +236,84 @@ func _build_topic_goal(stage: String) -> String:
 	return "Send a short message"
 
 
-func _build_seed_message(stage: String) -> String:
+func _build_seed_message(stage: String, session: Dictionary = {}) -> String:
 	if stage == "departure":
-		return "Send the departure reply directly."
+		return _build_departure_seed_message(session)
 	if stage == "followup":
-		return "Send the followup reply directly."
-	return "Reply directly."
+		return _build_followup_seed_message(session)
+	return "请直接回复。"
+
+
+func _build_departure_seed_message(session: Dictionary) -> String:
+	var job: Dictionary = session.get("job", {})
+	var title: String = str(job.get("job_title", job.get("title", ""))).strip_edges()
+	var company: String = str(job.get("company_name", "")).strip_edges()
+	var district: String = str(job.get("district", "")).strip_edges()
+	var subtitle: String = str(job.get("subtitle", "")).strip_edges()
+	var description: String = str(job.get("description", "")).strip_edges()
+	var parts: Array[String] = ["[本次兼职邀请的公开信息]"]
+	if not title.is_empty():
+		parts.append("- 岗位：%s" % title)
+	if not company.is_empty():
+		parts.append("- 商家：%s" % company)
+	if not district.is_empty():
+		parts.append("- 地点：%s" % district)
+	if not subtitle.is_empty():
+		parts.append("- 卡片副标题：%s" % subtitle)
+	if not description.is_empty():
+		parts.append("- 招聘正文：%s" % description)
+	parts.append("")
+	parts.append("请按 departure 规则回一条出发前的短消息。")
+	return "\n".join(parts)
+
+
+func _build_followup_seed_message(session: Dictionary) -> String:
+	var job: Dictionary = session.get("job", {})
+	var title: String = str(job.get("job_title", job.get("title", ""))).strip_edges()
+	var company: String = str(job.get("company_name", "")).strip_edges()
+	var scene_outline: String = str(session.get("scene_outline", "")).strip_edges()
+	var scene_result: Dictionary = session.get("scene_result", {})
+	var choice_text: String = str(scene_result.get("choice_text", "")).strip_edges()
+	var parts: Array[String] = ["[本次刚结束的兼职]"]
+	if not title.is_empty():
+		parts.append("- 岗位：%s" % title)
+	if not company.is_empty():
+		parts.append("- 商家：%s" % company)
+	if not choice_text.is_empty():
+		parts.append("- 你刚才在现场的关键回应：%s" % choice_text)
+	if not scene_outline.is_empty():
+		parts.append("- 实际过程概要：")
+		parts.append(scene_outline)
+	parts.append("")
+	parts.append("请按 followup 规则回一条事后短消息。")
+	return "\n".join(parts)
 
 
 func _build_moment_system_prompt() -> String:
-	return "You are Lin Xia. Write one short Chinese social post after a part-time shift. Output plain text only. No JSON. No explanations. No quotes. Max 36 Chinese characters."
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm == null:
+		return "你是林夏。你要发一条刚结束兼职后的朋友圈。只返回一条中文纯文本动态，不超过 36 字。"
+	return str(pm.resolve_with_vars("activity_moment_system", {
+		"activity_type_label": "兼职打工",
+	})).strip_edges()
 
 
 func _build_moment_user_prompt(session: Dictionary) -> String:
 	var job: Dictionary = session.get("job", {})
-	var title := str(job.get("job_title", job.get("title", ""))).strip_edges()
-	var company_name := str(job.get("company_name", "")).strip_edges()
-	var detail_prompt := str(session.get("detail_prompt", "")).strip_edges()
-	var scene_outline := str(session.get("scene_outline", "")).strip_edges()
+	var title: String = str(job.get("job_title", job.get("title", ""))).strip_edges()
+	var company_name: String = str(job.get("company_name", "")).strip_edges()
+	var scene_outline: String = str(session.get("scene_outline", "")).strip_edges()
 	var scene_result: Dictionary = session.get("scene_result", {})
-	var parts: Array[String] = ["Job title: %s" % title]
+	var parts: Array[String] = []
+	if not title.is_empty():
+		parts.append("刚结束的兼职：%s" % title)
 	if not company_name.is_empty():
-		parts.append("Company: %s" % company_name)
-	if not detail_prompt.is_empty():
-		parts.append("Work details: %s" % detail_prompt)
+		parts.append("商家：%s" % company_name)
 	if not scene_result.is_empty():
-		parts.append("Scene choice: %s" % str(scene_result.get("choice_text", "")))
+		parts.append("现场关键回应：%s" % str(scene_result.get("choice_text", "")))
 	if not scene_outline.is_empty():
-		parts.append("Scene outline:\n%s" % scene_outline)
-	parts.append("Write one short social post that feels casual and personal.")
+		parts.append("实际过程概要：\n%s" % scene_outline)
+	parts.append("写一条像随手发出的朋友圈，不超过 36 字。")
 	return "\n".join(parts)
 
 
@@ -372,7 +398,7 @@ func _send_player_activity_card(session: Dictionary) -> void:
 	var footer: String = str(job.get("salary_text", "")).strip_edges()
 	if footer.is_empty():
 		if money_reward > 0:
-			footer = "%d / shift" % money_reward
+			footer = "%d元 / 班" % money_reward
 		else:
 			footer = str(job.get("transit_label", "")).strip_edges()
 	chat.store_player_message_data(ActivityChatClass.DM_CHANNEL_ID, {
@@ -391,8 +417,57 @@ func _send_player_activity_card(session: Dictionary) -> void:
 
 
 func _get_money_reward(job: Dictionary) -> int:
-	var rewards: Dictionary = job.get("rewards", {}) as Dictionary
+	var rewards: Dictionary = _normalize_job_rewards(job)
 	return int(rewards.get("money", 0))
+
+
+func _normalize_job_entry(raw_job: Dictionary) -> Dictionary:
+	var entry := raw_job.duplicate(true)
+	var job_id := str(entry.get("job_id", entry.get("id", ""))).strip_edges()
+	if not job_id.is_empty():
+		entry["job_id"] = job_id
+	entry["rewards"] = _normalize_job_rewards(entry)
+	entry["valid_phases"] = _normalize_job_phases(entry.get("valid_phases", []))
+	if not entry.has("enabled"):
+		entry["enabled"] = true
+	return entry
+
+
+func _normalize_job_rewards(job: Dictionary) -> Dictionary:
+	var rewards: Dictionary = {}
+	var raw_rewards: Variant = job.get("rewards", {})
+	if raw_rewards is Dictionary:
+		for key in (raw_rewards as Dictionary).keys():
+			rewards[str(key)] = int((raw_rewards as Dictionary).get(key, 0))
+	var fallback_money := int(job.get("reward_money", job.get("money", 0)))
+	if rewards.has("money"):
+		rewards["money"] = maxi(0, int(rewards.get("money", 0)))
+	elif fallback_money > 0:
+		rewards["money"] = fallback_money
+	else:
+		rewards["money"] = 120
+	return rewards
+
+
+func _normalize_job_phases(raw_value: Variant) -> Array[String]:
+	var result: Array[String] = []
+	var values: Array = []
+	if raw_value is Array:
+		values = raw_value as Array
+	elif raw_value is PackedStringArray:
+		for item in raw_value:
+			values.append(item)
+	else:
+		var raw_text := str(raw_value).strip_edges()
+		if not raw_text.is_empty():
+			values = raw_text.split("|", false)
+	for value in values:
+		var phase := str(value).strip_edges().to_upper()
+		if VALID_PHASES.has(phase) and not result.has(phase):
+			result.append(phase)
+	if result.is_empty():
+		result = ["AFTERNOON", "NIGHT"]
+	return result
 
 
 # =============================================================================
@@ -430,10 +505,17 @@ func _generate_next_day_catalog(target_day: int) -> void:
 	var sys_prompt := "Output only [JOB] ... [/JOB] blocks. No JSON. No markdown. No explanations."
 	_catalog_request_id = _catalog_generator.request_text(prompt, sys_prompt, {
 		"target_day": target_day,
+	}, {
+		"prompt_key": GENERATION_PROMPT_KEY,
 	})
 	if _catalog_request_id.is_empty():
 		_is_generating_catalog = false
 		push_warning("[PartTimeJobManager] Failed to send LLM catalog request for day %d" % target_day)
+
+
+func pre_generate_next_day_catalog() -> void:
+	_generate_next_day_catalog(ActivityUtilsClass.get_current_day() + 1)
+
 
 func _load_generation_prompt() -> String:
 	var pm := get_node_or_null("/root/PromptManager")
@@ -458,7 +540,7 @@ func _on_ai_request_completed(request_id: String, context: Dictionary, raw_text:
 	if not parsed_jobs.is_empty():
 		_pending_next_day_catalog.clear()
 		for item in parsed_jobs:
-			_pending_next_day_catalog.append(item.duplicate(true))
+			_pending_next_day_catalog.append(_normalize_job_entry(item))
 		_log_debug("[PartTimeJobManager] Pre-generated %d jobs (pending activation on next day)" % _pending_next_day_catalog.size())
 		return
 	push_warning("[PartTimeJobManager] Failed to parse LLM part-time catalog for day %d" % target_day)
@@ -477,7 +559,7 @@ func _on_day_changed(new_day: int) -> void:
 	if not _pending_next_day_catalog.is_empty():
 		_catalog.clear()
 		for item in _pending_next_day_catalog:
-			_catalog.append(item.duplicate(true))
+			_catalog.append(_normalize_job_entry(item))
 		_pending_next_day_catalog.clear()
 		_log_debug("[PartTimeJobManager] Activated %d pre-generated jobs for day %d" % [_catalog.size(), new_day])
 		catalog_refreshed.emit(get_catalog())
@@ -495,13 +577,7 @@ func _load_fallback_catalog_if_empty() -> void:
 		if json.parse(file.get_as_text()) == OK and json.data is Array:
 			for item in json.data:
 				if item is Dictionary:
-					item["enabled"] = true
-					if not item.has("valid_phases") or (item["valid_phases"] as Array).is_empty():
-						item["valid_phases"] = ["AFTERNOON", "NIGHT"]
-					_catalog.append(item)
+					_catalog.append(_normalize_job_entry(item as Dictionary))
 	catalog_refreshed.emit(get_catalog())
-
-
-
 
 

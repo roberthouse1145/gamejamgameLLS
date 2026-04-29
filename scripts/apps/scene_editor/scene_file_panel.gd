@@ -2,6 +2,8 @@ class_name SceneFilePanel extends VBoxContainer
 ## Scene File Panel
 ## 显示项目中的场景列表，支持文件夹分组、新建/删除场景
 
+const DBToolsClass = preload("res://scripts/avg/dev_tools/db_tools.gd")
+
 signal scene_selected(scene: Resource)
 signal scene_double_clicked(scene: Resource)
 
@@ -165,6 +167,8 @@ func _organize_scenes() -> void:
 func _add_scene_item(parent: TreeItem, scene: Resource) -> TreeItem:
 	var item: TreeItem = scene_tree.create_item(parent)
 	var scene_name: String = scene.scene_name if "scene_name" in scene else "Unnamed"
+	if DBToolsClass.is_placeholder_scene(scene):
+		scene_name += " [占位]"
 	item.set_text(0, "🎬 " + scene_name)
 	item.set_meta("type", "scene")
 	item.set_meta("scene", scene)

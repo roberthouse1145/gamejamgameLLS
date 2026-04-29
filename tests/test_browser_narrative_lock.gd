@@ -62,8 +62,8 @@ func _reset_runtime(glm: Node) -> void:
 func _test_community_blacklist_blocks_action(community: Node, glm: Node) -> void:
 	ActivityLockUtilsClass.set_narrative_lock("blacklist", ["community"], "先别刷社区")
 	var start_ap: int = int(glm.get("current_ap"))
-	var result: Dictionary = community.perform_action("browse_forum")
-	_assert_true("community blacklist blocked", not bool(result.get("success", false)), "community 黑名单应拦截 browse_forum")
+	var result: Dictionary = community.perform_action("chill_browse")
+	_assert_true("community blacklist blocked", not bool(result.get("success", false)), "community 黑名单应拦截 chill_browse")
 	_assert_equal("community blacklist reason", str(result.get("error", "")), "先别刷社区")
 	_assert_equal("community blacklist ap unchanged", int(glm.get("current_ap")), start_ap)
 	_assert_true("community blacklist no pending", not community.has_method("has_pending_requests") or not bool(community.has_pending_requests()), "被拦截后不应启动异步请求")
@@ -72,19 +72,19 @@ func _test_community_blacklist_blocks_action(community: Node, glm: Node) -> void
 func _test_community_whitelist_allows_actions(community: Node) -> void:
 	ActivityLockUtilsClass.set_narrative_lock("whitelist", ["community"], "这里只允许社区行动")
 	var actions: Array = community.get_available_actions()
-	var browse_action: Dictionary = _find_action(actions, "browse_forum")
-	_assert_true("community whitelist action exists", not browse_action.is_empty(), "应能找到 browse_forum")
+	var browse_action: Dictionary = _find_action(actions, "chill_browse")
+	_assert_true("community whitelist action exists", not browse_action.is_empty(), "应能找到 chill_browse")
 	_assert_true("community whitelist enabled", bool(browse_action.get("enabled", false)), "whitelist=community 时不应拦截社区行动")
 
 
 func _test_specific_action_lock_only_blocks_target(community: Node) -> void:
-	ActivityLockUtilsClass.set_narrative_lock("blacklist", ["watch_event"], "先别看赛事")
+	ActivityLockUtilsClass.set_narrative_lock("blacklist", ["follow_contest"], "先别发帖了")
 	var actions: Array = community.get_available_actions()
-	var browse_action: Dictionary = _find_action(actions, "browse_forum")
-	var watch_action: Dictionary = _find_action(actions, "watch_event")
+	var browse_action: Dictionary = _find_action(actions, "chill_browse")
+	var watch_action: Dictionary = _find_action(actions, "follow_contest")
 	_assert_true("specific lock browse enabled", bool(browse_action.get("enabled", false)), "具体 action 锁不应误伤其他社区行动")
-	_assert_true("specific lock watch disabled", not bool(watch_action.get("enabled", true)), "watch_event 应被单独锁定")
-	_assert_equal("specific lock reason", str(watch_action.get("blocked_reason", "")), "先别看赛事")
+	_assert_true("specific lock watch disabled", not bool(watch_action.get("enabled", true)), "follow_contest 应被单独锁定")
+	_assert_equal("specific lock reason", str(watch_action.get("blocked_reason", "")), "先别发帖了")
 
 
 func _test_community_ui_buttons_follow_lock() -> void:

@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_vvsgt"]
+
+[resource]
+script = ExtResource("1_vvsgt")
+character_id = "char_029"
+character_name = "Hero08"
+display_name = "Hero08"
+sprites = {
+"angry": "assets/images/character/hero08/hero_08_cos20.png",
+"default": "assets/images/character/hero08/hero_08_cos01.png",
+"happy": "assets/images/character/hero08/hero_08_cos06.png",
+"laugh": "assets/images/character/hero08/hero_08_cos03.png",
+"sad": "assets/images/character/hero08/hero_08_cos14.png",
+"serious": "assets/images/character/hero08/hero_08_cos02.png",
+"shy": "assets/images/character/hero08/hero_08_cos17.png",
+"surprised": "assets/images/character/hero08/hero_08_cos12.png",
+"thinking": "assets/images/character/hero08/hero_08_cos16.png",
+"worried": "assets/images/character/hero08/hero_08_cos19.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "20",
+"default": "01",
+"happy": "06",
+"laugh": "03",
+"sad": "14",
+"serious": "02",
+"shy": "17",
+"surprised": "12",
+"thinking": "16",
+"worried": "19"
+}
+profile = "元气十足的冒险少年，浅棕短发碧眼，戴着护目镜，身着拼色工装，腰间系着两只皮质挎包"
+display_offset = Vector2(0, 0.15)

@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "16"
 }
 profile = "高贵严肃的骑士公主，深蓝短发银冠紫眸，白银铠甲红裙"
+display_offset = Vector2(0, 0.15)
 

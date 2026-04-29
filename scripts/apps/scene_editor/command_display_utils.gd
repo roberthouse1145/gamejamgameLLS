@@ -112,28 +112,29 @@ static func _extract_stage_characters(params: Dictionary) -> Array[String]:
 	return result
 
 
-## 解析变量显示名称：优先用 variable_id 查找名称，显示为 "ID(名称)" 格式
-static func resolve_variable_display(var_id: String, var_name: String) -> String:
+## 解析变量显示名称：优先显示 variable_key，其次显示 ID
+static func resolve_variable_display(var_id: String, var_key: String) -> String:
 	var project: Resource = StorageManager.current_project
 	if project == null or not "variables" in project:
-		if not var_id.is_empty():
-			return var_id
-		return var_name if not var_name.is_empty() else "?"
+		if not var_key.is_empty():
+			return var_key
+		return var_id if not var_id.is_empty() else "?"
 
 	if not var_id.is_empty():
 		for v in project.variables:
 			if v.variable_id == var_id:
-				return "%s(%s)" % [var_id, v.variable_name]
-		return "%s(?)" % var_id
+				var resolved_key: String = AVGVariable.get_key(v)
+				return "%s (%s)" % [resolved_key, var_id] if not resolved_key.is_empty() else var_id
+		return var_id
 
-	if not var_name.is_empty():
+	if not var_key.is_empty():
 		for v in project.variables:
-			if v.variable_name == var_name:
+			if AVGVariable.get_key(v) == AVGVariable.normalize_key(var_key):
 				var vid: String = v.variable_id if "variable_id" in v else ""
 				if not vid.is_empty():
-					return "%s(%s)" % [vid, var_name]
-				return var_name
-		return var_name
+					return "%s (%s)" % [AVGVariable.get_key(v), vid]
+				return AVGVariable.get_key(v)
+		return var_key
 
 	return "?"
 
@@ -145,26 +146,51 @@ static func get_condition_summary(commands: Array) -> String:
 
 	var parts: Array[String] = []
 	for cmd in commands:
-		if cmd == null:
-			continue
-		var cmd_type: String = cmd.command_type if cmd is Resource and "command_type" in cmd else ""
-		if cmd_type == "CHECK_VAR":
-			var var_id: String = cmd.params.get("variable_id", "") if cmd.params else ""
-			var vn: String = cmd.params.get("variable_name", "?") if cmd.params else "?"
-			var display_name: String = resolve_variable_display(var_id, vn)
-			var op: String = cmd.params.get("operator", ">=") if cmd.params else ">="
-			var val = cmd.params.get("value", "0") if cmd.params else "0"
-			parts.append("%s%s%s" % [display_name, op, str(val)])
-		elif cmd_type == "CHECK_HOVER":
-			var nid: String = cmd.params.get("node_id", "") if cmd.params else ""
-			parts.append("悬停(%s)" % nid if not nid.is_empty() else "悬停(自身)")
-		elif cmd_type == "CHECK_CLICK":
-			var nid2: String = cmd.params.get("node_id", "") if cmd.params else ""
-			parts.append("点击(%s)" % nid2 if not nid2.is_empty() else "点击(自身)")
-		elif cmd_type == "IF":
-			parts.append("IF(...)")
+		var summary: String = _get_condition_item_summary(cmd, "and")
+		if not summary.is_empty():
+			parts.append(summary)
 
 	return " & ".join(parts) if not parts.is_empty() else "无"
+
+
+static func _get_condition_item_summary(cmd: Variant, parent_logic: String = "") -> String:
+	if cmd == null:
+		return ""
+	var cmd_type: String = cmd.command_type if cmd is Resource and "command_type" in cmd else ""
+	var params: Dictionary = cmd.params if cmd is Resource and cmd.params != null else {}
+	if cmd_type == "CHECK_VAR":
+		var var_id: String = params.get("variable_id", "")
+		var vk: String = params.get("variable_key", params.get("variable_name", "?"))
+		var display_name: String = resolve_variable_display(var_id, vk)
+		var op: String = params.get("operator", ">=")
+		var val = params.get("value", "0")
+		return "%s%s%s" % [display_name, op, str(val)]
+	if cmd_type == "CHECK_HOVER":
+		var nid: String = params.get("node_id", "")
+		return "悬停(%s)" % nid if not nid.is_empty() else "悬停(自身)"
+	if cmd_type == "CHECK_CLICK":
+		var nid2: String = params.get("node_id", "")
+		return "点击(%s)" % nid2 if not nid2.is_empty() else "点击(自身)"
+	if cmd_type == "IF":
+		var primary: String = get_condition_summary(params.get("condition_commands", []))
+		var if_part: String = get_condition_summary(params.get("if_condition_commands", []))
+		var else_part: String = get_condition_summary(params.get("else_condition_commands", []))
+		if if_part.is_empty() and params.get("has_else", false) and not else_part.is_empty():
+			var expr: String = "%s | %s" % [_wrap_condition_summary(primary, "or", parent_logic), _wrap_condition_summary(else_part, "or", parent_logic)]
+			return _wrap_condition_summary(expr, "or", parent_logic)
+		if not if_part.is_empty() and not params.get("has_else", false):
+			var expr2: String = "%s & %s" % [_wrap_condition_summary(primary, "and", parent_logic), _wrap_condition_summary(if_part, "and", parent_logic)]
+			return _wrap_condition_summary(expr2, "and", parent_logic)
+		return "IF(...)"
+	return ""
+
+
+static func _wrap_condition_summary(summary: String, expr_logic: String, parent_logic: String) -> String:
+	if summary.is_empty():
+		return summary
+	if parent_logic == "and" and expr_logic == "or":
+		return "(%s)" % summary
+	return summary
 
 
 ## 获取命令的显示文本
@@ -268,8 +294,8 @@ static func get_command_display(cmd: Variant) -> String:
 			return "跳转场景 %s [%s %.1fs]" % [sid, trans, dur]
 		"SET_VARIABLE":
 			var var_id: String = params.get("variable_id", "")
-			var var_name: String = params.get("variable_name", "")
-			var display_name: String = resolve_variable_display(var_id, var_name)
+			var var_key: String = params.get("variable_key", params.get("variable_name", ""))
+			var display_name: String = resolve_variable_display(var_id, var_key)
 			var value = params.get("value", "")
 			var operation: String = params.get("operation", "set")
 			return "设置变量 %s %s %s" % [display_name, operation, str(value)]
@@ -294,8 +320,8 @@ static func get_command_display(cmd: Variant) -> String:
 			return "如果 [%s]" % params.get("condition", "")
 		"CHECK_VAR":
 			var var_id: String = params.get("variable_id", "")
-			var vn: String = params.get("variable_name", "?")
-			var display_name: String = resolve_variable_display(var_id, vn)
+			var vk: String = params.get("variable_key", params.get("variable_name", "?"))
+			var display_name: String = resolve_variable_display(var_id, vk)
 			var op: String = params.get("operator", ">=")
 			var val = params.get("value", "0")
 			return "%s %s %s" % [display_name, op, str(val)]
@@ -452,7 +478,7 @@ static func init_command_params(cmd: Resource) -> void:
 		"JUMP_SCENE":
 			cmd.params = {"scene_id": "", "transition": "", "duration": 1.0, "color": "000000"}
 		"SET_VARIABLE":
-			cmd.params = {"variable_id": "", "variable_name": "", "value": 0, "operation": "set"}
+			cmd.params = {"variable_id": "", "variable_key": "", "value": 0, "operation": "set"}
 		"CALL_EVENT":
 			cmd.params = {"event_id": ""}
 		"PLAY_BGM":
@@ -466,7 +492,7 @@ static func init_command_params(cmd: Resource) -> void:
 		"IF":
 			cmd.params = {"condition_commands": [], "if_commands": [], "has_else": false, "else_commands": []}
 		"CHECK_VAR":
-			cmd.params = {"variable_id": "", "variable_name": "", "operator": ">=", "value": "0"}
+			cmd.params = {"variable_id": "", "variable_key": "", "operator": ">=", "value": "0"}
 		"SCREEN_FADE":
 			cmd.params = {"direction": "out", "color": "000000", "duration": 1.0, "transition": "fade"}
 		"SCREEN_FLASH":

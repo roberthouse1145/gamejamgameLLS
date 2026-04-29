@@ -34,7 +34,6 @@ enum NavPage {CHAT, MOMENTS, SETTINGS}
 @onready var send_button: Button = %SendButton
 @onready var recommend_container: HFlowContainer = %RecommendRepliesContainer
 @onready var batch_indicator: Label = %BatchIndicator
-@onready var hint_label: Label = %HintLabel
 @onready var typing_indicator: Label = %TypingIndicator
 @onready var moments_container: VBoxContainer = %MomentsContainer
 @onready var sidebar_border: VSeparator = %SidebarBorder
@@ -78,6 +77,23 @@ var _toast_label: Label = null
 var _toast_tween: Tween = null
 
 
+func _play_chat_sfx(key: String) -> void:
+	var audio: Node = get_node_or_null("/root/AudioManager")
+	if audio != null and audio.has_method("play_sfx_key"):
+		audio.play_sfx_key(key)
+
+
+func _append_message_bubble(msg: Dictionary, play_sound: bool = false) -> void:
+	var bubble := MessageBubbleClass.create(msg)
+	message_list.add_child(bubble)
+	if play_sound:
+		var sender_id := str(msg.get("sender_id", "")).strip_edges()
+		if sender_id == "player":
+			_play_chat_sfx("chat_send")
+		elif sender_id != "system" and not sender_id.is_empty():
+			_play_chat_sfx("chat_receive")
+
+
 func _ready() -> void:
 	response_handler = NPCResponseHandler.new()
 	add_child(response_handler)
@@ -103,7 +119,7 @@ func _apply_theme() -> void:
 
 	# 导航条
 	nav_strip.custom_minimum_size.x = NAV_STRIP_WIDTH
-	var nav_bg := LCTheme.rounded_flat(Color("#E8E8EC"), 0)
+	var nav_bg := LCTheme.rounded_flat(LCTheme.COLOR_BG_NAV, 0)
 	nav_strip.add_theme_stylebox_override("panel", nav_bg)
 	_apply_nav_button_theme(nav_chat_btn)
 	_apply_nav_button_theme(nav_moments_btn)
@@ -161,8 +177,6 @@ func _apply_theme() -> void:
 	send_button.custom_minimum_size.x = SEND_BUTTON_MIN_WIDTH
 
 	# 提示文字
-	hint_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-	hint_label.add_theme_font_size_override("font_size", 18)
 	typing_indicator.add_theme_color_override("font_color", LCTheme.COLOR_ACCENT)
 	typing_indicator.add_theme_font_size_override("font_size", 18)
 	batch_indicator.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
@@ -243,6 +257,8 @@ func _setup_data_connections() -> void:
 	ChatManager.topic_activated.connect(_on_topic_changed)
 	ChatManager.topic_completed.connect(func(_t: ChatTopic, _r: Dictionary) -> void: _on_topic_changed(_t))
 	ChatManager.topic_timeout.connect(_on_topic_changed)
+	if ChatManager.has_signal("topic_cancelled"):
+		ChatManager.topic_cancelled.connect(func(_t: ChatTopic, _reason: String) -> void: _on_topic_changed(_t))
 	ChatManager.batch_state_changed.connect(_on_batch_state_changed)
 	ChatManager.waiting_for_ai_changed.connect(_on_waiting_for_ai_changed)
 	ChatManager.channel_added.connect(_on_channel_added_to_data)
@@ -479,6 +495,8 @@ func _refresh_message_display() -> void:
 	var channel: Resource = ChatManager.get_channel(current_channel_id)
 	if channel:
 		for msg in channel.messages:
+			if msg.get("ai_only", false):
+				continue
 			var bubble := MessageBubbleClass.create(msg)
 			message_list.add_child(bubble)
 
@@ -503,17 +521,15 @@ func _update_input_state() -> void:
 		input_field.editable = true
 		input_field.placeholder_text = "输入消息..."
 		send_button.disabled = false
-		hint_label.visible = false
 	else:
 		input_field.editable = false
 		if waiting or _playing_typing_animation:
 			input_field.placeholder_text = "等待回复中..."
 		else:
-			input_field.placeholder_text = "等待对话..."
+			input_field.placeholder_text = "当前没有进行中的对话"
 		input_field.text = ""
 		send_button.disabled = true
-		hint_label.visible = not waiting and not _playing_typing_animation and topic == null and not ChatManager.debug_mode
-		
+
 		# 禁用输入时，也隐藏推荐回复，避免状态不一致
 		recommend_container.visible = false
 
@@ -522,8 +538,6 @@ func _update_topic_info() -> void:
 	var topic := ChatManager.get_active_topic(current_channel_id)
 	if topic:
 		var info := "%s  轮数：%d" % [topic.display_title, topic.turn_count]
-		if topic.max_turns > 0:
-			info += "/%d" % topic.max_turns
 		topic_info.text = info
 	else:
 		topic_info.text = ""
@@ -625,6 +639,8 @@ func _show_toast(text: String, duration: float = 2.5) -> void:
 # --- ChatManager 信号回调 ---
 
 func _on_message_added(channel_id: String, msg: Dictionary) -> void:
+	if msg.get("ai_only", false):
+		return
 	if _should_defer_npc_message(channel_id, msg):
 		_enqueue_deferred_npc_message(channel_id, msg)
 		return
@@ -632,8 +648,7 @@ func _on_message_added(channel_id: String, msg: Dictionary) -> void:
 		_enqueue_offscreen_npc_message(channel_id, msg)
 		return
 	elif channel_id == current_channel_id and _current_page == NavPage.CHAT:
-		var bubble := MessageBubbleClass.create(msg)
-		message_list.add_child(bubble)
+		_append_message_bubble(msg, true)
 		_scroll_to_bottom()
 	else:
 		var channel: Resource = ChatManager.get_channel(channel_id)
@@ -790,8 +805,7 @@ func _play_typing_animation(messages: Array, channel_id: String, token: int) -> 
 		if token != _typing_animation_token or not _is_current_chat_channel(channel_id):
 			return
 
-		var bubble := MessageBubbleClass.create(msg_data)
-		message_list.add_child(bubble)
+		_append_message_bubble(msg_data, true)
 		_update_contact_preview_for_message(channel_id, msg_data)
 		_scroll_to_bottom()
 
@@ -891,8 +905,7 @@ func _flush_deferred_messages(channel_id: String) -> void:
 	_deferred_npc_messages.erase(channel_id)
 	for msg in queue:
 		if msg is Dictionary:
-			var bubble := MessageBubbleClass.create(msg)
-			message_list.add_child(bubble)
+			_append_message_bubble(msg, true)
 			_update_contact_preview_for_message(channel_id, msg)
 	_scroll_to_bottom()
 

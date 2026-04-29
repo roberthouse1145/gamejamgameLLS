@@ -8,6 +8,7 @@ class_name ShowImageHandler
 ##   position: 归一化位置 Vector2 (0,0)=左上 (0.5,0.5)=居中
 ##   size: 归一化尺寸 Vector2 (1,1)=全屏
 ##   fade_duration: 淡入时间（秒），0=立即显示
+##   transition: 切换方式（fade / crossfade / fade_through_black / instant）
 ##   z_order: 图层顺序（越大越靠前）
 
 const ParamDef = preload("res://scripts/avg/commands/param_definition.gd")
@@ -66,6 +67,15 @@ func _create_schema() -> ParamSchemaClass:
 		"淡入时长"
 	))
 
+	schema.add_param(ParamDef.choices_param(
+		"transition",
+		["", "fade", "crossfade", "fade_through_black", "instant"],
+		"Image transition mode",
+		false,
+		"",
+		"切换"
+	))
+
 	schema.add_param(ParamDef.int_param(
 		"z_order",
 		"Layer order (higher = on top)",
@@ -89,10 +99,11 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 	var pos: Vector2 = _get_param(command, "position", Vector2(0.0, 0.0))
 	var img_size: Vector2 = _get_param(command, "size", Vector2(1.0, 1.0))
 	var fade_duration: float = _get_param(command, "fade_duration", 0.0)
+	var transition: String = _get_param(command, "transition", "")
 	var z_order: int = _get_param(command, "z_order", 0)
 
 	if context.scene_runner != null and context.scene_runner.has_method("show_image"):
-		context.scene_runner.show_image(image_id, image_path, pos, img_size, fade_duration, z_order)
+		context.scene_runner.show_image(image_id, image_path, pos, img_size, fade_duration, z_order, transition)
 
 	return CommandResultClass.ok({
 		"image_id": image_id,
@@ -100,5 +111,6 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 		"position": pos,
 		"size": img_size,
 		"fade_duration": fade_duration,
+		"transition": transition,
 		"z_order": z_order,
 	})

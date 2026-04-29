@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+character_id = "char_101"
+character_name = "NpcFemale"
+display_name = "通用女性NPC"
+sprites = {
+"小孩": "res://narrative_projects/main_story/Assets/npc_silhouettes/npc_female_base05.png",
+"店员": "res://narrative_projects/main_story/Assets/npc_silhouettes/npc_female_base03.png",
+"老人": "res://narrative_projects/main_story/Assets/npc_silhouettes/npc_female_base04.png",
+"学生": "res://narrative_projects/main_story/Assets/npc_silhouettes/npc_female_base02.png",
+"路人": "res://narrative_projects/main_story/Assets/npc_silhouettes/npc_female_base01.png"
+}
+default_outfit = "base"
+available_outfits = Array[String](["base"])
+emotion_slots = {
+"小孩": "05",
+"店员": "03",
+"老人": "04",
+"学生": "02",
+"路人": "01"
+}
+sprite_prefix = "npc_female"
+sprite_base_dir = "res://narrative_projects/main_story/Assets/npc_silhouettes"
+profile = "Main story generic female NPC silhouette. emotion 键表示 NPC 种类，而不是表情：路人 / 学生 / 店员 / 老人 / 小孩。适合在约会、兼职等场景中做通用陪衬角色。"
+display_offset = Vector2(0, 0)
+display_scale = 1.0

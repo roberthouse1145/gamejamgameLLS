@@ -4,6 +4,8 @@ class_name LoginScreen extends Control
 ## 继续游戏：显示已有存档用户 → 点击登录
 ## 右下角：设置、退出
 
+const UIIconLibraryClass = preload("res://scripts/ui/ui_icon_library.gd")
+
 signal login_requested(player_name: String, is_new_game: bool)
 signal quit_requested
 signal settings_requested
@@ -13,11 +15,9 @@ const AIServiceClass = preload("res://scripts/llm/AIService.gd")
 const MIN_NAME_LENGTH: int = 1
 const MAX_NAME_LENGTH: int = 12
 const PANEL_ANIM_DURATION: float = 0.3
-
-const REVIEW_SYSTEM_PROMPT: String = """你负责审核一个游戏中的玩家网名。
-拒绝以下情况：脏话、侮辱性词汇、色情内容、广告、网址、纯乱码。
-允许以下情况：有创意的昵称、二次元风格名称、中英文混合、带数字的名字、真实姓名。
-仅返回 JSON：{"approved": true/false, "reason": "...", "normalized_name": "..."}"""
+const BOTTOM_ICON_MAX_WIDTH: int = 64
+const REVIEW_PROMPT_KEY: String = "review/player_name"
+const REVIEW_SYSTEM_FALLBACK: String = "审核游戏玩家网名。拒绝脏话、侮辱、色情、广告、网址、纯乱码。只输出 JSON：approved, reason, normalized_name。"
 
 @onready var user_list: VBoxContainer = %UserList
 @onready var new_user_panel: Control = %NewUserPanel
@@ -41,6 +41,7 @@ var _status_label: Label = null
 func _ready() -> void:
 	modulate.a = 0.0
 	_connect_buttons()
+	_setup_bottom_icons()
 	_update_clock()
 	_check_saves()
 	_fade_in()
@@ -61,6 +62,23 @@ func _connect_buttons() -> void:
 	quit_button.pressed.connect(func() -> void: quit_requested.emit())
 	name_input.text_submitted.connect(func(_t: String) -> void: _on_login_pressed())
 	name_input.text_changed.connect(_on_name_changed)
+
+
+func _setup_bottom_icons() -> void:
+	var settings_tex := UIIconLibraryClass.get_icon("settings")
+	if settings_tex and settings_button:
+		settings_button.text = ""
+		settings_button.icon = settings_tex
+		settings_button.expand_icon = true
+		settings_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		settings_button.add_theme_constant_override("icon_max_width", BOTTOM_ICON_MAX_WIDTH)
+	var power_tex := UIIconLibraryClass.get_icon("power")
+	if power_tex and quit_button:
+		quit_button.text = ""
+		quit_button.icon = power_tex
+		quit_button.expand_icon = true
+		quit_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		quit_button.add_theme_constant_override("icon_max_width", BOTTOM_ICON_MAX_WIDTH)
 
 
 func _setup_button_animations() -> void:
@@ -352,7 +370,6 @@ func _ensure_review_service() -> void:
 		return
 
 	_review_service.default_temperature = 0.3
-	_review_service.default_max_tokens = 256
 	_review_service.request_completed.connect(_on_review_completed)
 	_review_service.request_failed.connect(_on_review_failed)
 	add_child(_review_service)
@@ -366,10 +383,10 @@ func _submit_with_review(player_name: String) -> void:
 	_set_status("正在审核网名...", Color(1, 1, 1, 0.5))
 
 	var messages: Array = [
-		{"role": "system", "content": REVIEW_SYSTEM_PROMPT},
+		{"role": "system", "content": _resolve_prompt(REVIEW_PROMPT_KEY, REVIEW_SYSTEM_FALLBACK)},
 		{"role": "user", "content": "网名：%s" % player_name},
 	]
-	_pending_review_id = _review_service.chat(messages, {"temperature": 0.3, "max_tokens": 256})
+	_pending_review_id = _review_service.chat(messages, {"temperature": 0.3})
 
 
 func _on_review_completed(request_id: String, response: Dictionary) -> void:
@@ -425,3 +442,13 @@ func _finish_review(player_name: String) -> void:
 	login_button.text = "登 录"
 	name_input.editable = true
 	_do_login(player_name)
+
+
+func _resolve_prompt(prompt_key: String, fallback: String) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("has_prompt") and pm.has_method("resolve"):
+		if pm.has_prompt(prompt_key):
+			var resolved := str(pm.resolve(prompt_key)).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+	return fallback

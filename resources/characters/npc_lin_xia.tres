@@ -14,3 +14,4 @@ display_name = "KirbyMiku233"
 avatar = SubResource("AtlasTexture_v1bel")
 prompt = "{{npc/lin_xia}}"
 initial_affection = 75
+project_context_scope = "collaborator"

@@ -1267,13 +1267,10 @@ func _on_variable_ref_button_pressed(btn: Button) -> void:
 
 
 ## 变量选择器选择完成回调
-func _on_var_picker_selected(var_id: String, var_name: String) -> void:
+func _on_var_picker_selected(var_id: String, var_key: String) -> void:
 	if _active_var_ref_button != null and is_instance_valid(_active_var_ref_button):
 		_active_var_ref_button.set_meta("variable_id", var_id)
-		if not var_id.is_empty():
-			_active_var_ref_button.text = "%s (%s)" % [var_name, var_id]
-		else:
-			_active_var_ref_button.text = var_name if not var_name.is_empty() else "(点击选择)"
+		_active_var_ref_button.text = CDU.resolve_variable_display(var_id, var_key)
 	_active_var_ref_button = null
 
 
@@ -1316,7 +1313,9 @@ func _show_ref_picker_popup(target_input: LineEdit, ref_type: String) -> void:
 			popup_title = "选择变量"
 			if project.variables:
 				for v in project.variables:
-					var v_label: String = v.variable_name if v.variable_name != "" else v.variable_id
+					var v_label: String = AVGVariable.get_key(v)
+					if v_label.is_empty():
+						v_label = v.variable_id
 					items.append({"id": v.variable_id, "label": "%s (%s)" % [v_label, v.variable_id]})
 		"event_ref":
 			popup_title = "选择事件"

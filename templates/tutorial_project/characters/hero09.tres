@@ -36,3 +36,4 @@ emotion_slots = {
 "worried": "14"
 }
 profile = "狂野帅气的狼人少年，浅灰碎发金瞳，身着和式短褂，佩戴宝石项链，生有狼耳与蓬松狼尾"
+display_offset = Vector2(0, 0.15)

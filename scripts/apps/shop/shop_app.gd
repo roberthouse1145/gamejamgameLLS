@@ -454,9 +454,8 @@ func _refresh_detail() -> void:
 	_detail_subtitle.text = str(item.get("subtitle", ""))
 	_detail_price.text = "￥%d" % int(item.get("price", 0))
 
-	_detail_meta.text = "%s · %d天送达 · %s" % [
+	_detail_meta.text = "%s · %s" % [
 		ShopCardBuilder.category_text(str(item.get("category", ""))),
-		int(item.get("shipping_days", 1)),
 		ShopCardBuilder.effect_summary(str(item.get("effect_archetype", ""))),
 	]
 
@@ -552,12 +551,12 @@ func _on_buy_pressed() -> void:
 		return
 	var result: Dictionary = _shop.purchase_item(_selected_item_id)
 	if bool(result.get("success", false)):
-		_detail_buy_btn.text = "✔ 已下单"
+		_detail_buy_btn.text = "✔ 已购买"
 		_detail_buy_btn.disabled = true
 		ShopCardBuilder.style_primary_btn(_detail_buy_btn)
 		var item_title: String = str(result.get("order", {}).get("item_snapshot", {}).get("title", ""))
 		var money: int = int(_gm.get("money")) if _gm != null else 0
-		_show_toast("已下单：%s · 余额 ￥%d" % [item_title, money], ShopCardBuilder.C_SUCCESS)
+		_show_toast("已购买：%s · 已放入库存 · 余额 ￥%d" % [item_title, money], ShopCardBuilder.C_SUCCESS)
 		var tw := create_tween()
 		tw.tween_interval(2.0)
 		tw.tween_callback(_refresh_detail)
@@ -613,7 +612,8 @@ func _on_purchase_completed(_order: Dictionary) -> void:
 
 
 func _on_delivery_arrived(_order_id: String, inv_item: Dictionary) -> void:
-	_show_toast("快递到了：%s" % str(inv_item.get("title", "")), ShopCardBuilder.C_SUCCESS)
+	if inv_item.is_empty():
+		return
 	_refresh_all()
 
 

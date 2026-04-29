@@ -40,18 +40,54 @@ func _run_test() -> void:
 		return
 	print("[OK] PlanningManager parsed seed task JSON array")
 
+	var parsed_seed_with_preamble: Variant = pm.call("_parse_json_array_output", """当前没有任务，我需要先生成第一批 dev work。
+
+```json
+[
+  {"title":"任务B","description":"描述B","topic_config":{"goal_description":"目标B"}}
+]
+```""")
+	if not parsed_seed_with_preamble is Array or parsed_seed_with_preamble.size() != 1:
+		print("[FAIL] PlanningManager should parse seed task arrays even when the LLM adds preamble text before the JSON block")
+		return
+	print("[OK] PlanningManager parsed seed task JSON array with preamble text")
+
+	var parsed_seed_with_open_fence: Variant = pm.call("_parse_json_array_output", """我会优先处理最前面的创作缺口。
+
+```json
+[
+  {"title":"任务C","description":"描述C","topic_config":{"goal_description":"目标C"}}
+]""")
+	if not parsed_seed_with_open_fence is Array or parsed_seed_with_open_fence.size() != 1:
+		print("[FAIL] PlanningManager should parse seed task arrays even when the code fence is left open but the JSON array is complete")
+		return
+	print("[OK] PlanningManager parsed seed task JSON array with an open code fence")
+
 	var parsed_plan: Variant = pm.call("_parse_json_array_output", """[
-  {
-    "chapter_id": "ch1",
-    "title": "第一章",
-    "unlock_day": 5,
-    "tasks": []
-  }
+	{
+		"task_id": "opening_scene",
+		"title": "编写开场场景",
+		"description": "把已确认内容落成可执行开发任务",
+		"task_type": "minigame",
+		"minigame_type": "typing_code",
+		"stat_changes": {"completion": 8, "quality": 3},
+		"stress_cost": 2,
+		"weight": 10,
+		"one_time": true,
+		"prerequisites": [],
+		"post_task_work_order": {
+			"title": "编写开场场景",
+			"description": "具体的写作要求...",
+			"kb_sources": ["characters", "world", "story", "notes"],
+			"scene_target": "opening_scene",
+			"performance_context": "summary"
+		}
+	}
 ]""")
 	if not parsed_plan is Array or parsed_plan.size() != 1:
-		print("[FAIL] PlanningManager failed to parse chapter plan JSON array")
+		print("[FAIL] PlanningManager failed to parse flat development task JSON array")
 		return
-	print("[OK] PlanningManager parsed chapter plan JSON array")
+	print("[OK] PlanningManager parsed flat development task JSON array")
 
 	var dcm: Node = get_node_or_null("/root/DevCycleManager")
 	if dcm == null:
@@ -73,7 +109,6 @@ func _run_test() -> void:
 		"source_type": "test",
 		"source_id": "planning_manager_test",
 	})
-	order.assignee_npc_id = "npc_lin_xia"
 	order.priority = 3
 	wom.set_order_status(order.id, "in_progress")
 

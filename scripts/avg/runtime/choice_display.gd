@@ -3,6 +3,8 @@ class_name ChoiceDisplay extends Control
 ## Supports conditional choices (condition_commands), greyed-out/hidden modes,
 ## and sub-command arrays per choice (replaces jump_to).
 
+const AVGVariableClass = preload("res://scripts/avg/resources/avg_variable.gd")
+
 ## Emitted when a choice is selected
 signal choice_selected(index: int)
 
@@ -167,39 +169,81 @@ func _evaluate_choice_condition(condition_commands: Array) -> bool:
 		
 		if cmd_type == "CHECK_VAR":
 			var var_id: String = params.get("variable_id", "")
-			var var_name: String = params.get("variable_name", "")
+			var var_key: String = params.get("variable_key", params.get("variable_name", ""))
 			var op: String = params.get("operator", ">=")
 			var actual: Variant = null
 			if not var_id.is_empty():
 				actual = _variable_manager.get_value_by_id(var_id)
-			elif not var_name.is_empty():
-				actual = _variable_manager.get_value(var_name)
+			elif not var_key.is_empty():
+				actual = _variable_manager.get_value(var_key)
 			if actual == null:
 				return false
-			var expected = _parse_value(params.get("value", "0"))
+			var expected: Variant = null
+			if str(params.get("value_source", "constant")) == "variable":
+				var src_id: String = params.get("source_variable_id", "")
+				var src_key: String = params.get("source_variable_key", params.get("source_variable_name", ""))
+				if not src_id.is_empty():
+					expected = _variable_manager.get_value_by_id(src_id)
+				elif not src_key.is_empty():
+					expected = _variable_manager.get_value(src_key)
+			else:
+				expected = _parse_value(params.get("value", "0"))
+			if expected == null:
+				return false
 			if not _compare(actual, op, expected):
+				return false
+		elif cmd_type == "IF":
+			if not _evaluate_nested_if_condition(params):
 				return false
 	return true
 
 
+func _evaluate_nested_if_condition(params: Dictionary) -> bool:
+	var condition_commands: Array = params.get("condition_commands", [])
+	var condition_met: bool = _evaluate_choice_condition(condition_commands)
+	if condition_met:
+		var if_condition_commands: Array = params.get("if_condition_commands", [])
+		if if_condition_commands.is_empty():
+			return true
+		return _evaluate_choice_condition(if_condition_commands)
+	var has_else: bool = params.get("has_else", false)
+	if not has_else:
+		return false
+	var else_condition_commands: Array = params.get("else_condition_commands", [])
+	if else_condition_commands.is_empty():
+		return true
+	return _evaluate_choice_condition(else_condition_commands)
+
+
 ## Parse a value string to appropriate type
 func _parse_value(value) -> Variant:
-	if value is int or value is float or value is bool:
-		return value
-	var s: String = str(value)
-	if s.is_valid_int():
-		return s.to_int()
-	elif s.is_valid_float():
-		return s.to_float()
-	elif s == "true":
-		return true
-	elif s == "false":
-		return false
-	return s
+	return AVGVariableClass.normalize_script_literal(value)
 
 
 ## Compare two values
 func _compare(actual: Variant, op: String, expected: Variant) -> bool:
+	var lhs_value: Variant = AVGVariableClass.normalize_runtime_value(actual)
+	var rhs_value: Variant = AVGVariableClass.normalize_runtime_value(expected)
+	if lhs_value is String and rhs_value is String:
+		match op:
+			"==": return lhs_value == rhs_value
+			"!=": return lhs_value != rhs_value
+			">": return str(lhs_value) > str(rhs_value)
+			">=": return str(lhs_value) >= str(rhs_value)
+			"<": return str(lhs_value) < str(rhs_value)
+			"<=": return str(lhs_value) <= str(rhs_value)
+		return false
+	if lhs_value is int and rhs_value is int:
+		return _compare_numeric(lhs_value, op, rhs_value)
+	push_warning("ChoiceDisplay: mixed CHECK_VAR comparison %s %s %s; string values will be coerced as empty=0 / non-empty=1" % [_type_label(lhs_value), op, _type_label(rhs_value)])
+	return _compare_numeric(
+		AVGVariableClass.coerce_mixed_comparison_number(lhs_value),
+		op,
+		AVGVariableClass.coerce_mixed_comparison_number(rhs_value)
+	)
+
+
+func _compare_numeric(actual: int, op: String, expected: int) -> bool:
 	match op:
 		"==": return actual == expected
 		"!=": return actual != expected
@@ -208,6 +252,18 @@ func _compare(actual: Variant, op: String, expected: Variant) -> bool:
 		"<": return actual < expected
 		"<=": return actual <= expected
 	return false
+
+
+func _type_label(value: Variant) -> String:
+	if value is int:
+		return "int"
+	if value is String:
+		return "String"
+	if value is bool:
+		return "bool"
+	if value == null:
+		return "null"
+	return type_string(typeof(value))
 
 
 ## Create a choice button

@@ -532,30 +532,21 @@ func _select_linkchat_dm(window: Control) -> void:
 		content.select_channel("dm_lin_xia")
 
 
-func _on_transit_started(session_id: String, payload: Dictionary) -> void:
+func _on_transit_started(session_id: String, _payload: Dictionary) -> void:
 	if session_id != _active_session_id:
 		return
 	_transit_progress = 0.0
-	_show_transit_window(payload.get("location", {}))
-	set_process(true)
 
 
 func _on_transit_progress_updated(session_id: String, progress: float, _scene_ready: bool) -> void:
 	if session_id != _active_session_id:
 		return
 	_transit_progress = progress
-	if _transit_progress_bar != null:
-		_transit_progress_bar.value = progress * 100.0
-	if progress >= 1.0:
-		_close_transit_window()
-		set_process(false)
 
 
 func _on_important_event_started(session_id: String, _payload: Dictionary) -> void:
 	if session_id != _active_session_id:
 		return
-	set_process(false)
-	_close_transit_window()
 
 
 func _show_transit_window(location: Variant) -> void:
@@ -679,7 +670,6 @@ func _on_date_completed(session_id: String, _payload: Dictionary) -> void:
 		return
 	_active_session_id = ""
 	_transit_progress = 0.0
-	_close_transit_window()
 	_refresh_locations()
 
 

@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_hsbr5"]
+
+[resource]
+script = ExtResource("1_hsbr5")
+character_id = "char_018"
+character_name = "Heroine18"
+display_name = "Heroine18"
+sprites = {
+"angry": "assets/images/character/heroine18/heroine18_cos06.png",
+"default": "assets/images/character/heroine18/heroine18_cos01.png",
+"happy": "assets/images/character/heroine18/heroine18_cos07.png",
+"laugh": "assets/images/character/heroine18/heroine18_cos05.png",
+"serious": "assets/images/character/heroine18/heroine18_cos20.png",
+"shy": "assets/images/character/heroine18/heroine18_cos15.png",
+"smug": "assets/images/character/heroine18/heroine18_cos08.png",
+"surprised": "assets/images/character/heroine18/heroine18_cos09.png",
+"thinking": "assets/images/character/heroine18/heroine18_cos03.png",
+"worried": "assets/images/character/heroine18/heroine18_cos12.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "06",
+"default": "01",
+"happy": "07",
+"laugh": "05",
+"serious": "20",
+"shy": "15",
+"smug": "08",
+"surprised": "09",
+"thinking": "03",
+"worried": "12"
+}
+profile = "干练成熟的炼金术师，粉短发红眼，黑色风衣随身携药瓶"
+display_offset = Vector2(0, 0.15)

@@ -28,6 +28,7 @@ var is_selected: bool = false
 var _is_hovered: bool = false
 var _is_accessible: bool = true
 var _launch_tween: Tween = null
+var _hover_tween: Tween = null
 
 
 func _ready() -> void:
@@ -81,6 +82,7 @@ func _update_display() -> void:
 	if name_label:
 		name_label.text = app_name
 		name_label.add_theme_font_size_override("font_size", 18)
+		name_label.add_theme_constant_override("line_spacing", 0)
 		name_label.add_theme_color_override("font_color", Color.WHITE)
 
 
@@ -149,10 +151,10 @@ func _update_visual_state() -> void:
 		# Create a StyleBoxFlat for the background
 		var new_style := StyleBoxFlat.new()
 		new_style.bg_color = Color.TRANSPARENT
-		new_style.corner_radius_top_left = 6
-		new_style.corner_radius_top_right = 6
-		new_style.corner_radius_bottom_left = 6
-		new_style.corner_radius_bottom_right = 6
+		new_style.corner_radius_top_left = 10
+		new_style.corner_radius_top_right = 10
+		new_style.corner_radius_bottom_left = 10
+		new_style.corner_radius_bottom_right = 10
 		bg.add_theme_stylebox_override("panel", new_style)
 	
 	# Get the stylebox
@@ -167,7 +169,9 @@ func _update_visual_state() -> void:
 		else:
 			current_style.bg_color = Color.TRANSPARENT
 
-	modulate = Color(1, 1, 1, 1.0 if _is_accessible else 0.42)
+	var target_alpha: float = 1.0 if _is_accessible else 0.42
+	modulate = Color(1, 1, 1, target_alpha)
+	_play_hover_feedback()
 
 
 ## Deselect this icon
@@ -177,8 +181,9 @@ func deselect() -> void:
 
 func set_accessible(value: bool) -> void:
 	_is_accessible = value
+	if not value and is_selected:
+		set_selected(false)
 	if not value:
-		is_selected = false
 		mouse_default_cursor_shape = Control.CURSOR_ARROW
 	else:
 		mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -196,6 +201,8 @@ func _play_press_feedback() -> void:
 
 
 func _play_scale_feedback(target_scale: Vector2, shrink_duration: float, restore_duration: float) -> void:
+	if _hover_tween != null and is_instance_valid(_hover_tween):
+		_hover_tween.kill()
 	if _launch_tween != null and is_instance_valid(_launch_tween):
 		_launch_tween.kill()
 	pivot_offset = size * 0.5
@@ -204,3 +211,22 @@ func _play_scale_feedback(target_scale: Vector2, shrink_duration: float, restore
 	_launch_tween.set_ease(Tween.EASE_OUT)
 	_launch_tween.tween_property(self, "scale", target_scale, shrink_duration)
 	_launch_tween.tween_property(self, "scale", Vector2.ONE, restore_duration)
+	_launch_tween.finished.connect(func() -> void:
+		_launch_tween = null
+		_play_hover_feedback()
+	)
+
+
+func _play_hover_feedback() -> void:
+	if _launch_tween != null and is_instance_valid(_launch_tween):
+		return
+	if _hover_tween != null and is_instance_valid(_hover_tween):
+		_hover_tween.kill()
+	pivot_offset = size * 0.5
+	var target_scale := Vector2.ONE
+	if _is_accessible and (_is_hovered or is_selected):
+		target_scale = Vector2(1.035, 1.035)
+	_hover_tween = create_tween()
+	_hover_tween.set_trans(Tween.TRANS_CUBIC)
+	_hover_tween.set_ease(Tween.EASE_OUT)
+	_hover_tween.tween_property(self, "scale", target_scale, 0.12)

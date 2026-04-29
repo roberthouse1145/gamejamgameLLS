@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://tests/avg_dsl/test_command_param_fallback.gd" id="1"]
+
+[node name="TestCommandParamFallback" type="Node"]
+script = ExtResource("1")

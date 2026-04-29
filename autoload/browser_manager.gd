@@ -79,7 +79,6 @@ func search(keyword: String) -> String:
 	var messages := _build_search_messages(normalized)
 	var request_id: String = _ai_service.chat(messages, {
 		"temperature": 0.8,
-		"max_tokens": 4096
 	})
 	if request_id.is_empty():
 		return ""
@@ -131,7 +130,6 @@ func open_page(url: String, design_prompt: String = "", page_context: String = "
 		messages = _build_page_messages(normalized, design_prompt, page_context)
 	var request_id: String = _ai_service.chat(messages, {
 		"temperature": 0.7,
-		"max_tokens": 8192
 	})
 	if request_id.is_empty():
 		return ""

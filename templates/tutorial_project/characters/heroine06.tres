@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "19"
 }
 profile = "文静优雅的异界祭司少女，淡紫长发粉瞳，身穿黑白修女长袍，头戴日月吊坠装饰帽"
+display_offset = Vector2(0, 0.15)
 

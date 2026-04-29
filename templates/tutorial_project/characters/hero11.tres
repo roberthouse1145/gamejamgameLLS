@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "16"
 }
 profile = "清秀帅气的异域风少年，黑发红眼，头裹紫色头巾，身披红棕披肩，腰间悬挂佩饰与挎包"
+display_offset = Vector2(0, 0.15)

@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "10"
 }
 profile = "文静秀气的传统女仆装少女，紫蓝长发配白头饰，琥珀色眼眸，戴领口红宝石坠饰"
+display_offset = Vector2(0, 0.15)
 

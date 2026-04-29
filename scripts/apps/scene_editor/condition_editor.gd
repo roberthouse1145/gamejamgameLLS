@@ -16,7 +16,7 @@ var cond_param_container: VBoxContainer = null
 ## 变量选择器控制器
 var var_picker: RefCounted = null
 
-## 当前场景（用于变量选择器显示本地变量）
+## 当前场景（兼容旧调用，变量选择器仅使用项目变量）
 var current_scene: Resource = null
 
 ## 当前编辑的条件命令
@@ -99,8 +99,8 @@ func build_condition_tree(tree: Tree, commands: Array) -> void:
 			if cmd_type == "CHECK_VAR":
 				var item: TreeItem = tree.create_item(tree_root)
 				var var_id: String = cmd.params.get("variable_id", "") if cmd.params else ""
-				var vn: String = cmd.params.get("variable_name", "?") if cmd.params else "?"
-				var display_name: String = CDU.resolve_variable_display(var_id, vn)
+				var vk: String = cmd.params.get("variable_key", cmd.params.get("variable_name", "?")) if cmd.params else "?"
+				var display_name: String = CDU.resolve_variable_display(var_id, vk)
 				var op: String = cmd.params.get("operator", ">=") if cmd.params else ">="
 				var val = cmd.params.get("value", "0") if cmd.params else "0"
 				item.set_text(0, "%s %s %s" % [display_name, op, str(val)])
@@ -205,16 +205,16 @@ func _show_check_var_param_dialog(cmd: Resource) -> void:
 	var_hbox.add_child(var_label)
 	_cond_var_button = Button.new()
 	var current_var_id: String = params.get("variable_id", "")
-	var current_var_name: String = params.get("variable_name", "")
-	var display_text: String = CDU.resolve_variable_display(current_var_id, current_var_name)
+	var current_var_key: String = params.get("variable_key", params.get("variable_name", ""))
+	var display_text: String = CDU.resolve_variable_display(current_var_id, current_var_key)
 	_cond_var_button.text = display_text if display_text != "?" else "(点击选择)"
 	_cond_var_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_cond_var_button.pressed.connect(_on_open_var_picker)
-	# 存储已有的 ID/名称
+	# 存储已有的 ID/Key
 	if not current_var_id.is_empty():
 		_cond_var_button.set_meta("variable_id", current_var_id)
-	if not current_var_name.is_empty():
-		_cond_var_button.set_meta("variable_name", current_var_name)
+	if not current_var_key.is_empty():
+		_cond_var_button.set_meta("variable_key", current_var_key)
 	var_hbox.add_child(_cond_var_button)
 	cond_param_container.add_child(var_hbox)
 
@@ -285,14 +285,14 @@ func _on_open_var_picker() -> void:
 
 
 ## 变量选择完成回调
-func _on_variable_selected(var_id: String, var_name: String) -> void:
+func _on_variable_selected(var_id: String, var_key: String) -> void:
 	if _cond_var_button:
 		if not var_id.is_empty():
-			_cond_var_button.text = "%s(%s)" % [var_id, var_name]
+			_cond_var_button.text = CDU.resolve_variable_display(var_id, var_key)
 		else:
-			_cond_var_button.text = var_name
+			_cond_var_button.text = var_key
 		_cond_var_button.set_meta("variable_id", var_id)
-		_cond_var_button.set_meta("variable_name", var_name)
+		_cond_var_button.set_meta("variable_key", var_key)
 
 
 ## 条件参数确定
@@ -302,7 +302,7 @@ func _on_param_ok() -> void:
 		if cmd_type == "CHECK_VAR":
 			if _cond_var_button and _cond_var_button.text != "(点击选择)":
 				_editing_cmd.params["variable_id"] = _cond_var_button.get_meta("variable_id", "")
-				_editing_cmd.params["variable_name"] = _cond_var_button.get_meta("variable_name", "")
+				_editing_cmd.params["variable_key"] = _cond_var_button.get_meta("variable_key", "")
 			if _cond_op_option and _cond_op_option.selected >= 0:
 				_editing_cmd.params["operator"] = CDU.CONDITION_OPERATORS[_cond_op_option.selected]
 			if _cond_value_input:

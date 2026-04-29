@@ -34,3 +34,4 @@ emotion_slots = {
 "worried": "19"
 }
 profile = "元气十足的冒险少年，浅棕短发碧眼，戴着护目镜，身着拼色工装，腰间系着两只皮质挎包"
+display_offset = Vector2(0, 0.15)

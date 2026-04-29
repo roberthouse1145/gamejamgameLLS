@@ -17,6 +17,8 @@ const GENERATED_DIR_PATH: String = RUN_ROOT_PATH + "generated/"
 const BROWSER_DIR_PATH: String = RUN_ROOT_PATH + "browser/"
 
 const CHECKPOINT_DEBOUNCE_SECONDS: float = 0.2
+const ALWAYS_START_FRESH_ON_RUNTIME_BOOT: bool = true
+const DEBUG_RESUME_RUNTIME_PROJECT_ON_BOOT_SETTING: String = "application/run/debug_resume_runtime_project_on_boot"
 
 var auto_save_enabled: bool = true
 
@@ -28,6 +30,7 @@ var _startup_restore_attempted: bool = false
 var _startup_restore_succeeded: bool = false
 var _startup_mode: String = "pending"
 var _generated_registry: Dictionary = {"artifacts": []}
+var _debug_resume_runtime_project_on_boot_override: int = -1
 
 
 func _ready() -> void:
@@ -37,9 +40,7 @@ func _ready() -> void:
 	_checkpoint_timer.timeout.connect(_flush_checkpoint_save)
 	add_child(_checkpoint_timer)
 
-	_ensure_run_directories()
-	_ensure_meta_file()
-	_mount_runtime_player_project_if_needed()
+	_prepare_runtime_boot_for_current_mode()
 	call_deferred("_finish_startup")
 
 
@@ -149,6 +150,26 @@ func was_restored_on_startup() -> bool:
 	return _startup_restore_succeeded
 
 
+func set_debug_runtime_resume_on_boot_override(enabled: bool) -> void:
+	_debug_resume_runtime_project_on_boot_override = 1 if enabled else 0
+
+
+func clear_debug_runtime_resume_on_boot_override() -> void:
+	_debug_resume_runtime_project_on_boot_override = -1
+
+
+func is_debug_runtime_resume_on_boot_enabled() -> bool:
+	if _debug_resume_runtime_project_on_boot_override == 1:
+		return true
+	if _debug_resume_runtime_project_on_boot_override == 0:
+		return false
+	if OS.has_feature("editor"):
+		return false
+	if not OS.is_debug_build():
+		return false
+	return bool(ProjectSettings.get_setting(DEBUG_RESUME_RUNTIME_PROJECT_ON_BOOT_SETTING, true))
+
+
 func continue_run() -> bool:
 	if not has_checkpoint():
 		return false
@@ -169,10 +190,25 @@ func ensure_campaign_started(starting_chapter_id: String = "day1") -> bool:
 			return bool(story.call("start_chapter", starting_chapter_id))
 		return false
 
-	if _startup_restore_succeeded:
+	# 注意：不能因为 `_startup_restore_succeeded` 就直接返回 true。
+	# 如果 checkpoint 恢复过但 StoryDirector 没有活跃章节（例如上次异常退出、
+	# 或存档里 story 状态不完整），顶部的 has_active_story 分支就不会命中，
+	# 此时必须继续走 start_new_run / 降级路径，否则玩家进桌面后 day1 永远
+	# 不会启动，游戏看上去"卡死"。
+
+	if start_new_run(starting_chapter_id):
 		return true
 
-	return start_new_run(starting_chapter_id)
+	# 降级：reset_run 可能被异步 pending（如 DateManager 的生成请求）阻塞。
+	# 既然这是首次启动，运行时状态本就是默认值，直接驱动 StoryDirector 进入章节即可。
+	if story != null and story.has_method("start_chapter"):
+		push_warning("[CampaignRunManager] reset_run blocked; falling back to direct start_chapter")
+		_startup_mode = "new_run_fallback"
+		var ok: bool = bool(story.call("start_chapter", starting_chapter_id))
+		if ok:
+			queue_checkpoint_save()
+		return ok
+	return false
 
 
 func start_new_run(starting_chapter_id: String = "day1") -> bool:
@@ -301,17 +337,50 @@ func _ensure_meta_file() -> void:
 		push_warning("[CampaignRunManager] Failed to write meta.json")
 
 
+func _prepare_runtime_boot_for_current_mode() -> void:
+	if _should_prepare_fresh_runtime_boot():
+		_prepare_fresh_runtime_boot()
+		return
+	_prepare_runtime_boot_without_reset()
+
+
+func _prepare_runtime_boot_without_reset() -> void:
+	_ensure_run_directories()
+	_ensure_meta_file()
+	_mount_runtime_player_project_if_needed()
+
+
 func _mount_runtime_player_project_if_needed() -> void:
 	var storage: Node = _get_autoload("StorageManager")
 	if storage == null or not storage.has_method("mount_runtime_project"):
 		return
-	if bool(storage.get("developer_mode")):
-		return
 	if storage.get("current_project") != null:
+		return
+	var should_mount_runtime: bool = not bool(storage.get("developer_mode"))
+	if storage.has_method("should_boot_into_runtime_project"):
+		should_mount_runtime = bool(storage.call("should_boot_into_runtime_project"))
+	if not should_mount_runtime:
 		return
 	var mount_err: Error = storage.mount_runtime_project()
 	if mount_err != OK:
 		push_warning("[CampaignRunManager] Failed to mount runtime player project: %d" % mount_err)
+
+
+func _should_prepare_fresh_runtime_boot() -> bool:
+	return ALWAYS_START_FRESH_ON_RUNTIME_BOOT and not OS.has_feature("editor") and not is_debug_runtime_resume_on_boot_enabled()
+
+
+func _prepare_fresh_runtime_boot() -> void:
+	# 当前尚未启用正式存档恢复，因此正式运行每次都从全新 run 启动。
+	_checkpoint_dirty = false
+	_startup_restore_attempted = false
+	_startup_restore_succeeded = false
+	_generated_registry = {"artifacts": []}
+	_clear_run_storage()
+	_ensure_run_directories()
+	_ensure_meta_file()
+	_mount_runtime_player_project_force()
+	_startup_mode = "fresh_boot"
 
 
 func _connect_state_sources() -> void:
@@ -340,11 +409,6 @@ func _connect_state_sources() -> void:
 		_connect_signal(browser, "page_generated", Callable(self, "_on_state_changed"))
 		_connect_signal(browser, "page_failed", Callable(self, "_on_state_changed"))
 
-	var community: Node = _get_autoload("CommunityActionManager")
-	if community != null:
-		_connect_signal(community, "community_action_completed", Callable(self, "_on_state_changed"))
-		_connect_signal(community, "community_action_failed", Callable(self, "_on_state_changed"))
-
 	var shop: Node = _get_autoload("ShopManager")
 	if shop != null:
 		_connect_signal(shop, "shop_state_changed", Callable(self, "_on_state_changed"))
@@ -368,7 +432,8 @@ func _connect_state_sources() -> void:
 func _attempt_startup_restore() -> void:
 	_startup_restore_attempted = true
 	if not _should_restore_on_startup():
-		_startup_mode = "no_checkpoint"
+		if _startup_mode == "pending":
+			_startup_mode = "no_checkpoint"
 		return
 	_startup_restore_succeeded = load_checkpoint()
 	if _startup_restore_succeeded:
@@ -379,9 +444,11 @@ func _attempt_startup_restore() -> void:
 
 
 func _should_restore_on_startup() -> bool:
-	if OS.has_feature("editor"):
-		return false
-	return has_checkpoint()
+	# GameJam 版本暂无存档系统支持。checkpoint 写入依然保留（为未来存档系统铺路），
+	# 但启动时一律不恢复，避免"半恢复"状态让 StoryDirector 处于未激活但又看似已启动
+	# 的夹生态（typical 症状：打印 "Restored checkpoint from startup" 之后 day1 永远不起）。
+	# 等正式接入存档系统后再把这里改回按 editor/has_checkpoint 判断。
+	return false
 
 
 func _connect_signal(node: Node, signal_name: String, callable: Callable) -> void:
@@ -458,6 +525,7 @@ func _build_run_state() -> Dictionary:
 	var part_time_state: Dictionary = _collect_manager_state("PartTimeJobManager")
 	var sbeam_state: Dictionary = _collect_manager_state("SbeamManager")
 	var home_activity_state: Dictionary = _collect_manager_state("HomeActivityManager")
+	var npc_initiative_state: Dictionary = _collect_manager_state("NpcInitiativeManager")
 	var player_project_path: String = PLAYER_PROJECT_DIR_PATH
 	var storage: Node = _get_autoload("StorageManager")
 	if storage != null:
@@ -465,7 +533,7 @@ func _build_run_state() -> Dictionary:
 		if not runtime_project_path.is_empty():
 			player_project_path = runtime_project_path
 
-	if game_loop_state.is_empty() and game_state.is_empty() and story_state.is_empty() and chat_state.is_empty() and browser_state.is_empty() and shop_state.is_empty() and date_state.is_empty() and part_time_state.is_empty() and sbeam_state.is_empty() and home_activity_state.is_empty() and _generated_registry.is_empty():
+	if game_loop_state.is_empty() and game_state.is_empty() and story_state.is_empty() and chat_state.is_empty() and browser_state.is_empty() and shop_state.is_empty() and date_state.is_empty() and part_time_state.is_empty() and sbeam_state.is_empty() and home_activity_state.is_empty() and npc_initiative_state.is_empty() and _generated_registry.is_empty():
 		return {}
 
 	return {
@@ -487,6 +555,7 @@ func _build_run_state() -> Dictionary:
 		"part_time_state": part_time_state,
 		"sbeam_state": sbeam_state,
 		"home_activity_state": home_activity_state,
+		"npc_initiative_state": npc_initiative_state,
 		"generated_registry": _generated_registry.duplicate(true),
 	}
 
@@ -503,6 +572,7 @@ func _apply_run_state(state: Dictionary) -> bool:
 	ok = _apply_manager_state("PartTimeJobManager", state.get("part_time_state", {})) and ok
 	ok = _apply_manager_state("SbeamManager", state.get("sbeam_state", {})) and ok
 	ok = _apply_manager_state("HomeActivityManager", state.get("home_activity_state", {})) and ok
+	ok = _apply_manager_state("NpcInitiativeManager", state.get("npc_initiative_state", {})) and ok
 	var registry_state: Variant = state.get("generated_registry", {})
 	if registry_state is Dictionary:
 		_generated_registry = (registry_state as Dictionary).duplicate(true)
@@ -557,7 +627,7 @@ func _get_current_day() -> int:
 
 
 func _can_write_checkpoint() -> bool:
-	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests() and not _has_pending_shop_requests()
+	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests() and not _has_pending_community_requests() and not _has_pending_shop_requests()
 
 
 func _can_reset_run() -> bool:
@@ -587,6 +657,13 @@ func _has_pending_browser_requests() -> bool:
 	if browser == null or not browser.has_method("has_pending_requests"):
 		return false
 	return bool(browser.call("has_pending_requests"))
+
+
+func _has_pending_community_requests() -> bool:
+	var community: Node = _get_autoload("CommunityActionManager")
+	if community == null or not community.has_method("has_pending_requests"):
+		return false
+	return bool(community.call("has_pending_requests"))
 
 
 func _has_pending_shop_requests() -> bool:
@@ -665,11 +742,14 @@ func _reset_all_runtime_state() -> void:
 	_reset_manager_state("WorkOrderManager")
 	_reset_manager_state("ChatManager", [true])
 	_reset_manager_state("BrowserManager", [true])
+	_reset_manager_state("CommunityActionManager")
 	_reset_manager_state("ShopManager")
+	_reset_manager_state("TransitManager")
 	_reset_manager_state("DateManager")
 	_reset_manager_state("PartTimeJobManager")
 	_reset_manager_state("SbeamManager")
 	_reset_manager_state("HomeActivityManager")
+	_reset_manager_state("NpcInitiativeManager")
 
 
 func _reset_manager_state(node_name: String, args: Array = []) -> void:

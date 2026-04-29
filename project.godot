@@ -15,9 +15,13 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="AI GAME MAKE"
-run/main_scene="uid://cjlj8yan04m4c"
+run/main_scene="res://scenes/pseudo_os/desktop.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[audio]
+
+buses/default_bus_layout="res://default_bus_layout.tres"
 
 [autoload]
 
@@ -30,7 +34,9 @@ ChatManager="*res://autoload/chat_manager.gd"
 WorkOrderManager="*res://autoload/work_order_manager.gd"
 GameLoopManager="*res://autoload/game_loop_manager.gd"
 KnowledgeBaseManager="*res://autoload/knowledge_base_manager.gd"
-CampaignRunManager="*res://autoload/campaign_run_manager.gd"
+PlanningManager="*res://autoload/planning_manager.gd"
+MinigameManager="*res://autoload/minigame_manager.gd"
+DevCycleManager="*res://autoload/dev_cycle_manager.gd"
 BrowserManager="*res://scenes/autoload/browser_manager.tscn"
 CommunityActionManager="*res://scenes/autoload/community_action_manager.tscn"
 ShopManager="*res://autoload/shop_manager.gd"
@@ -39,18 +45,16 @@ DateManager="*res://autoload/date_manager.gd"
 PartTimeJobManager="*res://autoload/part_time_job_manager.gd"
 SbeamManager="*res://autoload/sbeam_manager.gd"
 HomeActivityManager="*res://scenes/home/home_activity_manager.tscn"
+TransitManager="*res://autoload/transit_manager.gd"
 StoryDirector="*res://autoload/story_director.gd"
-MinigameManager="*res://autoload/minigame_manager.gd"
-PlanningManager="*res://autoload/planning_manager.gd"
-DevCycleManager="*res://autoload/dev_cycle_manager.gd"
 AudioManager="*res://autoload/audio_manager.gd"
 
 [display]
 
 window/size/viewport_width=2560
 window/size/viewport_height=1440
-window/size/window_width_override=1280
-window/size/window_height_override=720
+window/size/window_width_override=2560
+window/size/window_height_override=1440
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 display/window/dpi/allow_hidpi=true

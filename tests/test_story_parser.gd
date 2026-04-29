@@ -7,6 +7,9 @@ const StoryScriptParserClass = preload("res://scripts/story/story_script_parser.
 func _ready() -> void:
 	print("=== StoryScriptParser Test ===")
 	_test_parse_day1()
+	_test_parse_day2_trigger()
+	_test_parse_test_brief()
+	_test_parse_trigger_header()
 	_test_compiled_index()
 	print("=== All Tests Done ===")
 
@@ -18,54 +21,23 @@ func _test_parse_day1() -> void:
 		print("FAIL: story_data is empty")
 		return
 
-	# 解析 .json 文件
-	var json_file: FileAccess = FileAccess.open("res://resources/story/chapters/day1.json", FileAccess.READ)
-	if json_file == null:
-		print("FAIL: cannot open day1.json")
-		return
-	var json_data: Dictionary = JSON.parse_string(json_file.get_as_text())
-	json_file.close()
+	_assert_eq("chapter_id", story_data.get("chapter_id"), "day1")
+	_assert_eq("chapter_name", story_data.get("chapter_name"), "第一天 - GameJam报名")
+	_assert_eq("next_chapter", story_data.get("next_chapter"), "day2")
 
-	# 比较章节头部
-	_assert_eq("chapter_id", story_data.get("chapter_id"), json_data.get("chapter_id"))
-	_assert_eq("chapter_name", story_data.get("chapter_name"), json_data.get("chapter_name"))
-	_assert_eq("next_chapter", story_data.get("next_chapter"), json_data.get("next_chapter"))
-
-	# 比较步骤数量
 	var story_steps: Array = story_data.get("steps", [])
-	var json_steps: Array = json_data.get("steps", [])
-	_assert_eq("step count", story_steps.size(), json_steps.size())
-
-	# 逐步骤比较
-	var count: int = mini(story_steps.size(), json_steps.size())
-	for i in range(count):
-		var ss: Dictionary = story_steps[i]
-		var js: Dictionary = json_steps[i]
-		var sid: String = ss.get("step_id", "?")
-		_assert_eq("%s.step_id" % sid, ss.get("step_id"), js.get("step_id"))
-		_assert_eq("%s.next" % sid, ss.get("next", ""), js.get("next", ""))
-
-		# 比较 actions 数量
-		var sa: Array = ss.get("actions", [])
-		var ja: Array = js.get("actions", [])
-		_assert_eq("%s.actions.size" % sid, sa.size(), ja.size())
-
-		# 比较每个 action 的 type
-		for ai in range(mini(sa.size(), ja.size())):
-			_assert_eq("%s.action[%d].type" % [sid, ai], sa[ai].get("type"), ja[ai].get("type"))
-			if sa[ai].get("type") == "set_app_access":
-				_assert_true("%s.action[%d].apps is array" % [sid, ai], sa[ai].get("apps", []) is Array)
-
-		# 比较 wait_for.type
-		var sw: Dictionary = ss.get("wait_for", {})
-		var jw: Dictionary = js.get("wait_for", {})
-		_assert_eq("%s.wait_for.type" % sid, sw.get("type"), jw.get("type"))
-
-		# 比较 capture 键集合
-		var sc: Dictionary = ss.get("capture", {})
-		var jc: Dictionary = js.get("capture", {})
-		if jc.size() > 0 or sc.size() > 0:
-			_assert_eq("%s.capture.keys" % sid, sc.keys(), jc.keys())
+	_assert_eq("step count", story_steps.size(), 11)
+	var last_step: Dictionary = story_steps[story_steps.size() - 1]
+	var brief_step: Dictionary = story_steps[7]  # day1_08_open_brief
+	var plan_step: Dictionary = story_steps[6]  # day1_07_afternoon_plan
+	_assert_eq("last step", last_step.get("step_id", ""), "day1_11_date_avg")
+	_assert_eq("last wait type", last_step.get("wait_for", {}).get("type", ""), "date_completed")
+	_assert_eq("plan wait type", plan_step.get("wait_for", {}).get("type", ""), "topic_completed")
+	_assert_eq("plan wait topic", plan_step.get("wait_for", {}).get("topic_id", ""), "day1_night_plan")
+	_assert_eq("brief step id", brief_step.get("step_id", ""), "day1_08_open_brief")
+	_assert_eq("brief wait type", brief_step.get("wait_for", {}).get("type", ""), "dev_task_completed")
+	_assert_eq("brief wait task", brief_step.get("wait_for", {}).get("task_id", ""), "day1_creative_brief")
+	_assert_eq("brief next", brief_step.get("next", ""), "day1_09_night_date_suggest")
 
 	# 打印 story 解析结果摘要
 	print("\n--- Story parse summary ---")
@@ -85,6 +57,67 @@ func _test_parse_day1() -> void:
 		])
 
 
+func _test_parse_day2_trigger() -> void:
+	var story_data: Dictionary = StoryScriptParserClass.parse_file("res://resources/story/chapters/day2.txt")
+	if story_data.is_empty():
+		print("FAIL: day2 story_data is empty")
+		return
+
+	var trigger: Dictionary = story_data.get("trigger", {})
+	_assert_eq("day2.chapter_id", story_data.get("chapter_id"), "day2")
+	_assert_eq("day2.next_chapter", story_data.get("next_chapter"), "")
+	_assert_eq("day2.trigger.day", trigger.get("day", 0), 2)
+	_assert_eq("day2.trigger.phase", trigger.get("phase", ""), "MORNING")
+	_assert_true("day2.trigger.required_chapters is array", trigger.get("required_chapters", []) is Array)
+	_assert_eq("day2.trigger.required_chapters size", trigger.get("required_chapters", []).size(), 1)
+	_assert_eq("day2.trigger.required_chapters[0]", trigger.get("required_chapters", [""])[0], "day1")
+
+
+func _test_parse_test_brief() -> void:
+	var story_data: Dictionary = StoryScriptParserClass.parse_file("res://resources/story/chapters/test_brief.txt")
+	if story_data.is_empty():
+		print("FAIL: test_brief story_data is empty")
+		return
+
+	var story_steps: Array = story_data.get("steps", [])
+	var last_step: Dictionary = story_steps[story_steps.size() - 1]
+	_assert_eq("test_brief.chapter_id", story_data.get("chapter_id"), "test_brief")
+	_assert_eq("test_brief.step count", story_steps.size(), 2)
+	_assert_eq("test_brief.last wait", last_step.get("wait_for", {}).get("type", ""), "variable_equals")
+	_assert_eq("test_brief remains independent", story_steps[0].get("step_id", ""), "test_brief_01_init")
+
+
+func _test_parse_trigger_header() -> void:
+	var source := """chapter: trigger_probe
+name: Trigger Probe
+desc: 测试章节级触发器
+priority: 30
+trigger:
+  min_day: 7
+  phase: night
+  required_chapters: day1, day3
+  excluded_chapters: epilogue
+  conditions: signup_completed == true, affection >= 50
+next_chapter:
+
+=== trigger_probe_01 ===
+wait: immediate
+->
+"""
+
+	var story_data: Dictionary = StoryScriptParserClass.parse(source)
+	var trigger: Dictionary = story_data.get("trigger", {})
+	_assert_eq("trigger.chapter_id", story_data.get("chapter_id", ""), "trigger_probe")
+	_assert_eq("trigger.priority", story_data.get("priority", 0), 30)
+	_assert_eq("trigger.min_day", trigger.get("min_day", 0), 7)
+	_assert_eq("trigger.phase", trigger.get("phase", ""), "NIGHT")
+	_assert_true("trigger.required_chapters is array", trigger.get("required_chapters", []) is Array)
+	_assert_true("trigger.excluded_chapters is array", trigger.get("excluded_chapters", []) is Array)
+	_assert_true("trigger.conditions is array", trigger.get("conditions", []) is Array)
+	_assert_eq("trigger.required_chapters.size", trigger.get("required_chapters", []).size(), 2)
+	_assert_eq("trigger.conditions.size", trigger.get("conditions", []).size(), 2)
+
+
 func _test_compiled_index() -> void:
 	var index_resource: Resource = StoryCompilerClass.compile_all()
 	if index_resource == null or not (index_resource is StoryChapterIndexClass):
@@ -92,8 +125,10 @@ func _test_compiled_index() -> void:
 		return
 
 	var chapter_ids: Array[String] = index_resource.get_chapter_ids()
-	_assert_eq("compiled chapter count", chapter_ids.size(), 1)
-	_assert_eq("compiled chapter id", chapter_ids[0] if not chapter_ids.is_empty() else "", "day1")
+	_assert_true("compiled contains day1", chapter_ids.has("day1"))
+	_assert_true("compiled contains day2", chapter_ids.has("day2"))
+	_assert_true("compiled contains test_brief", chapter_ids.has("test_brief"))
+	_assert_true("compiled contains test_dev", chapter_ids.has("test_dev"))
 	_assert_eq("compiled source path", index_resource.chapter_sources.get("day1", ""), "res://resources/story/chapters/day1.txt")
 
 	var loaded_index: Resource = StoryCompilerClass.load_index_resource()
@@ -107,10 +142,22 @@ func _test_compiled_index() -> void:
 		return
 
 	_assert_eq("loaded compiled chapter_id", loaded_chapter.chapter_id, "day1")
-	_assert_eq("loaded compiled step count", loaded_chapter.steps.size(), 10)
+	_assert_eq("loaded compiled next_chapter", loaded_chapter.next_chapter, "day2")
+	_assert_eq("loaded compiled step count", loaded_chapter.steps.size(), 11)
+	_assert_eq("loaded compiled priority", loaded_chapter.priority, 0)
+	_assert_true("loaded compiled trigger empty", loaded_chapter.trigger.is_empty())
 	var first_action_apps: Variant = loaded_chapter.steps[0].actions[1].get("apps", [])
 	_assert_true("compiled apps is array", first_action_apps is Array)
 	_assert_eq("compiled apps first value", first_action_apps[0] if first_action_apps.size() > 0 else "", "linkchat")
+
+	var loaded_day2: Resource = loaded_index.get_chapter("day2")
+	if loaded_day2 == null:
+		print("FAIL: day2 missing from compiled index")
+		return
+	_assert_eq("loaded day2 next_chapter", loaded_day2.next_chapter, "")
+	_assert_eq("loaded day2 trigger day", loaded_day2.trigger.get("day", 0), 2)
+	_assert_eq("loaded day2 trigger phase", loaded_day2.trigger.get("phase", ""), "MORNING")
+	_assert_eq("loaded day2 required chapter", loaded_day2.trigger.get("required_chapters", [""])[0], "day1")
 
 
 func _assert_eq(label: String, got: Variant, expected: Variant) -> void:

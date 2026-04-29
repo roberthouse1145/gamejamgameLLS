@@ -30,9 +30,9 @@ const STAT_MIN: int = 0
 const STAT_MAX: int = 100
 
 ## 初始数值 — 林夏三维
-const DEFAULT_AFFECTION: int = 80
-const DEFAULT_STRESS: int = 30
-const DEFAULT_PASSION: int = 60
+const DEFAULT_AFFECTION: int = 100
+const DEFAULT_STRESS: int = 10
+const DEFAULT_PASSION: int = 100
 const DEFAULT_MONEY: int = 500
 
 ## 初始数值 — 项目四维
@@ -189,8 +189,8 @@ func _init_connections() -> void:
 		passion_changed.connect(_on_passion_changed)
 	if _chat_manager and _chat_manager.has_signal("topic_completed"):
 		_chat_manager.topic_completed.connect(_on_chat_topic_released)
-	if _chat_manager and _chat_manager.has_signal("topic_timeout"):
-		_chat_manager.topic_timeout.connect(_on_chat_topic_timeout)
+	if _chat_manager and _chat_manager.has_signal("topic_cancelled"):
+		_chat_manager.topic_cancelled.connect(_on_chat_topic_cancelled)
 	if _story_director and _story_director.has_signal("chapter_completed"):
 		_story_director.chapter_completed.connect(_on_story_released)
 	if _story_director and _story_director.has_signal("all_chapters_completed"):
@@ -377,7 +377,7 @@ func _on_chat_topic_released(_topic: Resource, _result: Dictionary) -> void:
 	_queue_status_warning_evaluation()
 
 
-func _on_chat_topic_timeout(_topic: Resource) -> void:
+func _on_chat_topic_cancelled(_topic: Resource, _reason: String) -> void:
 	_queue_status_warning_evaluation()
 
 
@@ -462,7 +462,6 @@ func _trigger_status_warning_topic(warning_type: String) -> bool:
 		"status_warning_type": warning_type,
 		"free_period_warning": true,
 	}
-	topic.max_turns = 3
 	topic.timeout_seconds = 0
 
 	if not _chat_manager.activate_topic(topic):
@@ -485,6 +484,17 @@ func _build_status_warning_prompt(warning_type: String) -> String:
 		_:
 			warning_desc = "你现在的状态很危险，需要提醒搭档先缓一缓。"
 
+	var mood_summary := get_mood_summary()
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("has_prompt") and pm.has_method("resolve_with_vars"):
+		if pm.has_prompt("linkchat_status_warning"):
+			var resolved := str(pm.resolve_with_vars("linkchat_status_warning", {
+				"warning_desc": warning_desc,
+				"mood_summary": mood_summary,
+			})).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+
 	return """你是林夏，现在是在 LinkChat 私聊里主动找搭档说话。
 这不是剧情强制事件，而是自由时段里的状态提醒。
 
@@ -500,7 +510,7 @@ func _build_status_warning_prompt(warning_type: String) -> String:
 - 重点是让玩家意识到：继续一味开发，会让你更难受
 - 可以表达累、烦、没灵感、想休息、想换换脑子，但不要直接替玩家做完整规划
 - 不要开启新工单，不要谈底层工具，不要写成长篇分析
-- 最后一条消息末尾必须加 [TOPIC_COMPLETE]""" % [warning_desc, get_mood_summary()]
+- 最后一条消息末尾必须加 [TOPIC_COMPLETE]""" % [warning_desc, mood_summary]
 
 # =============================================================================
 # Persistence (save/load)

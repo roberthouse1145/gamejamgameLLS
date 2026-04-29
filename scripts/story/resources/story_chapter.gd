@@ -13,6 +13,12 @@ const StoryStepClass = preload("res://scripts/story/resources/story_step.gd")
 ## 章节描述
 @export var description: String = ""
 
+## 自动触发配置（空 = 仅支持手动/链式启动）
+@export var trigger: Dictionary = {}
+
+## 触发优先级（值越大越先触发）
+@export var priority: int = 0
+
 ## 步骤列表（Array of StoryStep）
 @export var steps: Array[Resource] = []
 
@@ -42,3 +48,7 @@ func get_step_ids() -> Array[String]:
 		if step is StoryStepClass:
 			ids.append(step.step_id)
 	return ids
+
+
+func has_trigger() -> bool:
+	return not trigger.is_empty()

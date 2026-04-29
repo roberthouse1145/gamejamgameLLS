@@ -6,6 +6,7 @@ class_name EventListPanel extends VBoxContainer
 signal event_selected(event: Resource)
 
 const AVGEventClass = preload("res://scripts/avg/resources/avg_event.gd")
+const CommandDisplayUtilsClass = preload("res://scripts/apps/scene_editor/command_display_utils.gd")
 
 ## 槽位数量上限
 const DEFAULT_MAX_SLOTS: int = 100
@@ -279,7 +280,10 @@ func _build_command_tree(parent: TreeItem, commands: Array, prefix: String) -> v
 
 
 func _build_if_block(parent: TreeItem, cmd: Resource, index: int, index_str: String) -> void:
-	var condition: String = cmd.params.get("condition", "")
+	var cond_cmds: Array = cmd.params.get("condition_commands", [])
+	var condition: String = CommandDisplayUtilsClass.get_condition_summary(cond_cmds)
+	if condition == "无":
+		condition = cmd.params.get("condition", "")
 	var if_item: TreeItem = command_tree.create_item(parent)
 	if_item.set_text(0, "%s. 如果 [%s]" % [index_str, condition])
 	if_item.set_metadata(0, {"type": "IF", "index": index, "path": ""})
@@ -400,8 +404,8 @@ func _get_command_display(cmd: Variant) -> String:
 		"JUMP_SCENE": return "跳转场景 %s" % p.get("scene_id", "")
 		"SET_VARIABLE":
 			var var_id: String = p.get("variable_id", "")
-			var var_name: String = p.get("variable_name", "")
-			var display_name: String = _resolve_variable_display(var_id, var_name)
+			var var_key: String = p.get("variable_key", p.get("variable_name", ""))
+			var display_name: String = _resolve_variable_display(var_id, var_key)
 			return "设置变量 %s %s %s" % [display_name, p.get("operation", "set"), str(p.get("value", ""))]
 		"CALL_EVENT": return "调用事件 %s" % p.get("event_id", "")
 		"PLAY_BGM": return "播放BGM %s" % p.get("audio_path", "")
@@ -411,33 +415,34 @@ func _get_command_display(cmd: Variant) -> String:
 		"IF": return "如果 [%s]" % p.get("condition", "")
 		"CHECK_VAR":
 			var var_id: String = p.get("variable_id", "")
-			var vn: String = p.get("variable_name", "?")
-			var display_name: String = _resolve_variable_display(var_id, vn)
+			var vk: String = p.get("variable_key", p.get("variable_name", "?"))
+			var display_name: String = _resolve_variable_display(var_id, vk)
 			return "%s %s %s" % [display_name, p.get("operator", ">="), str(p.get("value", "0"))]
 		_: return cmd_type
 
 
-## 解析变量显示名称：优先用 variable_id 查找名称，显示为 "ID(名称)" 格式
-func _resolve_variable_display(var_id: String, var_name: String) -> String:
+## 解析变量显示名称：优先显示 variable_key，其次显示 ID
+func _resolve_variable_display(var_id: String, var_key: String) -> String:
 	if _project == null or not "variables" in _project:
-		if not var_id.is_empty():
-			return var_id
-		return var_name if not var_name.is_empty() else "?"
+		if not var_key.is_empty():
+			return var_key
+		return var_id if not var_id.is_empty() else "?"
 	
 	if not var_id.is_empty():
 		for v in _project.variables:
 			if v.variable_id == var_id:
-				return "%s(%s)" % [var_id, v.variable_name]
-		return "%s(?)" % var_id
+				var resolved_key: String = AVGVariable.get_key(v)
+				return "%s (%s)" % [resolved_key, var_id] if not resolved_key.is_empty() else var_id
+		return var_id
 	
-	if not var_name.is_empty():
+	if not var_key.is_empty():
 		for v in _project.variables:
-			if v.variable_name == var_name:
+			if AVGVariable.get_key(v) == AVGVariable.normalize_key(var_key):
 				var vid: String = v.variable_id if "variable_id" in v else ""
 				if not vid.is_empty():
-					return "%s(%s)" % [vid, var_name]
-				return var_name
-		return var_name
+					return "%s (%s)" % [AVGVariable.get_key(v), vid]
+				return AVGVariable.get_key(v)
+		return var_key
 	
 	return "?"
 
@@ -538,12 +543,12 @@ func _init_command_params(cmd: Resource) -> void:
 		"LABEL": cmd.params = {"name": ""}
 		"JUMP_LABEL": cmd.params = {"target": ""}
 		"JUMP_SCENE": cmd.params = {"scene_id": ""}
-		"SET_VARIABLE": cmd.params = {"variable_id": "", "variable_name": "", "value": 0, "operation": "set"}
+		"SET_VARIABLE": cmd.params = {"variable_id": "", "variable_key": "", "value": 0, "operation": "set"}
 		"CALL_EVENT": cmd.params = {"event_id": ""}
 		"PLAY_BGM": cmd.params = {"audio_path": "", "fade_duration": 1.0, "volume": 1.0}
 		"STOP_BGM": cmd.params = {"fade_duration": 1.0}
 		"PLAY_SFX": cmd.params = {"audio_path": "", "volume": 1.0}
 		"CHANGE_BACKGROUND": cmd.params = {"texture": null, "fade_duration": 0.5}
 		"IF": cmd.params = {"condition_commands": [], "if_commands": [], "has_else": false, "else_commands": []}
-		"CHECK_VAR": cmd.params = {"variable_id": "", "variable_name": "", "operator": ">=", "value": "0"}
+		"CHECK_VAR": cmd.params = {"variable_id": "", "variable_key": "", "operator": ">=", "value": "0"}
 		_: cmd.params = {}

@@ -323,6 +323,9 @@ func _resolve_recursive(text: String, visited: Dictionary, depth: int, vars: Dic
 		var new_visited: Dictionary = visited.duplicate()
 		new_visited[key] = true
 		var replacement: String = _resolve_recursive(replacement_text, new_visited, depth + 1, vars)
+		# 规范化首尾空白：调用方/Provider 偶发的多余前后换行会让"完全一样的内容"
+		# 在不同调用间产生 1-2 个 token 的偏移，从此处起破坏 DeepSeek 缓存前缀命中。
+		replacement = replacement.strip_edges()
 		result = result.substr(0, m.get_start()) + replacement + result.substr(m.get_end())
 	
 	return result

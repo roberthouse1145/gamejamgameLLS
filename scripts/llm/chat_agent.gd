@@ -37,6 +37,15 @@ var _available_skills: Dictionary = {}
 var strip_thinking_from_history: bool = true
 ## 最大历史消息数（0 = 不限制）
 var max_history_messages: int = 50
+## 最大历史字符预算（0 = 不限制，按近似字符数裁剪）
+var max_history_chars: int = 12000
+## 尽量保留最近多少条消息不被优先裁剪
+var history_preserve_recent_messages: int = 6
+## 是否在 system prompt 中附带所有可用 skills 元数据。
+## 默认开启，确保模型知道可激活的 skills 及其使用场景。
+var include_available_skills_metadata_in_prompt: bool = true
+const TOOL_HISTORY_PREVIEW_CHARS: int = 220
+const TOOL_HISTORY_MAX_ITEMS: int = 6
 #endregion
 
 
@@ -74,7 +83,10 @@ func send_message(text: String) -> String:
 	var full_messages: Array = _build_messages_for_api()
 
 	# 带上已注册的 tools（如果有的话）
-	var options: Dictionary = {"auto_execute": true}
+	var options: Dictionary = {
+		"auto_execute": true,
+		"tool_result_summarizer": Callable(self, "_summarize_tool_result_for_history"),
+	}
 	var tools: Array = _ai_service.get_tools_definition()
 	if tools.size() > 0:
 		options["tools"] = tools
@@ -98,9 +110,15 @@ func reset() -> void:
 	_is_busy = false
 
 
+## 显式设置当前回合使用的 system prompt。
+## 适合外部已经构建好完整 prompt、只需要借助 ChatAgent 做工具调用编排的场景。
+func set_system_prompt_override(system_prompt: String) -> void:
+	_system_prompt = system_prompt.strip_edges()
+
+
 ## 注册普通工具。
-func register_tool(tool_name: String, description: String, schema: Dictionary, callback: Callable) -> void:
-	_ai_service.register_tool(tool_name, description, schema, callback)
+func register_tool(tool_name: String, description: String, schema: Dictionary, callback: Callable, llm_view: Variant = null) -> void:
+	_ai_service.register_tool(tool_name, description, schema, callback, llm_view)
 
 
 ## 注册 sub-agent 工具。
@@ -125,7 +143,8 @@ func register_sub_agent_tool(tool_name: String, description: String, agent: Node
 		tool_name,
 		description,
 		schema,
-		func(args: Dictionary) -> Dictionary: return await _execute_sub_agent(tool_name, args)
+		func(args: Dictionary) -> Dictionary: return await _execute_sub_agent(tool_name, args),
+		["success", "data", "error"]
 	)
 
 
@@ -175,7 +194,7 @@ func activate_skill(skill_name: String) -> Dictionary:
 		var tname: String = t.get("name", "")
 		if tname.is_empty():
 			continue
-		_ai_service.register_tool(tname, t.get("description", ""), t.get("schema", {}), t.get("callback", Callable()))
+		_ai_service.register_tool(tname, t.get("description", ""), t.get("schema", {}), t.get("callback", Callable()), t.get("llm_view", null))
 		tool_names.append(tname)
 
 	_active_skills.append({"name": skill_name, "instructions": skill.instructions, "tool_names": tool_names})
@@ -296,6 +315,11 @@ func _on_request_completed(_request_id: String, response: Dictionary) -> void:
 	if not _is_busy:
 		return
 
+	if role == "linkchat":
+		print("[ChatAgent] AI full response BEGIN (%s)" % role)
+		print(JSON.stringify(response, "  "))
+		print("[ChatAgent] AI full response END (%s)" % role)
+
 	var content: String = ""
 	var has_tool_calls: bool = false
 	if response.has("choices") and response.choices.size() > 0:
@@ -352,12 +376,12 @@ func _on_tool_executed(_request_id: String, tool_name: String, arguments: Dictio
 	_emit_log("tool_call", "调用工具: %s(%s)" % [tool_name, str(arguments).left(150)])
 	if result != null:
 		_emit_log("tool_result", "结果: %s" % str(result).left(200))
-	
+
 	# 将工具执行结果存入 history，否则下一轮对话模型将无法感知工具产出
 	_messages.append({
 		"role": "tool",
 		"tool_call_id": tool_call_id,
-		"content": JSON.stringify(result) if result != null else "null"
+		"content": _summarize_tool_result_for_history(tool_name, result)
 	})
 	_trim_history()
 	
@@ -375,7 +399,7 @@ func _generate_conversation_id() -> String:
 ## 构建发给 API 的完整 messages 数组（system prompt + skill 注入 + 历史）
 ## skill 注入策略：
 ##   - 已激活 skill 的完整指令：有 {%skill_prompt%} 标记则替换，否则追加
-##   - 可用 skill 元数据列表：始终动态追加到末尾（不污染 base prompt）
+##   - 可用 skill 元数据列表：默认动态追加到末尾；如显式关闭则不注入
 ## 注意：使用 {%...%} 而非 {{...}} 避免与 PromptManager 的 {{key}} 模板冲突
 func _build_messages_for_api() -> Array:
 	var result: Array = []
@@ -394,19 +418,19 @@ func _build_messages_for_api() -> Array:
 	else:
 		combined_prompt = combined_prompt.replace("{%skill_prompt%}", "")
 
-	# 2) 可用 skill 元数据（名称+描述+工具数），让 AI 知道能激活什么
-	if not _available_skills.is_empty():
-		var meta_section: String = "\n\n# 可用 Skills（使用 activate_skill 工具激活）\n"
+	# 2) 可用 skill 元数据默认注入，确保模型知道有哪些 skill 可激活
+	if include_available_skills_metadata_in_prompt and not _available_skills.is_empty():
+		var meta_section: String = "\n\n# 可用 Skills\n"
 		for sname in _available_skills:
 			var s: Dictionary = _available_skills[sname]
+			var parts: Array[String] = ["- %s: %s" % [sname, s.description]]
+			var keywords: Array = s.get("keywords", [])
+			if not keywords.is_empty():
+				parts.append("关键词=%s" % "/".join(PackedStringArray(keywords)))
 			var skill_tools: Array = s.get("tools", [])
-			if skill_tools.is_empty():
-				meta_section += "- **%s**: %s\n" % [sname, s.description]
-			else:
-				var tnames: Array[String] = []
-				for t in skill_tools:
-					tnames.append(t.get("name", "?"))
-				meta_section += "- **%s**: %s (附带工具: %s)\n" % [sname, s.description, ", ".join(tnames)]
+			if not skill_tools.is_empty():
+				parts.append("激活后附带 %d 个工具" % skill_tools.size())
+			meta_section += " | ".join(parts) + "\n"
 		combined_prompt += meta_section
 
 	if not combined_prompt.is_empty():
@@ -464,10 +488,263 @@ func _strip_thinking(text: String) -> String:
 
 ## 裁剪历史消息数量
 func _trim_history() -> void:
-	if max_history_messages <= 0:
-		return
-	while _messages.size() > max_history_messages:
-		_messages.remove_at(0)
+	while _is_history_over_budget():
+		var remove_idx: int = _find_history_trim_candidate_index()
+		if remove_idx < 0:
+			break
+		_messages.remove_at(remove_idx)
+
+
+func _is_history_over_budget() -> bool:
+	var over_message_limit: bool = max_history_messages > 0 and _messages.size() > max_history_messages
+	var over_char_budget: bool = max_history_chars > 0 and _estimate_history_chars() > max_history_chars
+	return over_message_limit or over_char_budget
+
+
+func _estimate_history_chars() -> int:
+	var total: int = 0
+	for msg in _messages:
+		total += _estimate_message_chars(msg)
+	return total
+
+
+func _estimate_message_chars(msg: Dictionary) -> int:
+	var total: int = 24
+	var content: Variant = msg.get("content", null)
+	if content != null:
+		total += str(content).length()
+	if msg.has("tool_calls"):
+		total += JSON.stringify(msg.get("tool_calls", [])).length()
+	if msg.has("tool_call_id"):
+		total += str(msg.get("tool_call_id", "")).length()
+	return total
+
+
+func _find_history_trim_candidate_index() -> int:
+	if _messages.is_empty():
+		return -1
+
+	var protected_cutoff: int = maxi(_messages.size() - history_preserve_recent_messages, 0)
+	var preferred_roles: Array[String] = ["tool", "assistant", "user"]
+
+	for role_name in preferred_roles:
+		for i in range(protected_cutoff):
+			if _is_trim_candidate(_messages[i], role_name):
+				return i
+
+	# 如果预算仍然爆了，再放宽到更近的消息，但尽量保住最后一条
+	for role_name in preferred_roles:
+		for i in range(maxi(_messages.size() - 1, 0)):
+			if _is_trim_candidate(_messages[i], role_name):
+				return i
+
+	return -1
+
+
+func _is_trim_candidate(msg: Dictionary, expected_role: String) -> bool:
+	var role_name: String = str(msg.get("role", "")).strip_edges()
+	if role_name != expected_role:
+		return false
+	# 保住承载 tool_calls 的 assistant 消息，避免打断 API 继续链路所需的语义配对
+	if role_name == "assistant" and msg.has("tool_calls"):
+		return false
+	return true
+
+
+func _summarize_tool_result_for_history(tool_name: String, result: Variant) -> String:
+	if result == null:
+		return "null"
+
+	match tool_name:
+		"gather_scene_context":
+			return _summarize_gather_scene_context_result(result)
+		"batch_patch_scene_scripts":
+			return _summarize_batch_patch_scene_scripts_result(result)
+		"kb_read":
+			return _summarize_kb_read_result(result)
+		"db_list":
+			return _summarize_db_list_result(result)
+		"db_get":
+			return _summarize_db_get_result(result)
+		"get_scene_script":
+			return _summarize_get_scene_script_result(result)
+		"list_assets":
+			return _summarize_list_assets_result(result)
+		"analyze_story_reachability":
+			return _summarize_reachability_result(result)
+		_:
+			return _summarize_generic_result(result)
+
+
+func _summarize_kb_read_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	if not bool(dict_result.get("success", false)):
+		return "kb_read failed: %s" % str(dict_result.get("error", "unknown error"))
+	var data: Variant = dict_result.get("data", [])
+	if data is Array:
+		var docs: Array = data
+		var labels: Array[String] = []
+		for doc in docs.slice(0, TOOL_HISTORY_MAX_ITEMS):
+			if doc is Dictionary:
+				var doc_dict: Dictionary = doc
+				var doc_id: String = str(doc_dict.get("doc_id", "")).strip_edges()
+				var title: String = str(doc_dict.get("title", "")).strip_edges()
+				if not doc_id.is_empty() and not title.is_empty():
+					labels.append("%s:%s" % [doc_id, title])
+				elif not title.is_empty():
+					labels.append(title)
+		var suffix: String = " ..." if docs.size() > labels.size() else ""
+		return "kb_read success: %d docs [%s]%s" % [docs.size(), ", ".join(labels), suffix]
+	if data is Dictionary:
+		var doc_data: Dictionary = data
+		var content_chars: int = str(doc_data.get("content", "")).length()
+		return "kb_read success: %s (%s, content_chars=%d)" % [
+			str(doc_data.get("title", "")),
+			str(doc_data.get("doc_id", "")),
+			content_chars,
+		]
+	return _summarize_generic_result(result)
+
+
+func _summarize_db_list_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	if not bool(dict_result.get("success", false)):
+		return "db_list failed: %s" % str(dict_result.get("error", "unknown error"))
+	var items: Array = dict_result.get("data", [])
+	var labels: Array[String] = []
+	for item in items.slice(0, TOOL_HISTORY_MAX_ITEMS):
+		if item is Dictionary:
+			var item_dict: Dictionary = item
+			var entry_id: String = str(item_dict.get("id", "")).strip_edges()
+			if not entry_id.is_empty():
+				labels.append(entry_id)
+	return "db_list success: count=%d [%s]%s" % [
+		int(dict_result.get("count", items.size())),
+		", ".join(labels),
+		" ..." if items.size() > labels.size() else "",
+	]
+
+
+func _summarize_db_get_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	if not bool(dict_result.get("success", false)):
+		return "db_get failed: %s" % str(dict_result.get("error", "unknown error"))
+	var data: Dictionary = dict_result.get("data", {})
+	var base: String = "db_get success: %s (%s)" % [
+		str(data.get("name", data.get("scene_name", ""))),
+		str(data.get("id", data.get("scene_id", ""))),
+	]
+	if data.has("root_dsl"):
+		base += " dsl_chars=%d" % str(data.get("root_dsl", "")).length()
+	return base
+
+
+func _summarize_get_scene_script_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	if not bool(dict_result.get("success", false)):
+		return "get_scene_script failed: %s" % str(dict_result.get("error", "unknown error"))
+	var data: Dictionary = dict_result.get("data", {})
+	var dsl: String = str(data.get("dsl", ""))
+	var preview: String = dsl.replace("\n", "\\n").left(TOOL_HISTORY_PREVIEW_CHARS)
+	return "get_scene_script success: %s dsl_chars=%d preview=%s" % [
+		str(data.get("scene_id", "")),
+		dsl.length(),
+		preview,
+	]
+
+
+func _summarize_list_assets_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	if not bool(dict_result.get("success", false)):
+		return "list_assets failed: %s" % str(dict_result.get("error", "unknown error"))
+	var data: Dictionary = dict_result.get("data", {})
+	var chunks: Array[String] = []
+	for key in ["background_aliases", "image_aliases", "cg_aliases", "bgm_aliases", "sfx_aliases"]:
+		var value: Variant = data.get(key, null)
+		if value is Array:
+			chunks.append("%s=%d" % [key, (value as Array).size()])
+	for key in ["backgrounds", "images", "cg", "bgm", "sfx"]:
+		var value: Variant = data.get(key, null)
+		if value is Array:
+			chunks.append("%s=%d" % [key, (value as Array).size()])
+	if data.get("characters", null) is Dictionary:
+		chunks.append("characters=%d" % (data.get("characters", {}) as Dictionary).size())
+	return "list_assets success: %s" % ", ".join(chunks)
+
+
+func _summarize_reachability_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	if not bool(dict_result.get("success", false)):
+		return "analyze_story_reachability failed: %s" % str(dict_result.get("error", "unknown error"))
+	var data: Dictionary = dict_result.get("data", {})
+	var unreachable: Array = data.get("unreachable_scenes", [])
+	var warnings: Array = data.get("warnings", [])
+	return "analyze_story_reachability success: entry=%s scene_catalog=%d unreachable=%d warnings=%d" % [
+		str(data.get("entry_scene_id", "")),
+		(data.get("scene_catalog", []) as Array).size(),
+		unreachable.size(),
+		warnings.size(),
+	]
+
+
+func _summarize_gather_scene_context_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	if not bool(dict_result.get("success", false)):
+		return "gather_scene_context failed: %s" % str(dict_result.get("error", "unknown error"))
+	var data: Dictionary = dict_result.get("data", {})
+	var scene_count: int = (data.get("scenes", []) as Array).size()
+	var kb_count: int = 0
+	var kb_value: Variant = data.get("kb", null)
+	if kb_value is Dictionary:
+		kb_count = (kb_value as Dictionary).get("docs", []).size()
+	var asset_sections: Array[String] = []
+	var assets_value: Variant = data.get("assets", null)
+	if assets_value is Dictionary:
+		for key in (assets_value as Dictionary).keys():
+			asset_sections.append(str(key))
+	asset_sections.sort()
+	return "gather_scene_context success: scenes=%d kb_docs=%d characters=%d variables=%d scene_catalog=%d reachability=%s assets=[%s]" % [
+		scene_count,
+		kb_count,
+		(data.get("characters", []) as Array).size(),
+		(data.get("variables", []) as Array).size(),
+		(data.get("scene_catalog", []) as Array).size(),
+		"yes" if data.has("reachability") else "no",
+		", ".join(asset_sections),
+	]
+
+
+func _summarize_batch_patch_scene_scripts_result(result: Variant) -> String:
+	if not (result is Dictionary):
+		return _summarize_generic_result(result)
+	var dict_result: Dictionary = result
+	return "batch_patch_scene_scripts %s: patched=%d failed=%d" % [
+		"success" if bool(dict_result.get("success", false)) else "partial",
+		int(dict_result.get("patched_count", 0)),
+		int(dict_result.get("failed_count", 0)),
+	]
+
+
+func _summarize_generic_result(result: Variant) -> String:
+	var raw: String = JSON.stringify(result) if result != null else "null"
+	raw = raw.replace("\n", "\\n")
+	if raw.length() > TOOL_HISTORY_PREVIEW_CHARS:
+		return raw.left(TOOL_HISTORY_PREVIEW_CHARS) + "..."
+	return raw
 
 
 ## 发出日志信号。

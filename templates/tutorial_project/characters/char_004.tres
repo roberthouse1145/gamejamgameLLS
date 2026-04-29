@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_tdtel"]
+
+[resource]
+script = ExtResource("1_tdtel")
+character_id = "char_004"
+character_name = "Heroine04"
+display_name = "Heroine04"
+sprites = {
+"angry": "assets/images/character/heroine04/heroine04_cos02.png",
+"default": "assets/images/character/heroine04/heroine04_cos01.png",
+"happy": "assets/images/character/heroine04/heroine04_cos04.png",
+"sad": "assets/images/character/heroine04/heroine04_cos19.png",
+"serious": "assets/images/character/heroine04/heroine04_cos16.png",
+"shy": "assets/images/character/heroine04/heroine04_cos17.png",
+"smug": "assets/images/character/heroine04/heroine04_cos13.png",
+"surprised": "assets/images/character/heroine04/heroine04_cos05.png",
+"thinking": "assets/images/character/heroine04/heroine04_cos09.png",
+"worried": "assets/images/character/heroine04/heroine04_cos14.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "02",
+"default": "01",
+"happy": "04",
+"sad": "19",
+"serious": "16",
+"shy": "17",
+"smug": "13",
+"surprised": "05",
+"thinking": "09",
+"worried": "14"
+}
+profile = "帅气洒脱的异域风少女，金发中长发蓝瞳，戴头巾，着挂脖背心工装裤，戴金币腰链"
+display_offset = Vector2(0, 0.15)

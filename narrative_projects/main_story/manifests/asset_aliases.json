@@ -18,6 +18,10 @@
 		"bg_campus_cafeteria": "Assets/background/bg_campus_cafeteria.jpg",
 		"bg_campus_building": "Assets/background/bg_campus_building.jpg"
 	},
+	"images": {
+		"cg_linxia_bed_openeyes": "Assets/CG/cg_linxia_bed_openeyes.png",
+		"cg_linxia_bed_closeeyes": "Assets/CG/cg_linxia_bed_closeeyes.png"
+	},
 	"bgm": {
 		"bgm_bewitched": "res://Assets/sounds/bgm/Bewitched (loop).ogg",
 		"bgm_blush": "res://Assets/sounds/bgm/Blush (loop).ogg",
@@ -32,5 +36,9 @@
 	},
 	"sfx": {
 
-	}
+	},
+	"hidden": [
+		"cg_linxia_bed_openeyes",
+		"cg_linxia_bed_closeeyes"
+	]
 }

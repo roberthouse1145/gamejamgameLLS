@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_8v8qs"]
+
+[resource]
+script = ExtResource("1_8v8qs")
+character_id = "char_038"
+character_name = "Hero17"
+display_name = "Hero17"
+sprites = {
+"angry": "assets/images/character/hero17/hero_17_cos13.png",
+"default": "assets/images/character/hero17/hero_17_cos01.png",
+"happy": "assets/images/character/hero17/hero_17_cos07.png",
+"laugh": "assets/images/character/hero17/hero_17_cos09.png",
+"sad": "assets/images/character/hero17/hero_17_cos11.png",
+"serious": "assets/images/character/hero17/hero_17_cos03.png",
+"smug": "assets/images/character/hero17/hero_17_cos06.png",
+"surprised": "assets/images/character/hero17/hero_17_cos20.png",
+"thinking": "assets/images/character/hero17/hero_17_cos17.png",
+"worried": "assets/images/character/hero17/hero_17_cos16.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "13",
+"default": "01",
+"happy": "07",
+"laugh": "09",
+"sad": "11",
+"serious": "03",
+"smug": "06",
+"surprised": "20",
+"thinking": "17",
+"worried": "16"
+}
+profile = "威严深沉的军官大叔，深绿长发褐色眸，身着黑金军服斗篷，佩戴勋章"
+display_offset = Vector2(0, 0.15)

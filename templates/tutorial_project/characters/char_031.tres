@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="AVGCharacter" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_idpo6"]
+
+[resource]
+script = ExtResource("1_idpo6")
+character_id = "char_031"
+character_name = "Hero10"
+display_name = "Hero10"
+sprites = {
+"angry": "assets/images/character/hero10/hero_10_cos08.png",
+"default": "assets/images/character/hero10/hero_10_cos01.png",
+"happy": "assets/images/character/hero10/hero_10_cos11.png",
+"laugh": "assets/images/character/hero10/hero_10_cos12.png",
+"sad": "assets/images/character/hero10/hero_10_cos13.png",
+"serious": "assets/images/character/hero10/hero_10_cos02.png",
+"shy": "assets/images/character/hero10/hero_10_cos18.png",
+"surprised": "assets/images/character/hero10/hero_10_cos19.png",
+"thinking": "assets/images/character/hero10/hero_10_cos05.png",
+"worried": "assets/images/character/hero10/hero_10_cos16.png"
+}
+default_outfit = "cos"
+available_outfits = Array[String](["cos"])
+emotion_slots = {
+"angry": "08",
+"default": "01",
+"happy": "11",
+"laugh": "12",
+"sad": "13",
+"serious": "02",
+"shy": "18",
+"surprised": "19",
+"thinking": "05",
+"worried": "16"
+}
+profile = "豪迈强壮的红发格斗家，琥珀色双眼，身着露肩毛领背心与宽大黑裤，佩戴黑色腕带"
+display_offset = Vector2(0, 0.15)

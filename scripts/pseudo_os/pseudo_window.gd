@@ -2,7 +2,10 @@ class_name PseudoWindow extends Control
 ## 伪窗口组件，支持拖拽、缩放、最小化、最大化、关闭
 ## Pseudo window component with drag, resize, minimize, maximize, close support
 
+const WindowIconRendererClass = preload("res://scripts/ui/window_icon_renderer.gd")
+
 # Signals
+@warning_ignore("unused_signal")
 signal close_requested
 signal minimize_requested
 signal maximize_requested
@@ -372,13 +375,14 @@ func toggle_maximize() -> void:
 func _update_maximize_button_icon() -> void:
 	if not maximize_button:
 		return
-	
+
+	var icon_color := Color("#6B7086")
 	if is_maximized:
-		# Show restore icon (overlapping squares)
-		maximize_button.text = "❐"
+		maximize_button.text = ""
+		maximize_button.icon = WindowIconRendererClass.create_restore_icon(icon_color)
 	else:
-		# Show maximize icon (single square)
-		maximize_button.text = "□"
+		maximize_button.text = ""
+		maximize_button.icon = WindowIconRendererClass.create_maximize_icon(icon_color)
 
 
 ## Enable or disable resize handles
@@ -440,6 +444,8 @@ func _apply_default_theme() -> void:
 
 	# Minimize button — 专属黄色 hover，必须 override
 	if minimize_button:
+		minimize_button.text = ""
+		minimize_button.icon = WindowIconRendererClass.create_minimize_icon(text_sec)
 		var hs := _make_btn_circle(min_hover, btn_radius)
 		minimize_button.add_theme_stylebox_override("normal",  empty)
 		minimize_button.add_theme_stylebox_override("hover",   hs)
@@ -451,6 +457,8 @@ func _apply_default_theme() -> void:
 
 	# Maximize button — 专属中性灰 hover，必须 override
 	if maximize_button:
+		maximize_button.text = ""
+		maximize_button.icon = WindowIconRendererClass.create_maximize_icon(text_sec)
 		maximize_button.add_theme_stylebox_override("normal",  empty)
 		maximize_button.add_theme_stylebox_override("hover",   hover_neutral)
 		maximize_button.add_theme_stylebox_override("pressed", hover_neutral)
@@ -461,6 +469,8 @@ func _apply_default_theme() -> void:
 
 	# Close button — 专属红色 hover，必须 override
 	if close_button:
+		close_button.text = ""
+		close_button.icon = WindowIconRendererClass.create_close_icon(text_sec)
 		var hs := _make_btn_circle(close_hover, btn_radius)
 		close_button.add_theme_stylebox_override("normal",  empty)
 		close_button.add_theme_stylebox_override("hover",   hs)

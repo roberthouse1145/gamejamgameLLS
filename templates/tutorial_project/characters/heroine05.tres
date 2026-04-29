@@ -36,4 +36,5 @@ emotion_slots = {
 "worried": "04"
 }
 profile = "叛逆朋克风的哥特少女，金发双马尾红眼，黑色毛领束腰与红格纹短裙，佩戴颈圈"
+display_offset = Vector2(0, 0.15)
 

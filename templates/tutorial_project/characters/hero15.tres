@@ -36,3 +36,4 @@ emotion_slots = {
 "worried": "11"
 }
 profile = "神秘优雅的蓝发少年，佩戴狐狸面具，身着黑色和风锦衣，手持折扇，缀有流苏装饰"
+display_offset = Vector2(0, 0.15)

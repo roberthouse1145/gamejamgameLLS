@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3]
+
+[ext_resource type="Script" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "test_preview_invite"
+topic_type = "story_event"
+display_title = "试玩一下现在的 Demo"
+npc_id = "npc_lin_xia"
+channel_id = "dm_lin_xia"
+system_prompt = "【背景】你是林夏。你刚把你们共同制作中的 AVG 工程整理到一个可以试玩的状态。你想请{player_name}现在就试玩一下，看看整体节奏和情绪有没有问题。\n\n【你的目标】\n- 主动邀请{player_name}试玩现在的 Demo\n- 语气自然、带一点紧张，但不要像汇报工作\n- 如果玩家答应试玩，就用 1-2 条自然消息收尾，并在最后一条消息末尾加 [TOPIC_COMPLETE]\n- 如果玩家拒绝、敷衍带过、明显不想试玩，就体面收口，并在最后一条消息末尾加 [TOPIC_FAILED]\n\n【表达要求】\n- 像深夜把自己刚做好的东西递给最信任的人看\n- 可以期待评价，但不要强迫玩家\n- 不要长篇介绍玩法，不要提前剧透试玩内容\n- 不要切到别的话题"
+goal_description = "林夏邀请玩家试玩当前共同制作的 AVG 工程。"
+context_data = {
+"linkchat_open_mode": "force",
+	"suppress_system_notice": true
+}
+max_turns = 4
+timeout_seconds = 0
+on_complete_callback = ""
+result_variables = {}
