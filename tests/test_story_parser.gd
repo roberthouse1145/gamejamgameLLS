@@ -8,7 +8,6 @@ func _ready() -> void:
 	print("=== StoryScriptParser Test ===")
 	_test_parse_day1()
 	_test_parse_day2_trigger()
-	_test_parse_test_brief()
 	_test_parse_trigger_header()
 	_test_compiled_index()
 	print("=== All Tests Done ===")
@@ -22,7 +21,7 @@ func _test_parse_day1() -> void:
 		return
 
 	_assert_eq("chapter_id", story_data.get("chapter_id"), "day1")
-	_assert_eq("chapter_name", story_data.get("chapter_name"), "第一天 - GameJam报名")
+	_assert_eq("chapter_name", story_data.get("chapter_name"), "第一天 - 帧语大赛报名")
 	_assert_eq("next_chapter", story_data.get("next_chapter"), "day2")
 
 	var story_steps: Array = story_data.get("steps", [])
@@ -36,7 +35,7 @@ func _test_parse_day1() -> void:
 	_assert_eq("plan wait topic", plan_step.get("wait_for", {}).get("topic_id", ""), "day1_night_plan")
 	_assert_eq("brief step id", brief_step.get("step_id", ""), "day1_08_open_brief")
 	_assert_eq("brief wait type", brief_step.get("wait_for", {}).get("type", ""), "dev_task_completed")
-	_assert_eq("brief wait task", brief_step.get("wait_for", {}).get("task_id", ""), "day1_creative_brief")
+	_assert_eq("brief wait task", brief_step.get("wait_for", {}).get("task_id", ""), "lock_creative_direction")
 	_assert_eq("brief next", brief_step.get("next", ""), "day1_09_night_date_suggest")
 
 	# 打印 story 解析结果摘要
@@ -71,20 +70,6 @@ func _test_parse_day2_trigger() -> void:
 	_assert_true("day2.trigger.required_chapters is array", trigger.get("required_chapters", []) is Array)
 	_assert_eq("day2.trigger.required_chapters size", trigger.get("required_chapters", []).size(), 1)
 	_assert_eq("day2.trigger.required_chapters[0]", trigger.get("required_chapters", [""])[0], "day1")
-
-
-func _test_parse_test_brief() -> void:
-	var story_data: Dictionary = StoryScriptParserClass.parse_file("res://resources/story/chapters/test_brief.txt")
-	if story_data.is_empty():
-		print("FAIL: test_brief story_data is empty")
-		return
-
-	var story_steps: Array = story_data.get("steps", [])
-	var last_step: Dictionary = story_steps[story_steps.size() - 1]
-	_assert_eq("test_brief.chapter_id", story_data.get("chapter_id"), "test_brief")
-	_assert_eq("test_brief.step count", story_steps.size(), 2)
-	_assert_eq("test_brief.last wait", last_step.get("wait_for", {}).get("type", ""), "variable_equals")
-	_assert_eq("test_brief remains independent", story_steps[0].get("step_id", ""), "test_brief_01_init")
 
 
 func _test_parse_trigger_header() -> void:
@@ -127,7 +112,6 @@ func _test_compiled_index() -> void:
 	var chapter_ids: Array[String] = index_resource.get_chapter_ids()
 	_assert_true("compiled contains day1", chapter_ids.has("day1"))
 	_assert_true("compiled contains day2", chapter_ids.has("day2"))
-	_assert_true("compiled contains test_brief", chapter_ids.has("test_brief"))
 	_assert_true("compiled contains test_dev", chapter_ids.has("test_dev"))
 	_assert_eq("compiled source path", index_resource.chapter_sources.get("day1", ""), "res://resources/story/chapters/day1.txt")
 

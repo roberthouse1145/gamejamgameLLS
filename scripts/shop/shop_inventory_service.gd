@@ -1,6 +1,6 @@
 class_name ShopInventoryService
 extends RefCounted
-## 库存服务：负责库存管理、装备/使用物品、效果查询
+## 库存服务：负责库存管理、礼物/一次性道具使用
 
 signal inventory_changed(inventory: Array)
 signal active_effects_changed(active_effects: Array)
@@ -18,35 +18,17 @@ func get_inventory() -> Array[Dictionary]:
 
 
 func get_active_effects() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for slot in _active_effects.keys():
-		var inventory_id: String = str(_active_effects[slot])
-		var inventory_item := _get_inventory_item(inventory_id)
-		if inventory_item.is_empty():
-			continue
-		var effect_id: String = str(inventory_item.get("effect_archetype", ""))
-		var effect := ShopCatalogFactory.get_effect_definition(effect_id)
-		result.append({
-			"slot": str(slot),
-			"inventory_id": inventory_id,
-			"title": str(inventory_item.get("title", "")),
-			"summary": str(effect.get("summary", "")),
-			"persistent_modifiers": effect.get("persistent_modifiers", []),
-		})
-	return result
+	return []
 
 
 func get_active_modifier_map() -> Dictionary:
-	var result: Dictionary = {}
-	for effect_data in get_active_effects():
-		result[str(effect_data.get("slot", ""))] = effect_data.get("persistent_modifiers", [])
-	return result
+	return {}
 
 
 ## 添加库存物品（配送到达时由 OrderService 回调）
 func add_inventory_item(item: Dictionary) -> void:
 	_inventory.append(item.duplicate(true))
-	_auto_equip_if_needed(item)
+	inventory_changed.emit(get_inventory())
 
 
 ## 使用库存物品
@@ -64,49 +46,26 @@ func use_item(inventory_id: String, _target: String, current_day: int, gm: Node)
 		if _last_gift_day == current_day:
 			return {"success": false, "error": "今天已经送过礼物了，明天再送吧。"}
 
-	if use_mode == "equip":
-		var slot: String = str(effect.get("modifier_slot", effect_id))
-		if _active_effects.has(slot) and str(_active_effects[slot]) == inventory_id:
-			return {"success": false, "error": "该物品已在生效中。"}
-		if _active_effects.has(slot):
-			var previous_id: String = str(_active_effects[slot])
-			var previous_index: int = _find_inventory_index(previous_id)
-			if previous_index >= 0:
-				var prev: Dictionary = _inventory[previous_index].duplicate(true)
-				prev["state"] = "ready"
-				prev["equipped_slot"] = ""
-				_inventory[previous_index] = prev
-		_active_effects[slot] = inventory_id
-		item["state"] = "equipped"
-		item["equipped_slot"] = slot
-	else:
-		if use_mode == "gift":
-			_last_gift_day = current_day
-		# 若该物品处于装备中，需清除 active_effects 里的槽位引用
-		var equipped_slot: String = str(item.get("equipped_slot", ""))
-		if not equipped_slot.is_empty() and str(_active_effects.get(equipped_slot, "")) == inventory_id:
-			_active_effects.erase(equipped_slot)
-		item["state"] = "gifted" if use_mode == "gift" else "consumed"
-		item["equipped_slot"] = ""
+	if use_mode == "gift":
+		_last_gift_day = current_day
+	item["state"] = "gifted" if use_mode == "gift" else "consumed"
+	item["equipped_slot"] = ""
+
+	var item_stats: Dictionary = item.get("instant_stats", {})
+	var resolved_stats: Dictionary = item_stats if not item_stats.is_empty() else effect.get("instant_stats", {})
 
 	if gm != null and gm.has_method("modify_stats"):
-		var instant_stats: Dictionary = effect.get("instant_stats", {})
-		if not instant_stats.is_empty():
-			gm.modify_stats(instant_stats)
+		if not resolved_stats.is_empty():
+			gm.modify_stats(resolved_stats)
 
-	# equip: 写回更新状态；gift/consume: 直接从库存移除
-	if use_mode == "equip":
-		_inventory[index] = item
-	else:
-		_inventory.remove_at(index)
+	_inventory.remove_at(index)
 	inventory_changed.emit(get_inventory())
-	active_effects_changed.emit(get_active_effects())
-
+	active_effects_changed.emit([])
 	return {
 		"success": true,
 		"mode": use_mode,
 		"item": item.duplicate(true),
-		"instant_stats": effect.get("instant_stats", {}),
+		"instant_stats": resolved_stats,
 		"persistent_modifiers": effect.get("persistent_modifiers", []),
 		"effect_summary": str(effect.get("summary", "")),
 	}
@@ -117,7 +76,7 @@ func use_item(inventory_id: String, _target: String, current_day: int, gm: Node)
 func get_state() -> Dictionary:
 	return {
 		"inventory": get_inventory(),
-		"active_effects": _active_effects.duplicate(true),
+		"active_effects": {},
 		"last_gift_day": _last_gift_day,
 	}
 
@@ -128,10 +87,11 @@ func load_state(data: Dictionary) -> void:
 	_last_gift_day = int(data.get("last_gift_day", -1))
 	for inventory_item in data.get("inventory", []):
 		if inventory_item is Dictionary:
-			_inventory.append((inventory_item as Dictionary).duplicate(true))
-	var active_effects: Variant = data.get("active_effects", {})
-	if active_effects is Dictionary:
-		_active_effects = (active_effects as Dictionary).duplicate(true)
+			var item := (inventory_item as Dictionary).duplicate(true)
+			if str(item.get("state", "")) == "equipped":
+				item["state"] = "ready"
+				item["equipped_slot"] = ""
+			_inventory.append(item)
 
 
 func reset() -> void:
@@ -142,34 +102,8 @@ func reset() -> void:
 
 # ── 内部 ──────────────────────────────────────────────
 
-func _auto_equip_if_needed(inventory_item: Dictionary) -> void:
-	var effect_id: String = str(inventory_item.get("effect_archetype", ""))
-	var effect := ShopCatalogFactory.get_effect_definition(effect_id)
-	var use_mode: String = str(effect.get("use_mode", "consume"))
-	if use_mode != "equip":
-		return
-
-	var inventory_id: String = str(inventory_item.get("inventory_id", ""))
-	var slot: String = str(effect.get("modifier_slot", effect_id))
-
-	if _active_effects.has(slot):
-		var previous_id: String = str(_active_effects[slot])
-		var previous_index: int = _find_inventory_index(previous_id)
-		if previous_index >= 0:
-			var prev: Dictionary = _inventory[previous_index].duplicate(true)
-			prev["state"] = "ready"
-			prev["equipped_slot"] = ""
-			_inventory[previous_index] = prev
-
-	_active_effects[slot] = inventory_id
-	var idx: int = _find_inventory_index(inventory_id)
-	if idx >= 0:
-		var updated: Dictionary = _inventory[idx].duplicate(true)
-		updated["state"] = "equipped"
-		updated["equipped_slot"] = slot
-		_inventory[idx] = updated
-
-	active_effects_changed.emit(get_active_effects())
+func _auto_equip_if_needed(_inventory_item: Dictionary) -> void:
+	pass
 
 
 func _find_inventory_index(inventory_id: String) -> int:

@@ -1,6 +1,6 @@
 chapter: day1
-name: 第一天 - GameJam报名
-desc: 游戏开始，林夏告知GameJam报名，玩家完成报名后玩游戏放松，下午主题公布后讨论计划并编写企划卡，晚上出去约会放松
+name: 第一天 - 帧语大赛报名
+desc: 游戏开始，林夏告知帧语大赛报名，玩家完成报名后玩游戏放松，下午主题公布后讨论计划并编写企划卡，晚上出去约会放松
 next_chapter: day2
 
 === day1_01_init ===
@@ -15,21 +15,21 @@ mode: whitelist
 apps: linkchat
 
 [play_bgm]
-path: res://Assets/sounds/bgm/Blush (loop).ogg
+path: res://Assets/sounds/bgm/优哉游哉(loop).wav
 crossfade: 2.0
 
 wait: immediate
 -> day1_02_gamejam_announce
 
 === day1_02_gamejam_announce ===
-# 林夏发消息告知GameJam报名开始，引导玩家点击链接
+# 林夏发消息告知帧语大赛报名开始，引导玩家点击链接
 
 [activate_topic]
 topic_path: res://resources/story/topics/day1_gamejam_announce.tres
 npc_speaks_first: true
 
 wait: url_opened
-  url: gamejam://signup
+  url: framestory://signup
 -> day1_03_signup
 
 === day1_03_signup ===
@@ -41,7 +41,7 @@ apps: linkchat, browser
 
 [set_activity_lock]
 mode: blacklist
-activities: community
+activities: browser_surf
 reason: 先把报名搞定再说
 
 wait: variable_equals
@@ -78,7 +78,7 @@ wait: sbeam_completed
 -> day1_06_afternoon_theme
 
 === day1_06_afternoon_theme ===
-# 进入下午，林夏发链接告知GameJam主题公布
+# 进入下午，林夏发链接告知帧语大赛主题公布
 
 [set_phase]
 phase: AFTERNOON
@@ -89,7 +89,7 @@ apps: linkchat, browser
 
 [set_activity_lock]
 mode: blacklist
-activities: community
+activities: browser_surf
 reason: 先看完主题公告再说
 
 [activate_topic]
@@ -97,7 +97,7 @@ topic_path: res://resources/story/topics/day1_theme_announce.tres
 npc_speaks_first: true
 
 wait: url_opened
-  url: gamejam://forum/theme
+  url: framestory://forum/theme
 -> day1_07_afternoon_plan
 
 === day1_07_afternoon_plan ===
@@ -108,7 +108,7 @@ mode: whitelist
 apps: linkchat, dev_work
 
 [ensure_dev_work_task]
-template_path: res://resources/dev_work/story_tasks/day1_creative_brief.json
+template_path: res://resources/dev_work/story_tasks/lock_creative_direction.json
 
 [activate_topic]
 topic_path: res://resources/story/topics/day1_night_plan.tres
@@ -129,7 +129,7 @@ apps: linkchat, dev_work
 app_id: dev_work
 
 wait: dev_task_completed
-  task_id: day1_creative_brief
+  task_id: lock_creative_direction
 -> day1_09_night_date_suggest
 
 === day1_09_night_date_suggest ===
@@ -139,7 +139,7 @@ wait: dev_task_completed
 phase: NIGHT
 
 [play_bgm]
-path: res://Assets/sounds/bgm/astral house.ogg
+path: res://Assets/sounds/bgm/晚安，星期八.wav
 crossfade: 2.0
 
 [clear_activity_lock]

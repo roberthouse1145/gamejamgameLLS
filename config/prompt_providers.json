@@ -22,5 +22,9 @@
 	"player_college": {
 		"node": "StoryDirector",
 		"method": "get_player_college_prompt"
+	},
+	"minigames_prompt": {
+		"node": "MinigameManager",
+		"method": "get_prompt_summary"
 	}
 }

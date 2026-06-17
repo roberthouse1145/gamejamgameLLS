@@ -37,6 +37,7 @@ var current_ap: int = DEFAULT_MAX_AP
 var time_phase: TimePhase = TimePhase.MORNING
 
 var _today_actions: Array[Dictionary] = []
+var _forced_rest_queued: bool = false
 
 signal day_changed(new_day: int)
 signal ap_changed(current: int, max_ap: int)
@@ -54,8 +55,11 @@ func _ready() -> void:
 	])
 
 
-func consume_ap(amount: int, action_type: String = "", detail: String = "") -> bool:
+func consume_ap(amount: int, action_type: String = "", detail: String = "", label: String = "") -> bool:
 	if amount <= 0:
+		return false
+	if _should_force_rest_before_action(action_type, detail):
+		_request_forced_rest()
 		return false
 	if amount > max_ap_per_day:
 		push_warning("[GameLoopManager] Amount exceeds phase action limit: %d" % amount)
@@ -70,12 +74,15 @@ func consume_ap(amount: int, action_type: String = "", detail: String = "") -> b
 	_today_actions.append({
 		"action_type": action_type,
 		"detail": detail,
+		"label": label,
 		"day": current_day,
 		"phase": get_phase_name(phase_before),
 	})
 
 	ap_consumed.emit(action_type)
 	_log_action(action_type, detail)
+	if action_type == "life" and detail == "forced_rest":
+		_forced_rest_queued = false
 
 	if current_ap <= 0:
 		ap_exhausted.emit()
@@ -100,12 +107,14 @@ func _advance_phase(expected_day: int = -1, expected_phase: int = -1) -> void:
 			phase_changed.emit(time_phase)
 			ap_changed.emit(current_ap, max_ap_per_day)
 			print("[GameLoopManager] Phase advanced: MORNING -> AFTERNOON")
+			call_deferred("_request_forced_rest_if_needed")
 		TimePhase.AFTERNOON:
 			time_phase = TimePhase.NIGHT
 			current_ap = max_ap_per_day
 			phase_changed.emit(time_phase)
 			ap_changed.emit(current_ap, max_ap_per_day)
 			print("[GameLoopManager] Phase advanced: AFTERNOON -> NIGHT")
+			call_deferred("_request_forced_rest_if_needed")
 		TimePhase.NIGHT:
 			print("[GameLoopManager] Day %d complete — advancing to next day" % current_day)
 			# 给玩家 1 秒阅读当晚行动反馈的时间，再切换日期
@@ -132,6 +141,7 @@ func set_day(day: int) -> void:
 	current_day = target_day
 	current_ap = max_ap_per_day
 	_today_actions.clear()
+	_forced_rest_queued = false
 
 	print("[GameLoopManager] ==== Set Day %d ====" % current_day)
 
@@ -154,6 +164,7 @@ func advance_to_next_day() -> void:
 	current_ap = max_ap_per_day
 	time_phase = TimePhase.MORNING
 	_today_actions.clear()
+	_forced_rest_queued = false
 
 	print("[GameLoopManager] ==== Enter Day %d ====" % current_day)
 
@@ -169,6 +180,9 @@ func advance_to_next_day() -> void:
 
 func can_consume_ap(amount: int = 1) -> bool:
 	if amount <= 0:
+		return false
+	if _should_force_rest_before_action("", ""):
+		_request_forced_rest()
 		return false
 	return current_ap >= amount
 
@@ -254,6 +268,7 @@ func load_run_state(data: Dictionary) -> bool:
 	max_ap_per_day = max(1, int(data.get("max_ap_per_day", DEFAULT_MAX_AP)))
 	current_ap = clampi(int(data.get("current_ap", max_ap_per_day)), 0, max_ap_per_day)
 	time_phase = _coerce_time_phase(data.get("time_phase", TimePhase.MORNING))
+	_forced_rest_queued = false
 
 	_today_actions.clear()
 	for entry in data.get("today_actions", []):
@@ -279,8 +294,29 @@ func get_time_prompt() -> String:
 			daylight_hint = "现在是夜晚。"
 	var cal := get_calendar_date()
 	var weekday := get_weekday_name()
-	return "当前时间：%d年%d月%d日（%s）・%s，ARCADE GRAND JAM 2027 比赛第 %d 天（总计 %d 天）。%s" % [
+	var base: String = "当前时间：%d年%d月%d日（%s）・%s，帧语·新星叙事大赛 2027 第 %d 天（总计 %d 天）。%s" % [
 		cal["year"], cal["month"], cal["day"], weekday, phase_name, current_day, MAX_DAYS, daylight_hint]
+	var summary: String = _build_today_actions_summary()
+	if not summary.is_empty():
+		base += "\n" + summary
+	return base
+
+
+func _build_today_actions_summary() -> String:
+	if _today_actions.is_empty():
+		return ""
+	var labels: Array[String] = []
+	for entry in _today_actions:
+		if not entry is Dictionary:
+			continue
+		var d: Dictionary = entry as Dictionary
+		var lbl: String = str(d.get("label", "")).strip_edges()
+		if lbl.is_empty():
+			lbl = "%s/%s" % [str(d.get("action_type", "")), str(d.get("detail", ""))]
+		labels.append(lbl)
+	if labels.is_empty():
+		return ""
+	return "今日已完成：%s" % ", ".join(labels)
 
 
 ## 获取当前游戏日对应的日历日期
@@ -318,6 +354,7 @@ func reset_runtime_state() -> void:
 	current_ap = DEFAULT_MAX_AP
 	time_phase = TimePhase.MORNING
 	_today_actions.clear()
+	_forced_rest_queued = false
 	day_changed.emit(current_day)
 	ap_changed.emit(current_ap, max_ap_per_day)
 	phase_changed.emit(time_phase)
@@ -328,3 +365,36 @@ func _coerce_time_phase(value: Variant) -> TimePhase:
 	if phase_value < int(TimePhase.MORNING) or phase_value > int(TimePhase.NIGHT):
 		return TimePhase.MORNING
 	return phase_value as TimePhase
+
+
+func _request_forced_rest_if_needed() -> void:
+	if _should_force_rest_before_action("", ""):
+		_request_forced_rest()
+
+
+func _should_force_rest_before_action(action_type: String, detail: String) -> bool:
+	if _forced_rest_queued:
+		return false
+	if current_ap <= 0:
+		return false
+	if action_type == "life" and detail == "forced_rest":
+		return false
+	var gm: Node = get_node_or_null("/root/GameManager")
+	if gm == null:
+		return false
+	return int(gm.get("stress")) >= 85
+
+
+func _request_forced_rest() -> void:
+	if _forced_rest_queued:
+		return
+	_forced_rest_queued = true
+	var home: Node = get_node_or_null("/root/HomeActivityManager")
+	if home == null or not home.has_method("begin_forced_rest"):
+		push_warning("[GameLoopManager] Forced rest requested but HomeActivityManager is unavailable")
+		_forced_rest_queued = false
+		return
+	var result: Dictionary = home.begin_forced_rest()
+	if not bool(result.get("success", false)):
+		push_warning("[GameLoopManager] Forced rest failed: %s" % str(result.get("error", "")))
+		_forced_rest_queued = false

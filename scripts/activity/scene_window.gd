@@ -56,12 +56,8 @@ static func _open_player_window(title: String, playback_callback: Callable, play
 
 
 static func _configure_window(window: Control, title: String) -> void:
-	window.custom_minimum_size = Vector2(1024, 768)
 	if "window_title" in window:
 		window.window_title = title
-	var viewport := window.get_viewport()
-	if viewport != null:
-		window.size = viewport.get_visible_rect().size * 0.9
 	if window.has_method("center_in_screen"):
 		window.center_in_screen()
 

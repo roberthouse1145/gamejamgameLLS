@@ -19,9 +19,12 @@ class_name NPCCharacter extends Resource
 
 ## 项目上下文访问范围
 ## none: 普通聊天对象，不知道项目知识库/工单/开发进度
-## collaborator: 协作搭档，可引用项目共享上下文
-@export_enum("none", "collaborator") var project_context_scope: String = "none"
+## personal: 仅可见 tags 含自己 character_id 的文档（待实现的过滤行为，hook 留位）
+## world: 仅可见 world / story 类目下文档（待实现的过滤行为，hook 留位）
+## collaborator: 协作搭档，可引用全部项目共享上下文
+@export_enum("none", "personal", "world", "collaborator") var project_context_scope: String = "none"
 
 
 func can_access_project_context() -> bool:
+	# 当前阶段只有 collaborator 实际启用注入；personal/world 的过滤逻辑后续再实现
 	return project_context_scope == "collaborator"

@@ -1,7 +1,7 @@
 extends Control
 
-const BGM_A: String = "res://Assets/sounds/bgm/Care (loop).ogg"
-const BGM_B: String = "res://Assets/sounds/bgm/Sentiments (loop).ogg"
+const BGM_A: String = "res://Assets/sounds/bgm/优哉游哉(loop).wav"
+const BGM_B: String = "res://Assets/sounds/bgm/夏日布丁.wav"
 
 @onready var audio_manager: AVGAudioManager = $AVGAudioManager
 

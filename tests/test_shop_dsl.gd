@@ -5,7 +5,6 @@ func _ready() -> void:
 	_test_block_parser()
 	_test_effects_loaded()
 	_test_blueprints_loaded()
-	_test_core_items_loaded()
 	_test_config_loaded()
 	_test_display_lookups()
 	_test_weight_rules()
@@ -41,19 +40,17 @@ giftable=false
 func _test_effects_loaded() -> void:
 	print("[Test] 效果定义加载")
 	var keys := ShopCatalogStaticData.get_effect_archetype_keys()
-	_assert("至少10个效果", keys.size() >= 10)
+	_assert("至少8个效果", keys.size() >= 8)
 	_assert("包含sleep_recovery_small", keys.has("sleep_recovery_small"))
-	_assert("包含flavor_no_effect", keys.has("flavor_no_effect"))
+	_assert("包含gift_item", keys.has("gift_item"))
+	_assert("不包含旧礼物原型", not keys.has("gift_affection_small") and not keys.has("gift_trust_small"))
 
 	var effect := ShopCatalogStaticData.get_effect_definition("sleep_recovery_small")
-	_assert("use_mode=equip", str(effect.get("use_mode", "")) == "equip")
-	_assert("modifier_slot=sleep", str(effect.get("modifier_slot", "")) == "sleep")
-	_assert("instant_stats有stress", effect.get("instant_stats", {}).has("stress"))
-	_assert("stress=-2", int(effect.get("instant_stats", {}).get("stress", 0)) == -2)
-	_assert("有persistent_modifiers", (effect.get("persistent_modifiers", []) as Array).size() > 0)
-	var mod: Dictionary = effect.get("persistent_modifiers", [{}])[0]
-	_assert("modifier key", str(mod.get("key", "")) == "sleep_stress_recovery_mult")
-	_assert("modifier value=0.12", absf(float(mod.get("value", 0)) - 0.12) < 0.001)
+	_assert("use_mode=consume", str(effect.get("use_mode", "")) == "consume")
+	_assert("没有persistent_modifiers", (effect.get("persistent_modifiers", []) as Array).is_empty())
+
+	var gift_effect := ShopCatalogStaticData.get_effect_definition("gift_item")
+	_assert("gift_item use_mode=gift", str(gift_effect.get("use_mode", "")) == "gift")
 
 
 func _test_blueprints_loaded() -> void:
@@ -66,18 +63,7 @@ func _test_blueprints_loaded() -> void:
 	_assert("title_prefix是数组", first.get("title_prefix", []) is Array)
 	_assert("title_prefix非空", (first.get("title_prefix", []) as Array).size() > 0)
 	_assert("price_range是数组", first.get("price_range", []) is Array)
-
-
-func _test_core_items_loaded() -> void:
-	print("[Test] 核心商品加载")
-	var items := ShopCatalogStaticData.get_fixed_core_items()
-	_assert("4个核心商品", items.size() == 4)
-	var pillow: Dictionary = items[0]
-	_assert("item_id=core_pillow", str(pillow.get("item_id", "")) == "core_pillow")
-	_assert("price=128", int(pillow.get("price", 0)) == 128)
-	_assert("giftable=true", bool(pillow.get("giftable", false)) == true)
-	_assert("tags是数组", pillow.get("tags", []) is Array)
-	_assert("desc包含换行", str(pillow.get("desc", "")).find("\n") >= 0)
+	_assert("blueprint有instant_stats字段", first.has("instant_stats"))
 
 
 func _test_config_loaded() -> void:
@@ -110,8 +96,8 @@ func _test_display_lookups() -> void:
 	_assert("life→生活", ShopCatalogStaticData.get_category_display("life") == "生活")
 	_assert("unknown→商品", ShopCatalogStaticData.get_category_display("unknown") == "商品")
 
-	_assert("sleep_recovery_small→改善睡眠", ShopCatalogStaticData.get_effect_display("sleep_recovery_small") == "改善睡眠")
-	_assert("flavor_no_effect→纯风味", ShopCatalogStaticData.get_effect_display("flavor_no_effect") == "纯风味")
+	_assert("sleep_recovery_small→助眠道具", ShopCatalogStaticData.get_effect_display("sleep_recovery_small") == "助眠道具")
+	_assert("gift_item→礼物", ShopCatalogStaticData.get_effect_display("gift_item") == "礼物")
 
 	_assert("stress→压力", ShopCatalogStaticData.get_stat_label("stress") == "压力")
 	_assert("ready→可使用", ShopCatalogStaticData.get_state_label("ready") == "可使用")
@@ -128,13 +114,20 @@ func _test_weight_rules() -> void:
 
 func _test_backward_compat() -> void:
 	print("[Test] 向后兼容")
-	# ShopCardBuilder 的函数应该正常工作
 	_assert("ShopCardBuilder.category_text", ShopCardBuilder.category_text("gift") == "礼物")
-	_assert("ShopCardBuilder.effect_summary", ShopCardBuilder.effect_summary("sleep_recovery_small") == "改善睡眠")
+	_assert("ShopCardBuilder.effect_summary", ShopCardBuilder.effect_summary("sleep_recovery_small") == "助眠道具")
 	_assert("ShopCardBuilder.state_text", ShopCardBuilder.state_text("ready") == "可使用")
 	_assert("ShopCardBuilder.stat_label", ShopCardBuilder.stat_label("stress") == "压力")
 
-	# ShopCatalogFactory 的函数应该正常工作
+	# item_effect_summary：有 instant_stats 时从数值生成，否则 fallback 到 archetype
+	var item_with_stats := {"instant_stats": {"passion": 4, "stress": -8}, "effect_archetype": "mood_up_small"}
+	var summary := ShopCardBuilder.item_effect_summary(item_with_stats)
+	_assert("item_effect_summary 含热情↑", summary.find("热情↑") >= 0)
+	_assert("item_effect_summary 含压力↓", summary.find("压力↓") >= 0)
+
+	var item_no_stats := {"instant_stats": {}, "effect_archetype": "mood_up_small"}
+	_assert("item_effect_summary fallback", ShopCardBuilder.item_effect_summary(item_no_stats) == "改善心情")
+
 	var effect := ShopCatalogFactory.get_effect_definition("mood_up_small")
 	_assert("Factory.get_effect_definition", str(effect.get("use_mode", "")) == "consume")
 

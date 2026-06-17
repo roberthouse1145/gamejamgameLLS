@@ -23,16 +23,13 @@
 		"cg_linxia_bed_closeeyes": "Assets/CG/cg_linxia_bed_closeeyes.png"
 	},
 	"bgm": {
-		"bgm_bewitched": "res://Assets/sounds/bgm/Bewitched (loop).ogg",
-		"bgm_blush": "res://Assets/sounds/bgm/Blush (loop).ogg",
-		"bgm_care": "res://Assets/sounds/bgm/Care (loop).ogg",
-		"bgm_duet_in_g": "res://Assets/sounds/bgm/Duet in G (loop).ogg",
-		"bgm_happy_end": "res://Assets/sounds/bgm/Happy End (loop).ogg",
-		"bgm_kabedon": "res://Assets/sounds/bgm/Kabedon (loop).ogg",
-		"bgm_lovebirds": "res://Assets/sounds/bgm/Lovebirds (loop).ogg",
-		"bgm_pet_names": "res://Assets/sounds/bgm/Pet Names (loop).ogg",
-		"bgm_pure_and_naive": "res://Assets/sounds/bgm/Pure and Naive (loop).ogg",
-		"bgm_sentiments": "res://Assets/sounds/bgm/Sentiments (loop).ogg"
+		"bgm_daily_easygoing": "res://Assets/sounds/bgm/优哉游哉(loop).wav",
+		"bgm_daily_summer_pudding": "res://Assets/sounds/bgm/夏日布丁.wav",
+		"bgm_daily_scorching_sun": "res://Assets/sounds/bgm/Scorching Sun.wav",
+		"bgm_romantic_valentines_lemon": "res://Assets/sounds/bgm/情人节的酸柠檬-2版.wav",
+		"bgm_romantic_dragon_and_knight": "res://Assets/sounds/bgm/The Dragon Fell in Love with The Knight.wav",
+		"bgm_night_lullaby": "res://Assets/sounds/bgm/睡前摇篮曲.wav",
+		"bgm_night_goodnight": "res://Assets/sounds/bgm/晚安，星期八.wav"
 	},
 	"sfx": {
 

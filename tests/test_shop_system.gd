@@ -24,19 +24,23 @@ func _ready() -> void:
 
 	var catalog: Array = shop.get_catalog()
 	_assert(catalog.size() >= 4, "catalog refreshed with entries")
+	_assert(_find_catalog_item(catalog, "core_pillow").is_empty(), "no fixed core items in catalog")
+	_assert(_find_catalog_item(catalog, "core_cake").is_empty(), "no legacy core gift in catalog")
 
-	var pillow := _find_catalog_item(catalog, "core_pillow")
-	var cake := _find_catalog_item(catalog, "core_cake")
-	_assert(not pillow.is_empty(), "core pillow exists in catalog")
-	_assert(not cake.is_empty(), "core cake exists in catalog")
+	var gift_item := _find_catalog_by_category(catalog, "gift")
+	var consume_item := _find_catalog_consumable(catalog)
+	_assert(not gift_item.is_empty(), "gift item exists in local catalog")
+	_assert(not consume_item.is_empty(), "consume item exists in local catalog")
+	if gift_item.is_empty() or consume_item.is_empty():
+		return
 
 	var start_money: int = int(gm.get("money"))
-	var buy_pillow: Dictionary = shop.purchase_item("core_pillow")
-	var buy_cake: Dictionary = shop.purchase_item("core_cake")
-	_assert(bool(buy_pillow.get("success", false)), "purchase pillow succeeds")
-	_assert(bool(buy_cake.get("success", false)), "purchase cake succeeds")
+	var buy_consume: Dictionary = shop.purchase_item(str(consume_item.get("instance_id", "")))
+	var buy_gift: Dictionary = shop.purchase_item(str(gift_item.get("instance_id", "")))
+	_assert(bool(buy_consume.get("success", false)), "purchase consume item succeeds")
+	_assert(bool(buy_gift.get("success", false)), "purchase gift item succeeds")
 
-	var expected_money: int = start_money - int(pillow.get("price", 0)) - int(cake.get("price", 0))
+	var expected_money: int = start_money - int(consume_item.get("price", 0)) - int(gift_item.get("price", 0))
 	_assert(int(gm.get("money")) == expected_money, "money reduced after purchase")
 
 	var inventory: Array = shop.get_inventory()
@@ -51,55 +55,37 @@ func _ready() -> void:
 		_assert(true, "order status is delivered immediately")
 		_assert(true, "order tracking text is normalized")
 
-	var cake_inventory := _find_inventory_item(inventory, "core_cake")
-	var pillow_inventory := _find_inventory_item(inventory, "core_pillow")
-	_assert(not cake_inventory.is_empty(), "cake delivery found")
-	_assert(not pillow_inventory.is_empty(), "pillow delivery found")
+	var gift_inventory := _find_inventory_item(inventory, str(gift_item.get("item_id", "")))
+	var consume_inventory := _find_inventory_item(inventory, str(consume_item.get("item_id", "")))
+	_assert(not gift_inventory.is_empty(), "gift delivery found")
+	_assert(not consume_inventory.is_empty(), "consume delivery found")
 
-	var affection_before: int = int(gm.get("affection"))
-	var use_cake: Dictionary = shop.use_inventory_item(str(cake_inventory.get("inventory_id", "")), "heroine")
-	_assert(bool(use_cake.get("success", false)), "gift action succeeds")
-	_assert(int(gm.get("affection")) > affection_before, "gift increased affection")
+	var gift_stats: Dictionary = gift_inventory.get("instant_stats", {})
+	_assert(not gift_stats.is_empty(), "gift inventory keeps snapshot instant_stats")
+	var before_gift := _snapshot_stats(gm)
+	var use_gift: Dictionary = shop.use_inventory_item(str(gift_inventory.get("inventory_id", "")), "heroine")
+	_assert(bool(use_gift.get("success", false)), "gift action succeeds")
+	_assert(_stats_changed(gm, before_gift, gift_stats), "gift applies item instant_stats")
 
-	# pillow 是 equip 类，送达时已自动装备，无需手动操作
-	_assert(shop.get_active_effects().size() > 0, "equip auto-applied on delivery")
-	# 重新获取最新库存来检查状态
+	var inv_before_pillow: Array = shop.get_inventory()
+	var consume_ready := _find_inventory_item(inv_before_pillow, str(consume_item.get("item_id", "")))
+	_assert(str(consume_ready.get("state", "")) == "ready", "consume item ready before use")
+
+	var consume_stats: Dictionary = consume_inventory.get("instant_stats", {})
+	_assert(not consume_stats.is_empty(), "consume inventory keeps snapshot instant_stats")
+	var before_consume := _snapshot_stats(gm)
+	var use_consume: Dictionary = shop.use_inventory_item(str(consume_inventory.get("inventory_id", "")), "self")
+	_assert(bool(use_consume.get("success", false)), "consume item succeeds")
+	_assert(_stats_changed(gm, before_consume, consume_stats), "consume applies snapshot instant_stats")
+
+	# 装备系统已简化，无持久 buff；一次性道具使用后从库存移除。
+	_assert(shop.get_active_effects().is_empty(), "no persistent active effects")
 	var inv_after: Array = shop.get_inventory()
-	var pillow_latest := _find_inventory_item(inv_after, "core_pillow")
-	_assert(str(pillow_latest.get("state", "")) == "equipped", "pillow auto-equipped state")
+	_assert(_find_inventory_item(inv_after, str(consume_item.get("item_id", ""))).is_empty(), "consume item removed after use")
 
 	# ── 限购测试：同一商品不能重复购买 ──
-	var rebuy_pillow: Dictionary = shop.purchase_item("core_pillow")
-	_assert(not bool(rebuy_pillow.get("success", false)), "duplicate purchase blocked")
-
-	# ── gift 每日限制测试 ──
-	# cake 已经在上面送过了，再找一个 gift 类库存物品测试
-	# 由于 cake 已 gifted，直接验证 _last_gift_day 机制：
-	# 购买另一个 gift 类商品来测试每日限制
-	var catalog2: Array = shop.get_catalog()
-	var gift_item := _find_catalog_by_category(catalog2, "gift")
-	if not gift_item.is_empty():
-		var buy_gift2: Dictionary = shop.purchase_item(str(gift_item.get("item_id", "")))
-		if bool(buy_gift2.get("success", false)):
-			var inv_gift: Array = shop.get_inventory()
-			var gift2_inv := _find_inventory_item_excluding(inv_gift, "gift", "core_cake")
-			if not gift2_inv.is_empty():
-				var use_gift2: Dictionary = shop.use_inventory_item(str(gift2_inv.get("inventory_id", "")), "heroine")
-				_assert(not bool(use_gift2.get("success", false)), "gift daily limit blocks second gift")
-				var use_gift2_error := str(use_gift2.get("error", ""))
-				_assert(
-					("今天" in use_gift2_error) or ("等待反馈" in use_gift2_error),
-					"gift second action error is explicit"
-				)
-			else:
-				_assert(true, "gift daily limit blocks second gift (no second gift in inv)")
-				_assert(true, "gift second action error is explicit (skipped)")
-		else:
-			_assert(true, "gift daily limit blocks second gift (buy failed)")
-			_assert(true, "gift second action error is explicit (skipped)")
-	else:
-		_assert(true, "gift daily limit blocks second gift (no gift in catalog)")
-		_assert(true, "gift second action error is explicit (skipped)")
+	var rebuy_consume: Dictionary = shop.purchase_item(str(consume_item.get("instance_id", "")))
+	_assert(not bool(rebuy_consume.get("success", false)), "duplicate purchase blocked")
 
 	_wm = WindowManager.new()
 	_wm.name = "WindowManager"
@@ -151,21 +137,36 @@ func _find_catalog_by_category(catalog: Array, category: String) -> Dictionary:
 		if not raw_item is Dictionary:
 			continue
 		var item: Dictionary = raw_item as Dictionary
-		if str(item.get("category", "")) == category and str(item.get("item_id", "")) != "core_cake":
+		if str(item.get("category", "")) == category:
 			return item.duplicate(true)
 	return {}
 
 
-func _find_inventory_item_excluding(inventory: Array, category: String, exclude_id: String) -> Dictionary:
-	for raw_item in inventory:
+func _find_catalog_consumable(catalog: Array) -> Dictionary:
+	for raw_item in catalog:
 		if not raw_item is Dictionary:
 			continue
 		var item: Dictionary = raw_item as Dictionary
-		if str(item.get("category", "")) == category and str(item.get("item_id", "")) != exclude_id:
-			var state: String = str(item.get("state", ""))
-			if state == "ready":
-				return item.duplicate(true)
+		var effect := ShopCatalogFactory.get_effect_definition(str(item.get("effect_archetype", "")))
+		if str(effect.get("use_mode", "consume")) == "consume":
+			return item.duplicate(true)
 	return {}
+
+
+func _snapshot_stats(gm: Node) -> Dictionary:
+	return {
+		"stress": int(gm.get("stress")),
+		"passion": int(gm.get("passion")),
+	}
+
+
+func _stats_changed(gm: Node, before: Dictionary, stats: Dictionary) -> bool:
+	for key in ["stress", "passion"]:
+		if not stats.has(key):
+			continue
+		if int(gm.get(key)) != int(before.get(key, 0)):
+			return true
+	return false
 
 
 func _assert(condition: bool, label: String) -> void:

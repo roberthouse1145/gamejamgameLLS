@@ -115,6 +115,8 @@ func _create_property_control(prop: Dictionary) -> Control:
 		match type_str:
 			"string":
 				control = _create_string_control(prop)
+			"packed_string_array":
+				control = _create_packed_string_array_control(prop)
 			"int", "float":
 				control = _create_numeric_control(prop)
 			"bool":
@@ -147,6 +149,8 @@ func _normalize_type(prop_type) -> String:
 	match prop_type:
 		TYPE_STRING:
 			return "string"
+		TYPE_PACKED_STRING_ARRAY:
+			return "packed_string_array"
 		TYPE_INT:
 			return "int"
 		TYPE_FLOAT:
@@ -185,6 +189,19 @@ func _create_string_control(prop: Dictionary) -> Control:
 		control.set_value(prop.get("default", ""))
 
 	control.value_changed.connect(_on_string_value_changed.bind(prop["name"]))
+	return control
+
+
+func _create_packed_string_array_control(prop: Dictionary) -> Control:
+	var control: Control = StringPropertyControlScript.new()
+	control.property_name = prop.get("name", "")
+	control.label_text = prop.get("name", "").capitalize()
+	control.multiline = true
+	control.description = prop.get("description", "每行一个文本项")
+
+	var target_value = _target.get(prop["name"])
+	control.set_value(_packed_string_array_to_text(target_value))
+	control.value_changed.connect(_on_packed_string_array_value_changed.bind(prop["name"]))
 	return control
 
 
@@ -354,6 +371,10 @@ func _on_string_value_changed(new_value: String, prop_name: String) -> void:
 	_apply_property_change(prop_name, new_value)
 
 
+func _on_packed_string_array_value_changed(new_value: String, prop_name: String) -> void:
+	_apply_property_change(prop_name, _text_to_packed_string_array(new_value))
+
+
 func _on_numeric_value_changed(new_value: float, prop_name: String) -> void:
 	_apply_property_change(prop_name, new_value)
 
@@ -385,6 +406,28 @@ func _on_resource_value_changed(new_value: Resource, prop_name: String) -> void:
 
 func _on_color_value_changed(new_value: Color, prop_name: String) -> void:
 	_apply_property_change(prop_name, new_value)
+
+
+func _packed_string_array_to_text(value: Variant) -> String:
+	if value is PackedStringArray:
+		var packed: PackedStringArray = value
+		return "\n".join(packed)
+	if value is Array:
+		var lines := PackedStringArray()
+		for item in value:
+			lines.append(str(item))
+		return "\n".join(lines)
+	return str(value) if value != null else ""
+
+
+func _text_to_packed_string_array(value: String) -> PackedStringArray:
+	var result := PackedStringArray()
+	var normalized: String = value.replace("\r\n", "\n").replace("\r", "\n")
+	for line in normalized.split("\n", false):
+		var item: String = str(line).strip_edges()
+		if not item.is_empty():
+			result.append(item)
+	return result
 
 
 func _apply_property_change(prop_name: String, new_value: Variant) -> void:

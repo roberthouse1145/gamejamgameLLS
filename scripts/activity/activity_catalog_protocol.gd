@@ -75,6 +75,8 @@ static func normalize_part_time_job(raw_job: Dictionary, week_index: int, local_
 			reward_money = maxi(0, int((rewards_data as Dictionary).get("money", 0)))
 	if reward_money <= 0:
 		reward_money = 120
+	var reward_stress: int = int(raw_job.get("reward_stress", raw_job.get("stress", _default_job_stress(reward_money))))
+	var reward_passion: int = int(raw_job.get("reward_passion", raw_job.get("passion", _default_job_passion(reward_money))))
 
 	var valid_phases: Array[String] = _normalize_valid_phases(raw_job.get("valid_phases", []))
 	if valid_phases.is_empty():
@@ -85,7 +87,11 @@ static func normalize_part_time_job(raw_job: Dictionary, week_index: int, local_
 		"job_title": title,
 		"company_name": company_name,
 		"district": district,
-		"rewards": {"money": reward_money},
+		"rewards": {
+			"money": reward_money,
+			"stress": reward_stress,
+			"passion": reward_passion,
+		},
 		"subtitle": subtitle,
 		"description": description,
 		"zone_path": zone_path,
@@ -134,6 +140,11 @@ static func normalize_date_event(raw_event: Dictionary, target_day: int, local_i
 		valid_phases = ["AFTERNOON"]
 
 	var rewards: Dictionary = _collect_reward_fields(raw_event)
+	rewards.erase("affection")
+	if not rewards.has("stress"):
+		rewards["stress"] = _default_date_stress(location_id)
+	if not rewards.has("passion"):
+		rewards["passion"] = _default_date_passion(location_id)
 	var map_position: Vector2 = _normalize_map_position(raw_event.get("map_position", null), defaults.get("map_position", Vector2(0.5, 0.5)))
 	var accent_color: String = _normalize_color(str(raw_event.get("accent_color", "")), str(defaults.get("accent_color", "#7D8FE8")))
 
@@ -172,6 +183,42 @@ static func _collect_reward_fields(raw_data: Dictionary) -> Dictionary:
 	return rewards
 
 
+static func _default_job_stress(reward_money: int) -> int:
+	if reward_money >= 180:
+		return 18
+	if reward_money >= 150:
+		return 12
+	return 10
+
+
+static func _default_job_passion(reward_money: int) -> int:
+	if reward_money >= 180:
+		return -8
+	if reward_money >= 150:
+		return -5
+	return -3
+
+
+static func _default_date_stress(location_id: String) -> int:
+	match location_id:
+		"harbor":
+			return -22
+		"commercial", "gate":
+			return -20
+		_:
+			return -18
+
+
+static func _default_date_passion(location_id: String) -> int:
+	match location_id:
+		"harbor":
+			return 3
+		"commercial", "gate":
+			return 2
+		_:
+			return 1
+
+
 static func _normalize_valid_phases(raw_value: Variant) -> Array[String]:
 	var result: Array[String] = []
 	if raw_value is Array:
@@ -180,9 +227,10 @@ static func _normalize_valid_phases(raw_value: Variant) -> Array[String]:
 			if VALID_PHASES.has(normalized) and not result.has(normalized):
 				result.append(normalized)
 	elif raw_value is String:
-		var normalized := str(raw_value).strip_edges().to_upper()
-		if VALID_PHASES.has(normalized):
-			result.append(normalized)
+		for part in str(raw_value).split("|", false):
+			var normalized := str(part).strip_edges().to_upper()
+			if VALID_PHASES.has(normalized) and not result.has(normalized):
+				result.append(normalized)
 	return result
 
 
@@ -195,6 +243,13 @@ static func _normalize_map_position(raw_value: Variant, fallback: Vector2) -> Ve
 			clampf(float((raw_value as Array)[0]), 0.0, 1.0),
 			clampf(float((raw_value as Array)[1]), 0.0, 1.0)
 		)
+	if raw_value is String:
+		var parts := str(raw_value).split("|", false)
+		if parts.size() >= 2:
+			return Vector2(
+				clampf(float(str(parts[0]).strip_edges()), 0.0, 1.0),
+				clampf(float(str(parts[1]).strip_edges()), 0.0, 1.0)
+			)
 	return fallback
 
 

@@ -58,6 +58,7 @@ const DEFAULT_TEXT_COLOR: String = "#202124"
 const DEFAULT_SUBTEXT_COLOR: String = "#5F6368"
 const DEFAULT_WINDOW_WIDTH: float = 460.0
 const DEFAULT_WINDOW_HEIGHT: float = 240.0
+const FALLBACK_WINDOW_CHROME_HEIGHT: float = 52.0
 
 var _active_transit: Dictionary = {}
 var _transit_window: Control = null
@@ -405,7 +406,7 @@ func _open_window() -> void:
 
 	_transit_window = window_manager.create_window(str(_active_transit.get("window_title", "Transit")), outer)
 	if _transit_window != null:
-		_transit_window.size = Vector2(float(_active_transit.get("width", DEFAULT_WINDOW_WIDTH)), float(_active_transit.get("height", DEFAULT_WINDOW_HEIGHT)))
+		_apply_transit_window_layout(_transit_window, window_manager, outer, _active_transit)
 		if _transit_window.has_method("set_close_locked"):
 			_transit_window.set_close_locked(true)
 		if _transit_window.has_method("set_minimize_locked"):
@@ -735,6 +736,42 @@ func _close_window() -> void:
 	_stage_label = null
 	_meta_label = null
 	_progress_bar = null
+
+
+func _apply_transit_window_layout(window: Control, window_manager: Node, content_root: Control, request: Dictionary) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+
+	var desired_content_size := Vector2(
+		float(request.get("width", DEFAULT_WINDOW_WIDTH)),
+		float(request.get("height", DEFAULT_WINDOW_HEIGHT))
+	)
+	if content_root != null and is_instance_valid(content_root):
+		var content_min: Vector2 = content_root.get_combined_minimum_size()
+		desired_content_size.x = maxf(desired_content_size.x, content_min.x)
+		desired_content_size.y = maxf(desired_content_size.y, content_min.y)
+
+	var chrome_padding: Vector2 = _resolve_window_chrome_padding(window)
+	var target_window_size: Vector2 = desired_content_size + chrome_padding
+
+	window.min_size = target_window_size
+	window.custom_minimum_size = target_window_size
+	window.size = target_window_size
+
+	if "resizable" in window:
+		window.resizable = false
+
+	if window_manager != null and window_manager.has_method("fit_window_to_container"):
+		window_manager.fit_window_to_container(window)
+
+
+func _resolve_window_chrome_padding(window: Control) -> Vector2:
+	var content_container: Control = window.get_node_or_null("ContentContainer") as Control
+	if content_container != null:
+		var chrome := window.size - content_container.size
+		if chrome.x >= 0.0 and chrome.y > 0.0:
+			return chrome
+	return Vector2(0.0, FALLBACK_WINDOW_CHROME_HEIGHT)
 
 
 func _create_meta_icon(icon_token: String, tint: Color) -> Control:

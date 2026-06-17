@@ -1,21 +1,23 @@
 extends Node
 ## PlanningManager Autoload
 ## 管理项目级规划 Agent：
-## - 第一批 dev work 规划
-## - 正式开发计划规划
+## - 正式开发计划规划（每次 dev work 任务池快空时续杯触发一批）
 
 const DevPlannerScene = preload("res://scenes/avg/dev_tools/dev_planner_agent.tscn")
 
-const SEED_TASK_PROMPT_KEY: String = "seed_dev_work_generation"
 const DEVELOPMENT_PLAN_PROMPT_KEY: String = "plan_generation"
 
-signal seed_task_plan_completed(request_id: String, success: bool, tasks: Array, raw_output: String)
+## JSON 解析失败时让 Agent 自我修复的最多轮次。
+## 不写正则修复——LLM 自己看到 history 里的失败输出 + 反馈消息后重出一份。
+const MAX_PARSE_RETRIES: int = 2
+
 signal development_plan_completed(request_id: String, success: bool, tasks: Array, raw_output: String)
 
 var _planner_agent: ChatAgent = null
 var _active_request_id: String = ""
 var _active_request_kind: String = ""
-var verbose_agent_logging: bool = false
+var _parse_retry_count: int = 0
+var verbose_agent_logging: bool = true
 
 
 func _ready() -> void:
@@ -25,19 +27,9 @@ func _ready() -> void:
 func reset_runtime_state() -> void:
 	_active_request_id = ""
 	_active_request_kind = ""
+	_parse_retry_count = 0
 	if _planner_agent != null:
 		_planner_agent.reset()
-
-
-func request_seed_task_plan(creative_context: String) -> String:
-	var request_prompt: String = _resolve_prompt_template(SEED_TASK_PROMPT_KEY, {
-		"creative_context": creative_context,
-	})
-	if request_prompt.is_empty():
-		push_warning("[PlanningManager] Seed task prompt unavailable")
-		return ""
-	request_prompt = _prepend_preflight_context(request_prompt)
-	return _begin_request("seed", request_prompt)
 
 
 func request_development_plan(kb_content: String) -> String:
@@ -60,6 +52,7 @@ func _begin_request(kind: String, request_prompt: String) -> String:
 		return ""
 
 	_planner_agent.reset()
+	_parse_retry_count = 0
 	var request_id: String = _planner_agent.send_message(request_prompt)
 	if request_id.is_empty():
 		return ""
@@ -108,23 +101,52 @@ func _on_planner_message_completed(request_id: String, content: String) -> void:
 	var request_kind: String = _active_request_kind
 	var parsed: Variant = _parse_json_array_output(content)
 
-	_active_request_id = ""
-	_active_request_kind = ""
-
-	if _planner_agent != null:
-		_planner_agent.reset()
-
 	if parsed is Array:
+		_active_request_id = ""
+		_active_request_kind = ""
+		_parse_retry_count = 0
+		if _planner_agent != null:
+			_planner_agent.reset()
 		match request_kind:
-			"seed":
-				seed_task_plan_completed.emit(request_id, true, parsed, content)
 			"development_plan":
 				development_plan_completed.emit(request_id, true, parsed, content)
 		return
 
+	# 解析失败：让 Agent 自己看 history 里的失败输出 + 反馈消息后重出一份。
+	# 保留 _planner_agent 不 reset，使下一次 send_message 携带完整对话上下文。
+	if _parse_retry_count < MAX_PARSE_RETRIES and _planner_agent != null:
+		_parse_retry_count += 1
+		push_warning("[PlanningManager] JSON parse failed, asking agent to self-repair (retry %d/%d). raw=%s" % [
+			_parse_retry_count, MAX_PARSE_RETRIES, content.left(200)
+		])
+		var retry_message: String = (
+			"你刚才的回复无法被解析为合法的 JSON 数组。"
+			+ "常见原因：字符串值里出现未转义的双引号；JSON 之外混入了不该有的尾随字符；字段名 / 大括号 / 方括号不闭合。\n"
+			+ "请直接重新输出**一个合法的、可被 JSON.parse_string 解析的数组**作为本次回复。\n"
+			+ "前面允许有简短中文文字说明你的修正点（不超过 5 行），但 JSON 部分必须自闭合且语法正确。\n"
+			+ "不要输出任何解释、不要再写工具调用、不要走流程，只重新出一份合法 JSON。"
+		)
+		var retry_request_id: String = _planner_agent.send_message(retry_message)
+		if retry_request_id.is_empty():
+			push_warning("[PlanningManager] Retry send_message returned empty id, giving up")
+			_finalize_parse_failure(request_id, request_kind, content)
+			return
+		_active_request_id = retry_request_id
+		print("[PlanningManager] Self-repair retry sent: %s (kind=%s, attempt=%d)" % [retry_request_id, request_kind, _parse_retry_count])
+		return
+
+	# 重试次数耗尽：放弃
+	_finalize_parse_failure(request_id, request_kind, content)
+
+
+func _finalize_parse_failure(request_id: String, request_kind: String, content: String) -> void:
+	push_warning("[PlanningManager] JSON parse failed after %d retries (kind=%s)" % [_parse_retry_count, request_kind])
+	_active_request_id = ""
+	_active_request_kind = ""
+	_parse_retry_count = 0
+	if _planner_agent != null:
+		_planner_agent.reset()
 	match request_kind:
-		"seed":
-			seed_task_plan_completed.emit(request_id, false, [], content)
 		"development_plan":
 			development_plan_completed.emit(request_id, false, [], content)
 
@@ -136,14 +158,13 @@ func _on_planner_message_failed(request_id: String, error: String) -> void:
 	var request_kind: String = _active_request_kind
 	_active_request_id = ""
 	_active_request_kind = ""
+	_parse_retry_count = 0
 
 	if _planner_agent != null:
 		_planner_agent.reset()
 
 	push_warning("[PlanningManager] Planner request failed (%s): %s" % [request_kind, error])
 	match request_kind:
-		"seed":
-			seed_task_plan_completed.emit(request_id, false, [], error)
 		"development_plan":
 			development_plan_completed.emit(request_id, false, [], error)
 

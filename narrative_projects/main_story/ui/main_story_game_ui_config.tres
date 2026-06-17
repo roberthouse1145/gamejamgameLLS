@@ -1,0 +1,77 @@
+[gd_resource type="Resource" script_class="AVGGameUIConfig" format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_ui_button.gd" id="1_ui_button"]
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_game_ui_config.gd" id="2_game_ui"]
+
+[sub_resource type="Resource" id="Resource_hud_save"]
+script = ExtResource("1_ui_button")
+button_id = "save"
+display_text = "存档"
+action = "save"
+norm_position = Vector2(0.55, 0.96)
+
+[sub_resource type="Resource" id="Resource_hud_load"]
+script = ExtResource("1_ui_button")
+button_id = "load"
+display_text = "读档"
+action = "load"
+norm_position = Vector2(0.605, 0.96)
+order = 1
+
+[sub_resource type="Resource" id="Resource_hud_auto"]
+script = ExtResource("1_ui_button")
+button_id = "auto"
+display_text = "自动"
+action = "auto"
+visible_default = false
+norm_position = Vector2(0.66, 0.96)
+order = 2
+
+[sub_resource type="Resource" id="Resource_hud_skip"]
+script = ExtResource("1_ui_button")
+button_id = "skip"
+display_text = "快进"
+action = "skip"
+visible_default = false
+norm_position = Vector2(0.715, 0.96)
+order = 3
+
+[sub_resource type="Resource" id="Resource_hud_log"]
+script = ExtResource("1_ui_button")
+button_id = "log"
+display_text = "历史"
+action = "log"
+visible_default = false
+norm_position = Vector2(0.77, 0.96)
+order = 4
+
+[sub_resource type="Resource" id="Resource_hud_hide_ui"]
+script = ExtResource("1_ui_button")
+button_id = "hide_ui"
+display_text = "隐藏"
+action = "hide_ui"
+visible_default = false
+norm_position = Vector2(0.825, 0.96)
+order = 5
+
+[sub_resource type="Resource" id="Resource_hud_settings"]
+script = ExtResource("1_ui_button")
+button_id = "settings"
+display_text = "设置"
+action = "settings"
+visible_default = false
+norm_position = Vector2(0.88, 0.96)
+order = 6
+
+[sub_resource type="Resource" id="Resource_hud_menu"]
+script = ExtResource("1_ui_button")
+button_id = "menu"
+display_text = "菜单"
+action = "menu"
+visible_default = false
+norm_position = Vector2(0.935, 0.96)
+order = 7
+
+[resource]
+script = ExtResource("2_game_ui")
+buttons = [SubResource("Resource_hud_save"), SubResource("Resource_hud_load"), SubResource("Resource_hud_auto"), SubResource("Resource_hud_skip"), SubResource("Resource_hud_log"), SubResource("Resource_hud_hide_ui"), SubResource("Resource_hud_settings"), SubResource("Resource_hud_menu")]

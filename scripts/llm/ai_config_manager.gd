@@ -6,6 +6,9 @@ class_name AIConfigManager extends RefCounted
 
 const DEFAULT_CONFIG_PATH: String = "res://ai_config.cfg"
 const USER_CONFIG_PATH: String = "user://ai_config.cfg"
+const ROLE_FALLBACKS: Dictionary = {
+	"work_order_agent": "work_order",
+}
 
 ## 全局单例（生产代码用 get_instance()，测试代码可自行 new() 隔离）
 static var _instance: AIConfigManager = null
@@ -68,9 +71,16 @@ func load_config() -> bool:
 ## 返回 {base_url, api_key, model}，找不到则返回空 Dictionary。
 func get_config_for_role(role: String) -> Dictionary:
 	var profile_name: String = _roles.get(role, "")
+	var fallback_role: String = ""
+	if profile_name.is_empty():
+		fallback_role = str(ROLE_FALLBACKS.get(role, ""))
+		if not fallback_role.is_empty():
+			profile_name = _roles.get(fallback_role, "")
 	if profile_name.is_empty():
 		return {}
 	var config: Dictionary = _profiles.get(profile_name, {}).duplicate()
+	if not fallback_role.is_empty():
+		config.merge(_role_settings.get(fallback_role, {}), true)
 	config.merge(_role_settings.get(role, {}), true)
 	return config
 

@@ -35,7 +35,7 @@ func _ready() -> void:
 		"activity": {
 			"activity_id": "rest",
 			"ap_cost": 0,
-			"stat_effects": {"stress": -3},
+			"stat_effects": {"stress": -25},
 		},
 		"context": {},
 		"extra_stat_effects": {},
@@ -49,8 +49,8 @@ func _ready() -> void:
 	home._finish_session(session_id)
 	await get_tree().process_frame
 
-	_assert_eq("payload reward stress", int((_captured_payload.get("rewards", {}) as Dictionary).get("stress", 0)), -3)
-	_assert_eq("game manager stress applied", int(gm.stress), 17)
+	_assert_eq("payload reward stress", int((_captured_payload.get("rewards", {}) as Dictionary).get("stress", 0)), -25)
+	_assert_eq("game manager stress applied", int(gm.stress), 0)
 	print("=== Home Rest Rewards Payload Test Done ===")
 
 

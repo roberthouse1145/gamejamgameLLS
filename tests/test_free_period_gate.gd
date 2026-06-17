@@ -14,9 +14,8 @@ func _run_test() -> void:
 	var chat: Node = get_node_or_null("/root/ChatManager")
 	var story: Node = get_node_or_null("/root/StoryDirector")
 	var home: Node = get_node_or_null("/root/HomeActivityManager")
-	var wom: Node = get_node_or_null("/root/WorkOrderManager")
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if chat == null or story == null or home == null or wom == null or glm == null:
+	if chat == null or story == null or home == null or glm == null:
 		print("[FAIL] missing required autoload")
 		return
 
@@ -77,15 +76,6 @@ func _run_test() -> void:
 		print("[FAIL] active story should block free period")
 		return
 	print("[OK] active story blocks free period")
-	story.current_chapter = null
-
-	story.current_chapter = Resource.new()
-	var clarify_topic := ChatTopicClass.new()
-	clarify_topic.channel_id = "dm_lin_xia"
-	if bool(wom.call("_can_activate_clarification", clarify_topic)):
-		print("[FAIL] clarification should not activate outside free period")
-		return
-	print("[OK] clarification follows free period gate")
 	story.current_chapter = null
 
 	if chat.has_method("reset_runtime_state"):

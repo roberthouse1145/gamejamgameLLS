@@ -1,5 +1,5 @@
 extends Control
-## 手动测试入口：直接注入 Day1 企划卡任务并打开 Dev Work。
+## 手动测试入口：直接注入 Day1 立项讨论任务并打开 Dev Work。
 
 const WindowManagerClass = preload("res://scripts/pseudo_os/window_manager.gd")
 
@@ -33,7 +33,7 @@ func _build_ui() -> void:
 	add_child(root)
 
 	var header := Label.new()
-	header.text = "Day1 企划卡 Dev Work 快测"
+	header.text = "Day1 立项讨论 Dev Work 快测"
 	header.add_theme_font_size_override("font_size", 28)
 	header.add_theme_color_override("font_color", Color("#e2e8f0"))
 	root.add_child(header)
@@ -70,9 +70,9 @@ func _ensure_window_manager() -> void:
 
 func _prepare() -> void:
 	_reset_runtime_state()
-	var task: Dictionary = _load_task_template("res://resources/dev_work/story_tasks/day1_creative_brief.json")
+	var task: Dictionary = _load_task_template("res://resources/dev_work/story_tasks/lock_creative_direction.json")
 	if task.is_empty():
-		_set_status("读取 Day1 企划卡任务模板失败。")
+		_set_status("读取 Day1 立项讨论任务模板失败。")
 		return
 
 	var dcm: Node = get_node_or_null("/root/DevCycleManager")
@@ -82,7 +82,7 @@ func _prepare() -> void:
 
 	var added_id: String = dcm.add_dynamic_task(task)
 	if added_id.is_empty():
-		_set_status("注入 Day1 企划卡任务失败。")
+		_set_status("注入 Day1 立项讨论任务失败。")
 		return
 
 	var am: Node = get_node_or_null("/root/AppManager")
@@ -94,7 +94,7 @@ func _prepare() -> void:
 		_set_status("Dev Work 打开失败。")
 		return
 
-	_set_status("已打开 Dev Work。点击「AGJ 2027 · 第一版企划卡」即可进入 structured_form。")
+	_set_status("已打开 Dev Work。点击「和林夏定下作品方向」即可进入 creative_decision 讨论。")
 
 
 func _reset_runtime_state() -> void:
@@ -125,4 +125,4 @@ func _load_task_template(path: String) -> Dictionary:
 func _set_status(text: String) -> void:
 	if _status != null:
 		_status.text = text
-	print("[TestDay1BriefDevWork] %s" % text)
+	print("[TestDay1LockDirection] %s" % text)

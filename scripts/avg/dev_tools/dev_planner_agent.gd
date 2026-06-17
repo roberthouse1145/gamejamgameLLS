@@ -12,6 +12,7 @@ func _ready() -> void:
 	AVGDevWorkOrderTools.register_summary_read_only(_ai_service)
 	_register_project_read_only_tools()
 	_register_dev_cycle_snapshot_tool()
+	_register_kb_summarize_state_tool()
 	print("[DevPlannerAgent] Ready - tools: %d" % _ai_service.get_tools_definition().size())
 
 
@@ -57,6 +58,51 @@ func _register_dev_cycle_snapshot_tool() -> void:
 	}, func(args: Dictionary) -> Variant: return _get_dev_cycle_snapshot(args), {
 		"fields": ["success", "data.current_day", "data.visible_tasks", "data.completed_task_count", "data.queue_size", "data.order_active", "data.plan_generated", "data.plan_generating", "error"]
 	})
+
+
+func _register_kb_summarize_state_tool() -> void:
+	_ai_service.register_tool("kb_summarize_state", "快速查看当前 KB 所有文档的索引（doc_id / 标题 / 分类 / 标签 / state / 更新时间 / 首行摘要）；不返回正文。用于产出工单前的 KB 实地核对，决定哪些任务有素材落地、哪些必须降级为 creative_decision。", {
+		"type": "object",
+		"properties": {
+			"category": {"type": "string", "enum": ["world", "characters", "story", "notes"], "description": "可选：仅列出某一分类的文档"}
+		},
+	}, func(args: Dictionary) -> Variant: return _kb_summarize_state(args), {
+		"fields": ["success", "data", "error"]
+	})
+
+
+func _kb_summarize_state(args: Dictionary) -> Dictionary:
+	var kbm: Node = get_node_or_null("/root/KnowledgeBaseManager")
+	if kbm == null or not kbm.has_method("get_documents"):
+		return {"success": false, "error": "KnowledgeBaseManager not available."}
+
+	var category: String = str(args.get("category", "")).strip_edges()
+	var docs: Array = kbm.get_documents(category)
+
+	var rows: Array = []
+	for doc in docs:
+		if not doc is Dictionary:
+			continue
+		var content: String = str(doc.get("content", ""))
+		var first_line: String = ""
+		if not content.is_empty():
+			var newline_idx: int = content.find("\n")
+			first_line = content if newline_idx < 0 else content.substr(0, newline_idx)
+			first_line = first_line.strip_edges()
+			if first_line.length() > 120:
+				first_line = first_line.substr(0, 120) + "…"
+		rows.append({
+			"doc_id": str(doc.get("doc_id", "")),
+			"title": str(doc.get("title", "")),
+			"category": str(doc.get("category", "")),
+			"tags": doc.get("tags", []),
+			"state": str(doc.get("state", "")),
+			"doc_kind": str(doc.get("doc_kind", "")),
+			"updated_at": str(doc.get("updated_at", "")),
+			"first_line": first_line,
+		})
+
+	return {"success": true, "data": rows}
 
 
 func _get_dev_cycle_snapshot(_args: Dictionary) -> Dictionary:

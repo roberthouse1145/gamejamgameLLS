@@ -24,7 +24,7 @@ signal log_entry(entry: Dictionary)
 var _messages: Array = []
 var _system_prompt: String = ""
 var _is_busy: bool = false
-## sub-agent 注册表: tool_name -> {agent: ChatAgent, description: String}
+## sub-agent 注册表: tool_name -> {agent: ChatAgent, description: String, queued: bool}
 var _sub_agents: Dictionary = {}
 ## 已激活的 skills: [{name: String, instructions: String}]
 var _active_skills: Array[Dictionary] = []
@@ -65,6 +65,11 @@ func _ready() -> void:
 
 ## 发送消息。自动管理对话历史和 system prompt。
 func send_message(text: String) -> String:
+	return send_message_with_options(text, {})
+
+
+## 发送消息，并给底层 AIService 传入本轮请求选项。
+func send_message_with_options(text: String, request_options: Dictionary = {}) -> String:
 	if _is_busy:
 		_emit_log("error", "Agent 正忙，无法处理新消息")
 		return ""
@@ -87,6 +92,7 @@ func send_message(text: String) -> String:
 		"auto_execute": true,
 		"tool_result_summarizer": Callable(self, "_summarize_tool_result_for_history"),
 	}
+	options.merge(request_options, true)
 	var tools: Array = _ai_service.get_tools_definition()
 	if tools.size() > 0:
 		options["tools"] = tools
@@ -117,12 +123,12 @@ func set_system_prompt_override(system_prompt: String) -> void:
 
 
 ## 注册普通工具。
-func register_tool(tool_name: String, description: String, schema: Dictionary, callback: Callable, llm_view: Variant = null) -> void:
-	_ai_service.register_tool(tool_name, description, schema, callback, llm_view)
+func register_tool(tool_name: String, description: String, schema: Dictionary, callback: Callable, llm_view: Variant = null, metadata: Dictionary = {}) -> void:
+	_ai_service.register_tool(tool_name, description, schema, callback, llm_view, metadata)
 
 
 ## 注册 sub-agent 工具。
-func register_sub_agent_tool(tool_name: String, description: String, agent: Node) -> void:
+func register_sub_agent_tool(tool_name: String, description: String, agent: Node, queued: bool = false) -> void:
 	var schema: Dictionary = {
 		"type": "object",
 		"properties": {
@@ -137,6 +143,9 @@ func register_sub_agent_tool(tool_name: String, description: String, agent: Node
 	_sub_agents[tool_name] = {
 		"agent": agent,
 		"description": description,
+		"queued": queued,
+		"queue": [],
+		"queue_active": false,
 	}
 
 	_ai_service.register_tool(
@@ -144,7 +153,8 @@ func register_sub_agent_tool(tool_name: String, description: String, agent: Node
 		description,
 		schema,
 		func(args: Dictionary) -> Dictionary: return await _execute_sub_agent(tool_name, args),
-		["success", "data", "error"]
+		["success", "data", "error"],
+		{"effect": "write"}
 	)
 
 
@@ -194,7 +204,7 @@ func activate_skill(skill_name: String) -> Dictionary:
 		var tname: String = t.get("name", "")
 		if tname.is_empty():
 			continue
-		_ai_service.register_tool(tname, t.get("description", ""), t.get("schema", {}), t.get("callback", Callable()), t.get("llm_view", null))
+		_ai_service.register_tool(tname, t.get("description", ""), t.get("schema", {}), t.get("callback", Callable()), t.get("llm_view", null), t.get("metadata", {}))
 		tool_names.append(tname)
 
 	_active_skills.append({"name": skill_name, "instructions": skill.instructions, "tool_names": tool_names})
@@ -253,6 +263,13 @@ func get_effective_system_prompt() -> String:
 
 #region Sub-Agent 执行
 
+## Hook: 子类可重写以包装 sub-agent 的 task。
+## 默认返回原 task；子类可在前面注入稳定前缀（如项目索引），
+## 让 sub-agent 不必自己重复探索资源/索引。
+func _prepare_sub_agent_task(_tool_name: String, task: String) -> String:
+	return task
+
+
 func _execute_sub_agent(tool_name: String, args: Dictionary) -> Dictionary:
 	var sub_info: Dictionary = _sub_agents.get(tool_name, {})
 	var agent: Node = sub_info.get("agent", null)
@@ -262,6 +279,21 @@ func _execute_sub_agent(tool_name: String, args: Dictionary) -> Dictionary:
 	var task: String = args.get("task", "")
 	if task.is_empty():
 		return {"success": false, "error": "task is required"}
+
+	var prepared_task: String = _prepare_sub_agent_task(tool_name, task)
+	var use_queue: bool = bool(sub_info.get("queued", false))
+	if use_queue:
+		await _acquire_sub_agent_queue_turn(tool_name, task)
+
+	var result: Dictionary = await _run_sub_agent_task(tool_name, agent, task, prepared_task)
+
+	if use_queue:
+		_release_sub_agent_queue_turn(tool_name)
+
+	return result
+
+
+func _run_sub_agent_task(tool_name: String, agent: Node, task: String, prepared_task: String) -> Dictionary:
 
 	_emit_log("progress", "委托子代理 [%s]: %s" % [tool_name, task.left(100)])
 
@@ -279,13 +311,20 @@ func _execute_sub_agent(tool_name: String, args: Dictionary) -> Dictionary:
 	agent.message_completed.connect(on_completed, CONNECT_ONE_SHOT)
 	agent.message_failed.connect(on_failed, CONNECT_ONE_SHOT)
 
-	agent.send_message(task)
+	var request_id: String = str(agent.send_message(prepared_task))
+	if request_id.is_empty():
+		if agent.message_completed.is_connected(on_completed):
+			agent.message_completed.disconnect(on_completed)
+		if agent.message_failed.is_connected(on_failed):
+			agent.message_failed.disconnect(on_failed)
+		return {"success": false, "error": "Sub-agent is busy and did not accept task: " + tool_name}
 
 	while not state["completed"]:
 		await get_tree().process_frame
 
 	if state["has_error"]:
 		_emit_log("error", "子代理 [%s] 失败: %s" % [tool_name, state["error"]])
+		agent.reset()
 		return {"success": false, "error": state["error"]}
 
 	var extracted: String = _extract_result_tag(state["content"])
@@ -294,6 +333,39 @@ func _execute_sub_agent(tool_name: String, args: Dictionary) -> Dictionary:
 	agent.reset()
 
 	return {"success": true, "data": extracted}
+
+
+func _acquire_sub_agent_queue_turn(tool_name: String, task: String) -> void:
+	var sub_info: Dictionary = _sub_agents.get(tool_name, {})
+	if not bool(sub_info.get("queue_active", false)):
+		sub_info["queue_active"] = true
+		_sub_agents[tool_name] = sub_info
+		return
+
+	var queue: Array = sub_info.get("queue", [])
+	var turn: Dictionary = {"active": false}
+	queue.append(turn)
+	sub_info["queue"] = queue
+	_sub_agents[tool_name] = sub_info
+	_emit_log("progress", "子代理 [%s] 排队中（前方 %d 个）: %s" % [tool_name, queue.size(), task.left(80)])
+
+	while not bool(turn.get("active", false)):
+		await get_tree().process_frame
+
+
+func _release_sub_agent_queue_turn(tool_name: String) -> void:
+	var sub_info: Dictionary = _sub_agents.get(tool_name, {})
+	var queue: Array = sub_info.get("queue", [])
+	if queue.is_empty():
+		sub_info["queue_active"] = false
+		_sub_agents[tool_name] = sub_info
+		return
+
+	var next_turn: Dictionary = queue.pop_front()
+	next_turn["active"] = true
+	sub_info["queue"] = queue
+	sub_info["queue_active"] = true
+	_sub_agents[tool_name] = sub_info
 
 
 func _extract_result_tag(text: String) -> String:
@@ -435,8 +507,26 @@ func _build_messages_for_api() -> Array:
 
 	if not combined_prompt.is_empty():
 		result.append({"role": "system", "content": combined_prompt})
-	result.append_array(_messages)
+	result.append_array(_strip_orphaned_tool_messages(_messages))
 	return result
+
+
+func _strip_orphaned_tool_messages(messages: Array) -> Array:
+	var out: Array = []
+	for msg in messages:
+		if str(msg.get("role", "")) == "tool":
+			var last_assistant_has_calls: bool = false
+			for i in range(out.size() - 1, -1, -1):
+				var prev: Dictionary = out[i]
+				if str(prev.get("role", "")) == "assistant":
+					last_assistant_has_calls = prev.has("tool_calls")
+					break
+				if str(prev.get("role", "")) in ["user", "system"]:
+					break
+			if not last_assistant_has_calls:
+				continue
+		out.append(msg)
+	return out
 
 
 ## 解析 prompt：从 PromptManager 获取并替换模板变量。

@@ -6,6 +6,7 @@ extends Control
 ##   3. 由玩家在 Dev Work 中点击任务，进入正式链路
 
 const WindowManagerClass = preload("res://scripts/pseudo_os/window_manager.gd")
+const LinkChatAppScene = preload("res://scenes/apps/linkchat/linkchat_app.tscn")
 
 const MINIGAME_TESTS: Array[Dictionary] = [
 	{
@@ -46,32 +47,21 @@ const MINIGAME_TESTS: Array[Dictionary] = [
 	},
 	{
 		"type": "structured_form",
-		"label": "方案填写 · Day1 企划卡",
-		"title": "AGJ 2027 · 第一版企划卡",
-		"description": "把 Day1 讨论收束成一张结构化企划卡，确认作品名、类型、标签和短大纲。",
+		"label": "方案填写 · 通用结构化表单",
+		"title": "整理一份关键决策模板",
+		"description": "用一张结构化表单收束当前关键决策。仅用于覆盖 structured_form 小游戏的提交流程。",
 		"form_config": {
-			"form_id": "test_day1_creative_brief",
-			"title": "AGJ 2027 · 第一版企划卡",
-			"description": "测试用表单，字段与 Day1 正式企划卡保持一致。",
+			"form_id": "test_structured_form_generic",
+			"title": "测试用结构化表单",
+			"description": "测试用表单，覆盖 text / single_select / multi_select / textarea 字段。",
 			"fields": [
-				{"id": "game_title", "type": "text", "label": "作品名称", "required": true, "max_length": 20},
-				{"id": "game_genre", "type": "single_select", "label": "类型", "required": true, "allow_custom": true, "options": ["恋爱 Gal", "悬疑推理", "轻喜剧", "奇幻冒险"]},
-				{"id": "game_tags", "type": "multi_select", "label": "核心标签", "required": true, "min_selected": 1, "max_selected": 3, "options": ["异世界", "魔法学院", "暧昧", "成长", "轻推理"]},
-				{"id": "game_outline", "type": "textarea", "label": "短大纲", "required": true, "max_length": 200},
+				{"id": "decision_title", "type": "text", "label": "决策主题", "required": true, "max_length": 20},
+				{"id": "decision_kind", "type": "single_select", "label": "类型", "required": true, "allow_custom": true, "options": ["剧情", "角色", "世界", "其它"]},
+				{"id": "decision_tags", "type": "multi_select", "label": "标签", "required": true, "min_selected": 1, "max_selected": 3, "options": ["紧急", "需要讨论", "可执行", "已收束"]},
+				{"id": "decision_notes", "type": "textarea", "label": "决策备注", "required": true, "max_length": 200},
 			],
-			"llm_assist": {
-				"actions": [
-					{
-						"id": "generate_outline",
-						"label": "生成短大纲",
-						"target_field": "game_outline",
-						"prompt": "根据当前表单内容，生成一段 150 字以内的 AVG 企划短大纲。只输出 value: DSL。"
-					}
-				]
-			},
 			"review": {"mode": "dsl"},
 		},
-		"post_task_handler": {"type": "creative_brief_completed"},
 		"stat_changes": {"quality": 4, "completion": 4},
 		"stress_cost": 0,
 		"weight": 10,
@@ -149,6 +139,8 @@ const SCRIPT_FILL_FAKE_KB_DOCS: Array[Dictionary] = [
 var _menu_container: VBoxContainer = null
 var _status_label: Label = null
 var _result_label: RichTextLabel = null
+var _workspace_tabs: TabContainer = null
+var _linkchat_app: Control = null
 var _window_host: Control = null
 var _window_container: Control = null
 var _wm: Node = null
@@ -168,6 +160,7 @@ func _ready() -> void:
 	_connect_runtime_signals()
 	_ensure_original_kb_snapshot()
 	_set_status("选择一种测试任务。场景会先模拟打开 Dev Work，真正启动小游戏需要你在 Dev Work 里再点一次。")
+	_append_result_line("[color=#89b4fa]提示[/color] 右侧包含 Dev Work / 小游戏窗口与 LinkChat；小游戏结束后的林夏回应会切到 LinkChat。")
 	_append_result_line("[color=#89b4fa]提示[/color] script_fill / emotion_tag 会走正式内容生成链路；如果后台 LLM 关闭，就会自动退回 fallback。")
 	print("[TestMinigame] Ready. Formal flow test via DevWorkApp.")
 
@@ -176,8 +169,11 @@ func _exit_tree() -> void:
 	_stop_running_task()
 	_restore_baseline_state()
 	var am: Node = get_node_or_null("/root/AppManager")
-	if am != null and am.has_method("set_window_manager") and am.get("window_manager") == _wm:
-		am.set_window_manager(_original_window_manager)
+	if am != null and am.get("window_manager") == _wm:
+		if am.has_method("set_window_manager"):
+			am.set_window_manager(_original_window_manager)
+		else:
+			am.window_manager = _original_window_manager
 
 
 func _build_ui() -> void:
@@ -246,10 +242,16 @@ func _build_ui() -> void:
 	_result_label.text = ""
 	_menu_container.add_child(_result_label)
 
+	_workspace_tabs = TabContainer.new()
+	_workspace_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_workspace_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	root.add_child(_workspace_tabs)
+
 	_window_host = Control.new()
+	_window_host.name = "Windows"
 	_window_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_window_host.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	root.add_child(_window_host)
+	_workspace_tabs.add_child(_window_host)
 
 	var stage_bg := ColorRect.new()
 	stage_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -269,6 +271,12 @@ func _build_ui() -> void:
 	_window_container.name = "WindowContainer"
 	_window_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_window_host.add_child(_window_container)
+
+	_linkchat_app = LinkChatAppScene.instantiate()
+	_linkchat_app.name = "LinkChat"
+	_linkchat_app.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_linkchat_app.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_workspace_tabs.add_child(_linkchat_app)
 
 
 func _ensure_window_manager() -> void:
@@ -297,6 +305,9 @@ func _connect_runtime_signals() -> void:
 			mgr.minigame_cancelled.connect(_on_minigame_cancelled)
 		if mgr.has_signal("review_completed") and not mgr.review_completed.is_connected(_on_review_completed):
 			mgr.review_completed.connect(_on_review_completed)
+	var chat: Node = get_node_or_null("/root/ChatManager")
+	if chat != null and chat.has_signal("topic_activated") and not chat.topic_activated.is_connected(_on_chat_topic_activated):
+		chat.topic_activated.connect(_on_chat_topic_activated)
 
 
 func _snapshot_runtime_state() -> void:
@@ -380,6 +391,7 @@ func _on_prepare_test_pressed(entry: Dictionary) -> void:
 		_set_status("Dev Work 打开失败，无法继续正式链路测试。")
 		return
 
+	_focus_windows_tab()
 	_set_status("已准备任务「%s」。请在右侧 Dev Work 窗口里点击这条任务，再进入小游戏。" % str(task_def.get("title", "")))
 	_append_result_line("[color=#a6e3a1]已注入[/color] %s" % str(task_def.get("title", "")))
 
@@ -452,6 +464,7 @@ func _stop_running_task() -> void:
 func _on_minigame_started(task_id: String, minigame_type: String) -> void:
 	if task_id != _current_test_task_id:
 		return
+	_focus_windows_tab()
 	_set_status("Dev Work 已启动任务，当前进入正式小游戏链路：%s" % minigame_type)
 	_append_result_line("[color=#f9e2af]已启动[/color] %s" % minigame_type)
 
@@ -493,6 +506,27 @@ func _on_review_completed(task_id: String, result: Dictionary) -> void:
 	if result.has("blank_count"):
 		parts.append("blank_count=%s" % str(result.get("blank_count", 0)))
 	_append_result_line(" | ".join(parts))
+
+
+func _on_chat_topic_activated(topic) -> void:
+	if topic == null:
+		return
+	var context_data: Dictionary = topic.context_data if "context_data" in topic else {}
+	if str(context_data.get("linkchat_open_mode", "")).strip_edges().to_lower() == "force":
+		var channel_id: String = str(topic.channel_id) if "channel_id" in topic else "dm_lin_xia"
+		_focus_linkchat_tab(channel_id)
+
+
+func _focus_windows_tab() -> void:
+	if _workspace_tabs != null and _window_host != null:
+		_workspace_tabs.current_tab = _window_host.get_index()
+
+
+func _focus_linkchat_tab(channel_id: String = "dm_lin_xia") -> void:
+	if _workspace_tabs != null and _linkchat_app != null:
+		_workspace_tabs.current_tab = _linkchat_app.get_index()
+	if _linkchat_app != null and _linkchat_app.has_method("open_topic_channel"):
+		_linkchat_app.open_topic_channel(channel_id if not channel_id.is_empty() else "dm_lin_xia")
 
 
 func _set_status(text: String) -> void:

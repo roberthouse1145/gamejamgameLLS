@@ -9,6 +9,8 @@
 script = ExtResource("2_constraints")
 min_size = Vector2(1024, 768)
 default_size = Vector2(1600, 900)
+default_size_ratio = 0.9
+default_content_aspect_ratio = 1.77777777777778
 
 [resource]
 script = ExtResource("1_app_def")

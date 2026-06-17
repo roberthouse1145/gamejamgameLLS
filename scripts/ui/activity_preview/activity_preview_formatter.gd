@@ -3,7 +3,6 @@ extends RefCounted
 
 const REWARD_ORDER: Array[String] = [
 	"money",
-	"affection",
 	"stress",
 	"passion",
 	"completion",
@@ -51,6 +50,9 @@ static func format_rewards(rewards: Dictionary) -> String:
 	var extra_keys: Array[String] = []
 	for stat_name_variant in rewards.keys():
 		var stat_name: String = str(stat_name_variant)
+		if stat_name == "affection":
+			consumed[stat_name] = true
+			continue
 		if consumed.has(stat_name):
 			continue
 		extra_keys.append(stat_name)
@@ -92,8 +94,6 @@ static func _get_reward_label(stat_name: String) -> String:
 	match stat_name:
 		"money":
 			return "金钱"
-		"affection":
-			return "好感"
 		"stress":
 			return "压力"
 		"passion":

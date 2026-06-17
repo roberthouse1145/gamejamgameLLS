@@ -148,7 +148,7 @@ func _build_session(_session_id: String, _entry_id: String, entry: Dictionary) -
 func _on_session_begin(session: Dictionary) -> void:
 	var game: Dictionary = session.get("game", session.get("entry", {}))
 	if str(session.get("session_origin", "")).strip_edges() == "npc_initiative":
-		_send_game_panel(game, "npc_lin_xia", "我翻到这个，想和你一起玩。")
+		_send_game_panel(game, "npc_lin_xia", "")
 		return
 	_send_game_panel(game, "player")
 
@@ -334,7 +334,7 @@ func _build_local_moment_text(session: Dictionary) -> String:
 # Player Game Panel
 # =============================================================================
 
-func send_npc_invite_game_panel(game_id: String, content: String = "我翻到这个，想和你一起玩。") -> void:
+func send_npc_invite_game_panel(game_id: String, content: String = "") -> void:
 	var game := _find_catalog_entry(game_id)
 	if game.is_empty():
 		return
@@ -698,12 +698,13 @@ func _resolve_game_price(entry: Dictionary) -> int:
 func _build_stat_changes(cat_entry: Dictionary) -> Dictionary:
 	var bias: String = str(cat_entry.get("reaction_bias", "cozy")).strip_edges()
 	var stat_map: Dictionary = {
-		"laugh": {"affection": 2, "stress": -1},
-		"complain": {"affection": 1, "stress": -1},
-		"hyped": {"affection": 1, "passion": 2},
-		"aftertaste": {"affection": 1, "passion": 1},
+		"laugh": {"stress": -10, "passion": 3},
+		"complain": {"stress": -6, "passion": 2},
+		"hyped": {"stress": -6, "passion": 12},
+		"aftertaste": {"stress": -8, "passion": 8},
+		"cozy": {"stress": -8, "passion": 6},
 	}
-	return stat_map.get(bias, {"affection": 2, "stress": -2})
+	return stat_map.get(bias, {"stress": -8, "passion": 6})
 
 
 func _build_reaction_summary(cat_entry: Dictionary) -> String:

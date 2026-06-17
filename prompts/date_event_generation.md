@@ -59,11 +59,16 @@ activity_hint=约会活动方向
 valid_phases=AFTERNOON|NIGHT
 map_position=0.2|0.3
 accent_color=#72C28C
-reward_affection=2
-reward_stress=-1
+reward_stress=-18
+reward_passion=1
+reward_money=-20
 [/DATE_EVENT]
 
-reward_* 是开放前缀，可选 reward_affection / reward_stress / reward_passion / reward_money。每个事件通常选 2 到 3 个维度；购物吃饭记得 reward_money 为负。
+reward_* 是开放前缀，可选 reward_stress / reward_passion / reward_money。不要输出 reward_affection。每个事件通常选 2 到 3 个维度；购物、吃饭、交通、电影、甜品、买东西时记得 reward_money 为负。
+数值范围：
+- reward_stress 通常为 -14 到 -20，港口/远地点/特别放松可到 -22。
+- reward_passion 通常为 0 到 3，只有明显带来创作启发的活动才到 4 或 5。
+- reward_money 允许 0 或负数；至少保留一些低成本/免费事件，不要所有约会都花钱。
 
 参考值：
 - map_position: park=0.2|0.3, commercial=0.55|0.35, school=0.4|0.55, harbor=0.8|0.7, gate=0.3|0.6
@@ -83,9 +88,9 @@ activity_hint=一起在 ATM 前研究纸币、和大爷小聊几句、去便利�
 valid_phases=AFTERNOON|NIGHT
 map_position=0.3|0.6
 accent_color=#9DC183
-reward_affection=1
-reward_money=-1
-reward_stress=-1
+reward_money=-10
+reward_stress=-18
+reward_passion=1
 [/DATE_EVENT]
 
 [DATE_EVENT]
@@ -100,8 +105,8 @@ activity_hint=并肩慢跑、被狗插队、坐长椅一起缓气聊天
 valid_phases=MORNING|AFTERNOON
 map_position=0.2|0.3
 accent_color=#72C28C
-reward_affection=2
-reward_stress=-2
+reward_stress=-18
+reward_passion=1
 [/DATE_EVENT]
 
 注意上面两个示例：title / description / activity_hint 完全没有"缺角""撞狗"这些剧透，detail_prompt 才写真正发生的小插曲。生成时必须保持这种公开/隐藏字段分层。

@@ -71,16 +71,8 @@ func get_available_activities(phase: String = "") -> Array[Dictionary]:
 	return activities
 
 
-func get_activity_options(activity_id: String, phase: String = "") -> Array[Dictionary]:
-	var effective_phase: String = phase.strip_edges()
-	if effective_phase.is_empty():
-		effective_phase = ActivityUtilsClass.get_phase_name()
-
-	match activity_id.strip_edges():
-		"watch":
-			return _build_watch_options(effective_phase)
-		_:
-			return []
+func get_activity_options(_activity_id: String, _phase: String = "") -> Array[Dictionary]:
+	return []
 
 
 func begin_activity(activity_id: String, context: Dictionary = {}) -> Dictionary:
@@ -109,11 +101,8 @@ func begin_activity(activity_id: String, context: Dictionary = {}) -> Dictionary
 	if not bool(availability.get("enabled", false)):
 		return _fail(str(availability.get("reason", "当前不可进行该活动")))
 
-	match normalized_id:
-		"chat_casual", "chat_deep", "personal", "rest", "watch", "review":
-			pass
-		_:
-			return _fail("该在家活动尚未实现")
+	if normalized_id != "rest":
+		return _fail("该在家活动尚未实现")
 
 	_session_counter += 1
 	var session_id: String = "home_%04d" % _session_counter
@@ -145,25 +134,17 @@ func begin_activity(activity_id: String, context: Dictionary = {}) -> Dictionary
 	session_started.emit(session_id, payload)
 	activity_started.emit(normalized_id, payload)
 
-	match normalized_id:
-		"chat_casual":
-			_run_chat_flow(session_id)
-		"chat_deep":
-			_run_chat_flow(session_id)
-		"personal":
-			_run_personal_flow(session_id)
-		"rest":
-			_run_rest_flow(session_id)
-		"watch":
-			_run_chat_flow(session_id)
-		"review":
-			_run_review_flow(session_id)
+	_run_rest_flow(session_id)
 
 	return payload
 
 
 func begin_rest() -> Dictionary:
 	return begin_activity("rest")
+
+
+func begin_forced_rest() -> Dictionary:
+	return begin_activity("rest", {"forced_rest": true})
 
 
 func get_activity_preview_rewards(activity_id: String) -> Dictionary:
@@ -177,6 +158,7 @@ func get_activity_preview_rewards(activity_id: String) -> Dictionary:
 	var rewards: Dictionary = _as_dictionary(activity.get("stat_effects", {})).duplicate(true)
 	if normalized_id == "rest":
 		rewards["stress"] = _build_rest_stress_delta()
+		rewards.erase("passion")
 	return rewards
 
 
@@ -290,6 +272,9 @@ func _run_rest_flow(session_id: String) -> void:
 		_:
 			bedtime_label = "晚安"
 
+	# 玩家侧紫色番茄钟卡片：表示进入休息状态
+	_send_rest_card(session, bedtime_label)
+
 	# 睡前对话 topic（完成后启动进度条）
 	if bool(session.get("use_local_chat_fallback", false)):
 		_rest_bedtime_fallback(session_id)
@@ -327,6 +312,38 @@ func _on_progress_completed_hook(session_id: String) -> bool:
 		return false
 	_finish_session(session_id)
 	return true
+
+
+func _send_rest_card(session: Dictionary, bedtime_label: String) -> void:
+	var chat: Node = ActivityUtilsClass.get_chat_manager()
+	if chat == null or not chat.has_method("store_player_message_data"):
+		return
+	var context: Dictionary = _as_dictionary(session.get("context", {}))
+	var is_forced: bool = bool(context.get("forced_rest", false))
+	var phase: String = str(session.get("start_phase", "")).strip_edges().to_upper()
+	var subtitle: String = ""
+	match phase:
+		"MORNING":
+			subtitle = "上午补觉"
+		"AFTERNOON":
+			subtitle = "下午小睡"
+		"NIGHT":
+			subtitle = "夜里入睡"
+		_:
+			subtitle = "休息时段"
+	var body: String = "撑不住了，先停下来一会儿。" if is_forced else "把一切放一放，安静睡一觉。"
+	var footer: String = "压力会被这一觉抚平一些。"
+	chat.store_player_message_data(ActivityChatClass.DM_CHANNEL_ID, {
+		"speaker": "player",
+		"card": {
+			"type": "mock_image",
+			"theme": "pomodoro",
+			"title": bedtime_label,
+			"subtitle": subtitle,
+			"body": body,
+			"footer": footer,
+		},
+	})
 
 
 func _rest_bedtime_fallback(session_id: String) -> void:
@@ -469,11 +486,21 @@ func _finish_session(session_id: String) -> void:
 	var session: Dictionary = _as_dictionary(_pending_sessions.get(session_id, {})).duplicate(true)
 	var activity: Dictionary = _as_dictionary(session.get("activity", {}))
 	var ap_cost: int = int(activity.get("ap_cost", 0))
+	var activity_id: String = str(session.get("activity_id", "")).strip_edges()
+	var context: Dictionary = _as_dictionary(session.get("context", {}))
+	var consume_detail := "forced_rest" if bool(context.get("forced_rest", false)) else activity_id
 
 	if ap_cost > 0:
 		var glm: Node = get_node_or_null("/root/GameLoopManager")
 		if glm != null and glm.has_method("consume_ap"):
-			glm.consume_ap(ap_cost, "life", str(session.get("activity_id", "")))
+			# rest 与其它行动一样，只消耗当前 1 个时段；GameLoopManager.consume_ap
+			# 会自动推进到下一时段（晚上 rest 时自然进入次日）。
+			# 不再额外跳过剩余时段。
+			var activity_title: String = str(activity.get("title", "")).strip_edges()
+			var consume_label: String = activity_title if not activity_title.is_empty() else consume_detail
+			if bool(context.get("forced_rest", false)) and activity_title.is_empty():
+				consume_label = "强制休息"
+			glm.consume_ap(ap_cost, "life", consume_detail, consume_label)
 
 	var payload: Dictionary = {
 		"success": true,
@@ -506,6 +533,7 @@ func _apply_session_settlement(session_id: String) -> void:
 	var stat_effects: Dictionary = _as_dictionary(activity.get("stat_effects", {})).duplicate(true)
 
 	var activity_id: String = str(session.get("activity_id", "")).strip_edges()
+	var context: Dictionary = _as_dictionary(session.get("context", {}))
 
 	# 合并额外属性效果
 	var extra_stat_effects: Dictionary = _as_dictionary(session.get("extra_stat_effects", {}))
@@ -514,17 +542,12 @@ func _apply_session_settlement(session_id: String) -> void:
 
 	# rest 的压力恢复使用动态计算
 	if activity_id == "rest":
-		stat_effects["stress"] = _build_rest_stress_delta()
-
-	# personal 连续使用计数和惩罚
-	if activity_id == "personal":
-		_consecutive_personal_count += 1
-		var overuse_penalty: Dictionary = _as_dictionary(activity.get("overuse_penalty", {}))
-		var threshold: int = int(overuse_penalty.get("threshold", 0))
-		if threshold > 0 and _consecutive_personal_count == threshold:
-			stat_effects["affection"] = int(stat_effects.get("affection", 0)) + int(overuse_penalty.get("affection_delta", 0))
-	else:
-		_consecutive_personal_count = 0
+		if bool(context.get("forced_rest", false)):
+			stat_effects["stress"] = -15
+			stat_effects["passion"] = -5
+		else:
+			stat_effects["stress"] = _build_rest_stress_delta()
+			stat_effects.erase("passion")
 
 	if gm != null and gm.has_method("modify_stats"):
 		gm.modify_stats(stat_effects)
@@ -537,16 +560,13 @@ func _apply_session_settlement(session_id: String) -> void:
 func _build_rest_stress_delta() -> int:
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
-		return -3
+		return -25
 
 	var current_stress: int = int(gm.get("stress"))
 	if current_stress >= 70:
-		return -1
+		return -18
 
-	var delta: int = -3
-	if int(gm.get("affection")) >= 50:
-		delta -= 2
-	return delta
+	return -25
 
 
 # === 可用性评估 ===
@@ -893,6 +913,11 @@ func _build_personal_reply(session: Dictionary) -> String:
 
 func _build_rest_bedtime_message(session: Dictionary) -> String:
 	var phase: String = str(session.get("start_phase", "")).strip_edges().to_lower()
+	var context: Dictionary = _as_dictionary(session.get("context", {}))
+	if bool(context.get("forced_rest", false)):
+		# LLM 不可用时的本地兜底，保证至少看得见一句话。
+		# 主路径下 system_prompt 由 NpcRefusalCenter 渲染，林夏措辞由 LLM 生成。
+		return "你这样下去真的不行。先别争了，去睡一会儿。"
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
 		if phase == "morning":
@@ -926,6 +951,31 @@ func _build_rest_bedtime_prompt(session: Dictionary) -> String:
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	var pm: Node = get_node_or_null("/root/PromptManager")
 	var phase: String = str(session.get("start_phase", "")).strip_edges().to_lower()
+	var context: Dictionary = _as_dictionary(session.get("context", {}))
+	if bool(context.get("forced_rest", false)):
+		var refusal_center: Node = get_node_or_null("/root/NpcRefusalCenter")
+		# 注意：stress / passion 是【林夏】的属性，不是玩家的属性。
+		# forced_rest 触发条件 = 林夏自己压力 ≥85 → 她自己撑不住，决定按下两人一起停。
+		var forced_warning_desc: String = (
+			"林夏自己的压力已经堆到 ≥85，整个人到了崩溃边缘，再继续做任何事都会垮。"
+			+ "她不再让自己和搭档继续硬撑，决定打断当前节奏，把两人一起按下来去躺一会儿。"
+			+ "她和搭档同居在一个屋檐下，不需要让对方'过来'或'出门'，"
+			+ "可以直接合上对方的电脑、把人拉过来、自己先瘫倒在沙发或床上让对方跟着停。"
+			+ "语气是'我自己也撑不住了，咱俩一起停'，不是命令式控制，更不是威胁。"
+			+ "可以撒娇、可以低气压、可以累到说话都短，但不要出现'别让我说第三遍''你过来'这种命令腔。"
+		)
+		if refusal_center != null and refusal_center.has_method("build_refusal_prompt"):
+			var resolved: String = str(refusal_center.build_refusal_prompt(forced_warning_desc)).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+		# Fallback：NpcRefusalCenter 或 PromptManager 不可用时的最小 prompt
+		return (
+			"为 NPC 林夏生成一条强制叫停的对白：林夏自己已经累到崩溃边缘，"
+			+ "不再让自己和搭档继续硬撑，决定让两个人一起去躺一会儿。"
+			+ "两人同居在一个屋檐下，不需要远距离动作。"
+			+ "请输出 1-2 条短消息，语气是'我也撑不住了，咱俩一起停'，不是命令控制。"
+			+ "最后一条消息末尾必须加 [TOPIC_COMPLETE]。"
+		)
 
 	# 时段感知的场景描述
 	var scene_desc: String
@@ -1087,8 +1137,12 @@ func _on_moment_completed(session_id: String, moment: Dictionary) -> void:
 
 ## 自动唤起 LinkChat 并切到女主 DM 频道，让玩家看到对话
 func _open_linkchat_dm() -> void:
+	if ActivityUtilsClass.is_test_scene():
+		return
 	var app_mgr: Node = get_node_or_null("/root/AppManager")
 	if app_mgr == null or not app_mgr.has_method("launch_app"):
+		return
+	if app_mgr.get("window_manager") == null:
 		return
 	var window: Control = null
 	if app_mgr.has_method("focus_app"):

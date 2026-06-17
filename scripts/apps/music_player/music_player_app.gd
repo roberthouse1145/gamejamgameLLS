@@ -19,10 +19,21 @@ const COLOR_DIVIDER := Color(1, 1, 1, 0.06)
 const COLOR_SLIDER_BG := Color(1, 1, 1, 0.12)
 const COLOR_NEEDLE_GLOW := Color("#ec414160")
 
-const BGM_DIR := "res://Assets/sounds/bgm/"
-
 # ==================== 播放模式 ====================
 enum PlayMode { SEQUENTIAL, SHUFFLE, SINGLE_LOOP }
+
+# ==================== 内置播放列表 ====================
+# 云节拍是伪操作系统自带 app，播放列表在此固化声明。
+# 新增/替换 BGM 时同步维护本数组即可；不依赖外部 narrative 项目。
+const PLAYLIST: Array[Dictionary] = [
+	{"title": "优哉游哉", "artist": "日常", "path": "res://Assets/sounds/bgm/优哉游哉(loop).wav"},
+	{"title": "夏日布丁", "artist": "日常", "path": "res://Assets/sounds/bgm/夏日布丁.wav"},
+	{"title": "Scorching Sun", "artist": "日常", "path": "res://Assets/sounds/bgm/Scorching Sun.wav"},
+	{"title": "情人节的酸柠檬", "artist": "恋爱", "path": "res://Assets/sounds/bgm/情人节的酸柠檬-2版.wav"},
+	{"title": "The Dragon Fell in Love with The Knight", "artist": "恋爱", "path": "res://Assets/sounds/bgm/The Dragon Fell in Love with The Knight.wav"},
+	{"title": "睡前摇篮曲", "artist": "夜晚", "path": "res://Assets/sounds/bgm/睡前摇篮曲.wav"},
+	{"title": "晚安，星期八", "artist": "夜晚", "path": "res://Assets/sounds/bgm/晚安，星期八.wav"},
+]
 
 # ==================== 状态 ====================
 var _playlist: Array[Dictionary] = []    # [{title, path, stream}]
@@ -54,6 +65,9 @@ var _app_manager: Node = null
 var _disabled_overlay: ColorRect = null
 var _disabled_label: Label = null
 var _is_disabled: bool = false
+## 当前订阅的 AVG 剧情播放器（DateEventPlayer），打开 avg_player App 时连接，关闭时断开
+@warning_ignore("unused_private_class_variable")
+var _avg_player_ref: Control = null
 
 
 func _ready() -> void:
@@ -68,7 +82,8 @@ func _ready() -> void:
 		_app_manager.app_launched.connect(_on_any_app_launched)
 		_app_manager.app_closed.connect(_on_any_app_closed)
 		if _app_manager.is_app_running("avg_player"):
-			_set_disabled(true)
+			var existing_window: Control = _app_manager.get_app_window("avg_player") if _app_manager.has_method("get_app_window") else null
+			_bind_avg_player(existing_window)
 
 	if _audio_manager:
 		if _audio_manager.has_signal("bgm_changed"):
@@ -88,30 +103,19 @@ func _process(_delta: float) -> void:
 		_refresh_progress_from_global()
 
 
-# ==================== 扫描音乐 ====================
+# ==================== 加载播放列表 ====================
 func _scan_music() -> void:
-	var dir := DirAccess.open(BGM_DIR)
-	if dir == null:
-		push_warning("MusicPlayer: Cannot open BGM directory")
-		return
-	dir.list_dir_begin()
-	var file_name := dir.get_next()
-	while file_name != "":
-		if not dir.current_is_dir() and file_name.get_extension() == "ogg":
-			var display := file_name.get_basename()
-			# 去掉 " (loop)" 后缀作为显示名
-			display = display.replace(" (loop)", "").strip_edges()
-			_playlist.append({
-				"title": display,
-				"path": BGM_DIR + file_name,
-				"stream": null,  # 延迟加载
-			})
-		file_name = dir.get_next()
-	dir.list_dir_end()
-	# 按名称排序
-	_playlist.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		return a["title"].to_lower() < b["title"].to_lower()
-	)
+	for entry in PLAYLIST:
+		var path: String = str(entry.get("path", "")).strip_edges()
+		if path.is_empty() or not ResourceLoader.exists(path):
+			push_warning("MusicPlayer: 跳过缺失的 BGM 文件 %s" % path)
+			continue
+		_playlist.append({
+			"title": str(entry.get("title", "")),
+			"artist": str(entry.get("artist", "")),
+			"path": path,
+			"stream": null,  # 延迟加载
+		})
 
 
 # ==================== 构建 UI ====================
@@ -476,7 +480,7 @@ func _select_track(index: int, auto_play: bool = true) -> void:
 	var song: Dictionary = _playlist[index]
 	_ensure_song_stream(index)
 
-	_title_label.text = song["title"]
+	_apply_now_playing_info(song)
 	_update_playlist_highlight(old_index, index)
 
 	if auto_play:
@@ -590,6 +594,14 @@ func _on_slider_value_changed(value: float) -> void:
 
 
 # ==================== UI 更新 ====================
+func _apply_now_playing_info(song: Dictionary) -> void:
+	if _title_label:
+		_title_label.text = str(song.get("title", ""))
+	if _artist_label:
+		var artist: String = str(song.get("artist", "")).strip_edges()
+		_artist_label.text = artist if not artist.is_empty() else "GameJam OST"
+
+
 func _update_playlist_highlight(old_idx: int, new_idx: int) -> void:
 	# 还原旧项
 	if old_idx >= 0 and old_idx < _song_items.size():
@@ -748,7 +760,7 @@ func _sync_from_global_bgm() -> bool:
 	var old_index := _current_index
 	_current_index = index
 	var song: Dictionary = _playlist[index]
-	_title_label.text = song["title"]
+	_apply_now_playing_info(song)
 	_update_playlist_highlight(old_index, index)
 	_owns_bgm = true
 	_is_playing = _audio_manager.is_bgm_playing() if _audio_manager.has_method("is_bgm_playing") else false
@@ -758,14 +770,66 @@ func _sync_from_global_bgm() -> bool:
 
 
 # ==================== AVG Player 联动 ====================
-func _on_any_app_launched(app_id: String, _window: Control) -> void:
+func _on_any_app_launched(app_id: String, window: Control) -> void:
 	if app_id == "avg_player":
-		_set_disabled(true)
+		_bind_avg_player(window)
 
 
 func _on_any_app_closed(app_id: String) -> void:
 	if app_id == "avg_player":
+		_unbind_avg_player()
 		_set_disabled(false)
+
+
+## 找到 window 里的 DateEventPlayer 并订阅其播放状态
+func _bind_avg_player(window: Control) -> void:
+	_unbind_avg_player()
+	var player: Control = _find_date_event_player(window)
+	if player == null:
+		return
+	_avg_player_ref = player
+	if player.has_signal("playback_started"):
+		player.playback_started.connect(_on_avg_playback_started)
+	if player.has_signal("playback_finished"):
+		player.playback_finished.connect(_on_avg_playback_finished)
+	# 进入时若 AVG 已经在播，立刻禁用；否则保持可用
+	var already_playing: bool = false
+	if player.has_method("is_playing_scene"):
+		already_playing = bool(player.is_playing_scene())
+	_set_disabled(already_playing)
+
+
+func _unbind_avg_player() -> void:
+	if _avg_player_ref == null or not is_instance_valid(_avg_player_ref):
+		_avg_player_ref = null
+		return
+	if _avg_player_ref.has_signal("playback_started") and _avg_player_ref.playback_started.is_connected(_on_avg_playback_started):
+		_avg_player_ref.playback_started.disconnect(_on_avg_playback_started)
+	if _avg_player_ref.has_signal("playback_finished") and _avg_player_ref.playback_finished.is_connected(_on_avg_playback_finished):
+		_avg_player_ref.playback_finished.disconnect(_on_avg_playback_finished)
+	_avg_player_ref = null
+
+
+func _find_date_event_player(window: Control) -> Control:
+	if window == null or not is_instance_valid(window):
+		return null
+	var content_container := window.get_node_or_null("ContentContainer") as Control
+	if content_container != null:
+		for child in content_container.get_children():
+			if child is Control and (child as Control).has_method("play_scene_package"):
+				return child as Control
+	for child in window.get_children():
+		if child is Control and (child as Control).has_method("play_scene_package"):
+			return child as Control
+	return null
+
+
+func _on_avg_playback_started(_session_id: String) -> void:
+	_set_disabled(true)
+
+
+func _on_avg_playback_finished(_session_id: String, _outcome: Dictionary) -> void:
+	_set_disabled(false)
 
 
 func _on_system_bgm_changed(stream: AudioStream) -> void:
@@ -774,7 +838,7 @@ func _on_system_bgm_changed(stream: AudioStream) -> void:
 		var old_index := _current_index
 		_current_index = index
 		var song: Dictionary = _playlist[index]
-		_title_label.text = song["title"]
+		_apply_now_playing_info(song)
 		_update_playlist_highlight(old_index, index)
 		_owns_bgm = true
 		_is_playing = _audio_manager.is_bgm_playing() if _audio_manager and _audio_manager.has_method("is_bgm_playing") else true
@@ -808,19 +872,25 @@ func _on_global_bgm_finished(stream: AudioStream) -> void:
 
 
 func _set_disabled(disabled: bool) -> void:
+	if _is_disabled == disabled:
+		return
 	_is_disabled = disabled
 	if disabled:
-		if _owns_bgm and _audio_manager and _audio_manager.has_method("stop_bgm"):
-			_audio_manager.stop_bgm(0.2)
+		# AVG 剧情接管全局 BGM（pause_bgm），云节拍不再额外 stop——那会破坏 AVG 结束后的恢复。
+		# 这里只做 UI 锁定 + 释放所有权，等 AVG 结束后从全局 BGM 状态同步回来。
 		_owns_bgm = false
 		_is_playing = false
-		_btn_play.text = "▶"
+		if _btn_play:
+			_btn_play.text = "▶"
 		_update_time_display()
 		if _disabled_overlay:
 			_disabled_overlay.visible = true
 	else:
 		if _disabled_overlay:
 			_disabled_overlay.visible = false
+		# AVG 结束后 resume_bgm 会让 AudioManager 继续放原来的曲，
+		# _on_system_bgm_changed 会在流匹配时重建 _owns_bgm 高亮；此处被动等待即可。
+		_sync_from_global_bgm()
 
 
 func _build_disabled_overlay() -> void:

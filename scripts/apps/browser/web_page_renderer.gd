@@ -3,6 +3,23 @@ extends RefCounted
 
 const FIELD_ERROR_TEXT_COLOR := "#B42318"
 
+## LLM 生成 PageMark 时对 width 无上限，偶发输出超宽排版导致浏览器内容溢出窗口。
+## 这里对单节点 width 做兜底 clamp；真正的横向溢出由 ContentScroll 的 AUTO 横滚条处理。
+const MAX_NODE_WIDTH: int = 680
+const MAX_IMAGE_WIDTH: int = 560
+
+
+static func _clamp_width(raw_value: int) -> int:
+	if raw_value <= 0:
+		return raw_value
+	return min(raw_value, MAX_NODE_WIDTH)
+
+
+static func _clamp_image_width(raw_value: int) -> int:
+	if raw_value <= 0:
+		return raw_value
+	return min(raw_value, MAX_IMAGE_WIDTH)
+
 
 static func render(page_json: Dictionary, on_action: Callable = Callable(), page_state: Dictionary = {}) -> Control:
 	var state: Dictionary = page_state.duplicate(true)
@@ -48,10 +65,16 @@ static func _build_node(node_data: Variant, on_action: Callable, page_state: Dic
 			return _build_box_node(data, true, on_action, page_state)
 		"hbox":
 			return _build_box_node(data, false, on_action, page_state)
+		"grid":
+			return _build_grid_node(data, on_action, page_state)
 		"label":
-			return _apply_content_flags(_build_label(data))
+			return _apply_content_flags(_build_label(data), data)
 		"rich_text":
-			return _apply_content_flags(_build_rich_text(data))
+			return _apply_content_flags(_build_rich_text(data, on_action), data)
+		"image":
+			return _apply_content_flags(_build_image(data), data)
+		"quote":
+			return _apply_content_flags(_build_quote(data, on_action, page_state), data)
 		"panel":
 			var panel_node := _build_panel(data, on_action, page_state)
 			_apply_size_attrs(panel_node, data)
@@ -61,21 +84,21 @@ static func _build_node(node_data: Variant, on_action: Callable, page_state: Dic
 			_apply_panel_container_size_attrs(panel_container_node, data)
 			return panel_container_node
 		"separator":
-			return _apply_content_flags(_build_separator(data))
+			return _apply_content_flags(_build_separator(data), data)
 		"spacer":
 			return _build_spacer(data)
 		"button":
-			return _apply_content_flags(_build_button(data, on_action, page_state))
+			return _apply_content_flags(_build_button(data, on_action, page_state), data)
 		"link":
-			return _apply_content_flags(_build_link(data, on_action))
+			return _apply_content_flags(_build_link(data, on_action), data)
 		"input":
-			return _apply_content_flags(_build_input(data, page_state))
+			return _apply_content_flags(_build_input(data, page_state), data)
 		"textarea":
-			return _apply_content_flags(_build_text_area(data, page_state))
+			return _apply_content_flags(_build_text_area(data, page_state), data)
 		"checkbox":
-			return _apply_content_flags(_build_checkbox(data, page_state))
+			return _apply_content_flags(_build_checkbox(data, page_state), data)
 		"select":
-			return _apply_content_flags(_build_select(data, page_state))
+			return _apply_content_flags(_build_select(data, page_state), data)
 		"scroll":
 			return _apply_container_flags(_build_scroll(data, on_action, page_state))
 		_:
@@ -83,7 +106,7 @@ static func _build_node(node_data: Variant, on_action: Callable, page_state: Dic
 			unknown.text = "[Unsupported node type] %s" % node_type
 			unknown.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 			unknown.add_theme_color_override("font_color", Color("#ffb86c"))
-			return _apply_content_flags(unknown)
+			return _apply_content_flags(unknown, data)
 
 
 static func _apply_container_flags(ctrl: Control) -> Control:
@@ -92,8 +115,11 @@ static func _apply_container_flags(ctrl: Control) -> Control:
 	return ctrl
 
 
-static func _apply_content_flags(ctrl: Control) -> Control:
-	ctrl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+static func _apply_content_flags(ctrl: Control, data: Dictionary = {}) -> Control:
+	if _as_bool(data.get("shrink", false)):
+		ctrl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	else:
+		ctrl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return ctrl
 
 
@@ -103,7 +129,7 @@ static func _apply_size_attrs(ctrl: Control, data: Dictionary) -> void:
 	var has_fill: bool = _as_bool(data.get("fill", false))
 	var has_shrink: bool = _as_bool(data.get("shrink", false))
 	if has_width:
-		ctrl.custom_minimum_size.x = int(data["width"])
+		ctrl.custom_minimum_size.x = _clamp_width(int(data["width"]))
 	if has_height:
 		ctrl.custom_minimum_size.y = int(data["height"])
 	if has_shrink:
@@ -113,7 +139,7 @@ static func _apply_size_attrs(ctrl: Control, data: Dictionary) -> void:
 		ctrl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		ctrl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	elif has_width and not has_height:
-		ctrl.custom_minimum_size.x = int(data["width"])
+		ctrl.custom_minimum_size.x = _clamp_width(int(data["width"]))
 		ctrl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		ctrl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	elif has_height and not has_width:
@@ -128,7 +154,58 @@ static func _build_box_node(data: Dictionary, is_vbox: bool, on_action: Callable
 	if data.has("bg_color"):
 		result = _wrap_with_bg(box, data)
 	_apply_size_attrs(result, data)
+	# hbox 的子节点可能累计超过父容器宽度（特别是 LLM 随手拼出"侧栏+主区+右侧统计栏"）。
+	# 先让正常布局跑完一帧，再二次检查；若溢出，把 SHRINK_BEGIN 的子节点改 EXPAND_FILL 并按比例瘦身。
+	if not is_vbox and box is HBoxContainer:
+		(box as HBoxContainer).resized.connect(_on_hbox_resized.bind(box as HBoxContainer), CONNECT_DEFERRED)
 	return result
+
+
+static func _on_hbox_resized(hbox: HBoxContainer) -> void:
+	if hbox == null or not is_instance_valid(hbox):
+		return
+	if hbox.has_meta("_row_overflow_adjusted"):
+		return
+	var available: float = hbox.size.x
+	if available <= 0.0:
+		return
+	# combined_minimum_size 已经把 separation 算进去了
+	var min_required: float = hbox.get_combined_minimum_size().x
+	if min_required <= available + 1.0:
+		return
+
+	# 溢出：按每个子节点自身最小宽度占比缩小，并统一切成 EXPAND_FILL
+	var children_widths: Array = []
+	var total_width: float = 0.0
+	var visible_children: Array = []
+	for child in hbox.get_children():
+		if not child is Control:
+			continue
+		var c: Control = child
+		if not c.visible:
+			continue
+		visible_children.append(c)
+		var child_min: float = maxf(c.custom_minimum_size.x, c.get_combined_minimum_size().x)
+		children_widths.append(child_min)
+		total_width += child_min
+
+	if visible_children.is_empty() or total_width <= 0.0:
+		return
+
+	var separation: float = float(hbox.get_theme_constant("separation"))
+	var gap_total: float = separation * max(0, visible_children.size() - 1)
+	var budget: float = max(0.0, available - gap_total)
+	if budget >= total_width:
+		return
+
+	var scale: float = clampf(budget / total_width, 0.2, 1.0)
+	for i in range(visible_children.size()):
+		var c: Control = visible_children[i]
+		var target: float = floorf(children_widths[i] * scale)
+		c.custom_minimum_size.x = target
+		c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		c.size_flags_stretch_ratio = maxf(children_widths[i], 1.0)
+	hbox.set_meta("_row_overflow_adjusted", true)
 
 
 static func _wrap_with_bg(inner: Control, data: Dictionary) -> PanelContainer:
@@ -164,12 +241,107 @@ static func _build_box(data: Dictionary, is_vbox: bool, on_action: Callable, pag
 		box = HBoxContainer.new()
 	box.add_theme_constant_override("separation", int(data.get("separation", 8)))
 
+	if data.has("alignment"):
+		match str(data["alignment"]):
+			"center", "middle":
+				box.alignment = BoxContainer.ALIGNMENT_CENTER
+			"end", "right", "bottom":
+				box.alignment = BoxContainer.ALIGNMENT_END
+
 	var children: Array = data.get("children", [])
 	for item in children:
 		var child_node: Control = _build_node(item, on_action, page_state)
 		box.add_child(child_node)
 
 	return box
+
+
+static func _build_grid_node(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
+	var grid := GridContainer.new()
+	grid.columns = max(1, int(data.get("columns", 2)))
+	grid.add_theme_constant_override("h_separation", int(data.get("separation", 12)))
+	grid.add_theme_constant_override("v_separation", int(data.get("separation", 12)))
+
+	var children: Array = data.get("children", [])
+	for item in children:
+		var child_node: Control = _build_node(item, on_action, page_state)
+		grid.add_child(child_node)
+
+	if _as_bool(data.get("fill", false)):
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	else:
+		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	if data.has("width"):
+		grid.custom_minimum_size.x = _clamp_width(int(data["width"]))
+	return grid
+
+
+static func _build_image(data: Dictionary) -> Control:
+	# Texture loading is best-effort: if src points to a res:// path that exists,
+	# load it as TextureRect; otherwise fall back to a placeholder PanelContainer.
+	var src: String = str(data.get("src", "")).strip_edges()
+	var width: int = _clamp_image_width(int(data.get("width", 0)))
+	var height: int = int(data.get("height", 0))
+	var alt: String = str(data.get("alt", "")).strip_edges()
+
+	if src.begins_with("res://") and ResourceLoader.exists(src):
+		var tex: Texture2D = ResourceLoader.load(src) as Texture2D
+		if tex != null:
+			var tex_rect := TextureRect.new()
+			tex_rect.texture = tex
+			tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			if width > 0:
+				tex_rect.custom_minimum_size.x = width
+			if height > 0:
+				tex_rect.custom_minimum_size.y = height
+			return tex_rect
+
+	# Placeholder: gray panel with alt text
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#E2E4EA")
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	panel.add_theme_stylebox_override("panel", style)
+	if width > 0:
+		panel.custom_minimum_size.x = width
+	if height > 0:
+		panel.custom_minimum_size.y = height
+	if width <= 0 and height <= 0:
+		panel.custom_minimum_size = Vector2(120, 80)
+
+	var placeholder_label := Label.new()
+	placeholder_label.text = "[图片] %s" % alt if not alt.is_empty() else "[图片]"
+	placeholder_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	placeholder_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	placeholder_label.add_theme_color_override("font_color", Color("#6B7080"))
+	placeholder_label.add_theme_font_size_override("font_size", 14)
+	panel.add_child(placeholder_label)
+	return panel
+
+
+static func _build_quote(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
+	# Left-bar style PanelContainer wrapping the child.
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#F8F9FA")
+	style.border_width_left = 4
+	style.border_color = Color("#9CA3AF")
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 8
+	style.content_margin_bottom = 8
+	panel.add_theme_stylebox_override("panel", style)
+
+	var child_data: Variant = data.get("child", {})
+	var child_node: Control = _build_node(child_data, on_action, page_state)
+	panel.add_child(child_node)
+	return panel
 
 
 static func _build_label(data: Dictionary) -> Control:
@@ -192,14 +364,27 @@ static func _build_label(data: Dictionary) -> Control:
 	return label
 
 
-static func _build_rich_text(data: Dictionary) -> Control:
+static func _build_rich_text(data: Dictionary, on_action: Callable) -> Control:
 	var rich := RichTextLabel.new()
 	rich.bbcode_enabled = true
 	rich.fit_content = true
 	rich.scroll_active = false
 	rich.text = str(data.get("bbcode", ""))
-	rich.add_theme_font_size_override("normal_font_size", int(data.get("font_size", 22)))
+	var font_size: int = int(data.get("font_size", 22))
+	# Sync all variant font sizes so [b] [i] don't shrink relative to normal text
+	rich.add_theme_font_size_override("normal_font_size", font_size)
+	rich.add_theme_font_size_override("bold_font_size", font_size)
+	rich.add_theme_font_size_override("italic_font_size", font_size)
+	rich.add_theme_font_size_override("bold_italic_font_size", font_size)
+	rich.add_theme_font_size_override("mono_font_size", font_size)
 	rich.add_theme_color_override("default_color", _parse_color(data.get("color", "#333333"), Color("#333333")))
+	if on_action.is_valid():
+		rich.meta_clicked.connect(func(meta: Variant):
+			var url := str(meta).strip_edges()
+			if url.is_empty():
+				return
+			on_action.call({"action": "open_url", "url": url})
+		)
 	return rich
 
 
@@ -243,7 +428,25 @@ static func _build_panel_margin(data: Dictionary, on_action: Callable, page_stat
 	margin.add_theme_constant_override("margin_right", padding)
 	margin.add_theme_constant_override("margin_bottom", padding)
 	var child: Variant = data.get("child", {})
+	if child is Dictionary and (child as Dictionary).is_empty():
+		return margin
 	var child_node: Control = _build_node(child, on_action, page_state)
+
+	if data.has("alignment"):
+		var alignment_value: String = str(data["alignment"]).to_lower()
+		if alignment_value == "bottom" or alignment_value == "center" or alignment_value == "middle":
+			var wrapper := VBoxContainer.new()
+			wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			wrapper.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			match alignment_value:
+				"bottom":
+					wrapper.alignment = BoxContainer.ALIGNMENT_END
+				"center", "middle":
+					wrapper.alignment = BoxContainer.ALIGNMENT_CENTER
+			wrapper.add_child(child_node)
+			margin.add_child(wrapper)
+			return margin
+
 	margin.add_child(child_node)
 	return margin
 
@@ -255,7 +458,7 @@ static func _apply_panel_container_size_attrs(ctrl: Control, data: Dictionary) -
 	var has_shrink: bool = _as_bool(data.get("shrink", false))
 
 	if has_width:
-		ctrl.custom_minimum_size.x = int(data["width"])
+		ctrl.custom_minimum_size.x = _clamp_width(int(data["width"]))
 	if has_height:
 		ctrl.custom_minimum_size.y = int(data["height"])
 
@@ -269,7 +472,7 @@ static func _apply_panel_container_size_attrs(ctrl: Control, data: Dictionary) -
 		ctrl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		return
 
-	if has_width and not has_height:
+	if has_width:
 		ctrl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		ctrl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		return
@@ -360,6 +563,9 @@ static func _build_link(data: Dictionary, on_action: Callable) -> Control:
 	var link_color: String = str(data.get("color", "#4A90D9"))
 	var link_font_size: int = int(data.get("font_size", 20))
 	rich.add_theme_font_size_override("normal_font_size", link_font_size)
+	rich.add_theme_font_size_override("bold_font_size", link_font_size)
+	rich.add_theme_font_size_override("italic_font_size", link_font_size)
+	rich.add_theme_font_size_override("bold_italic_font_size", link_font_size)
 	if data.has("action") and on_action.is_valid():
 		var url_val: String = str(data.get("url", ""))
 		rich.text = "[color=%s][url=%s]%s[/url][/color]" % [link_color, url_val, link_text]

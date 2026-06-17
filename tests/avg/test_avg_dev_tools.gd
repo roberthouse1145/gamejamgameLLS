@@ -1,6 +1,5 @@
 extends Node
-## End-to-end test: Main agent delegates to writer sub-agent
-## to create a new scene. Verifies the full chain.
+## End-to-end test: WorkOrderAgent can use tools directly to create a scene.
 
 var _agent: Node
 
@@ -14,10 +13,8 @@ func _ready() -> void:
 	await get_tree().process_frame
 
 	print("=== E2E Sub-Agent Test ===")
-	print("Main: %d tools, Writer: %d, Executor: %d" % [
+	print("WorkOrderAgent: %d tools" % [
 		_agent.get_node("AIService").get_tools_definition().size(),
-		_agent.get_node("WriterAgent/AIService").get_tools_definition().size(),
-		_agent.get_node("ExecutorAgent/AIService").get_tools_definition().size(),
 	])
 
 	# Connect signals
@@ -26,17 +23,7 @@ func _ready() -> void:
 	_agent.message_failed.connect(_on_failed)
 	_agent.tool_executed.connect(_on_tool)
 
-	# Also connect writer sub-agent signals for visibility
-	var writer: Node = _agent.get_node("WriterAgent")
-	writer.log_entry.connect(func(e: Dictionary) -> void:
-		print("[WRITER-LOG] %s: %s" % [e.get("type", ""), str(e.get("message", "")).left(200)])
-	)
-	writer.tool_executed.connect(func(_rid: String, tn: String, a: Dictionary, r: Variant, _tool_call_id: String) -> void:
-		print("[WRITER-TOOL] %s(%s) -> %s" % [tn, str(a).left(80), str(r).left(150)])
-	)
-
-	# Send a message that should trigger writer delegation
-	var msg: String = "Please create a short test scene called 'Ghost Encounter'. It should have a narrator line saying 'A shadow appears in the darkness' and a choice between 'Run away' and 'Stay'. Just create a minimal scene to test the pipeline. Do it now, no need to ask for confirmation."
+	var msg: String = "Please create a short test scene called 'Ghost Encounter'. It should have a narrator line saying 'A shadow appears in the darkness' and a choice between 'Run away' and 'Stay'. Use tools directly, save the project, then summarize. This is an E2E smoke test."
 	print("\n--- Sending: %s ---" % msg.left(100))
 	_agent.send_message(msg)
 

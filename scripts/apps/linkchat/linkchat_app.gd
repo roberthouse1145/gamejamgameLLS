@@ -46,6 +46,8 @@ var current_channel_id: String = ""
 var _playing_typing_animation: bool = false
 var _typing_animation_token: int = 0
 var _active_typing_channel_id: String = ""
+## 玩家消息 InputGuard 审核进行中（保留输入框内容，避免「先清空后拦截」的观感）
+var _auditing_send: bool = false
 ## channel_id -> ContactItemClass
 var _contact_items: Dictionary = {}
 ## 当前导航页面
@@ -513,6 +515,13 @@ func _scroll_to_bottom() -> void:
 # --- 输入状态 ---
 
 func _update_input_state() -> void:
+	if _auditing_send:
+		input_field.editable = false
+		input_field.placeholder_text = "发送校验中..."
+		send_button.disabled = true
+		recommend_container.visible = false
+		return
+
 	var topic := ChatManager.get_active_topic(current_channel_id)
 	var waiting := ChatManager.is_waiting_for_ai()
 	var can_input: bool = (topic != null or ChatManager.debug_mode) and not waiting and not _playing_typing_animation
@@ -535,6 +544,12 @@ func _update_input_state() -> void:
 
 
 func _update_topic_info() -> void:
+	# Topic 名称与轮数是 debug 信息，仅在编辑器中显示，导出后隐藏
+	if not OS.has_feature("editor"):
+		topic_info.text = ""
+		topic_info.visible = false
+		return
+
 	var topic := ChatManager.get_active_topic(current_channel_id)
 	if topic:
 		var info := "%s  轮数：%d" % [topic.display_title, topic.turn_count]
@@ -546,17 +561,18 @@ func _update_topic_info() -> void:
 # --- 用户交互回调 ---
 
 func _on_text_submitted(text: String) -> void:
-	if text.strip_edges().is_empty():
+	if text.strip_edges().is_empty() or _auditing_send:
 		return
-	# 先清空输入框，给玩家即时反馈
-	input_field.text = ""
+	_auditing_send = true
+	_update_input_state()
 	var passed: bool = await ChatManager.add_player_message(current_channel_id, text)
+	_auditing_send = false
 	if passed:
+		input_field.text = ""
 		_channel_replies.erase(current_channel_id)
 		_render_recommended_replies([])
-	else:
-		# 审核未通过，把文本还回输入框方便编辑
-		input_field.text = text
+	_update_input_state()
+	if not passed:
 		input_field.caret_column = text.length()
 
 
@@ -734,6 +750,9 @@ func _render_recommended_replies(replies: Array[String]) -> void:
 		btn.add_theme_stylebox_override("hover", LCTheme.get_chip_hover_style())
 		btn.add_theme_stylebox_override("pressed", LCTheme.get_chip_hover_style())
 		btn.add_theme_stylebox_override("focus", LCTheme.get_chip_hover_style())
+		btn.add_theme_stylebox_override("disabled", LCTheme.get_chip_disabled_style())
+		btn.add_theme_stylebox_override("disabled_mirrored", LCTheme.get_chip_disabled_style())
+		btn.add_theme_color_override("font_disabled_color", LCTheme.COLOR_TEXT_MUTED)
 		
 		btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		btn.pressed.connect(func(): _on_recommended_reply_clicked(reply))

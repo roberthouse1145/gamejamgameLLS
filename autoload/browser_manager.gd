@@ -1,5 +1,7 @@
 extends Node
 const PromptPipelineScript = preload("res://scripts/prompt/prompt_pipeline.gd")
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
+const ActivityChatClass = preload("res://scripts/activity/activity_chat.gd")
 
 signal search_completed(request_id: String, keyword: String, results: Array)
 signal search_failed(request_id: String, keyword: String, error: String)
@@ -9,8 +11,19 @@ signal url_open_requested(url: String, design_prompt: String, page_context: Stri
 signal browser_history_updated()
 signal browser_state_changed()
 
+signal surf_started(request_id: String, keyword: String)
+signal surf_completed(request_id: String, keyword: String, url: String, page_summary: String, page: Dictionary)
+signal surf_failed(request_id: String, keyword: String, error: String)
+
 const SEARCH_PROMPT_KEY: String = "browser_search"
 const PAGE_PROMPT_KEY: String = "browser_webpage"
+const SURF_DIRECTOR_PROMPT_KEY: String = "browser_search_director"
+const SURF_FOLLOWUP_PROMPT_KEY: String = "browser_surf_followup"
+const LIN_XIA_DM_CHANNEL: String = "dm_lin_xia"
+const SURF_AP_COST: int = 1
+const SURF_STAT_FIELDS: Array[String] = ["stress", "passion", "hype", "affection"]
+const SURF_STAT_PER_FIELD_CAP: int = 10
+const SURF_STAT_TOTAL_CAP: int = 20
 const DEFAULT_SEARCH_COUNT: int = 6
 const BROWSER_PAGES_DIR: String = "res://resources/data/browser_pages/"
 const BROWSER_DATA_PATH: String = "res://resources/data/browser/browser_content.json"
@@ -34,6 +47,11 @@ var _premade_keyword_index: Dictionary = {}
 var _browser_content: Dictionary = {}
 var _history_entries: Array = []
 var _history_counter: int = 0
+var _surf_page_followups: Dictionary = {}
+var _surf_keyword_cache: Dictionary = {}
+var _surf_chat: RefCounted = null
+var _surf_chat_pending: Dictionary = {}
+var _surf_counter: int = 0
 
 
 func _ready() -> void:
@@ -46,6 +64,50 @@ func _ready() -> void:
 	_ai_service.request_failed.connect(_on_ai_request_failed)
 	_load_premade_pages()
 	_load_browser_content()
+	_setup_surf_chat()
+	ActivityLockUtilsClass.register_free_period_blocker(
+		name,
+		self,
+		"has_pending_surf_requests",
+		"摸鱼冲浪正在加载，请先等待结果。"
+	)
+
+
+func _exit_tree() -> void:
+	ActivityLockUtilsClass.unregister_free_period_blocker(name)
+
+
+func _setup_surf_chat() -> void:
+	_surf_chat = ActivityChatClass.new("browser_surf", "browser_surf_stage")
+	_surf_chat.connect_signals()
+	_surf_chat.stage_completed.connect(_on_surf_stage_completed)
+	_surf_chat.stage_timeout.connect(_on_surf_stage_timeout)
+
+
+func has_pending_surf_requests() -> bool:
+	if not _surf_page_followups.is_empty():
+		return true
+	for meta in _pending_requests.values():
+		if meta is Dictionary and str(meta.get("kind", "")) == "surf_director":
+			return true
+	return false
+
+
+func get_surf_blocking_reason() -> String:
+	if has_pending_surf_requests():
+		return "摸鱼冲浪正在加载，请先等待结果。"
+	var free_period_reason: String = ActivityLockUtilsClass.get_free_period_block_reason()
+	if not free_period_reason.is_empty():
+		return free_period_reason
+	var narrative_reason: String = ActivityLockUtilsClass.get_narrative_blocking_reason_for_any(["browser_surf"])
+	if not narrative_reason.is_empty():
+		return narrative_reason
+	var glm: Node = get_node_or_null("/root/GameLoopManager")
+	if glm == null:
+		return "GameLoopManager 不可用"
+	if not glm.can_consume_ap(SURF_AP_COST):
+		return "行动力不足"
+	return ""
 
 
 func _setup_ai_service() -> void:
@@ -79,6 +141,8 @@ func search(keyword: String) -> String:
 	var messages := _build_search_messages(normalized)
 	var request_id: String = _ai_service.chat(messages, {
 		"temperature": 0.8,
+		"source": "BrowserManager",
+		"prompt_key": SEARCH_PROMPT_KEY,
 	})
 	if request_id.is_empty():
 		return ""
@@ -130,6 +194,8 @@ func open_page(url: String, design_prompt: String = "", page_context: String = "
 		messages = _build_page_messages(normalized, design_prompt, page_context)
 	var request_id: String = _ai_service.chat(messages, {
 		"temperature": 0.7,
+		"source": "BrowserManager",
+		"prompt_key": PAGE_PROMPT_KEY,
 	})
 	if request_id.is_empty():
 		return ""
@@ -141,6 +207,305 @@ func open_page(url: String, design_prompt: String = "", page_context: String = "
 	}
 	_page_inflight[normalized] = request_id
 	return request_id
+
+
+## 摸鱼冲浪 action 主入口。
+## 关键词缓存命中：直接打开缓存页，不扣 AP，不联动林夏。
+## 否则：自由时段锁 + AP 检查 → LLM A（director）→ LLM B（renderer）→ finalize（扣 AP + stat + 林夏卡片）。
+## 返回 surf request_id（成功/失败/缓存命中三条路径都返回 id 给前端跟踪）。
+func surf(keyword: String) -> String:
+	var normalized: String = keyword.strip_edges()
+	if normalized.is_empty():
+		return ""
+
+	_surf_counter += 1
+	var surf_request_id := "surf_%d_%d" % [Time.get_ticks_msec(), _surf_counter]
+
+	var blocking_reason := get_surf_blocking_reason()
+	if not blocking_reason.is_empty():
+		call_deferred("_emit_surf_failed", surf_request_id, normalized, blocking_reason)
+		return surf_request_id
+
+	# 1. 关键词缓存命中：不扣 AP，不联动林夏
+	if _surf_keyword_cache.has(normalized):
+		var cached: Dictionary = _surf_keyword_cache[normalized]
+		var cached_url: String = str(cached.get("url", ""))
+		var cached_summary: String = str(cached.get("summary", ""))
+		var cached_page: Dictionary = _page_cache.get(cached_url, {}).get("content", {})
+		call_deferred(
+			"_emit_surf_cache_hit",
+			surf_request_id,
+			normalized,
+			cached_url,
+			cached_summary,
+			cached_page
+		)
+		return surf_request_id
+
+	# 4. 调 LLM A（Director）
+	var messages := _build_surf_director_messages(normalized)
+	var director_request_id: String = _ai_service.chat(messages, {
+		"temperature": 0.7,
+		"source": "BrowserManager",
+		"prompt_key": SURF_DIRECTOR_PROMPT_KEY,
+	})
+	if director_request_id.is_empty():
+		call_deferred("_emit_surf_failed", surf_request_id, normalized, "Director 请求创建失败")
+		return surf_request_id
+
+	_pending_requests[director_request_id] = {
+		"kind": "surf_director",
+		"keyword": normalized,
+		"surf_request_id": surf_request_id,
+	}
+	call_deferred("_emit_surf_started", surf_request_id, normalized)
+	return surf_request_id
+
+
+func _build_surf_director_messages(keyword: String) -> Array:
+	var current_day: int = _get_current_day()
+	var gm := get_node_or_null("/root/GameManager")
+	var stress_value: int = int(gm.get("stress")) if gm != null else 50
+	var passion_value: int = int(gm.get("passion")) if gm != null else 50
+	var hype_value: int = int(gm.get("hype")) if gm != null else 0
+
+	var system_prompt: String = _resolve_prompt(SURF_DIRECTOR_PROMPT_KEY)
+	if system_prompt.is_empty():
+		system_prompt = "你是一个虚拟浏览器搜索调度器。根据搜索关键词输出 JSON：page_type / title / url / design_prompt / page_summary / stat_changes。只输出 JSON。"
+	var user_text := "\n".join(PackedStringArray([
+		"搜索关键词：%s" % keyword,
+		"当前游戏天数：Day %d / 45" % current_day,
+		"林夏当前状态：stress=%d passion=%d hype=%d" % [stress_value, passion_value, hype_value],
+	]))
+
+	return [
+		{"role": "system", "content": system_prompt},
+		{"role": "user", "content": user_text},
+	]
+
+
+func _handle_surf_director_completed(meta: Dictionary, content: String) -> void:
+	var keyword: String = str(meta.get("keyword", ""))
+	var surf_request_id: String = str(meta.get("surf_request_id", ""))
+	var parsed_variant: Variant = _parse_json_payload(content)
+	if not parsed_variant is Dictionary:
+		surf_failed.emit(surf_request_id, keyword, "Director JSON 解析失败")
+		return
+	var metadata := _validate_director_payload(parsed_variant)
+	if metadata.is_empty():
+		surf_failed.emit(surf_request_id, keyword, "Director 输出缺失字段")
+		return
+
+	# 调 LLM B（复用 open_page）
+	var url: String = str(metadata.get("url", ""))
+	var design_prompt: String = str(metadata.get("design_prompt", ""))
+	var page_context: String = str(metadata.get("page_summary", ""))
+	var page_request_id: String = open_page(url, design_prompt, page_context)
+	if page_request_id.is_empty():
+		surf_failed.emit(surf_request_id, keyword, "网页请求创建失败")
+		return
+
+	_surf_page_followups[page_request_id] = {
+		"keyword": keyword,
+		"surf_request_id": surf_request_id,
+		"metadata": metadata,
+	}
+
+
+func _validate_director_payload(raw: Dictionary) -> Dictionary:
+	var url: String = str(raw.get("url", "")).strip_edges()
+	var title: String = str(raw.get("title", "")).strip_edges()
+	if url.is_empty() or title.is_empty():
+		return {}
+	return {
+		"url": url,
+		"title": title,
+		"design_prompt": str(raw.get("design_prompt", "")).strip_edges(),
+		"page_summary": str(raw.get("page_summary", "")).strip_edges(),
+		"page_type": str(raw.get("page_type", "misc")).strip_edges(),
+		"stat_changes": _clamp_stat_changes(raw.get("stat_changes", {})),
+	}
+
+
+## 字段白名单 + 单字段范围 [-10, +10] + 总绝对值 ≤ 20。
+func _clamp_stat_changes(raw: Variant) -> Dictionary:
+	if not raw is Dictionary:
+		return {}
+	var raw_dict: Dictionary = raw
+	var clamped: Dictionary = {}
+	var total_abs: int = 0
+	for field in SURF_STAT_FIELDS:
+		if not raw_dict.has(field):
+			continue
+		var value: int = int(raw_dict.get(field, 0))
+		if value > SURF_STAT_PER_FIELD_CAP:
+			value = SURF_STAT_PER_FIELD_CAP
+		elif value < -SURF_STAT_PER_FIELD_CAP:
+			value = -SURF_STAT_PER_FIELD_CAP
+		if value == 0:
+			continue
+		var remaining: int = SURF_STAT_TOTAL_CAP - total_abs
+		if remaining <= 0:
+			continue
+		if absi(value) > remaining:
+			value = remaining if value > 0 else -remaining
+		clamped[field] = value
+		total_abs += absi(value)
+	return clamped
+
+
+func _check_surf_page_completed(request_id: String, url: String, page: Dictionary) -> void:
+	if not _surf_page_followups.has(request_id):
+		return
+	var followup: Dictionary = _surf_page_followups[request_id]
+	_surf_page_followups.erase(request_id)
+	_finalize_surf(followup, url, page)
+
+
+func _check_surf_page_failed(request_id: String, error: String) -> void:
+	if not _surf_page_followups.has(request_id):
+		return
+	var followup: Dictionary = _surf_page_followups[request_id]
+	_surf_page_followups.erase(request_id)
+	surf_failed.emit(
+		str(followup.get("surf_request_id", "")),
+		str(followup.get("keyword", "")),
+		error
+	)
+
+
+func _finalize_surf(followup: Dictionary, url: String, page: Dictionary) -> void:
+	var keyword: String = str(followup.get("keyword", ""))
+	var surf_request_id: String = str(followup.get("surf_request_id", ""))
+	var metadata: Dictionary = followup.get("metadata", {})
+	var page_summary: String = str(metadata.get("page_summary", ""))
+
+	# 扣 AP
+	var glm: Node = get_node_or_null("/root/GameLoopManager")
+	if glm != null:
+		glm.consume_ap(SURF_AP_COST, "browser", "surf:%s" % keyword)
+
+	# 应用 stat 变化
+	var stat_changes: Dictionary = metadata.get("stat_changes", {})
+	if not stat_changes.is_empty():
+		var gm: Node = get_node_or_null("/root/GameManager")
+		if gm != null and gm.has_method("modify_stats"):
+			gm.modify_stats(stat_changes)
+
+	# 缓存关键词 → url
+	_surf_keyword_cache[keyword] = {
+		"url": url,
+		"summary": page_summary,
+		"updated_at": Time.get_unix_time_from_system(),
+	}
+
+	# 写历史
+	register_generated_page_entry("browser_surf", {
+		"url": url,
+		"title": str(metadata.get("title", "")),
+		"summary": page_summary,
+		"page": page,
+	}, "browser_surf")
+
+	# 推林夏卡片 + 启动 followup 短回复
+	_share_surf_with_lin_xia(metadata, url, surf_request_id)
+
+	surf_completed.emit(surf_request_id, keyword, url, page_summary, page)
+
+
+func _share_surf_with_lin_xia(metadata: Dictionary, url: String, surf_request_id: String) -> void:
+	var chat: Node = get_node_or_null("/root/ChatManager")
+	if chat == null:
+		return
+	var card := {
+		"type": "web_page",
+		"title": str(metadata.get("title", "")),
+		"url": url,
+		"site_name": _extract_domain(url),
+		"hint": str(metadata.get("page_summary", "")),
+		"design_prompt": str(metadata.get("design_prompt", "")),
+	}
+	if chat.has_method("store_player_message_data"):
+		chat.store_player_message_data(LIN_XIA_DM_CHANNEL, {
+			"speaker": "player",
+			"content": "",
+			"card": card,
+		})
+
+	if _surf_chat == null:
+		return
+	var session_id := "surf_%s" % surf_request_id
+	var system_prompt := _build_surf_followup_prompt(metadata)
+	var started: bool = _surf_chat.start_topic(session_id, "followup", {
+		"display_label": "摸鱼冲浪",
+		"system_prompt": system_prompt,
+		"goal": "看完玩家分享的网页后回一句短消息",
+		"seed_message": "请根据当前话题直接发送活动后回复。",
+		"timeout_seconds": 60,
+	})
+	if started:
+		_surf_chat_pending[session_id] = {"metadata": metadata}
+	else:
+		var local_reply := _build_surf_local_followup_reply(metadata)
+		_surf_chat.send_local_message(local_reply)
+
+
+func _build_surf_followup_prompt(metadata: Dictionary) -> String:
+	var pm: Node = get_node_or_null("/root/PromptManager")
+	if pm != null and pm.has_method("resolve_with_vars"):
+		var resolved: String = str(pm.resolve_with_vars(SURF_FOLLOWUP_PROMPT_KEY, {
+			"page_title": str(metadata.get("title", "")),
+			"page_summary": str(metadata.get("page_summary", "")),
+			"page_type": str(metadata.get("page_type", "")),
+		})).strip_edges()
+		if not resolved.is_empty():
+			return resolved
+	return "你是林夏。玩家分享了一个网页给你看：%s。用一句中文短消息回应。" % str(metadata.get("title", ""))
+
+
+func _build_surf_local_followup_reply(metadata: Dictionary) -> String:
+	var summary: String = str(metadata.get("page_summary", "")).strip_edges()
+	if not summary.is_empty():
+		return "刚看完，这条记一下。"
+	return "看到了。"
+
+
+func _extract_domain(url: String) -> String:
+	var u: String = url.strip_edges().to_lower()
+	u = u.replace("https://", "").replace("http://", "")
+	var slash := u.find("/")
+	if slash >= 0:
+		u = u.substr(0, slash)
+	return u
+
+
+func _on_surf_stage_completed(session_id: String, _stage: String, _summary: String) -> void:
+	if _surf_chat_pending.has(session_id):
+		_surf_chat_pending.erase(session_id)
+
+
+func _on_surf_stage_timeout(session_id: String, stage: String) -> void:
+	if stage != "followup":
+		return
+	if not _surf_chat_pending.has(session_id):
+		return
+	var data: Dictionary = _surf_chat_pending[session_id]
+	if _surf_chat != null:
+		_surf_chat.send_local_message(_build_surf_local_followup_reply(data.get("metadata", {})))
+	_surf_chat_pending.erase(session_id)
+
+
+func _emit_surf_started(request_id: String, keyword: String) -> void:
+	surf_started.emit(request_id, keyword)
+
+
+func _emit_surf_failed(request_id: String, keyword: String, error: String) -> void:
+	surf_failed.emit(request_id, keyword, error)
+
+
+func _emit_surf_cache_hit(request_id: String, keyword: String, url: String, summary: String, page: Dictionary) -> void:
+	# 缓存命中：直接通过 surf_completed 把页面送给前端，不扣 AP，不联动林夏
+	surf_completed.emit(request_id, keyword, url, summary, page)
 
 
 func request_open_url(url: String, design_prompt: String = "", page_context: String = "") -> void:
@@ -320,16 +685,31 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 	if kind == "page":
 		var url: String = meta.get("url", "")
 		_page_inflight.erase(url)
+		_print_generated_page_mark(request_id, url, content)
 		var page_content: Dictionary = _parse_page_content(content)
 		if page_content.is_empty():
 			_emit_page_failed_with_followers(request_id, url, "网页 JSON 解析失败")
+			_check_surf_page_failed(request_id, "网页 JSON 解析失败")
 			return
 		_page_cache[url] = {
 			"content": page_content,
 			"updated_at": Time.get_unix_time_from_system()
 		}
 		_emit_page_generated_with_followers(request_id, url, page_content)
+		_check_surf_page_completed(request_id, url, page_content)
 		return
+
+	if kind == "surf_director":
+		_handle_surf_director_completed(meta, content)
+		return
+
+
+func _print_generated_page_mark(request_id: String, url: String, content: String) -> void:
+	print("\n========== Browser Generated PageMark ==========")
+	print("request_id: %s" % request_id)
+	print("url: %s" % url)
+	print(content)
+	print("========== End Browser Generated PageMark ==========\n")
 
 
 func _on_ai_request_failed(request_id: String, error: String, _error_code: int) -> void:
@@ -342,6 +722,14 @@ func _on_ai_request_failed(request_id: String, error: String, _error_code: int) 
 		_search_inflight.erase(meta.get("keyword", ""))
 	elif kind == "page":
 		_page_inflight.erase(meta.get("url", ""))
+		_check_surf_page_failed(request_id, error)
+	elif kind == "surf_director":
+		surf_failed.emit(
+			str(meta.get("surf_request_id", "")),
+			str(meta.get("keyword", "")),
+			error
+		)
+		return
 	_match_failed(meta, request_id, error)
 
 
@@ -436,6 +824,9 @@ func _parse_search_results(text: String) -> Array:
 	return sanitized
 
 
+const PageMarkParserClass = preload("res://scripts/apps/browser/page_mark_parser.gd")
+
+
 func _parse_page_content(text: String) -> Dictionary:
 	var stripped := text.strip_edges()
 
@@ -448,7 +839,10 @@ func _parse_page_content(text: String) -> Dictionary:
 			stripped = stripped.substr(0, stripped.length() - 3)
 		stripped = stripped.strip_edges()
 
-	# 自动检测格式: { 开头 → JSON, < 开头 → 标签 DSL
+	if stripped.is_empty():
+		return {}
+
+	# 1. JSON: { 开头
 	if stripped.begins_with("{"):
 		var parsed: Variant = _parse_json_payload(text)
 		if parsed is Dictionary:
@@ -457,13 +851,18 @@ func _parse_page_content(text: String) -> Dictionary:
 			return parsed
 		return {}
 
-	# 标签式 DSL（含 < 即尝试）
-	if stripped.find("<") >= 0:
-		var dsl_result := DslPageParser.parse(stripped)
-		if not dsl_result.is_empty():
-			return dsl_result
+	# 2. PageMark: 默认走这里（markdown 风格 + ::: fence）
+	var page_mark_result: Dictionary = PageMarkParserClass.parse(stripped)
+	var warnings: Array = page_mark_result.get("warnings", [])
+	var tree_variant: Variant = page_mark_result.get("tree", {})
+	if tree_variant is Dictionary:
+		var tree: Dictionary = tree_variant
+		if not tree.is_empty():
+			if not warnings.is_empty():
+				push_warning("[PageMark] %d warning(s): %s" % [warnings.size(), str(warnings)])
+			return tree
 
-	# 最后尝试 JSON
+	# 3. 兜底：再尝试 JSON
 	var parsed_fallback: Variant = _parse_json_payload(text)
 	if parsed_fallback is Dictionary:
 		return parsed_fallback
@@ -919,6 +1318,10 @@ func _find_premade_page(url: String) -> WebPageResource:
 		if k == stripped:
 			return _premade_pages[key] as WebPageResource
 	return null
+
+
+func has_premade_page(url: String) -> bool:
+	return _find_premade_page(url.strip_edges()) != null
 
 
 func _inject_premade_search_results(keyword: String, ai_results: Array) -> Array:

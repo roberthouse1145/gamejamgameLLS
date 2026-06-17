@@ -15,13 +15,9 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="AI GAME MAKE"
-run/main_scene="res://scenes/pseudo_os/desktop.tscn"
+run/main_scene="uid://c6f21p8w37nmd"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
-
-[audio]
-
-buses/default_bus_layout="res://default_bus_layout.tres"
 
 [autoload]
 
@@ -32,13 +28,13 @@ PromptManager="*res://autoload/prompt_manager.gd"
 #TimeManager="*res://autoload/time_manager.gd"
 ChatManager="*res://autoload/chat_manager.gd"
 WorkOrderManager="*res://autoload/work_order_manager.gd"
+BithubManager="*res://autoload/bithub_manager.gd"
 GameLoopManager="*res://autoload/game_loop_manager.gd"
 KnowledgeBaseManager="*res://autoload/knowledge_base_manager.gd"
 PlanningManager="*res://autoload/planning_manager.gd"
 MinigameManager="*res://autoload/minigame_manager.gd"
 DevCycleManager="*res://autoload/dev_cycle_manager.gd"
 BrowserManager="*res://scenes/autoload/browser_manager.tscn"
-CommunityActionManager="*res://scenes/autoload/community_action_manager.tscn"
 ShopManager="*res://autoload/shop_manager.gd"
 GameManager="*res://autoload/game_manager.gd"
 DateManager="*res://autoload/date_manager.gd"
@@ -48,6 +44,7 @@ HomeActivityManager="*res://scenes/home/home_activity_manager.tscn"
 TransitManager="*res://autoload/transit_manager.gd"
 StoryDirector="*res://autoload/story_director.gd"
 AudioManager="*res://autoload/audio_manager.gd"
+NpcRefusalCenter="*res://autoload/npc_refusal_center.gd"
 
 [display]
 

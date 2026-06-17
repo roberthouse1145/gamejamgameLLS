@@ -243,7 +243,7 @@ var _code_progress_char: float = 0.0
 var _root_panel: PanelContainer
 var _status_bar: HBoxContainer
 
-var _gutter_panel: PanelContainer
+var _gutter_panel: Control
 var _gutter: VBoxContainer
 var _ghost_container: VBoxContainer
 var _code_area: Control
@@ -594,19 +594,29 @@ func _build_code_view(parent: VBoxContainer) -> void:
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	parent.add_child(body)
 
-	_gutter_panel = PanelContainer.new()
-	var gutter_sb := StyleBoxFlat.new()
-	gutter_sb.bg_color = BG_GUTTER
-	gutter_sb.content_margin_left = 8
-	gutter_sb.content_margin_right = 8
-	gutter_sb.content_margin_top = 4
-	_gutter_panel.add_theme_stylebox_override("panel", gutter_sb)
+	# Gutter 用普通 Control（非 Container）承载，避免 VBoxContainer 的 min_size
+	# 通过 PanelContainer 冒泡到外层布局，把整个 IDE 撑出窗口外。
+	# 背景色用 ColorRect 铺；VBoxContainer 在内部手动滚动（_update_code_scroll 会改 position.y）。
+	_gutter_panel = Control.new()
 	_gutter_panel.custom_minimum_size = Vector2(52, 0)
 	_gutter_panel.clip_contents = true
+	_gutter_panel.size_flags_vertical = Control.SIZE_FILL
+	_gutter_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	body.add_child(_gutter_panel)
+
+	var gutter_bg := ColorRect.new()
+	gutter_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	gutter_bg.color = BG_GUTTER
+	gutter_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_gutter_panel.add_child(gutter_bg)
 
 	_gutter = VBoxContainer.new()
 	_gutter.add_theme_constant_override("separation", 0)
+	_gutter.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_gutter.offset_left = 8
+	_gutter.offset_right = -8
+	_gutter.offset_top = 4
+	_gutter.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_gutter_panel.add_child(_gutter)
 	for i in range(_lines.size()):
 		var ln := Label.new()

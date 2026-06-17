@@ -16,12 +16,16 @@ signal app_launched(app_id: String, window: Control)
 ## Emitted when an app is closed
 ## @param app_id: The ID of the closed app
 signal app_closed(app_id: String)
+signal app_registered(app_id: String, app_definition: Resource)
+signal app_unregistered(app_id: String)
+signal app_desktop_visibility_changed(app_id: String, desired_visible: bool)
 
 # App registry: app_id -> AppDefinition
 var app_registry: Dictionary = {}
 
 # Running apps: app_id -> PseudoWindow (Control)
 var running_apps: Dictionary = {}
+var _desktop_visibility_overrides: Dictionary = {}
 
 # Reference to WindowManager (set by Desktop)
 var window_manager: Node = null
@@ -48,8 +52,8 @@ func _register_all_apps() -> void:
 		"res://resources/apps/game_previewer_app.tres",
 		"res://resources/apps/file_manager_app.tres",
 		"res://resources/apps/linkchat_app.tres",
+		"res://resources/apps/bithub_app.tres",
 		"res://resources/apps/browser_app.tres",
-		"res://resources/apps/community_app.tres",
 		"res://resources/apps/home_app.tres",
 		"res://resources/apps/map_app.tres",
 		"res://resources/apps/avg_player_app.tres",
@@ -60,6 +64,7 @@ func _register_all_apps() -> void:
 		"res://resources/apps/dev_work_app.tres",
 		"res://resources/apps/shop_app.tres",
 		"res://resources/apps/desktop_pet_app.tres",
+		"res://resources/apps/music_player_app.tres",
 	]
 	
 	for path in app_paths:
@@ -104,6 +109,7 @@ func register_app(definition: Resource) -> void:
 	
 	# Add to app_registry with app_id as key
 	app_registry[app_id] = definition
+	app_registered.emit(app_id, definition)
 
 
 ## Launch an app by its ID
@@ -176,14 +182,24 @@ func _on_app_window_closed(app_id: String) -> void:
 
 ## Close a running app by its ID
 ## @param app_id: The ID of the app to close
-func close_app(app_id: String) -> void:
+func close_app(app_id: String, force_close: bool = false) -> bool:
 	# Check if app is running
 	if not is_app_running(app_id):
-		push_warning("AppManager: App '%s' is not running" % app_id)
-		return
+		if not force_close:
+			push_warning("AppManager: App '%s' is not running" % app_id)
+		return false
 	
 	# Get the window
 	var window: Control = running_apps[app_id]
+	if not force_close and "close_locked" in window and bool(window.close_locked):
+		push_warning("AppManager: App '%s' window is locked" % app_id)
+		return false
+
+	if force_close:
+		if window.has_method("set_close_locked"):
+			window.set_close_locked(false)
+		if window.has_method("set_minimize_locked"):
+			window.set_minimize_locked(false)
 	
 	# Close window via WindowManager
 	if window_manager:
@@ -197,6 +213,7 @@ func close_app(app_id: String) -> void:
 	
 	# Emit app_closed signal
 	app_closed.emit(app_id)
+	return true
 
 
 ## Check if an app is currently running
@@ -215,10 +232,104 @@ func get_app_window(app_id: String) -> Control:
 	return null
 
 
+func focus_app(app_id: String, force_launch: bool = false) -> Control:
+	if is_app_running(app_id):
+		var window: Control = running_apps[app_id]
+		if window_manager != null and window_manager.has_method("focus_window"):
+			window_manager.focus_window(window)
+		return window
+	if force_launch:
+		return launch_app(app_id, true)
+	return null
+
+
+func lock_app_window(app_id: String) -> bool:
+	var window := get_app_window(app_id)
+	if window == null:
+		return false
+	if window.has_method("set_close_locked"):
+		window.set_close_locked(true)
+	if window.has_method("set_minimize_locked"):
+		window.set_minimize_locked(true)
+	return true
+
+
+func unlock_app_window(app_id: String) -> bool:
+	var window := get_app_window(app_id)
+	if window == null:
+		return false
+	if window.has_method("set_close_locked"):
+		window.set_close_locked(false)
+	if window.has_method("set_minimize_locked"):
+		window.set_minimize_locked(false)
+	return true
+
+
 ## Get all registered app definitions
 ## @return: Array of AppDefinition resources
 func get_registered_apps() -> Array:
 	return app_registry.values()
+
+
+func is_app_registered(app_id: String) -> bool:
+	return app_registry.has(app_id)
+
+
+func get_app_definition(app_id: String) -> Resource:
+	return app_registry.get(app_id, null)
+
+
+func install_app_from_path(resource_path: String) -> bool:
+	var normalized_path := resource_path.strip_edges()
+	if normalized_path.is_empty():
+		return false
+	if not ResourceLoader.exists(normalized_path):
+		push_warning("AppManager: App definition not found: %s" % normalized_path)
+		return false
+	var app_def: Resource = ResourceLoader.load(normalized_path)
+	if app_def == null:
+		push_warning("AppManager: Failed to load app definition: %s" % normalized_path)
+		return false
+	register_app(app_def)
+	return true
+
+
+func unregister_app(app_id: String, close_running: bool = true) -> bool:
+	var normalized_app_id := app_id.strip_edges()
+	if normalized_app_id.is_empty() or not app_registry.has(normalized_app_id):
+		return false
+	if close_running and is_app_running(normalized_app_id):
+		close_app(normalized_app_id, true)
+	app_registry.erase(normalized_app_id)
+	_desktop_visibility_overrides.erase(normalized_app_id)
+	app_unregistered.emit(normalized_app_id)
+	return true
+
+
+func set_app_desktop_visible(app_id: String, desired_visible: bool) -> bool:
+	var normalized_app_id := app_id.strip_edges()
+	if normalized_app_id.is_empty() or not app_registry.has(normalized_app_id):
+		return false
+	_desktop_visibility_overrides[normalized_app_id] = desired_visible
+	app_desktop_visibility_changed.emit(normalized_app_id, desired_visible)
+	return true
+
+
+func clear_app_desktop_visibility_override(app_id: String) -> void:
+	var normalized_app_id := app_id.strip_edges()
+	if normalized_app_id.is_empty() or not _desktop_visibility_overrides.has(normalized_app_id):
+		return
+	_desktop_visibility_overrides.erase(normalized_app_id)
+	app_desktop_visibility_changed.emit(normalized_app_id, is_app_desktop_visible(normalized_app_id))
+
+
+func is_app_desktop_visible(app_id: String) -> bool:
+	if _desktop_visibility_overrides.has(app_id):
+		return bool(_desktop_visibility_overrides[app_id])
+	var app_def: Resource = app_registry.get(app_id, null)
+	if app_def != null and "show_on_desktop" in app_def:
+		return bool(app_def.show_on_desktop)
+	return app_def != null
 
 
 ## Get all registered app IDs

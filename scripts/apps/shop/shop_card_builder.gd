@@ -32,7 +32,7 @@ const C_DELIVERED := Color("#52C41A")
 
 static func build_product_card(item: Dictionary, selected: bool, on_click: Callable) -> Control:
 	var card := MarginContainer.new()
-	card.custom_minimum_size = Vector2(200, 0)
+	card.custom_minimum_size = Vector2(180, 0)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	var panel := PanelContainer.new()
@@ -43,15 +43,15 @@ static func build_product_card(item: Dictionary, selected: bool, on_click: Calla
 	card_style.set_corner_radius_all(8)
 	card_style.shadow_color = Color(0, 0, 0, 0.04)
 	card_style.shadow_size = 4
-	card_style.content_margin_left = 14
-	card_style.content_margin_right = 14
-	card_style.content_margin_top = 14
-	card_style.content_margin_bottom = 14
+	card_style.content_margin_left = 20
+	card_style.content_margin_right = 20
+	card_style.content_margin_top = 20
+	card_style.content_margin_bottom = 20
 	panel.add_theme_stylebox_override("panel", card_style)
 	card.add_child(panel)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 10)
 	panel.add_child(vbox)
 
 	var cat_row := HBoxContainer.new()
@@ -60,7 +60,7 @@ static func build_product_card(item: Dictionary, selected: bool, on_click: Calla
 
 	var title := Label.new()
 	title.text = str(item.get("title", ""))
-	title.add_theme_font_size_override("font_size", 16)
+	title.add_theme_font_size_override("font_size", 26)
 	title.add_theme_color_override("font_color", C_TEXT)
 	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(title)
@@ -69,17 +69,17 @@ static func build_product_card(item: Dictionary, selected: bool, on_click: Calla
 	var first_line: String = full_desc.split("\n", false)[0] if not full_desc.is_empty() else ""
 	var desc := Label.new()
 	desc.text = first_line
-	desc.add_theme_font_size_override("font_size", 12)
+	desc.add_theme_font_size_override("font_size", 18)
 	desc.add_theme_color_override("font_color", C_TEXT_SEC)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.custom_minimum_size = Vector2(0, 32)
+	desc.custom_minimum_size = Vector2(0, 50)
 	vbox.add_child(desc)
 
 	var bottom := HBoxContainer.new()
 	vbox.add_child(bottom)
 	var price := Label.new()
 	price.text = "¥%d" % int(item.get("price", 0))
-	price.add_theme_font_size_override("font_size", 20)
+	price.add_theme_font_size_override("font_size", 32)
 	price.add_theme_color_override("font_color", C_PRICE)
 	bottom.add_child(price)
 	var bottom_spacer := Control.new()
@@ -87,7 +87,7 @@ static func build_product_card(item: Dictionary, selected: bool, on_click: Calla
 	bottom.add_child(bottom_spacer)
 	var card_sales := Label.new()
 	card_sales.text = "%s人付款" % format_sales_count(int(item.get("sales_count", 0)))
-	card_sales.add_theme_font_size_override("font_size", 11)
+	card_sales.add_theme_font_size_override("font_size", 18)
 	card_sales.add_theme_color_override("font_color", C_TEXT_LIGHT)
 	card_sales.size_flags_vertical = Control.SIZE_SHRINK_END
 	bottom.add_child(card_sales)
@@ -123,43 +123,43 @@ static func build_order_card(order: Dictionary) -> Control:
 	card.add_theme_stylebox_override("panel", s)
 
 	var m := MarginContainer.new()
-	m.add_theme_constant_override("margin_left", 16)
-	m.add_theme_constant_override("margin_top", 14)
-	m.add_theme_constant_override("margin_right", 16)
-	m.add_theme_constant_override("margin_bottom", 14)
+	m.add_theme_constant_override("margin_left", 24)
+	m.add_theme_constant_override("margin_top", 20)
+	m.add_theme_constant_override("margin_right", 24)
+	m.add_theme_constant_override("margin_bottom", 20)
 	card.add_child(m)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 16)
 	m.add_child(row)
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 4)
+	info.add_theme_constant_override("separation", 6)
 	row.add_child(info)
 
 	var title := Label.new()
 	title.text = str(snapshot.get("title", "商品"))
-	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", C_TEXT)
 	info.add_child(title)
 
 	var tracking := Label.new()
 	tracking.text = str(order.get("tracking_text", ""))
-	tracking.add_theme_font_size_override("font_size", 13)
+	tracking.add_theme_font_size_override("font_size", 20)
 	tracking.add_theme_color_override("font_color", C_SHIPPING if is_shipping else C_DELIVERED)
 	info.add_child(tracking)
 
 	var price_label := Label.new()
 	price_label.text = "¥%d" % int(snapshot.get("price", 0))
-	price_label.add_theme_font_size_override("font_size", 15)
+	price_label.add_theme_font_size_override("font_size", 24)
 	price_label.add_theme_color_override("font_color", C_PRICE)
 	price_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(price_label)
 
 	var status_label := Label.new()
 	status_label.text = "配送中" if is_shipping else "已入库"
-	status_label.add_theme_font_size_override("font_size", 13)
+	status_label.add_theme_font_size_override("font_size", 20)
 	status_label.add_theme_color_override("font_color", C_SHIPPING if is_shipping else C_DELIVERED)
 	status_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(status_label)
@@ -185,37 +185,37 @@ static func build_inv_card(item: Dictionary, on_action: Callable) -> Control:
 	card.add_theme_stylebox_override("panel", s)
 
 	var m := MarginContainer.new()
-	m.add_theme_constant_override("margin_left", 16)
-	m.add_theme_constant_override("margin_top", 12)
-	m.add_theme_constant_override("margin_right", 16)
-	m.add_theme_constant_override("margin_bottom", 12)
+	m.add_theme_constant_override("margin_left", 24)
+	m.add_theme_constant_override("margin_top", 18)
+	m.add_theme_constant_override("margin_right", 24)
+	m.add_theme_constant_override("margin_bottom", 18)
 	card.add_child(m)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
+	row.add_theme_constant_override("separation", 16)
 	m.add_child(row)
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 4)
+	info.add_theme_constant_override("separation", 6)
 	row.add_child(info)
 
 	var title := Label.new()
 	title.text = str(item.get("title", ""))
-	title.add_theme_font_size_override("font_size", 15)
+	title.add_theme_font_size_override("font_size", 24)
 	title.add_theme_color_override("font_color", C_TEXT if not used else C_TEXT_LIGHT)
 	info.add_child(title)
 
 	var meta := Label.new()
-	meta.text = "%s · %s" % [state_text(state), effect_summary(str(item.get("effect_archetype", "")))]
-	meta.add_theme_font_size_override("font_size", 12)
+	meta.text = "%s · %s" % [state_text(state), item_effect_summary(item)]
+	meta.add_theme_font_size_override("font_size", 18)
 	meta.add_theme_color_override("font_color", C_TEXT_SEC)
 	info.add_child(meta)
 
 	if not used:
 		var btn := Button.new()
 		btn.text = inventory_action_label(item)
-		btn.custom_minimum_size = Vector2(80, 32)
+		btn.custom_minimum_size = Vector2(110, 48)
 		_style_outline_btn_static(btn)
 		btn.pressed.connect(on_action)
 		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -223,7 +223,7 @@ static func build_inv_card(item: Dictionary, on_action: Callable) -> Control:
 	else:
 		var state_lbl := Label.new()
 		state_lbl.text = state_text(state)
-		state_lbl.add_theme_font_size_override("font_size", 13)
+		state_lbl.add_theme_font_size_override("font_size", 20)
 		state_lbl.add_theme_color_override("font_color", C_TEXT_LIGHT)
 		state_lbl.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(state_lbl)
@@ -246,37 +246,37 @@ static func build_effect_card(effect: Dictionary) -> Control:
 	card.add_theme_stylebox_override("panel", s)
 
 	var m := MarginContainer.new()
-	m.add_theme_constant_override("margin_left", 12)
-	m.add_theme_constant_override("margin_top", 10)
-	m.add_theme_constant_override("margin_right", 12)
-	m.add_theme_constant_override("margin_bottom", 10)
+	m.add_theme_constant_override("margin_left", 18)
+	m.add_theme_constant_override("margin_top", 14)
+	m.add_theme_constant_override("margin_right", 18)
+	m.add_theme_constant_override("margin_bottom", 14)
 	card.add_child(m)
 
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 10)
 	m.add_child(row)
 
 	var dot := Label.new()
 	dot.text = "●"
-	dot.add_theme_font_size_override("font_size", 10)
+	dot.add_theme_font_size_override("font_size", 16)
 	dot.add_theme_color_override("font_color", C_SUCCESS)
 	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(dot)
 
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	info.add_theme_constant_override("separation", 2)
+	info.add_theme_constant_override("separation", 4)
 	row.add_child(info)
 
 	var title := Label.new()
 	title.text = str(effect.get("title", ""))
-	title.add_theme_font_size_override("font_size", 14)
+	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", C_TEXT)
 	info.add_child(title)
 
 	var summary := Label.new()
 	summary.text = str(effect.get("summary", ""))
-	summary.add_theme_font_size_override("font_size", 12)
+	summary.add_theme_font_size_override("font_size", 18)
 	summary.add_theme_color_override("font_color", C_SUCCESS)
 	info.add_child(summary)
 
@@ -289,10 +289,10 @@ static func build_effect_card(effect: Dictionary) -> Control:
 
 static func build_review_card(comment: String, item: Dictionary, index: int) -> Control:
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 4)
+	vbox.add_theme_constant_override("separation", 6)
 
 	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 6)
+	header.add_theme_constant_override("separation", 8)
 	vbox.add_child(header)
 
 	var fake_rng := RandomNumberGenerator.new()
@@ -302,20 +302,20 @@ static func build_review_card(comment: String, item: Dictionary, index: int) -> 
 
 	var name_label := Label.new()
 	name_label.text = uname
-	name_label.add_theme_font_size_override("font_size", 12)
+	name_label.add_theme_font_size_override("font_size", 18)
 	name_label.add_theme_color_override("font_color", C_TEXT_SEC)
 	header.add_child(name_label)
 
 	var star_count: int = fake_rng.randi_range(4, 5)
 	var stars_label := Label.new()
 	stars_label.text = "★".repeat(star_count)
-	stars_label.add_theme_font_size_override("font_size", 11)
+	stars_label.add_theme_font_size_override("font_size", 18)
 	stars_label.add_theme_color_override("font_color", C_WARN)
 	header.add_child(stars_label)
 
 	var content := Label.new()
 	content.text = comment
-	content.add_theme_font_size_override("font_size", 13)
+	content.add_theme_font_size_override("font_size", 20)
 	content.add_theme_color_override("font_color", C_TEXT)
 	content.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(content)
@@ -332,14 +332,14 @@ static func make_tag(text: String) -> Control:
 	var s := StyleBoxFlat.new()
 	s.bg_color = C_TAG_BG
 	s.set_corner_radius_all(4)
-	s.content_margin_left = 8
-	s.content_margin_right = 8
-	s.content_margin_top = 2
-	s.content_margin_bottom = 2
+	s.content_margin_left = 12
+	s.content_margin_right = 12
+	s.content_margin_top = 4
+	s.content_margin_bottom = 4
 	panel.add_theme_stylebox_override("panel", s)
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", C_TAG_TEXT)
 	panel.add_child(label)
 	return panel
@@ -347,7 +347,7 @@ static func make_tag(text: String) -> Control:
 
 static func make_separator() -> HSeparator:
 	var sep := HSeparator.new()
-	sep.add_theme_constant_override("separation", 12)
+	sep.add_theme_constant_override("separation", 16)
 	sep.add_theme_stylebox_override("separator", StyleBoxLine.new())
 	return sep
 
@@ -355,7 +355,7 @@ static func make_separator() -> HSeparator:
 static func empty_hint(text: String) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_font_size_override("font_size", 22)
 	label.add_theme_color_override("font_color", C_TEXT_LIGHT)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return label
@@ -363,7 +363,7 @@ static func empty_hint(text: String) -> Label:
 
 static func style_primary_btn(btn: Button) -> void:
 	var enabled: bool = not btn.disabled
-	btn.add_theme_font_size_override("font_size", 15)
+	btn.add_theme_font_size_override("font_size", 24)
 	btn.add_theme_color_override("font_color", C_WHITE if enabled else C_DISABLED_TEXT)
 	btn.add_theme_color_override("font_hover_color", C_WHITE)
 	btn.add_theme_color_override("font_pressed_color", C_WHITE)
@@ -375,7 +375,7 @@ static func style_primary_btn(btn: Button) -> void:
 
 
 static func _style_outline_btn_static(btn: Button) -> void:
-	btn.add_theme_font_size_override("font_size", 13)
+	btn.add_theme_font_size_override("font_size", 20)
 	btn.add_theme_color_override("font_color", C_NAV)
 	btn.add_theme_color_override("font_hover_color", C_NAV_HOVER)
 	btn.add_theme_color_override("font_pressed_color", C_NAV_HOVER)
@@ -384,10 +384,10 @@ static func _style_outline_btn_static(btn: Button) -> void:
 	normal.border_color = C_NAV
 	normal.set_border_width_all(1)
 	normal.set_corner_radius_all(6)
-	normal.content_margin_left = 12
-	normal.content_margin_right = 12
-	normal.content_margin_top = 4
-	normal.content_margin_bottom = 4
+	normal.content_margin_left = 16
+	normal.content_margin_right = 16
+	normal.content_margin_top = 6
+	normal.content_margin_bottom = 6
 	btn.add_theme_stylebox_override("normal", normal)
 	var hover := normal.duplicate() as StyleBoxFlat
 	hover.border_color = C_NAV_HOVER
@@ -399,8 +399,8 @@ static func _btn_style_flat(color: Color) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = color
 	s.set_corner_radius_all(8)
-	s.content_margin_top = 8
-	s.content_margin_bottom = 8
+	s.content_margin_top = 12
+	s.content_margin_bottom = 12
 	return s
 
 
@@ -416,17 +416,25 @@ static func effect_summary(effect_id: String) -> String:
 	return ShopCatalogStaticData.get_effect_display(effect_id)
 
 
+static func item_effect_summary(item: Dictionary) -> String:
+	var stats: Dictionary = item.get("instant_stats", {})
+	if stats.is_empty():
+		return effect_summary(str(item.get("effect_archetype", "")))
+	var parts: PackedStringArray = []
+	if stats.has("passion"):
+		parts.append("热情%s" % ("↑" if int(stats["passion"]) > 0 else "↓"))
+	if stats.has("stress"):
+		parts.append("压力%s" % ("↑" if int(stats["stress"]) > 0 else "↓"))
+	return " ".join(parts) if not parts.is_empty() else effect_summary(str(item.get("effect_archetype", "")))
+
+
 static func state_text(state: String) -> String:
 	return ShopCatalogStaticData.get_state_label(state)
 
 
 static func inventory_action_label(item: Dictionary) -> String:
-	var category: String = str(item.get("category", ""))
-	var effect_id: String = str(item.get("effect_archetype", ""))
-	if category == "gift":
+	if str(item.get("category", "")) == "gift":
 		return "送给她"
-	if effect_id == "flavor_no_effect":
-		return "摆放"
 	return "使用"
 
 

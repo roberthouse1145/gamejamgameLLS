@@ -4,6 +4,9 @@ class_name DateEventPlayer extends Control
 ## 外部通过 play_scene_package / play_event 触发播放，播放结束后回到首页
 
 signal playback_finished(session_id: String, outcome: Dictionary)
+## 剧情开始播放时发出（用于通知 music_player 之类的 App 进入互斥状态）
+## 注意：只在真正进入 PLAYBACK 页并成功启动 scene_runner 时发出
+signal playback_started(session_id: String)
 
 enum Page { HOME, HISTORY, PLAYBACK }
 
@@ -60,6 +63,8 @@ var _capture_timer: Timer = null
 var _history_entries: Array = []
 ## Whether we paused the global AudioManager BGM during playback
 var _did_pause_global_bgm: bool = false
+## 是否正处于剧情播放中（介于 scene_runner.start() 和 _emit_outcome() 之间）
+var _is_playing_scene: bool = false
 
 
 func _ready() -> void:
@@ -482,6 +487,8 @@ func play_event(session_id: String, event_request: Dictionary, record_history: b
 	scene_runner.start()
 	set_process(true)
 	_pause_global_bgm()
+	_is_playing_scene = true
+	playback_started.emit(_session_id)
 
 
 func play_scene_package(session_id: String, scene_package: Dictionary, record_history: bool = true) -> void:
@@ -508,6 +515,8 @@ func play_scene_package(session_id: String, scene_package: Dictionary, record_hi
 	scene_runner.start()
 	set_process(true)
 	_pause_global_bgm()
+	_is_playing_scene = true
+	playback_started.emit(_session_id)
 
 
 func _on_scene_ended(_scene_id: String) -> void:
@@ -553,6 +562,7 @@ func _emit_outcome(outcome: Dictionary) -> void:
 	if _finished:
 		return
 	_finished = true
+	_is_playing_scene = false
 	set_process(false)
 	_resume_global_bgm()
 
@@ -782,6 +792,11 @@ func _get_date_manager_history() -> Array:
 # =============================================================================
 # 全局 BGM 互斥
 # =============================================================================
+
+## 是否正处于剧情播放中（供 music_player 等 App 查询）
+func is_playing_scene() -> bool:
+	return _is_playing_scene
+
 
 func _pause_global_bgm() -> void:
 	var audio: Node = get_node_or_null("/root/AudioManager")

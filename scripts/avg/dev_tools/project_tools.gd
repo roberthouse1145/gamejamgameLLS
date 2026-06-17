@@ -1,4 +1,4 @@
-﻿class_name AVGDevProjectTools extends RefCounted
+class_name AVGDevProjectTools extends RefCounted
 ## AVG Dev AI — 项目 + 流程控制工具集
 ## 提供 project_info / project_save / preview_scene / finish
 

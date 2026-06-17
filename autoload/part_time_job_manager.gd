@@ -22,6 +22,8 @@ const CATALOG_ROLE: String = "part_time_generator"
 const FALLBACK_CATALOG_ROLE: String = "chat_default"
 const GENERATION_PROMPT_KEY: String = "part_time_jobs_generation"
 const VALID_PHASES: PackedStringArray = ["MORNING", "AFTERNOON", "NIGHT"]
+const REFUSE_STRESS_THRESHOLD: int = 75
+const REFUSE_PASSION_THRESHOLD: int = 25
 
 var _catalog: Array[Dictionary] = []
 var _pending_next_day_catalog: Array[Dictionary] = []
@@ -29,6 +31,9 @@ var _is_generating_catalog: bool = false
 var _catalog_generator: Node = null
 var _catalog_request_id: String = ""
 var _catalog_llm_enabled: bool = false
+## 当前时段是否已被林夏整体拒绝兼职。空字符串表示未被拒绝。
+## 一旦拒绝，所有兼职在该时段都不可用，时段切换后自动恢复。
+var _part_time_refused_this_phase: String = ""
 
 
 func _is_background_llm_disabled() -> bool:
@@ -108,6 +113,8 @@ func _ready() -> void:
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm != null and glm.has_signal("day_changed"):
 		glm.day_changed.connect(_on_day_changed)
+	if glm != null and glm.has_signal("phase_changed"):
+		glm.phase_changed.connect(_on_phase_changed)
 
 
 # Override to also emit legacy signals on scene events
@@ -136,7 +143,9 @@ func get_catalog() -> Array[Dictionary]:
 		if not valid_phases.is_empty() and not valid_phases.has(current_phase):
 			continue
 		var entry: Dictionary = normalized.duplicate(true)
-		entry["enabled"] = can_act
+		entry["enabled"] = can_act and _part_time_refused_this_phase.is_empty()
+		if not _part_time_refused_this_phase.is_empty():
+			entry["disabled_reason"] = _part_time_refused_this_phase
 		result.append(entry)
 	return result
 
@@ -163,6 +172,17 @@ func refresh_weekly_catalog(force: bool = false) -> void:
 
 
 func begin_part_time(job_id: String, transit_duration: float = DEFAULT_TRANSIT_DURATION, skip_departure: bool = false) -> Dictionary:
+	# 已经被林夏拒绝过 → 静默拒绝（UI 应已 disable）
+	if not _part_time_refused_this_phase.is_empty():
+		session_failed.emit(_part_time_refused_this_phase)
+		return {"success": false, "error": _part_time_refused_this_phase, "refused": true}
+	# 当前数值不适合接班 → 走 refusal session：复用 _on_session_begin 的卡片钩子，
+	# topic 走 _start_refusal_topic（不消耗 AP / 不结算）。
+	var refusal := _check_part_time_refusal()
+	if not refusal.is_empty():
+		_part_time_refused_this_phase = str(refusal.get("short", "林夏不想去打工"))
+		catalog_refreshed.emit(get_catalog())
+		return begin_refusal_session(job_id, refusal)
 	var result := begin_session(job_id, transit_duration, skip_departure)
 	if result.get("success", false):
 		var sid: String = str(result.get("session_id", ""))
@@ -203,6 +223,7 @@ func _on_reset_runtime_state() -> void:
 	_pending_next_day_catalog.clear()
 	_is_generating_catalog = false
 	_catalog_request_id = ""
+	_part_time_refused_this_phase = ""
 	if _catalog_generator != null and _catalog_generator.has_method("clear_pending_requests"):
 		_catalog_generator.clear_pending_requests()
 	_load_fallback_catalog_if_empty()
@@ -470,6 +491,40 @@ func _normalize_job_phases(raw_value: Variant) -> Array[String]:
 	return result
 
 
+## 检查当前是否需要林夏拒绝兼职。返回结构化字典，空字典表示不拒绝。
+##   refusal_id / warning_desc / short / fallback 同 NpcRefusalCenter 约定
+##   warning_desc 用第三人称导演视角，明确"数值是林夏的"，不要写成"你的压力"
+func _check_part_time_refusal() -> Dictionary:
+	var gm: Node = get_node_or_null("/root/GameManager")
+	if gm == null:
+		return {}
+	var stress_value := int(gm.get("stress"))
+	var passion_value := int(gm.get("passion"))
+	if stress_value >= REFUSE_STRESS_THRESHOLD:
+		return {
+			"refusal_id": "part_time_stress_high",
+			"warning_desc": (
+				"搭档（玩家）想拉林夏一起去打工赚钱。"
+				+ "但林夏自己的压力已经堆到 %d（阈值≥%d），整个人明显已经接不了班。"
+				+ "林夏想直接拒绝这次兼职，让搭档先放过她、别再把这个时段塞进高强度活动里。"
+			) % [stress_value, REFUSE_STRESS_THRESHOLD],
+			"short": "林夏压力太大，今天接不了班",
+			"fallback": "今天真的接不了班，先缓一下吧。",
+		}
+	if passion_value <= REFUSE_PASSION_THRESHOLD:
+		return {
+			"refusal_id": "part_time_passion_low",
+			"warning_desc": (
+				"搭档（玩家）想拉林夏一起去打工赚钱。"
+				+ "但林夏自己的创作热情已经掉到 %d（阈值≤%d），完全提不起劲做这种纯消耗的活。"
+				+ "林夏想直接拒绝，希望搭档先想办法让她找回点灵感，再说打工的事。"
+			) % [passion_value, REFUSE_PASSION_THRESHOLD],
+			"short": "林夏提不起劲，先找点回神的事",
+			"fallback": "现在提不起劲去打工，先找点能回神的事吧。",
+		}
+	return {}
+
+
 # =============================================================================
 # Catalog (LLM / Fallback)
 # =============================================================================
@@ -556,6 +611,7 @@ func _on_ai_request_failed(request_id: String, _context: Dictionary, error_msg: 
 
 
 func _on_day_changed(new_day: int) -> void:
+	_part_time_refused_this_phase = ""
 	if not _pending_next_day_catalog.is_empty():
 		_catalog.clear()
 		for item in _pending_next_day_catalog:
@@ -565,6 +621,11 @@ func _on_day_changed(new_day: int) -> void:
 		catalog_refreshed.emit(get_catalog())
 	if new_day >= 1:
 		_generate_next_day_catalog(new_day + 1)
+
+
+func _on_phase_changed(_new_phase: int) -> void:
+	_part_time_refused_this_phase = ""
+	catalog_refreshed.emit(get_catalog())
 
 
 func _load_fallback_catalog_if_empty() -> void:

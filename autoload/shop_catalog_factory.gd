@@ -15,13 +15,9 @@ static func get_effect_archetype_keys() -> PackedStringArray:
 	return ShopCatalogStaticData.get_effect_archetype_keys()
 
 
-static func generate_local_daily_catalog(day: int, fixed_core_items: Array[Dictionary], gm: Node) -> Array:
+static func generate_local_daily_catalog(day: int, gm: Node) -> Array:
 	var catalog: Array = []
 	var index: int = 0
-	for fixed_item in fixed_core_items:
-		var decorated := _decorate_catalog_item((fixed_item as Dictionary).duplicate(true), day, index)
-		catalog.append(_ShopItem.from_dict(decorated))
-		index += 1
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash("shop_local_day_%d" % day))
@@ -49,7 +45,8 @@ static func build_generation_system_prompt() -> String:
 		"[ITEM]",
 		"category=gift",
 		"sub_category=cute_gift",
-		"effect_archetype=gift_trust_small",
+		"use_mode=gift",
+		"instant_stats=passion:4",
 		"title=示例标题",
 		"subtitle=示例副标题",
 		"short_desc=示例短描述",
@@ -62,19 +59,21 @@ static func build_generation_system_prompt() -> String:
 		"[/ITEM]",
 		"",
 		"tags 和 user_comments 使用竖线 | 分隔，不要使用 JSON 数组。",
+		"instant_stats 使用竖线 | 分隔多个数值，如 stress:-8|passion:2。",
 		"giftable 只能是 true 或 false。",
 		"商品必须像大学生会在电商平台看到的普通商品，可以略怪，但不要超现实。",
 		"禁止真实品牌、真实平台名、知名 IP、政治、血腥、违法、露骨内容。",
-		"effect_archetype 只能使用白名单中的值。",
+		"商品只有两种使用模式：gift（礼物，送给女主）或 consume（消耗品，自己用）。",
+		"instant_stats 只能包含 passion（热情）和 stress（压力）两个键，值为整数。",
+		"禁止任何摆件/装备/永久持有/武器概念的商品。禁止 RPG 装备。",
 	]).strip_edges()
 
-static func build_generation_prompt(day: int, fixed_core_count: int, gm: Node) -> String:
+static func build_generation_prompt(day: int, gm: Node) -> String:
 	var state_prompt: String = gm.get_llm_state_prompt() if gm != null and gm.has_method("get_llm_state_prompt") else ""
 	var prompt_manager: Node = _get_prompt_manager()
 	var vars := {
-		"shop_target_count": str(maxi(1, CATALOG_SIZE - fixed_core_count)),
+		"shop_target_count": str(CATALOG_SIZE),
 		"shop_day": str(day),
-		"shop_effect_whitelist": ", ".join(get_effect_archetype_keys()),
 		"shop_state_block": "",
 	}
 	if not state_prompt.is_empty():
@@ -86,9 +85,13 @@ static func build_generation_prompt(day: int, fixed_core_count: int, gm: Node) -
 
 	var parts: PackedStringArray = []
 	parts.append("请生成 %s 个架空电商商品。" % vars["shop_target_count"])
-	parts.append("时间背景：Day %s 的 GameJam 期间。" % vars["shop_day"])
+	parts.append("时间背景：Day %s 的叙事大赛期间。" % vars["shop_day"])
 	parts.append("类别限定：gift, life, creative, weird。")
-	parts.append("effect_archetype 白名单：%s。" % vars["shop_effect_whitelist"])
+	parts.append("use_mode 只能是 gift（礼物，送给女主）或 consume（消耗品，自己用）。")
+	parts.append("instant_stats 只能包含 passion 和 stress 两个键，值为整数。")
+	parts.append("  gift 类建议：instant_stats=passion:4 到 passion:8")
+	parts.append("  consume 减压类建议：stress:-15 到 stress:-3")
+	parts.append("  consume 创作类建议：passion:5 到 passion:12（可加 stress 副作用）")
 	parts.append("price_band 只能是 low / mid / high。")
 	parts.append("每个商品都必须用 [ITEM] ... [/ITEM] 块输出，字段必须完整，字段名必须精确一致。")
 	parts.append("不要输出 JSON，不要输出代码块，不要在块外补充任何说明。")
@@ -130,8 +133,13 @@ static func _pick_local_blueprints(count: int, rng: RandomNumberGenerator, gm: N
 	var available_indices: Array[int] = []
 	for i in range(ShopCatalogStaticData.LOCAL_BLUEPRINTS.size()):
 		available_indices.append(i)
+	if available_indices.is_empty():
+		return picked
 
-	while not available_indices.is_empty() and picked.size() < count:
+	while picked.size() < count:
+		if available_indices.is_empty():
+			for i in range(ShopCatalogStaticData.LOCAL_BLUEPRINTS.size()):
+				available_indices.append(i)
 		var total_weight: int = 0
 		for blueprint_index in available_indices:
 			total_weight += _get_blueprint_weight(ShopCatalogStaticData.LOCAL_BLUEPRINTS[blueprint_index], gm)
@@ -163,7 +171,6 @@ static func _get_blueprint_weight(blueprint: Dictionary, gm: Node) -> int:
 			gm_stats[stat_key] = int(gm.get(stat_key)) if gm.get(stat_key) != null else 0
 
 	for rule in rules:
-		# 检查 GM 状态条件
 		var stat_ok: bool = bool(rule.get("stat_any", false))
 		if not stat_ok:
 			var stat_field: String = str(rule.get("stat_field", ""))
@@ -182,7 +189,6 @@ static func _get_blueprint_weight(blueprint: Dictionary, gm: Node) -> int:
 		if not stat_ok:
 			continue
 
-		# 检查蓝图字段匹配
 		var match_field: String = str(rule.get("match_field", ""))
 		var match_value: String = str(rule.get("match_value", ""))
 		var bp_value: String = str(blueprint.get(match_field, ""))
@@ -220,11 +226,12 @@ static func _build_local_item_from_blueprint(blueprint: Dictionary, day: int, in
 	var shipping_max: int = int(shipping_range[1]) if shipping_range.size() > 1 else shipping_min
 
 	var item := {
-		"item_id": "daily_%s_%d" % [str(blueprint.get("blueprint_id", "item")), day],
+		"item_id": "daily_%s_%d_%02d" % [str(blueprint.get("blueprint_id", "item")), day, index],
 		"source_type": "local_blueprint",
 		"category": str(blueprint.get("category", "weird")),
 		"sub_category": str(blueprint.get("sub_category", "")),
-		"effect_archetype": str(blueprint.get("effect_archetype", "flavor_no_effect")),
+		"effect_archetype": str(blueprint.get("effect_archetype", "mood_up_small")),
+		"instant_stats": _ShopItem._parse_stats_field(blueprint.get("instant_stats", null)),
 		"title": title,
 		"subtitle": _pick_seeded(subtitles, rng, "今天也会被算法推到你眼前的东西"),
 		"short_desc": _pick_seeded(short_descs, rng, "普通商品，但挺像会在深夜被下单。"),
@@ -252,6 +259,8 @@ static func _decorate_catalog_item(item: Dictionary, day: int, index: int) -> Di
 		item["giftable"] = false
 	if not item.has("tags"):
 		item["tags"] = []
+	if not item.has("instant_stats"):
+		item["instant_stats"] = {}
 	var fake_rng := RandomNumberGenerator.new()
 	fake_rng.seed = abs(hash("%s_%d_%d" % [str(item.get("item_id", "")), day, index]))
 	if not item.has("sales_count"):
@@ -281,9 +290,35 @@ static func _sanitize_llm_item(raw_item: Dictionary, day: int, index: int) -> Di
 	if not ShopCatalogStaticData.ALLOWED_CATEGORIES.has(category):
 		category = "weird"
 
-	var effect_archetype: String = str(raw_item.get("effect_archetype", "flavor_no_effect")).strip_edges()
-	if not ShopCatalogStaticData.EFFECT_ARCHETYPES.has(effect_archetype):
-		effect_archetype = "flavor_no_effect"
+	# use_mode 优先，兼容旧格式 effect_archetype
+	var use_mode: String = str(raw_item.get("use_mode", "")).strip_edges().to_lower()
+	var effect_archetype: String = ""
+	if use_mode == "gift":
+		effect_archetype = "gift_item"
+	elif use_mode == "consume":
+		effect_archetype = "mood_up_small"
+	else:
+		# 旧格式兼容：从 effect_archetype 推断 use_mode
+		var arch: String = str(raw_item.get("effect_archetype", "mood_up_small")).strip_edges()
+		if ShopCatalogStaticData.EFFECT_ARCHETYPES.has(arch):
+			effect_archetype = arch
+			var arch_def: Dictionary = ShopCatalogStaticData.EFFECT_ARCHETYPES[arch]
+			use_mode = str(arch_def.get("use_mode", "consume"))
+		else:
+			effect_archetype = "mood_up_small"
+			use_mode = "consume"
+
+	# instant_stats：只允许 passion 和 stress
+	var raw_stats: Variant = raw_item.get("instant_stats", null)
+	var instant_stats: Dictionary = _ShopItem._parse_stats_field(raw_stats)
+	var allowed_keys: PackedStringArray = ["passion", "stress"]
+	var cleaned_stats: Dictionary = {}
+	for k in instant_stats.keys():
+		if allowed_keys.has(str(k)):
+			cleaned_stats[str(k)] = clampi(int(instant_stats[k]), -30, 30)
+	# 默认值
+	if cleaned_stats.is_empty():
+		cleaned_stats = {"passion": 4} if use_mode == "gift" else {"stress": -8}
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = abs(hash("%s|%d|%d" % [title, day, index]))
@@ -294,6 +329,7 @@ static func _sanitize_llm_item(raw_item: Dictionary, day: int, index: int) -> Di
 		"category": category,
 		"sub_category": str(raw_item.get("sub_category", "")).strip_edges(),
 		"effect_archetype": effect_archetype,
+		"instant_stats": cleaned_stats,
 		"title": title,
 		"subtitle": str(raw_item.get("subtitle", "今天也可能会被算法推到你眼前")).strip_edges(),
 		"short_desc": str(raw_item.get("short_desc", "普通商品，但像是会在深夜被点开。")).strip_edges(),
@@ -301,7 +337,7 @@ static func _sanitize_llm_item(raw_item: Dictionary, day: int, index: int) -> Di
 		"price_band": price_band,
 		"price": _resolve_price_from_band(price_band, rng),
 		"shipping_days": rng.randi_range(1, 3),
-		"giftable": bool(raw_item.get("giftable", false)),
+		"giftable": true if use_mode == "gift" else bool(raw_item.get("giftable", false)),
 		"tags": _sanitize_tags(raw_item.get("tags", [])),
 		"seller_style": str(raw_item.get("seller_style", "普通商家")).strip_edges(),
 		"user_comments": _sanitize_comments(raw_item.get("user_comments", [])),

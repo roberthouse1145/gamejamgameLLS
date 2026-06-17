@@ -29,8 +29,7 @@ $ignored_prefixes = @(
     ".git\",
     ".godot\",
     ".kiro\",
-    "__pycache__\",
-    "godot-mcp\node_modules\"
+    "__pycache__\"
 )
 
 $utf8_decoder = [System.Text.UTF8Encoding]::new($false, $true)

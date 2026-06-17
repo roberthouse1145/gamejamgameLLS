@@ -187,3 +187,13 @@ static func get_chip_hover_style() -> StyleBoxFlat:
 	s.content_margin_right = 16
 	s.content_margin_bottom = 8
 	return s
+
+
+## 推荐回复 chip — disabled（与 chip normal 同边距，底色与边框略灰化）
+static func get_chip_disabled_style() -> StyleBoxFlat:
+	var s := rounded_flat(Color("#EBEDF0"), RADIUS_LG, Color("#D8DCE3"), 1)
+	s.content_margin_left = 16
+	s.content_margin_top = 8
+	s.content_margin_right = 16
+	s.content_margin_bottom = 8
+	return s

@@ -493,8 +493,8 @@ func load_project(project: Resource) -> void:
 		var AVGGameUIConfigClass = load("res://scripts/avg/resources/avg_game_ui_config.gd")
 		if AVGGameUIConfigClass:
 			project.game_ui_config = AVGGameUIConfigClass.new()
-	if project.game_ui_config != null and project.game_ui_config.has_method("init_defaults"):
-		project.game_ui_config.init_defaults()
+			if project.game_ui_config.has_method("init_defaults"):
+				project.game_ui_config.init_defaults()
 	if _save_manager != null:
 		_save_manager.set_project_name(project.project_name)
 	if _screen_manager != null and ui_container != null:

@@ -5,7 +5,7 @@ class_name ChatTopic extends Resource
 ## Topic唯一标识
 @export var topic_id: String = ""
 
-## Topic类型：work_clarification, work_report, story_event, casual_interaction, relationship_event, tutorial
+## Topic类型：work_report, story_event, casual_interaction, relationship_event, tutorial, npc_initiative
 @export var topic_type: String = ""
 
 ## 显示标题

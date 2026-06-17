@@ -1,5 +1,5 @@
 class_name ShopCatalogStaticData
-## 商店静态数据管理：从 DSL 文件加载配置、效果原型、蓝图、核心商品
+## 商店静态数据管理：从 DSL 文件加载配置、效果原型、蓝图
 
 const DSL_PATH: String = "res://resources/data/shop/shop_data.dsl"
 
@@ -11,7 +11,6 @@ static var EFFECT_ARCHETYPES: Dictionary = {}
 static var LOCAL_BLUEPRINTS: Array[Dictionary] = []
 
 # ── 内部缓存 ────────────────────────────────────────
-static var _core_items: Array[Dictionary] = []
 static var _category_display: Dictionary = {}
 static var _seller_names: PackedStringArray = []
 static var _price_ranges: Dictionary = {}
@@ -52,9 +51,6 @@ static func _load_all() -> void:
 
 	LOCAL_BLUEPRINTS = ShopItemBlockParser.parse_blocks(text, "BLUEPRINT")
 
-	for raw in ShopItemBlockParser.parse_blocks(text, "CORE_ITEM"):
-		_core_items.append(_parse_core_item(raw))
-
 	var config: Dictionary = ShopItemBlockParser.parse_multi(text, PackedStringArray([
 		"CATEGORIES", "PRICE_BANDS", "PRICE_RANGES", "ABSURDITY",
 		"BANNED_TERMS", "SELLER_NAMES", "STAT_LABELS", "STATE_LABELS", "WEIGHT_RULES",
@@ -70,7 +66,7 @@ static func get_effect_definition(effect_id: String) -> Dictionary:
 	_ensure_loaded()
 	if EFFECT_ARCHETYPES.has(effect_id):
 		return (EFFECT_ARCHETYPES[effect_id] as Dictionary).duplicate(true)
-	return (EFFECT_ARCHETYPES.get("flavor_no_effect", {}) as Dictionary).duplicate(true)
+	return (EFFECT_ARCHETYPES.get("mood_up_small", {}) as Dictionary).duplicate(true)
 
 
 static func get_effect_archetype_keys() -> PackedStringArray:
@@ -79,14 +75,6 @@ static func get_effect_archetype_keys() -> PackedStringArray:
 	for k in EFFECT_ARCHETYPES.keys():
 		keys.append(str(k))
 	return keys
-
-
-static func get_fixed_core_items() -> Array[Dictionary]:
-	_ensure_loaded()
-	var result: Array[Dictionary] = []
-	for item in _core_items:
-		result.append((item as Dictionary).duplicate(true))
-	return result
 
 
 static func get_local_blueprints() -> Array[Dictionary]:
@@ -240,7 +228,7 @@ static func _parse_config(config: Dictionary) -> void:
 
 
 # ╔════════════════════════════════════════════════════╗
-# ║ 内部：效果 / 核心商品解析                           ║
+# ║ 内部：效果解析                                      ║
 # ╚════════════════════════════════════════════════════╝
 
 static func _parse_effect(raw: Dictionary) -> Dictionary:
@@ -304,13 +292,3 @@ static func _parse_modifier_arr(arr: Array) -> Dictionary:
 		}
 	return {}
 
-
-static func _parse_core_item(raw: Dictionary) -> Dictionary:
-	var result: Dictionary = raw.duplicate(true)
-	var desc: String = str(result.get("desc", ""))
-	desc = desc.replace("\\n", "\n")
-	result["desc"] = desc
-	result["source_type"] = "fixed_core"
-	result["detail_desc"] = desc
-	result["short_desc"] = desc.split("\n", false)[0] if not desc.is_empty() else ""
-	return result

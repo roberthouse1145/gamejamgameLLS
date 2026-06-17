@@ -1,4 +1,6 @@
-# 在家活动系统设计方案
+# 在家活动系统设计方案 [Deprecated]
+
+> 当前正式桌面只保留 `sleep/rest` 作为居家行动入口。本文档中关于 `chat_casual`、`chat_deep`、`personal`、`watch`、`review`、主动居家活动与居家 Important Event 的设计是旧方案记录，不作为当前实现依据。
 
 ## 1. 设计哲学
 

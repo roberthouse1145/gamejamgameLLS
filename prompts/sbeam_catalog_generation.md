@@ -54,6 +54,12 @@ review_5=海蓝色咖啡|3.8|true|评测内容
 
 字段约束：
 - reaction_bias 只能是 laugh / complain / hyped / aftertaste / cozy。
+- reaction_bias 会直接影响玩家和林夏一起玩后的数值，不要随便全写 cozy 或 hyped：
+  - laugh：主要降压力，轻微回热情，适合搞笑/派对/轻松小游戏。
+  - complain：降压较少，轻微回热情，适合有槽点但能聊起来的游戏。
+  - hyped：大幅回热情，适合让人想做游戏、系统或表现力很刺激的作品。
+  - aftertaste：中等降压 + 中等回热情，适合余味强、能带来创作启发的作品。
+  - cozy：均衡恢复，适合轻松治愈但不特别刺激的作品。
 - price 是 0 到 68 的整数。
 - release_date 是 2022 到 2025 之间的虚构日期，格式 YYYY-MM-DD。
 - recent_reviews_summary / all_reviews_summary 模仿 Steam 评测汇总格式。

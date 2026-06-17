@@ -258,6 +258,7 @@ func load_run_state(data: Dictionary) -> bool:
 		current_step = null
 		_waiting = false
 		_started = false
+		print("[StoryDirector] current_chapter cleared (reason: load_run_state empty save)")
 		_request_trigger_scan()
 		return true
 
@@ -317,6 +318,7 @@ func reset_runtime_state() -> void:
 	completed_chapters.clear()
 	_pending_activity_guidance.clear()
 	_waiting = false
+	print("[StoryDirector] current_chapter cleared (reason: reset_runtime_state)")
 	_started = false
 	_story_avg_requests.clear()
 	_story_avg_counter = 0
@@ -405,6 +407,10 @@ func _complete_chapter() -> void:
 	current_step = null
 	current_chapter = null
 	_started = false
+	print("[StoryDirector] current_chapter cleared (reason: chapter %s completed, next=%s)" % [
+		chapter_id,
+		next_chapter_id if not next_chapter_id.is_empty() else "<none>",
+	])
 
 	# 自动开始下一章节
 	if not next_chapter_id.is_empty():
@@ -436,6 +442,8 @@ func _execute_action(action: Dictionary) -> void:
 			_action_play_avg(action)
 		"preview_current_project":
 			_action_preview_current_project(action)
+		"create_bithub_milestone":
+			_action_create_bithub_milestone(action)
 		"open_browser":
 			_action_open_browser(action)
 		"post_moment":
@@ -999,6 +1007,27 @@ func _action_preview_current_project(action: Dictionary) -> void:
 	print("[StoryDirector] Project preview started: %s" % preview_id)
 
 
+## create_bithub_milestone — 将当前工程固化为 Bithub 可玩里程碑（黑箱剧情动作）
+## { "type": "create_bithub_milestone", "name": "第七天 DEMO 试玩版", "entry_scene_id": "" }
+func _action_create_bithub_milestone(action: Dictionary) -> void:
+	var manager: Node = get_node_or_null("/root/BithubManager")
+	if manager == null or not manager.has_method("create_milestone"):
+		push_warning("[StoryDirector] create_bithub_milestone: BithubManager not available")
+		return
+
+	var milestone_name: String = _interpolate(str(action.get("name", action.get("milestone_name", "")))).strip_edges()
+	if milestone_name.is_empty():
+		milestone_name = "可玩里程碑"
+	var entry_scene_id: String = _interpolate(str(action.get("entry_scene_id", action.get("scene_id", "")))).strip_edges()
+	var commit_id: String = _interpolate(str(action.get("commit_id", ""))).strip_edges()
+
+	var milestone: Dictionary = manager.call("create_milestone", milestone_name, entry_scene_id, commit_id)
+	if milestone.is_empty():
+		push_warning("[StoryDirector] create_bithub_milestone: failed to create milestone '%s'" % milestone_name)
+		return
+	print("[StoryDirector] Bithub milestone created: %s" % str(milestone.get("milestone_id", "")))
+
+
 func _should_generate_story_avg(action: Dictionary) -> bool:
 	return action.has("prompt") or action.has("prompt_key") or action.has("scene_prompt") or action.has("scene_prompt_key")
 
@@ -1518,7 +1547,7 @@ func _resolve_story_avg_generation_transit_stages(action: Dictionary) -> Array[S
 
 
 ## open_browser — 请求打开浏览器页面
-## { "type": "open_browser", "url": "gamejam://signup" }
+## { "type": "open_browser", "url": "framestory://signup" }
 func _action_open_browser(action: Dictionary) -> void:
 	var browser: Node = get_node_or_null("/root/BrowserManager")
 	if browser == null:
@@ -1606,7 +1635,7 @@ func _action_delay(action: Dictionary) -> void:
 
 
 ## play_bgm — 播放背景音乐
-## { "type": "play_bgm", "path": "res://Assets/sounds/bgm/Blush (loop).ogg", "crossfade": 1.0 }
+## { "type": "play_bgm", "path": "res://Assets/sounds/bgm/优哉游哉(loop).wav", "crossfade": 1.0 }
 func _action_play_bgm(action: Dictionary) -> void:
 	var audio: Node = get_node_or_null("/root/AudioManager")
 	if audio == null or not audio.has_method("play_bgm"):
@@ -1855,7 +1884,7 @@ func _action_consume_ap(action: Dictionary) -> void:
 ## set_activity_lock — 叙事活动锁，按活动类型选择性禁用
 ## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["date", "part_time", "gift"], "reason": "先把报名搞定" }
 ## { "type": "set_activity_lock", "mode": "whitelist", "activities": ["chat_casual", "rest"], "reason": "今天只能待在家里" }
-## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["browser", "follow_contest"], "reason": "先别分心发帖了" }
+## { "type": "set_activity_lock", "mode": "blacklist", "activities": ["browser_surf"], "reason": "先别摸鱼了" }
 func _action_set_activity_lock(action: Dictionary) -> void:
 	var mode: String = str(action.get("mode", "blacklist")).strip_edges().to_lower()
 	var raw_activities: Variant = action.get("activities", [])
@@ -1878,7 +1907,7 @@ func _action_clear_activity_lock(_action: Dictionary) -> void:
 
 
 ## ensure_dev_work_task — 确保一项剧情安排的 Dev Work 已加入任务池
-## { "type": "ensure_dev_work_task", "template_path": "res://resources/dev_work/story_tasks/day1_creative_brief.json" }
+## { "type": "ensure_dev_work_task", "template_path": "res://resources/dev_work/story_tasks/lock_creative_direction.json" }
 func _action_ensure_dev_work_task(action: Dictionary) -> void:
 	var dcm: Node = get_node_or_null("/root/DevCycleManager")
 	if dcm == null or not dcm.has_method("add_dynamic_task"):
@@ -2410,7 +2439,7 @@ func _on_wait_work_order_completed(order_id: String, old_status: String, new_sta
 	_on_wait_satisfied({"order_id": order_id, "old_status": old_status, "new_status": new_status})
 
 
-func _on_wait_work_order_dispatched(order_id: String) -> void:
+func _on_wait_work_order_dispatched(order_id: String, _assignee_npc_id: String) -> void:
 	if current_step == null:
 		return
 	var expected_id: String = _interpolate(str(current_step.wait_for.get("order_id", "")))

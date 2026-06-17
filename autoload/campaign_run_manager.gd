@@ -627,7 +627,7 @@ func _get_current_day() -> int:
 
 
 func _can_write_checkpoint() -> bool:
-	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests() and not _has_pending_community_requests() and not _has_pending_shop_requests()
+	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests() and not _has_pending_shop_requests()
 
 
 func _can_reset_run() -> bool:
@@ -657,13 +657,6 @@ func _has_pending_browser_requests() -> bool:
 	if browser == null or not browser.has_method("has_pending_requests"):
 		return false
 	return bool(browser.call("has_pending_requests"))
-
-
-func _has_pending_community_requests() -> bool:
-	var community: Node = _get_autoload("CommunityActionManager")
-	if community == null or not community.has_method("has_pending_requests"):
-		return false
-	return bool(community.call("has_pending_requests"))
 
 
 func _has_pending_shop_requests() -> bool:
@@ -742,7 +735,6 @@ func _reset_all_runtime_state() -> void:
 	_reset_manager_state("WorkOrderManager")
 	_reset_manager_state("ChatManager", [true])
 	_reset_manager_state("BrowserManager", [true])
-	_reset_manager_state("CommunityActionManager")
 	_reset_manager_state("ShopManager")
 	_reset_manager_state("TransitManager")
 	_reset_manager_state("DateManager")

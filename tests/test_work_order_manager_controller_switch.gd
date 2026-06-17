@@ -12,16 +12,16 @@ func _ready() -> void:
 
 
 func _run_test() -> void:
-	print("=== WorkOrderManager Controller Switch Test ===")
-	await _test_builds_controller_worker()
+	print("=== WorkOrderManager Agent Switch Test ===")
+	await _test_builds_work_order_agent_worker()
 	_test_finish_order_flow()
 	_print_summary()
 
 
-func _test_builds_controller_worker() -> void:
+func _test_builds_work_order_agent_worker() -> void:
 	var manager: Node = WorkOrderManagerScript.new()
 	var worker: ChatAgent = manager.call("_build_worker_agent_for_order", "wo_test")
-	_assert("controller worker instantiated", worker != null, "")
+	_assert("work order agent worker instantiated", worker != null, "")
 	if worker == null:
 		return
 
@@ -29,17 +29,19 @@ func _test_builds_controller_worker() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	_assert("worker prompt key is controller", str(worker.prompt_key) == "work_order_controller", str(worker.prompt_key))
+	_assert("worker prompt key is work_order_agent", str(worker.prompt_key) == "work_order_agent", str(worker.prompt_key))
 	_assert("worker has AIService", worker.get_node_or_null("AIService") != null, "")
-	_assert("worker has PlannerAgent", worker.get_node_or_null("PlannerAgent") != null, "")
-	_assert("worker has WriterAgent", worker.get_node_or_null("WriterAgent") != null, "")
-	_assert("worker has ExecutorAgent", worker.get_node_or_null("ExecutorAgent") != null, "")
+	_assert("worker has no PlannerAgent", worker.get_node_or_null("PlannerAgent") == null, "")
+	_assert("worker has no WriterAgent", worker.get_node_or_null("WriterAgent") == null, "")
+	_assert("worker has no ExecutorAgent", worker.get_node_or_null("ExecutorAgent") == null, "")
 
 	worker.queue_free()
 
 
 func _test_finish_order_flow() -> void:
 	var manager: Node = WorkOrderManagerScript.new()
+	manager.set("_runtime_reset_mode", true)
+	manager.set("_worker_auto_run", false)
 
 	var pending_order := WorkOrderDataClass.new()
 	pending_order.id = "wo_pending"

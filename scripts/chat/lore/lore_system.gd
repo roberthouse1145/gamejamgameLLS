@@ -637,7 +637,9 @@ static func _parse_index_text(text: String) -> PackedStringArray:
 
 static func _parse_lore_text(text: String, file_path: String) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
-	var lines := text.split("\n", false)
+	# NOTE: 必须保留空行。空行是元数据段与 prompt 正文段的分隔符，
+	# 用 allow_empty=false 会把空行吞掉，导致后续中文正文被误当成元数据解析并触发警告。
+	var lines := text.split("\n")
 	var current: Dictionary = {}
 	var prompt_lines: Array[String] = []
 	var in_prompt := false

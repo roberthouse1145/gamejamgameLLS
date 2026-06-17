@@ -1,7 +1,7 @@
 ## AudioManager —— 全局音频管理单例
 ## 功能：
 ##   - SFX 音效池（支持并发播放，互不打断）
-##   - BGM 管理（循环播放、交叉淡入淡出切换）
+##   - BGM 管理（循环播放、交叉淡入淡出切换；非原生 loop 的流会自动重播）
 ##   - 音量控制（分 SFX / BGM 两轨）
 ##   - key-based 音效注册（集中管理路径，避免到处 load()）
 ##
@@ -237,10 +237,29 @@ func register_sfx(key: String, path: String) -> void:
 	_sfx_cache.erase(key)  # 清除旧缓存
 
 
+## 判断音频流是否自身已开启循环
+## - AudioStreamOggVorbis / AudioStreamMP3: `loop` (bool)
+## - AudioStreamWAV: `loop_mode` (enum，0 = LOOP_DISABLED)
+func _stream_loops_natively(stream: AudioStream) -> bool:
+	if stream == null:
+		return false
+	if "loop" in stream:
+		return bool(stream.get("loop"))
+	if "loop_mode" in stream:
+		return int(stream.get("loop_mode")) != 0
+	return false
+
+
 func _on_bgm_player_finished(player: AudioStreamPlayer) -> void:
 	if player != _bgm_active_player:
 		return
 	var finished_stream: AudioStream = _bgm_current_stream
+	# 非原生 loop 的 BGM：自动重头播放，保持循环语义
+	if finished_stream != null and not _stream_loops_natively(finished_stream):
+		player.stream = finished_stream
+		player.volume_db = bgm_volume_db
+		player.play()
+		return
 	_bgm_current_stream = null
 	if finished_stream != null:
 		bgm_finished.emit(finished_stream)

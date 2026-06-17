@@ -433,7 +433,7 @@ func _build_completion_message(payload: Dictionary) -> String:
 		return "休息结束。"
 
 	var parts: Array[String] = []
-	for key in ["stress", "affection", "passion", "money", "completion", "quality", "stability", "hype"]:
+	for key in ["stress", "passion", "money", "completion", "quality", "stability", "hype"]:
 		if not rewards.has(key):
 			continue
 		var delta: int = int(rewards.get(key, 0))
@@ -450,8 +450,6 @@ func _get_reward_label(stat_name: String) -> String:
 	match stat_name:
 		"stress":
 			return "压力"
-		"affection":
-			return "好感"
 		"passion":
 			return "激情"
 		"money":

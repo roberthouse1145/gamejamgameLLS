@@ -65,7 +65,8 @@ func parse_ai_response_text(text: String, fallback_npc_id: String) -> Dictionary
 	var has_failed_marker: bool = "[TOPIC_FAILED]" in clean_text
 	var parse_source: String = clean_text.replace("[TOPIC_COMPLETE]", "").replace("[TOPIC_FAILED]", "")
 	var json_str := _extract_json_from_text(parse_source)
-	var response_json: Variant = JSON.parse_string(json_str)
+	var _json := JSON.new()
+	var response_json: Variant = _json.data if _json.parse(json_str) == OK else null
 	if response_json != null and response_json is Dictionary:
 		var result := _parse_json_response_dict(response_json as Dictionary, fallback_npc_id, has_complete_marker)
 		if has_failed_marker:

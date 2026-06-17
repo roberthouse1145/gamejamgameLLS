@@ -26,7 +26,6 @@ var _llm_enabled: bool = false
 var _catalog_request_id: String = ""
 var _catalog_request_day: int = -1
 var _is_generating_catalog: bool = false
-var _fixed_core_items: Array[Dictionary] = []
 var _catalog: Array = []  # Array[ShopItem]
 var _catalog_day: int = -1
 var _pending_next_day_catalog: Array = []  # Array[ShopItem]
@@ -47,13 +46,11 @@ func _log_debug(message: String) -> void:
 
 func _ready() -> void:
 	name = "ShopManager"
-	_load_fixed_core_items()
 	_setup_ai_service()
 	_connect_signals()
 	# Day 1: local catalog, then async pre-generate Day 2
 	var current_day: int = _get_current_day()
-	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
-		current_day, _fixed_core_items, _get_gm()), current_day)
+	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(current_day, _get_gm()), current_day)
 
 
 func _connect_signals() -> void:
@@ -154,14 +151,12 @@ func refresh_daily_catalog(force: bool = false, use_local_only: bool = false) ->
 
 	if use_local_only or _ai_service == null or not _llm_enabled:
 		_cancel_pending_catalog_request()
-		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
-			day, _fixed_core_items, _get_gm()), day)
+		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(day, _get_gm()), day)
 		return
 
 	# Fallback to local if no pending catalog available
 	_cancel_pending_catalog_request()
-	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
-		day, _fixed_core_items, _get_gm()), day)
+	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(day, _get_gm()), day)
 
 
 ## Internal: send LLM request to pre-generate catalog for target_day
@@ -176,7 +171,7 @@ func _generate_catalog_for_day(target_day: int) -> void:
 	_catalog_request_day = target_day
 	catalog_generation_started.emit(target_day)
 	_catalog_request_id = _ai_service.chat_simple(
-		ShopCatalogFactory.build_generation_prompt(target_day, _fixed_core_items.size(), _get_gm()),
+		ShopCatalogFactory.build_generation_prompt(target_day, _get_gm()),
 		ShopCatalogFactory.build_generation_system_prompt(),
 		{"prompt_key": "shop/catalog_generation_user"}
 	)
@@ -286,7 +281,7 @@ func load_run_state(data: Dictionary) -> bool:
 
 	if _catalog.is_empty():
 		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
-			_get_current_day(), _fixed_core_items, _get_gm()), _get_current_day())
+			_get_current_day(), _get_gm()), _get_current_day())
 	else:
 		catalog_refreshed.emit(get_catalog())
 		inventory_changed.emit(_inv_svc.get_inventory())
@@ -304,8 +299,7 @@ func reset_runtime_state() -> void:
 	_order_svc.reset()
 	_inv_svc.reset()
 	var current_day: int = _get_current_day()
-	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
-		current_day, _fixed_core_items, _get_gm()), current_day)
+	_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(current_day, _get_gm()), current_day)
 	_generate_catalog_for_day(current_day + 1)
 
 
@@ -326,8 +320,7 @@ func _on_day_changed(new_day: int) -> void:
 		_log_debug("[ShopManager] Activated %d pre-generated items for day %d" % [_catalog.size(), new_day])
 	else:
 		# No pending: fallback to local
-		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(
-			new_day, _fixed_core_items, _get_gm()), new_day)
+		_apply_catalog(ShopCatalogFactory.generate_local_daily_catalog(new_day, _get_gm()), new_day)
 	# Pre-generate for next day
 	_generate_catalog_for_day(new_day + 1)
 
@@ -340,7 +333,7 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 	_cancel_pending_catalog_request()
 
 	var raw_text: String = AIService.extract_content(response).strip_edges()
-	var max_llm: int = maxi(1, ShopCatalogFactory.CATALOG_SIZE - _fixed_core_items.size())
+	var max_llm: int = ShopCatalogFactory.CATALOG_SIZE
 	var llm_items: Array = ShopCatalogFactory.parse_llm_catalog_items(raw_text, request_day, max_llm)
 	if llm_items.is_empty():
 		catalog_generation_failed.emit("LLM 商品预生成解析失败（Day %d）" % request_day)
@@ -348,11 +341,6 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 
 	var catalog: Array = []
 	var index: int = 0
-	for fixed_item in _fixed_core_items:
-		var decorated := ShopCatalogFactory.decorate_catalog_item(
-			(fixed_item as Dictionary).duplicate(true), request_day, index)
-		catalog.append(_ShopItem.from_dict(decorated))
-		index += 1
 	for llm_item in llm_items:
 		var decorated := ShopCatalogFactory.decorate_catalog_item(
 			llm_item.to_dict(), request_day, index)
@@ -362,7 +350,7 @@ func _on_ai_request_completed(request_id: String, response: Dictionary) -> void:
 			break
 
 	var local_fill: Array = ShopCatalogFactory.generate_local_daily_catalog(
-		request_day, [], _get_gm())
+		request_day, _get_gm())
 	var used_ids: Dictionary = {}
 	for existing in catalog:
 		used_ids[existing.item_id] = true
@@ -393,10 +381,6 @@ func _on_ai_request_failed(request_id: String, error_msg: String, _error_code: i
 # ══════════════════════════════════════════════════════
 #  内部：工具函数
 # ══════════════════════════════════════════════════════
-
-func _load_fixed_core_items() -> void:
-	_fixed_core_items = ShopCatalogStaticData.get_fixed_core_items()
-
 
 func _apply_catalog(items: Array, day: int) -> void:
 	_catalog = []
@@ -463,7 +447,7 @@ func _trigger_gift_topic(shop_item: ShopItem) -> void:
 	# 1) 玩家发送商品分享卡片
 	if chat.has_method("store_player_message_data"):
 		chat.store_player_message_data(DM_CHANNEL, {
-			"content": "送你一个礼物~",
+			"content": "",
 			"card": shop_item.build_gift_card(),
 		})
 
@@ -493,6 +477,8 @@ func _trigger_gift_topic(shop_item: ShopItem) -> void:
 func _open_linkchat_dm(channel_id: String) -> void:
 	var app_manager: Node = get_node_or_null("/root/AppManager")
 	if app_manager == null or not app_manager.has_method("launch_app"):
+		return
+	if app_manager.get("window_manager") == null:
 		return
 	var window: Control = app_manager.launch_app("linkchat", true)
 	if window == null or not is_instance_valid(window):

@@ -9,7 +9,7 @@ topic_type = "story_event"
 display_title = "讨论游戏主题"
 npc_id = "npc_lin_xia"
 channel_id = "dm_lin_xia"
-system_prompt = "【背景】你和{player_name}是搭档，正在准备参加 AGJ 2027 GameJam 新星·叙事赛道。主题已经公布：『异世界』。你们要快速确认作品大方向。
+system_prompt = "【背景】你和{player_name}是搭档，正在准备参加帧语·新星叙事大赛 2027。主题已经公布：『异世界』。你们要快速确认作品大方向。
 
 【你已知的事实（严禁编造或修改）】
 - 主题：『异世界』，开放性主题

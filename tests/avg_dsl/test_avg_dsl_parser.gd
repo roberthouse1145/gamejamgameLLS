@@ -21,6 +21,7 @@ func _ready() -> void:
 	_test_if_else_branch_shape()
 	_test_parser_rejects_elif()
 	_test_parser_rejects_else_if()
+	_test_parser_rejects_orphan_else_after_elif()
 	_test_parser_accepts_trailing_inline_comment_on_command()
 	_test_parser_accepts_embedded_command_after_comment_prefix()
 	_test_parser_strips_misapplied_arrow_prefix_on_command()
@@ -116,6 +117,23 @@ func _test_parser_rejects_else_if() -> void:
 		return
 	var serialized: String = _serializer.serialize(commands)
 	_assert_true(not serialized.contains("else if"), "parser does not keep else if as narration")
+
+
+func _test_parser_rejects_orphan_else_after_elif() -> void:
+	var dsl: String = "if var[akari_choice] >= 4:\n    > 命中\nelif var[rin_choice] >= 4:\n    > 次命中\nelse:\n    > 未命中"
+	var result: Dictionary = _parser.parse(dsl)
+	_assert_true(not result.get("success", true), "parser rejects orphan else after elif")
+	var errors: Array = result.get("errors", [])
+	var found_else_error: bool = false
+	for err in errors:
+		if str(err.get("message", "")).contains("Unexpected else without matching if"):
+			found_else_error = true
+			break
+	_assert_true(found_else_error, "parser reports orphan else instead of narration fallback")
+	var commands: Array = result.get("commands", [])
+	for cmd in commands:
+		if cmd is AVGCommand and (cmd as AVGCommand).command_type == "DIALOGUE":
+			_assert_true(str((cmd as AVGCommand).params.get("text", "")) != "else:", "parser does not keep orphan else as dialogue")
 
 
 func _test_parser_accepts_trailing_inline_comment_on_command() -> void:

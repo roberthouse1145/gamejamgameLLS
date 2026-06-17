@@ -3,6 +3,7 @@
 class_name AVGScenePromptBuilder extends RefCounted
 
 const PromptPipelineScript = preload("res://scripts/prompt/prompt_pipeline.gd")
+const ChatProjectContextBuilderClass = preload("res://scripts/chat/chat_project_context_builder.gd")
 
 
 # ---------------------------------------------------------------------------
@@ -171,3 +172,35 @@ func _resolve_with_pipeline(prompt_key: String, ctx: Dictionary, session: Dictio
 		)
 		return str(pipeline_result.get("prompt", "")).strip_edges()
 	return ""
+
+
+## 构建 AVG 场景生成专用的「项目共享上下文」段，注入到外层 dsl_preview 模板的
+## {{project_shared_context}} 占位符。包含：开发循环 + 工单状态 + KB 索引段。
+##
+## 与 ChatProjectContextBuilder.build_for_chat() 不同：本函数无 NPC scope 门槛
+## （AVG 生成是导演视角，全部展开），且 scan_text 传空（无玩家输入，也命中不上）。
+## LLM 需要某 KB 文档全文时通过工具 kb_read 主动取。
+##
+## 设计为 static 是因为外层 generator 不持有 builder 实例（不是 builder 子类）。
+static func build_avg_project_shared_context() -> String:
+	var builder := ChatProjectContextBuilderClass.new()
+	var sections: PackedStringArray = [
+		"## 项目共享上下文",
+		"你正在为「玩家与女友林夏合作开发的项目」生成 AVG 场景。下面是项目当前进度和设定文档目录，写台词时注意与之保持一致——比如林夏不应该说出与项目实际状态矛盾的话。",
+	]
+
+	var dev_cycle: String = builder.build_dev_cycle_context().strip_edges()
+	if not dev_cycle.is_empty():
+		sections.append("### 开发循环\n%s" % dev_cycle)
+
+	var work_orders: String = builder.build_work_order_context().strip_edges()
+	if not work_orders.is_empty():
+		sections.append("### 工单状态\n%s" % work_orders)
+
+	# scan_text 传空 → 只输出索引段，命中段不会出现
+	var kb_block: String = builder.build_kb_context("").strip_edges()
+	if not kb_block.is_empty():
+		sections.append(kb_block)
+		sections.append("如需深读某 KB 文档全文，可调用 kb_read(doc_id=\"...\") 工具。仅在确实需要参考时调用，避免不必要的查询。")
+
+	return "\n\n".join(sections).strip_edges()

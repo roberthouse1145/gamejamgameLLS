@@ -1,6 +1,7 @@
 extends MinigameBase
 
 const ActivityOptionLLMServiceClass = preload("res://scripts/activity/activity_option_llm_service.gd")
+const ChatProjectContextBuilderClass = preload("res://scripts/chat/chat_project_context_builder.gd")
 
 const MIN_SUBMITTABLE_BLANKS: int = 1
 const MAX_LINE_CHARS: int = 48
@@ -77,7 +78,11 @@ func _setup_review_stack() -> void:
 		"ScriptFillReviewService",
 		REVIEW_PRIMARY_ROLE,
 		REVIEW_FALLBACK_ROLES,
-		{},
+		{
+			"use_chat_agent": true,
+			"enable_project_tools": true,
+			"max_tool_iterations": 2,
+		},
 		{
 			"temperature": 0.1,
 		}
@@ -967,14 +972,14 @@ func _render_dialogue_blank_block(parent: Control, blank: Dictionary) -> LineEdi
 	var speaker: String = str(blank.get("speaker", "???")).strip_edges()
 	response_row.add_child(_make_speaker_dot(speaker))
 
-	var speaker_tag := RichTextLabel.new()
-	speaker_tag.fit_content = true
-	speaker_tag.autowrap_mode = TextServer.AUTOWRAP_OFF
-	speaker_tag.scroll_active = false
-	speaker_tag.bbcode_enabled = true
+	var speaker_tag := Label.new()
+	speaker_tag.text = speaker
+	speaker_tag.custom_minimum_size = Vector2(120, 0)
+	speaker_tag.clip_text = true
+	speaker_tag.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	speaker_tag.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	speaker_tag.add_theme_font_size_override("normal_font_size", 20)
-	speaker_tag.text = "[color=%s][b]%s[/b][/color]" % [_speaker_color(speaker).to_html(false), speaker]
+	speaker_tag.add_theme_font_size_override("font_size", 20)
+	speaker_tag.add_theme_color_override("font_color", _speaker_color(speaker))
 	response_row.add_child(speaker_tag)
 
 	var quote_prefix := Label.new()
@@ -1391,6 +1396,7 @@ func _review_submission_with_llm(filled_blanks: Array[Dictionary]) -> Dictionary
 		{
 			"task_title": str(work_order.get("title", "")).strip_edges(),
 			"task_description": str(work_order.get("description", "")).strip_edges(),
+			"project_kb_context": _build_review_kb_context(),
 			"scene_brief": _scene_brief,
 			"submission_json": JSON.stringify({
 				"filled_blanks": filled_blanks,
@@ -1405,13 +1411,22 @@ func _review_submission_with_llm(filled_blanks: Array[Dictionary]) -> Dictionary
 		{
 			"filled_blanks": filled_blanks.duplicate(true),
 		},
-		AIService.json_mode_options())
+		{"temperature": 0.1})
 	if _pending_review_request_id.is_empty():
 		return {"passed": true, "source": "review_request_skipped", "flagged_blanks": []}
 
 	var result: Dictionary = await submission_review_completed
 	_pending_review_request_id = ""
 	return result
+
+
+func _build_review_kb_context() -> String:
+	var builder := ChatProjectContextBuilderClass.new()
+	return builder.build_kb_context("%s\n%s\n%s" % [
+		str(task_data.get("title", "")),
+		str(task_data.get("description", "")),
+		_scene_brief,
+	])
 
 
 func _on_review_request_completed(request_id: String, context: Dictionary, raw_text: String, _response: Dictionary) -> void:

@@ -48,47 +48,6 @@ static func register_controller_tools(ai_service: Node) -> void:
 		"fields": ["success", "message", "error"]
 	})
 
-	# ── 上行回传工具 ──
-
-	ai_service.register_tool("wo_request_clarification",
-		"向玩家请求需求澄清。当工单需求模糊、缺少关键信息时调用。会在 LinkChat 中创建一个澄清话题，让 NPC 自然地向玩家追问。调用后当前工单会暂停，等玩家回答后自动恢复。",
-		{
-			"type": "object",
-			"properties": {
-				"order_id": {"type": "string", "description": "当前工单 ID"},
-				"questions": {
-					"type": "array",
-					"items": {"type": "string"},
-					"description": "需要向玩家澄清的问题列表（1-3 个最关键的问题）"
-				}
-			},
-			"required": ["order_id", "questions"]
-		},
-		func(args: Dictionary) -> Variant: return _wo_request_clarification(args),
-		{"fields": ["success", "message", "error"]}
-	)
-
-	ai_service.register_tool("wo_request_creative_discussion",
-		"请求玩家参与创意讨论。当遇到需要玩家拍板的创意分叉（如角色性格方向、剧情走向选择）时调用。会在 DevWork 中创建一个高优先级讨论任务，不阻塞当前工单。",
-		{
-			"type": "object",
-			"properties": {
-				"order_id": {"type": "string", "description": "当前工单 ID（用于关联追踪）"},
-				"topic": {"type": "string", "description": "讨论主题（如「第二章分支走向」）"},
-				"description": {"type": "string", "description": "为什么需要讨论、当前面临什么抉择"},
-				"kb_category": {
-					"type": "string",
-					"description": "讨论结果存入哪个 KB 分类",
-					"enum": ["world", "characters", "story", "notes"],
-					"default": "story"
-				}
-			},
-			"required": ["order_id", "topic", "description"]
-		},
-		func(args: Dictionary) -> Variant: return _wo_request_creative_discussion(args),
-		{"fields": ["success", "message", "error"]}
-	)
-
 
 ## 全量注册（向后兼容，保留 wo_complete_task）
 static func register_all(ai_service: Node) -> void:
@@ -223,54 +182,3 @@ static func _wo_finish_order(args: Dictionary) -> Dictionary:
 		return {"success": true, "message": "工单 %s 设置为完成" % order_id}
 	else:
 		return {"success": false, "error": "完成工单失败，工单不存在: %s" % order_id}
-
-
-static func _wo_request_clarification(args: Dictionary) -> Dictionary:
-	var mgr: Node = _get_manager()
-	if mgr == null:
-		return {"success": false, "error": "WorkOrderManager 未就绪"}
-
-	var order_id: String = args.get("order_id", "")
-	var questions: Array = args.get("questions", [])
-
-	if order_id.is_empty():
-		return {"success": false, "error": "缺少 order_id"}
-	if questions.is_empty():
-		return {"success": false, "error": "缺少 questions"}
-
-	var order: Resource = mgr.get_order(order_id)
-	if order == null:
-		return {"success": false, "error": "工单不存在: %s" % order_id}
-
-	mgr.request_clarification(order_id, questions)
-	return {
-		"success": true,
-		"message": "已发起需求澄清，工单暂停等待玩家回答。问题: %s" % str(questions)
-	}
-
-
-static func _wo_request_creative_discussion(args: Dictionary) -> Dictionary:
-	var mgr: Node = _get_manager()
-	if mgr == null:
-		return {"success": false, "error": "WorkOrderManager 未就绪"}
-
-	var order_id: String = args.get("order_id", "")
-	var topic: String = args.get("topic", "")
-	var description: String = args.get("description", "")
-	var kb_category: String = args.get("kb_category", "story")
-
-	if topic.is_empty():
-		return {"success": false, "error": "缺少 topic"}
-	if description.is_empty():
-		return {"success": false, "error": "缺少 description"}
-
-	mgr.request_creative_task({
-		"topic": topic,
-		"description": description,
-		"kb_category": kb_category,
-		"requester_order_id": order_id,
-	})
-	return {
-		"success": true,
-		"message": "已请求创意讨论任务: '%s'。该任务会出现在 DevWork 中，不阻塞当前工单。" % topic
-	}

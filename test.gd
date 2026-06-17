@@ -5,7 +5,6 @@ const CharacterDisplayClass = preload("res://scripts/avg/runtime/character_displ
 const StoryStepClass = preload("res://scripts/story/resources/story_step.gd")
 const StoryChapterClass = preload("res://scripts/story/resources/story_chapter.gd")
 const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
-const DslPageParserClass = preload("res://scripts/apps/browser/dsl_page_parser.gd")
 const WebPageRendererClass = preload("res://scripts/apps/browser/web_page_renderer.gd")
 const ChatPromptBuilderClass = preload("res://scripts/chat/chat_prompt_builder.gd")
 
@@ -18,8 +17,6 @@ func _ready() -> void:
 	await _test_signup_scene_rejects_invalid_name()
 	await _test_signup_scene_persists_locked_state()
 	_test_npc_first_prompt_builder()
-	_test_dsl_form_components()
-	_test_dsl_panel_variants()
 	await _test_app_window_lock()
 	await _test_sbeam_library_launch()
 	await _test_story_form_validation_gate()
@@ -348,116 +345,6 @@ func _test_linkchat_response_protocol_parser() -> void:
 		return
 
 	print("[OK] LinkChat response parser supports line protocol and legacy JSON")
-
-
-func _test_dsl_form_components() -> void:
-	var page: Dictionary = DslPageParserClass.parse("""
-<vbox sep=12>
-  <input field=team_name placeholder="请输入队伍名" required min_length=2 max_length=12 pattern="^[A-Za-z0-9_]+$" />
-  <textarea field=team_intro placeholder="一句话介绍">hello</textarea>
-  <select field=team_role options="leader:队长|writer:编剧|artist:美术" value=writer />
-  <checkbox field=agree checked>我已阅读规则</checkbox>
-</vbox>
-""")
-
-	var has_textarea: bool = _page_contains_type(page, "textarea")
-	var has_select: bool = _page_contains_type(page, "select")
-	var has_checkbox: bool = _page_contains_type(page, "checkbox")
-	var team_name_node: Dictionary = _find_field_node(page, "team_name")
-	print("[OK] DSL complex form parsed")
-	print("  has textarea: %s" % str(has_textarea))
-	print("  has select: %s" % str(has_select))
-	print("  has checkbox: %s" % str(has_checkbox))
-	print("  team_name required: %s" % str(team_name_node.get("required", false)))
-	print("  team_name pattern: %s" % str(team_name_node.get("pattern", "")))
-
-
-func _test_dsl_panel_variants() -> void:
-	var panel_page: Dictionary = DslPageParserClass.parse("""
-<vbox>
-  <panel bg=#f8f8f8><label>内容</label></panel>
-</vbox>
-""")
-	var panel_root: Control = WebPageRendererClass.render(panel_page)
-	var panel_node: Control = null
-	if panel_root.get_child_count() > 0:
-		panel_node = panel_root.get_child(0) as Control
-
-	var panel_container_page: Dictionary = DslPageParserClass.parse("""
-<vbox>
-  <panelcontainer bg=#f8f8f8><label>内容</label></panelcontainer>
-</vbox>
-""")
-	var panel_container_root: Control = WebPageRendererClass.render(panel_container_page)
-	var panel_container_node: Control = null
-	if panel_container_root.get_child_count() > 0:
-		panel_container_node = panel_container_root.get_child(0) as Control
-
-	var margin_page: Dictionary = DslPageParserClass.parse("""
-<margincontainer 16>
-  <label>内容</label>
-</margincontainer>
-""")
-	var margin_node: Control = WebPageRendererClass.render(margin_page)
-
-	var nowrap_page: Dictionary = DslPageParserClass.parse("""
-<panelcontainer bg=#1E3A8A border=#3D6FFF>
-  <label size=10 color=#3D6FFF nowrap>ANNOUNCEMENT</label>
-</panelcontainer>
-""")
-	var nowrap_root: Control = WebPageRendererClass.render(nowrap_page)
-	var nowrap_label: Label = null
-	if nowrap_root is PanelContainer and nowrap_root.get_child_count() > 0:
-		var nowrap_margin := nowrap_root.get_child(0)
-		if nowrap_margin is MarginContainer and nowrap_margin.get_child_count() > 0:
-			nowrap_label = nowrap_margin.get_child(0) as Label
-
-	var nowrap_link_page: Dictionary = DslPageParserClass.parse("""
-<panelcontainer bg=#1E3A8A border=#3D6FFF>
-  <link size=11 color=#5B8AFF nowrap action=open_url url=gamejam://signup>立即报名</link>
-</panelcontainer>
-""")
-	var nowrap_link_root: Control = WebPageRendererClass.render(nowrap_link_page)
-	var nowrap_link: RichTextLabel = null
-	if nowrap_link_root is PanelContainer and nowrap_link_root.get_child_count() > 0:
-		var nowrap_link_margin := nowrap_link_root.get_child(0)
-		if nowrap_link_margin is MarginContainer and nowrap_link_margin.get_child_count() > 0:
-			nowrap_link = nowrap_link_margin.get_child(0) as RichTextLabel
-
-	var panel_ok: bool = (
-		panel_node != null
-		and panel_node is PanelContainer
-		and panel_node.size_flags_horizontal == Control.SIZE_EXPAND_FILL
-	)
-	var panel_container_ok: bool = (
-		panel_container_node != null
-		and panel_container_node is PanelContainer
-		and panel_container_node.size_flags_horizontal == Control.SIZE_SHRINK_BEGIN
-		and panel_container_node.size_flags_vertical == Control.SIZE_SHRINK_BEGIN
-	)
-	var margin_ok: bool = (
-		margin_node != null
-		and margin_node is MarginContainer
-	)
-	var nowrap_ok: bool = (
-		nowrap_label != null
-		and nowrap_label.autowrap_mode == TextServer.AUTOWRAP_OFF
-	)
-	var nowrap_link_ok: bool = (
-		nowrap_link != null
-		and nowrap_link.autowrap_mode == TextServer.AUTOWRAP_OFF
-	)
-
-	if not panel_ok or not panel_container_ok or not margin_ok or not nowrap_ok or not nowrap_link_ok:
-		print("[FAIL] DSL panel variants mismatch")
-		print("  panel_ok: %s" % str(panel_ok))
-		print("  panelcontainer_ok: %s" % str(panel_container_ok))
-		print("  margincontainer_ok: %s" % str(margin_ok))
-		print("  label_nowrap_ok: %s" % str(nowrap_ok))
-		print("  link_nowrap_ok: %s" % str(nowrap_link_ok))
-		return
-
-	print("[OK] DSL panel/panelcontainer/margincontainer/label-link-nowrap variants rendered correctly")
 
 
 func _test_app_window_lock() -> void:
@@ -1000,20 +887,6 @@ func _test_new_run_bootstrap() -> void:
 	print("  startup_mode: %s" % str(CampaignRunManager.get_startup_mode()))
 
 
-func _page_contains_type(node: Variant, target_type: String) -> bool:
-	if node is Dictionary:
-		if str(node.get("type", "")) == target_type:
-			return true
-		for key in node.keys():
-			if _page_contains_type(node[key], target_type):
-				return true
-	elif node is Array:
-		for item in node:
-			if _page_contains_type(item, target_type):
-				return true
-	return false
-
-
 func _page_contains_action(node: Variant, action_name: String) -> bool:
 	if node is Dictionary:
 		if str(node.get("action", "")) == action_name:
@@ -1026,22 +899,6 @@ func _page_contains_action(node: Variant, action_name: String) -> bool:
 			if _page_contains_action(item, action_name):
 				return true
 	return false
-
-
-func _find_field_node(node: Variant, field_name: String) -> Dictionary:
-	if node is Dictionary:
-		if str(node.get("field", "")) == field_name:
-			return node
-		for key in node.keys():
-			var found: Dictionary = _find_field_node(node[key], field_name)
-			if not found.is_empty():
-				return found
-	elif node is Array:
-		for item in node:
-			var found: Dictionary = _find_field_node(item, field_name)
-			if not found.is_empty():
-				return found
-	return {}
 
 
 func _make_test_texture(width: int, height: int, color: Color) -> Texture2D:

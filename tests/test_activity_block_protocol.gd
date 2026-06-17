@@ -68,7 +68,8 @@ valid_phases=NIGHT
 map_position=0.8|0.7
 accent_color=#5B9BD5
 reward_affection=2
-reward_stress=-1
+reward_stress=-18
+reward_passion=2
 [/DATE_EVENT]
 """
 	var events := ActivityCatalogProtocol.parse_date_events(text, 9, 4)
@@ -78,7 +79,9 @@ reward_stress=-1
 	var event_data: Dictionary = events[0]
 	_assert("location_id 正确", str(event_data.get("location_id", "")) == "harbor")
 	_assert("valid_phases 解析正确", (event_data.get("valid_phases", []) as Array).has("NIGHT"))
-	_assert("reward_affection 已写入 rewards", int((event_data.get("rewards", {}) as Dictionary).get("affection", 0)) == 2)
+	var rewards: Dictionary = event_data.get("rewards", {}) as Dictionary
+	_assert("reward_affection 不进入主奖励", not rewards.has("affection"))
+	_assert("reward_stress 已写入 rewards", int(rewards.get("stress", 0)) == -18)
 	_assert("map_position 是 Vector2", event_data.get("map_position", null) is Vector2)
 
 

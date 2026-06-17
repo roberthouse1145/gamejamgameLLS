@@ -29,7 +29,7 @@ const BLOCKED_NAMES: PackedStringArray = [
 	"林夏",
 ]
 const REVIEW_PROMPT_KEY: String = "browser/signup_review"
-const REVIEW_SYSTEM_FALLBACK: String = "审核大学 GameJam 报名信息。默认通过，明确违规才拒绝。只输出 JSON：approved, reason, normalized_player_name, normalized_team_name。"
+const REVIEW_SYSTEM_FALLBACK: String = "审核帧语大赛报名信息。默认通过，明确违规才拒绝。只输出 JSON：approved, reason, normalized_player_name, normalized_team_name。"
 const COLLEGE_OPTIONS: PackedStringArray = [
 	"交互媒体学院",
 	"计算机科学学院",
@@ -148,7 +148,7 @@ func _build_navbar() -> Control:
 	navbar.add_child(hbox)
 
 	var logo := Label.new()
-	logo.text = "AGJ"
+	logo.text = "帧语"
 	logo.add_theme_font_size_override("font_size", 30)
 	logo.add_theme_color_override("font_color", C_WHITE)
 	hbox.add_child(logo)
@@ -175,9 +175,9 @@ func _build_navbar() -> Control:
 	reg_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	hbox.add_child(reg_label)
 
-	hbox.add_child(_nav_link("SCHEDULE", "gamejam://schedule"))
-	hbox.add_child(_nav_link("NEWS", "gamejam://news"))
-	hbox.add_child(_nav_link("FAQ", "gamejam://faq"))
+	hbox.add_child(_nav_link("SCHEDULE", "framestory://schedule"))
+	hbox.add_child(_nav_link("NEWS", "framestory://news"))
+	hbox.add_child(_nav_link("FAQ", "framestory://faq"))
 
 	return navbar
 
@@ -220,13 +220,13 @@ func _build_hero() -> Control:
 	var tag_row := HBoxContainer.new()
 	tag_row.add_theme_constant_override("separation", 8)
 	vbox.add_child(tag_row)
-	tag_row.add_child(_make_badge("新星赛道", C_ACCENT))
+	tag_row.add_child(_make_badge("新星组", C_ACCENT))
 	tag_row.add_child(_make_badge("2027 赛季", C_ORANGE))
 
 	vbox.add_child(_spacer(24))
 
 	var title := Label.new()
-	title.text = "ARCADE GRAND JAM"
+	title.text = "帧语·新星叙事大赛"
 	title.add_theme_font_size_override("font_size", 56)
 	title.add_theme_color_override("font_color", C_WHITE)
 	vbox.add_child(title)
@@ -288,11 +288,11 @@ func _build_about_section() -> Control:
 	vbox.add_theme_constant_override("separation", 20)
 	card.add_child(vbox)
 
-	vbox.add_child(_section_header("关于 AGJ", "ABOUT"))
+	vbox.add_child(_section_header("关于帧语大赛", "ABOUT"))
 	vbox.add_child(_h_rule())
 
 	var intro := Label.new()
-	intro.text = "Arcade Grand Jam（AGJ）是一项面向全球高校学生的年度游戏创作大赛。自 2019 年创办以来已成功举办六届，累计吸引超过 12,000 名参赛者。"
+	intro.text = "帧语·新星叙事大赛是帧语平台面向全国高校学生的年度视觉小说创作比赛。自 2021 年创办以来已成功举办五届，累计吸引超过 6,000 名参赛者。"
 	intro.add_theme_font_size_override("font_size", 20)
 	intro.add_theme_color_override("font_color", C_DIM)
 	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -300,7 +300,7 @@ func _build_about_section() -> Control:
 	vbox.add_child(intro)
 
 	var concept := Label.new()
-	concept.text = "本届新星·叙事赛道的核心理念：回归创意本身。比赛将采用统一规则和限制条件，让所有参赛者站在同一起跑线上——不比拼资源堆砌和工业能力，只比拼创意组织能力和叙事表达。"
+	concept.text = "本届新星组的核心理念：回归叙事本身。比赛将采用统一规则和限制条件，让所有参赛者站在同一起跑线上——不比拼资源堆砌和工业能力，只比拼创意组织能力和叙事表达。"
 	concept.add_theme_font_size_override("font_size", 20)
 	concept.add_theme_color_override("font_color", C_DIM)
 	concept.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -316,7 +316,7 @@ func _build_about_section() -> Control:
 	vbox.add_child(format)
 
 	var awards := Label.new()
-	awards.text = "总奖金池超过 ¥50,000，涵盖最佳作品、最佳叙事、最佳视觉表现、社区人气等多个奖项。所有获奖作品将在 AGJ 官方平台进行展示。"
+	awards.text = "涵盖最佳作品、最佳叙事、最佳视觉表现、社区人气等多个奖项。所有获奖作品将在帧语平台进行展示。"
 	awards.add_theme_font_size_override("font_size", 20)
 	awards.add_theme_color_override("font_color", C_DIM)
 	awards.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -448,14 +448,14 @@ func _build_footer() -> Control:
 	vbox.add_child(row)
 
 	var left := Label.new()
-	left.text = "ARCADE GRAND JAM 2027"
+	left.text = "帧语·新星叙事大赛 2027"
 	left.add_theme_font_size_override("font_size", 16)
 	left.add_theme_color_override("font_color", C_MUTED)
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(left)
 
 	var right := Label.new()
-	right.text = "support@arcadegrandjam.com"
+	right.text = "support@framestory.com"
 	right.add_theme_font_size_override("font_size", 16)
 	right.add_theme_color_override("font_color", C_MUTED)
 	row.add_child(right)
@@ -879,7 +879,7 @@ func _do_submit(player_name: String, team_name: String, college_idx: int) -> voi
 			"story_key": "signup_completed",
 			"story_value": "true",
 			"form_data": form_data,
-			"page_url": "gamejam://signup",
+			"page_url": "framestory://signup",
 			"success_status": "报名完成",
 		})
 

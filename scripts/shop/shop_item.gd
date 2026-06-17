@@ -4,14 +4,14 @@ extends Resource
 ## 所有商品（核心/蓝图/LLM）统一使用此类。
 
 # ── ID ────────────────────────────────────────────────
-@export var item_id: String = ""          ## 模板 ID（如 core_pillow, daily_sleep_aid_1）
-@export var instance_id: String = ""      ## 唯一实例 ID（如 core_pillow_day_1_00）
+@export var item_id: String = ""          ## 模板 ID（如 daily_sleep_aid_1）
+@export var instance_id: String = ""      ## 唯一实例 ID（如 daily_sleep_aid_1_day_1_00）
 @export var source_type: String = ""      ## "core" / "local_blueprint" / "llm_wrapped"
 
 # ── 基础信息 ──────────────────────────────────────────
 @export var category: String = ""
 @export var sub_category: String = ""
-@export var effect_archetype: String = "flavor_no_effect"
+@export var effect_archetype: String = "mood_up_small"
 @export var title: String = ""
 @export var subtitle: String = ""
 @export var short_desc: String = ""
@@ -24,6 +24,7 @@ extends Resource
 @export var seller_style: String = ""
 @export var seller_name: String = ""
 @export var user_comments: PackedStringArray = []
+@export var instant_stats: Dictionary = {}
 
 # ── 装饰字段（由 decorate 填充）─────────────────────
 @export var day: int = 0
@@ -45,7 +46,7 @@ static func from_dict(d: Dictionary) -> ShopItem:
 	item.source_type = str(d.get("source_type", ""))
 	item.category = str(d.get("category", ""))
 	item.sub_category = str(d.get("sub_category", ""))
-	item.effect_archetype = str(d.get("effect_archetype", "flavor_no_effect"))
+	item.effect_archetype = str(d.get("effect_archetype", "mood_up_small"))
 	item.title = str(d.get("title", ""))
 	item.subtitle = str(d.get("subtitle", ""))
 	item.short_desc = str(d.get("short_desc", ""))
@@ -59,6 +60,7 @@ static func from_dict(d: Dictionary) -> ShopItem:
 	item.seller_style = str(d.get("seller_style", ""))
 	item.seller_name = str(d.get("seller_name", ""))
 	item.user_comments = _to_string_array(d.get("user_comments", []))
+	item.instant_stats = _parse_stats_field(d.get("instant_stats", null))
 	item.day = int(d.get("day", 0))
 	item.available = bool(d.get("available", true))
 	item.absurdity = float(d.get("absurdity", 0.2))
@@ -92,6 +94,7 @@ func to_dict() -> Dictionary:
 		"seller_style": seller_style,
 		"seller_name": seller_name,
 		"user_comments": Array(user_comments),
+		"instant_stats": instant_stats.duplicate(),
 		"day": day,
 		"available": available,
 		"absurdity": absurdity,
@@ -142,4 +145,25 @@ static func _to_string_array(raw: Variant) -> PackedStringArray:
 				result.append(s)
 	elif raw is PackedStringArray:
 		result = raw as PackedStringArray
+	return result
+
+
+static func _parse_stats_field(raw: Variant) -> Dictionary:
+	var result: Dictionary = {}
+	if raw == null:
+		return result
+	var pairs: Array = []
+	if raw is String:
+		if (raw as String).is_empty():
+			return result
+		pairs = [(raw as String)]
+	elif raw is Array:
+		pairs = raw as Array
+	elif raw is Dictionary:
+		return raw as Dictionary
+	for entry in pairs:
+		var s: String = str(entry).strip_edges()
+		var sep: int = s.find(":")
+		if sep > 0:
+			result[s.substr(0, sep).strip_edges()] = int(s.substr(sep + 1).strip_edges())
 	return result

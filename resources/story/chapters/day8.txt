@@ -1,14 +1,14 @@
 chapter: day8
-name: 第八天 - DEMO 已到尽头
+name: 第六天 - DEMO 已到尽头
 desc: DEMO 正式内容在此结束。林夏以元叙事方式告知玩家剧本走完了，可以自由聊天但每句话都在消耗作者 API 额度。
 trigger:
-  day: 8
+  day: 6
   phase: MORNING
-  required_chapters: day7_night
+  required_chapters: day5_night
 next_chapter:
 
 === day8_01_init ===
-# 第八天早晨自动触发 DEMO 结束 topic
+# 第六天早晨自动触发 DEMO 结束 topic
 
 wait: immediate
 -> day8_02_demo_end

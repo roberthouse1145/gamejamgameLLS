@@ -96,13 +96,16 @@ func _run_test() -> void:
 		return
 	print("[OK] NPC project context permission flags distinguish collaborator and normal chat target")
 
+	# 不传 scan_text → 命中段为空，索引段必出
 	var lin_context: String = str(ChatManager._build_project_context_for_chat(lin)).strip_edges()
 	var mom_context: String = str(ChatManager._build_project_context_for_chat(mom)).strip_edges()
 	var context_ok: bool = lin_context.contains("开发循环") \
 		and lin_context.contains("工单状态") \
-		and lin_context.contains("知识库摘要") \
+		and lin_context.contains("项目设定索引") \
 		and lin_context.contains("整理主角角色设定文档") \
+		and lin_context.contains("world_magic_rules") \
 		and lin_context.contains("学院魔法规则底稿") \
+		and not lin_context.contains("当前对话相关条目") \
 		and mom_context.is_empty()
 	if not context_ok:
 		print("[FAIL] ChatManager should only build project context for collaborator NPCs")
@@ -110,13 +113,14 @@ func _run_test() -> void:
 		print("  mom_context: %s" % mom_context)
 		_cleanup_test_state(kb, wom, dcm, original_docs, original_task_pool, original_completed_ids)
 		return
-	print("[OK] ChatManager only exposes project context to collaborator NPCs")
+	print("[OK] ChatManager only exposes project context to collaborator NPCs (index-only when scan_text empty)")
 
 	var builder := ChatProjectContextBuilderClass.new()
 	var builder_context: String = str(builder.build_for_chat(lin)).strip_edges()
 	var builder_ok: bool = builder_context.contains("开发循环") \
 		and builder_context.contains("工单状态") \
-		and builder_context.contains("知识库摘要")
+		and builder_context.contains("项目设定索引") \
+		and builder_context.contains("world_magic_rules")
 	if not builder_ok:
 		print("[FAIL] ChatProjectContextBuilder direct usage regression")
 		print("  builder_context: %s" % builder_context)

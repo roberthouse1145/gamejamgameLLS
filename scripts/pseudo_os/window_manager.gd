@@ -18,6 +18,7 @@ const MINIMIZE_ANIM_DURATION: float = 0.14
 const CLOSE_ANIM_DURATION: float = 0.12
 const OPEN_ANIM_OFFSET_Y: float = 14.0
 const OPEN_ANIM_START_SCALE: Vector2 = Vector2(0.97, 0.97)
+const WINDOW_EDGE_MARGIN: float = 24.0
 var _window_scene: PackedScene
 
 # Window management
@@ -68,6 +69,9 @@ func create_window(title: String, content: Control, constraints = null) -> Contr
 	# Set content
 	if content:
 		window.set_content(content)
+
+	_apply_relative_default_size(window, constraints)
+	fit_window_to_container(window)
 	
 	# Connect window signals
 	_connect_window_signals(window)
@@ -323,6 +327,23 @@ func restore_window(window: Control) -> void:
 		window.unmaximize()
 
 
+func fit_window_to_container(window: Control, center_window: bool = true) -> void:
+	if window == null or not is_instance_valid(window):
+		return
+
+	var available_size := _get_available_window_size(window)
+	if available_size.x <= 0.0 or available_size.y <= 0.0:
+		return
+
+	var target_size := _clamp_window_size_to_available(window.size, window, available_size)
+	window.size = target_size
+
+	if center_window:
+		_center_window_in_container(window, available_size)
+	else:
+		_clamp_window_position_to_container(window, available_size)
+
+
 ## Get all currently open windows
 ## @return: Array of PseudoWindow instances
 func get_windows() -> Array:
@@ -361,10 +382,118 @@ func _apply_constraints(window: Control, constraints) -> void:
 	if constraints.has_method("get") or constraints is Resource:
 		if "min_size" in constraints:
 			window.min_size = constraints.min_size
+			window.custom_minimum_size = constraints.min_size
+		if "max_size" in constraints and "max_size" in window:
+			window.max_size = constraints.max_size
 		if "resizable" in constraints:
 			window.resizable = constraints.resizable
 		if "default_size" in constraints:
 			window.size = constraints.default_size
+
+
+func _apply_relative_default_size(window: Control, constraints) -> void:
+	if window == null or not is_instance_valid(window) or constraints == null:
+		return
+	if not ("default_size_ratio" in constraints):
+		return
+
+	var ratio: float = clampf(float(constraints.default_size_ratio), 0.0, 1.0)
+	if ratio <= 0.0:
+		return
+
+	var available_size := _get_available_window_size(window)
+	if available_size.x <= 0.0 or available_size.y <= 0.0:
+		return
+
+	var target_window_size := available_size * ratio
+	if "default_content_aspect_ratio" in constraints:
+		target_window_size = _fit_window_size_for_content_aspect(
+			window,
+			target_window_size,
+			float(constraints.default_content_aspect_ratio)
+		)
+	window.size = target_window_size
+
+
+func _fit_window_size_for_content_aspect(window: Control, max_window_size: Vector2, aspect_ratio: float) -> Vector2:
+	if aspect_ratio <= 0.0 or max_window_size.x <= 0.0 or max_window_size.y <= 0.0:
+		return max_window_size
+
+	var chrome_padding := _get_window_chrome_padding(window)
+	var max_content_size := Vector2(
+		maxf(max_window_size.x - chrome_padding.x, 1.0),
+		maxf(max_window_size.y - chrome_padding.y, 1.0)
+	)
+
+	var content_size := max_content_size
+	var content_aspect := content_size.x / content_size.y
+	if content_aspect > aspect_ratio:
+		content_size.x = content_size.y * aspect_ratio
+	else:
+		content_size.y = content_size.x / aspect_ratio
+
+	return content_size + chrome_padding
+
+
+func _get_window_chrome_padding(window: Control) -> Vector2:
+	var content_container := window.get_node_or_null("ContentContainer") as Control
+	if content_container == null:
+		return Vector2.ZERO
+
+	var padding := window.size - content_container.size
+	if padding.x < 0.0 or padding.y < 0.0:
+		return Vector2.ZERO
+	return padding
+
+
+func _get_available_window_size(window: Control) -> Vector2:
+	var parent := window.get_parent() as Control
+	if parent != null and parent.size.x > 0.0 and parent.size.y > 0.0:
+		return parent.size
+	var viewport := window.get_viewport()
+	if viewport != null:
+		return viewport.get_visible_rect().size
+	return Vector2.ZERO
+
+
+func _clamp_window_size_to_available(value: Vector2, window: Control, available_size: Vector2) -> Vector2:
+	var padded_available := Vector2(
+		maxf(available_size.x - WINDOW_EDGE_MARGIN * 2.0, 160.0),
+		maxf(available_size.y - WINDOW_EDGE_MARGIN * 2.0, 120.0)
+	)
+	var min_size: Vector2 = window.min_size if "min_size" in window else Vector2(200, 150)
+	var max_size: Vector2 = window.max_size if "max_size" in window else Vector2.ZERO
+
+	var result := value
+	if max_size.x > 0.0:
+		result.x = minf(result.x, max_size.x)
+	if max_size.y > 0.0:
+		result.y = minf(result.y, max_size.y)
+
+	result.x = minf(result.x, padded_available.x)
+	result.y = minf(result.y, padded_available.y)
+
+	if min_size.x <= padded_available.x:
+		result.x = maxf(result.x, min_size.x)
+	if min_size.y <= padded_available.y:
+		result.y = maxf(result.y, min_size.y)
+
+	return result
+
+
+func _center_window_in_container(window: Control, available_size: Vector2) -> void:
+	window.position = Vector2(
+		maxf((available_size.x - window.size.x) * 0.5, WINDOW_EDGE_MARGIN),
+		maxf((available_size.y - window.size.y) * 0.5, WINDOW_EDGE_MARGIN)
+	)
+
+
+func _clamp_window_position_to_container(window: Control, available_size: Vector2) -> void:
+	var max_position := available_size - window.size - Vector2(WINDOW_EDGE_MARGIN, WINDOW_EDGE_MARGIN)
+	window.position = Vector2(
+		clampf(window.position.x, WINDOW_EDGE_MARGIN, maxf(WINDOW_EDGE_MARGIN, max_position.x)),
+		clampf(window.position.y, WINDOW_EDGE_MARGIN, maxf(WINDOW_EDGE_MARGIN, max_position.y))
+	)
 
 
 ## Connect window signals to manager handlers

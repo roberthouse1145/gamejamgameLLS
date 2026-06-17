@@ -43,8 +43,8 @@ const FONT_SIZE_SYMBOL: int = 40
 const FONT_SIZE_LABEL: int = 15
 const FONT_SIZE_UI: int = 17
 const FLIP_DURATION: float = 0.15
-const SHOW_DURATION: float = 0.8
-const PREVIEW_DURATION: float = 3.0
+const SHOW_DURATION: float = 0.45
+const PREVIEW_DURATION: float = 1.4
 #endregion
 
 #region 游戏状态
@@ -108,11 +108,11 @@ func _process(delta: float) -> void:
 func _determine_difficulty() -> void:
 	var day: int = get_current_day()
 	if day <= 10:
-		_total_pairs = 3
-	elif day <= 25:
-		_total_pairs = 4
-	else:
 		_total_pairs = 5
+	elif day <= 25:
+		_total_pairs = 6
+	else:
+		_total_pairs = 6
 
 
 func _generate_cards() -> void:

@@ -2,6 +2,8 @@ class_name ChatProtocolExecutor extends Node
 ## LinkChat 协议副作用执行器
 ## 负责事件通知、APP/浏览器动作以及工单生成
 
+const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
+
 signal event_emitted(topic: ChatTopic, event_id: String, payload: Dictionary)
 signal action_requested(topic: ChatTopic, action: Dictionary)
 
@@ -55,6 +57,10 @@ func _execute_action(topic: ChatTopic, action: Dictionary) -> void:
 			_execute_lock_app_window(action)
 		"unlock_app_window":
 			_execute_unlock_app_window(action)
+		"set_activity_lock":
+			_execute_set_activity_lock(action)
+		"clear_activity_lock":
+			_execute_clear_activity_lock()
 		"generate_work_order":
 			_execute_generate_work_order(topic, action)
 		_:
@@ -154,6 +160,39 @@ func _execute_unlock_app_window(action: Dictionary) -> void:
 		return
 
 	app_mgr.unlock_app_window(app_id)
+
+
+func _execute_set_activity_lock(action: Dictionary) -> void:
+	var mode := str(action.get("mode", "blacklist")).strip_edges().to_lower()
+	var activities := _parse_activity_lock_list(action.get("activities", []))
+	var reason := str(action.get("reason", "")).strip_edges()
+	if activities.is_empty():
+		return
+	ActivityLockUtilsClass.set_narrative_lock(mode, activities, reason)
+
+
+func _execute_clear_activity_lock() -> void:
+	ActivityLockUtilsClass.clear_narrative_lock()
+
+
+func _parse_activity_lock_list(raw_value: Variant) -> Array[String]:
+	var result: Array[String] = []
+	if raw_value is Array:
+		for item in raw_value:
+			_append_activity_lock_token(result, str(item))
+	else:
+		var text := str(raw_value).strip_edges()
+		if not text.is_empty():
+			for token in text.replace(",", "|").split("|", false):
+				_append_activity_lock_token(result, token)
+	return result
+
+
+func _append_activity_lock_token(result: Array[String], raw_token: String) -> void:
+	var token := raw_token.strip_edges()
+	if token.is_empty() or token in result:
+		return
+	result.append(token)
 
 
 func _execute_generate_work_order(topic: ChatTopic, action: Dictionary) -> void:

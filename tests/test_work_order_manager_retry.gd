@@ -19,6 +19,8 @@ func _run() -> void:
 		_assert("mount runtime project", mount_err == OK, str(mount_err))
 		await get_tree().process_frame
 
+	WorkOrderManager.reset_runtime_state()
+
 	var order: Resource = WorkOrderManager.create_order("Retry watchdog test", "验证静默不会触发自动重试", {
 		"source_type": "llm_build_pipeline_lab",
 		"source_id": "retry_watchdog_test",
@@ -35,12 +37,13 @@ func _run() -> void:
 	WorkOrderManager.run_worker_watchdog_once()
 	await get_tree().process_frame
 	_assert("watchdog no longer retries stalled worker", WorkOrderManager.get_worker_retry_count(order.id) == 0, str(WorkOrderManager.get_worker_retry_count(order.id)))
-	_assert("stalled worker remains in progress", str(WorkOrderManager.get_order(order.id).status) == "in_progress", str(WorkOrderManager.get_order(order.id).status))
+	_assert("stalled worker remains pending for player", str(WorkOrderManager.get_order(order.id).status) == "pending", str(WorkOrderManager.get_order(order.id).status))
+	_assert("stalled worker inner state remains generating", str(WorkOrderManager.get_order(order.id).inner_status) == "generating", str(WorkOrderManager.get_order(order.id).inner_status))
 	_assert("worker remains attached after silent stall", WorkOrderManager.get("_worker_agents").has(order.id))
 
 	WorkOrderManager.call("_cleanup_worker", order.id)
 
-	_test_resume_only_one_order_at_a_time()
+	await _test_resume_only_one_order_at_a_time()
 
 	WorkOrderManager.reset_runtime_state()
 	WorkOrderManager.set("_worker_auto_run", old_auto_run)

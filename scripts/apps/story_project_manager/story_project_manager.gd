@@ -10,6 +10,7 @@ const CATEGORIES: Array[String] = [
 	"资源",
 	"对话框",
 	"标题界面",
+	"运行时按钮",
 	"界面设置",
 	"项目设置",
 ]
@@ -29,6 +30,7 @@ var _category_panels: Array[Control] = []
 @onready var resource_library_panel: Control = %ResourceLibraryPanel
 @onready var dialog_settings_panel: Control = %DialogSettingsPanel
 @onready var title_settings_panel: Control = %TitleSettingsPanel
+@onready var game_ui_panel: Control = %GameUIPanel
 @onready var screen_settings_panel: Control = %ScreenSettingsPanel
 @onready var project_settings_panel: Control = %ProjectSettingsPanel
 @onready var unsaved_changes_dialog: ConfirmationDialog = %UnsavedChangesDialog
@@ -70,6 +72,7 @@ func _setup_panels() -> void:
 		resource_library_panel,
 		dialog_settings_panel,
 		title_settings_panel,
+		game_ui_panel,
 		screen_settings_panel,
 		project_settings_panel,
 	]
@@ -91,6 +94,8 @@ func _setup_connections() -> void:
 		dialog_settings_panel.settings_changed.connect(_on_content_changed)
 	if title_settings_panel != null and title_settings_panel.has_signal("settings_changed"):
 		title_settings_panel.settings_changed.connect(_on_content_changed)
+	if game_ui_panel != null and game_ui_panel.has_signal("settings_changed"):
+		game_ui_panel.settings_changed.connect(_on_content_changed)
 	if screen_settings_panel != null and screen_settings_panel.has_signal("settings_changed"):
 		screen_settings_panel.settings_changed.connect(_on_content_changed)
 	if project_settings_panel != null and project_settings_panel.has_signal("settings_changed"):
@@ -166,6 +171,8 @@ func _refresh_all_panels() -> void:
 			dialog_settings_panel.set_settings(current_project.dialog_settings)
 	if title_settings_panel != null:
 		title_settings_panel.set_project(current_project)
+	if game_ui_panel != null:
+		game_ui_panel.set_project(current_project)
 	if screen_settings_panel != null:
 		screen_settings_panel.set_project(current_project)
 	if project_settings_panel != null:

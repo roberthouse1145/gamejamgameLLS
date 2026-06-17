@@ -19,6 +19,7 @@ signal focus_requested
 			title_label.text = value
 
 @export var min_size: Vector2 = Vector2(200, 150)
+@export var max_size: Vector2 = Vector2.ZERO
 @export var resizable: bool = true
 
 # State variables
@@ -80,6 +81,7 @@ func _ready() -> void:
 
 	# Apply modern theme by default
 	_apply_default_theme()
+	_hide_maximize_button_chrome()
 	_refresh_chrome_state()
 
 
@@ -116,6 +118,12 @@ func set_content(p_content: Control) -> void:
 		content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 
+func center_in_screen() -> void:
+	var desktop_rect := _get_desktop_rect()
+	var centered_position := desktop_rect.position + (desktop_rect.size - size) * 0.5
+	position = _clamp_position_for_size(centered_position, size)
+
+
 func set_close_locked(value: bool) -> void:
 	close_locked = value
 	_refresh_chrome_state()
@@ -131,6 +139,15 @@ func _refresh_chrome_state() -> void:
 		close_button.disabled = close_locked
 	if minimize_button:
 		minimize_button.disabled = minimize_locked
+
+
+## 中间「最大化」按钮保留节点与 API 兼容，默认不出现在标题栏、不可点按
+func _hide_maximize_button_chrome() -> void:
+	if not maximize_button:
+		return
+	maximize_button.visible = false
+	maximize_button.disabled = true
+	maximize_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 
 ## Handle title bar input for dragging
@@ -212,24 +229,23 @@ func _on_resize_handle_gui_input(event: InputEvent, direction: ResizeDirection) 
 				new_rect.size.x += delta.x
 				new_rect.size.y += delta.y
 		
-		# Apply min_size constraint
+		# Apply size constraints
 		# For edges that affect position (TOP, LEFT), we need to adjust position when clamping size
-		if new_rect.size.x < min_size.x:
-			var size_diff := min_size.x - new_rect.size.x
-			new_rect.size.x = min_size.x
-			# If resizing from left edge, adjust position to compensate
+		var constrained_size := _clamp_size(new_rect.size)
+		if not is_equal_approx(constrained_size.x, new_rect.size.x):
+			var size_diff := constrained_size.x - new_rect.size.x
+			new_rect.size.x = constrained_size.x
 			if _resize_direction in [ResizeDirection.TOP_LEFT, ResizeDirection.LEFT, ResizeDirection.BOTTOM_LEFT]:
 				new_rect.position.x -= size_diff
-		
-		if new_rect.size.y < min_size.y:
-			var size_diff := min_size.y - new_rect.size.y
-			new_rect.size.y = min_size.y
-			# If resizing from top edge, adjust position to compensate
+
+		if not is_equal_approx(constrained_size.y, new_rect.size.y):
+			var size_diff := constrained_size.y - new_rect.size.y
+			new_rect.size.y = constrained_size.y
 			if _resize_direction in [ResizeDirection.TOP_LEFT, ResizeDirection.TOP, ResizeDirection.TOP_RIGHT]:
 				new_rect.position.y -= size_diff
 		
 		# Apply the new rect
-		position = new_rect.position
+		position = _clamp_position_for_size(new_rect.position, new_rect.size)
 		size = new_rect.size
 
 
@@ -322,6 +338,29 @@ func _get_desktop_rect() -> Rect2:
 		return Rect2(Vector2.ZERO, parent.size)
 	# Fallback to viewport size if no parent control
 	return Rect2(Vector2.ZERO, get_viewport_rect().size)
+
+
+func _clamp_size(value: Vector2) -> Vector2:
+	var result := value
+	result.x = maxf(result.x, min_size.x)
+	result.y = maxf(result.y, min_size.y)
+	if max_size.x > 0.0:
+		result.x = minf(result.x, max_size.x)
+	if max_size.y > 0.0:
+		result.y = minf(result.y, max_size.y)
+	return result
+
+
+func _clamp_position_for_size(value: Vector2, target_size: Vector2) -> Vector2:
+	var desktop_rect := _get_desktop_rect()
+	if desktop_rect.size.x <= 0.0 or desktop_rect.size.y <= 0.0:
+		return value
+
+	var max_position := desktop_rect.position + desktop_rect.size - target_size
+	return Vector2(
+		clampf(value.x, desktop_rect.position.x, maxf(desktop_rect.position.x, max_position.x)),
+		clampf(value.y, desktop_rect.position.y, maxf(desktop_rect.position.y, max_position.y))
+	)
 
 
 ## Maximize the window to fill the parent container (desktop area)
@@ -446,38 +485,53 @@ func _apply_default_theme() -> void:
 	if minimize_button:
 		minimize_button.text = ""
 		minimize_button.icon = WindowIconRendererClass.create_minimize_icon(text_sec)
+		_center_icon_only_button(minimize_button)
 		var hs := _make_btn_circle(min_hover, btn_radius)
 		minimize_button.add_theme_stylebox_override("normal",  empty)
 		minimize_button.add_theme_stylebox_override("hover",   hs)
 		minimize_button.add_theme_stylebox_override("pressed", hs)
 		minimize_button.add_theme_stylebox_override("focus",   empty)
+		minimize_button.add_theme_stylebox_override("disabled", empty)
+		minimize_button.add_theme_stylebox_override("disabled_mirrored", empty)
 		minimize_button.add_theme_color_override("font_color",       text_sec)
 		minimize_button.add_theme_color_override("font_hover_color", Color.WHITE)
+		minimize_button.add_theme_color_override("font_disabled_color", Color(text_sec, 0.38))
+		minimize_button.add_theme_color_override("icon_disabled_color", Color(1, 1, 1, 0.38))
 		minimize_button.add_theme_font_size_override("font_size", 16)
 
 	# Maximize button — 专属中性灰 hover，必须 override
 	if maximize_button:
 		maximize_button.text = ""
 		maximize_button.icon = WindowIconRendererClass.create_maximize_icon(text_sec)
+		_center_icon_only_button(maximize_button)
 		maximize_button.add_theme_stylebox_override("normal",  empty)
 		maximize_button.add_theme_stylebox_override("hover",   hover_neutral)
 		maximize_button.add_theme_stylebox_override("pressed", hover_neutral)
 		maximize_button.add_theme_stylebox_override("focus",   empty)
+		maximize_button.add_theme_stylebox_override("disabled", empty)
+		maximize_button.add_theme_stylebox_override("disabled_mirrored", empty)
 		maximize_button.add_theme_color_override("font_color",       text_sec)
 		maximize_button.add_theme_color_override("font_hover_color", Color("#1A1D27"))
+		maximize_button.add_theme_color_override("font_disabled_color", Color(text_sec, 0.38))
+		maximize_button.add_theme_color_override("icon_disabled_color", Color(1, 1, 1, 0.38))
 		maximize_button.add_theme_font_size_override("font_size", 16)
 
 	# Close button — 专属红色 hover，必须 override
 	if close_button:
 		close_button.text = ""
 		close_button.icon = WindowIconRendererClass.create_close_icon(text_sec)
+		_center_icon_only_button(close_button)
 		var hs := _make_btn_circle(close_hover, btn_radius)
 		close_button.add_theme_stylebox_override("normal",  empty)
 		close_button.add_theme_stylebox_override("hover",   hs)
 		close_button.add_theme_stylebox_override("pressed", hs)
 		close_button.add_theme_stylebox_override("focus",   empty)
+		close_button.add_theme_stylebox_override("disabled", empty)
+		close_button.add_theme_stylebox_override("disabled_mirrored", empty)
 		close_button.add_theme_color_override("font_color",       text_sec)
 		close_button.add_theme_color_override("font_hover_color", Color.WHITE)
+		close_button.add_theme_color_override("font_disabled_color", Color(text_sec, 0.38))
+		close_button.add_theme_color_override("icon_disabled_color", Color(1, 1, 1, 0.38))
 		close_button.add_theme_font_size_override("font_size", 18)
 
 
@@ -489,3 +543,10 @@ func _make_btn_circle(bg_color: Color, r: int) -> StyleBoxFlat:
 	s.corner_radius_bottom_left  = r
 	s.corner_radius_bottom_right = r
 	return s
+
+
+func _center_icon_only_button(btn: Button) -> void:
+	## Button 默认 icon 水平左对齐，圆形 hover 会显得图标偏离中心
+	btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+	btn.add_theme_constant_override("h_separation", 0)

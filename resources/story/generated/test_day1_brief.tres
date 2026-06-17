@@ -39,7 +39,7 @@ actions = Array[Dictionary]([{
 "apps": ["linkchat", "dev_work"],
 "type": "set_app_access"
 }, {
-"template_path": "res://resources/dev_work/story_tasks/day1_creative_brief.json",
+"template_path": "res://resources/dev_work/story_tasks/lock_creative_direction.json",
 "type": "ensure_dev_work_task"
 }, {
 "npc_speaks_first": true,
@@ -69,7 +69,7 @@ actions = Array[Dictionary]([{
 "type": "launch_app"
 }])
 wait_for = {
-"task_id": "day1_creative_brief",
+"task_id": "lock_creative_direction",
 "type": "dev_task_completed"
 }
 

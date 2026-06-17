@@ -1,0 +1,137 @@
+# 开发规范
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+1. Think Before Coding
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+Before implementing:
+
+State your assumptions explicitly. If uncertain, ask.
+If multiple interpretations exist, present them - don't pick silently.
+If a simpler approach exists, say so. Push back when warranted.
+If something is unclear, stop. Name what's confusing. Ask.
+2. Simplicity First
+Minimum code that solves the problem. Nothing speculative.
+
+No features beyond what was asked.
+No abstractions for single-use code.
+No "flexibility" or "configurability" that wasn't requested.
+No error handling for impossible scenarios.
+If you write 200 lines and it could be 50, rewrite it.
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+3. Surgical Changes
+Touch only what you must. Clean up only your own mess.
+
+When editing existing code:
+
+Don't "improve" adjacent code, comments, or formatting.
+Don't refactor things that aren't broken.
+Match existing style, even if you'd do it differently.
+If you notice unrelated dead code, mention it - don't delete it.
+When your changes create orphans:
+
+Remove imports/variables/functions that YOUR changes made unused.
+Don't remove pre-existing dead code unless asked.
+The test: Every changed line should trace directly to the user's request.
+
+4. Goal-Driven Execution
+Define success criteria. Loop until verified.
+
+Transform tasks into verifiable goals:
+
+"Add validation" → "Write tests for invalid inputs, then make them pass"
+"Fix the bug" → "Write a test that reproduces it, then make it pass"
+"Refactor X" → "Ensure tests pass before and after"
+For multi-step tasks, state a brief plan:
+
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+# Godot 开发规范
+
+## 可用工具
+
+- **Godot Tool 扩展**: 检测 GDScript 语法错误
+- **Godot MCP**: 运行项目、获取调试输出、创建场景/节点等
+- **注意**: 无法操纵运行中的程序，需结合自动测试和用户手动测试
+
+## 测试策略
+
+1. 编写代码后查看输出检查语法错误。gdscript非python
+2. 测试必须以“场景 + 脚本”成对存在，禁止单脚本运行
+   - 每个 `test_xxx.gd` 都必须有对应的 `test_xxx.tscn`
+   - 测试文件统一放在 `tests/` 目录下，避免继续把所有测试堆进单一根目录入口
+   - Godot 的 autoload 单例只有在运行场景时才会被引擎实例化
+   - 单脚本运行时 autoload 不存在，访问任何 autoload 节点必定报错
+   - 因此所有测试都必须通过对应测试场景运行，例如 `mcp_godot_mcp_run_project` 指定 `tests/test_xxx.tscn`
+3. 使用 mcp 运行对应的 `tests/test_xxx.tscn` 测试场景检查启动错误
+4. 使用 mcp 获取运行时错误
+5. 需要交互测试时，提示用户手动测试并反馈
+6. **严禁**使用单脚本无场景测试（即使是 `@tool` + `EditorScript` 也不推荐，因为无法测试依赖 autoload 的逻辑）
+7. **严禁在测试脚本中添加自动退出逻辑**（如 `get_tree().quit()`、定时器退出等）
+   - 自动退出会导致进程在 MCP 调用 `get_debug_output` 之前就已终止，无法获取任何输出
+   - 测试场景必须保持运行状态，由用户手动关闭或通过 `mcp_godot_mcp_stop_project` 停止
+   - 正确流程：运行测试 → 调用 `get_debug_output` 获取输出 → 调用 `stop_project` 停止
+
+## GDScript 规范
+
+### 文件结构
+
+- 每个 `.gd` 脚本必须有配套的 `.tscn` 场景文件
+- 不允许单独存在的 `.gd` 文件（除非是纯数据类或工具类）
+- 资源类使用 `.tres` 配合 `.gd`
+
+### Autoload 规则
+
+- Autoload 脚本不能声明 `class_name`（会导致命名冲突）
+- Autoload 通过 `project.godot` 中的名称访问，无需 class_name
+
+### 命名约定
+
+- 场景/脚本: `snake_case.tscn` / `snake_case.gd`
+- 类名: `PascalCase`
+- 变量/函数: `snake_case`
+- 常量: `UPPER_SNAKE_CASE`
+- 信号: `snake_case`（过去式，如 `health_changed`）
+
+### 代码风格
+
+- 使用类型注解: `var health: int = 100`
+- 导出变量: `@export var speed: float = 200.0`
+- 信号定义在类顶部，变量之前
+- 使用 `@onready` 延迟初始化节点引用
+
+## 项目结构
+
+```text
+res://
+├── scenes/          # 场景文件 (.tscn)
+├── scripts/         # 脚本文件 (.gd)
+├── resources/       # 资源文件 (.tres)
+├── assets/          # 素材 (图片、音频等)
+├── autoload/        # 全局单例
+└── addons/          # 插件
+```
+
+## 节点引用
+
+- 简单场景: 使用 `$NodeName`
+- 复杂场景: 使用 `%NodeName` (唯一名称) 避免路径依赖
+	代码中直接用 `%MyNode` 引用，无需完整路径
+
+## 常见错误预防
+
+- 检查节点路径是否正确
+- 确保信号连接在节点 ready 后进行
+- 避免在 `_init()` 中访问场景树
+- 使用 `is_instance_valid()` 检查节点是否有效
+
+## 关于回复  
+- 用户主要使用中文，默认用中文回复。  

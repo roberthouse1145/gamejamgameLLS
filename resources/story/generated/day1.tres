@@ -17,7 +17,7 @@ actions = Array[Dictionary]([{
 "type": "set_app_access"
 }, {
 "crossfade": 2.0,
-"path": "res://Assets/sounds/bgm/Blush (loop).ogg",
+"path": "res://Assets/sounds/bgm/优哉游哉(loop).wav",
 "type": "play_bgm"
 }])
 next = "day1_02_gamejam_announce"
@@ -25,7 +25,7 @@ next = "day1_02_gamejam_announce"
 [sub_resource type="Resource" id="Resource_w5tdx"]
 script = ExtResource("2_1j0nh")
 step_id = "day1_02_gamejam_announce"
-description = "林夏发消息告知GameJam报名开始，引导玩家点击链接"
+description = "林夏发消息告知帧语大赛报名开始，引导玩家点击链接"
 actions = Array[Dictionary]([{
 "npc_speaks_first": true,
 "topic_path": "res://resources/story/topics/day1_gamejam_announce.tres",
@@ -33,7 +33,7 @@ actions = Array[Dictionary]([{
 }])
 wait_for = {
 "type": "url_opened",
-"url": "gamejam://signup"
+"url": "framestory://signup"
 }
 next = "day1_03_signup"
 
@@ -46,7 +46,7 @@ actions = Array[Dictionary]([{
 "mode": "whitelist",
 "type": "set_app_access"
 }, {
-"activities": ["community"],
+"activities": ["browser_surf"],
 "mode": "blacklist",
 "reason": "先把报名搞定再说",
 "type": "set_activity_lock"
@@ -96,7 +96,7 @@ next = "day1_06_afternoon_theme"
 [sub_resource type="Resource" id="Resource_3ilyq"]
 script = ExtResource("2_1j0nh")
 step_id = "day1_06_afternoon_theme"
-description = "进入下午，林夏发链接告知GameJam主题公布"
+description = "进入下午，林夏发链接告知帧语大赛主题公布"
 actions = Array[Dictionary]([{
 "phase": "AFTERNOON",
 "type": "set_phase"
@@ -105,7 +105,7 @@ actions = Array[Dictionary]([{
 "mode": "whitelist",
 "type": "set_app_access"
 }, {
-"activities": ["community"],
+"activities": ["browser_surf"],
 "mode": "blacklist",
 "reason": "先看完主题公告再说",
 "type": "set_activity_lock"
@@ -116,7 +116,7 @@ actions = Array[Dictionary]([{
 }])
 wait_for = {
 "type": "url_opened",
-"url": "gamejam://forum/theme"
+"url": "framestory://forum/theme"
 }
 next = "day1_07_afternoon_plan"
 
@@ -129,7 +129,7 @@ actions = Array[Dictionary]([{
 "mode": "whitelist",
 "type": "set_app_access"
 }, {
-"template_path": "res://resources/dev_work/story_tasks/day1_creative_brief.json",
+"template_path": "res://resources/dev_work/story_tasks/lock_creative_direction.json",
 "type": "ensure_dev_work_task"
 }, {
 "npc_speaks_first": true,
@@ -155,7 +155,7 @@ actions = Array[Dictionary]([{
 "type": "launch_app"
 }])
 wait_for = {
-"task_id": "day1_creative_brief",
+"task_id": "lock_creative_direction",
 "type": "dev_task_completed"
 }
 next = "day1_09_night_date_suggest"
@@ -169,7 +169,7 @@ actions = Array[Dictionary]([{
 "type": "set_phase"
 }, {
 "crossfade": 2.0,
-"path": "res://Assets/sounds/bgm/astral house.ogg",
+"path": "res://Assets/sounds/bgm/晚安，星期八.wav",
 "type": "play_bgm"
 }, {
 "type": "clear_activity_lock"
@@ -218,7 +218,7 @@ wait_for = {
 [resource]
 script = ExtResource("1_af1id")
 chapter_id = "day1"
-chapter_name = "第一天 - GameJam报名"
-description = "游戏开始，林夏告知GameJam报名，玩家完成报名后玩游戏放松，下午主题公布后讨论计划并编写企划卡，晚上出去约会放松"
+chapter_name = "第一天 - 帧语大赛报名"
+description = "游戏开始，林夏告知帧语大赛报名，玩家完成报名后玩游戏放松，下午主题公布后讨论计划并编写企划卡，晚上出去约会放松"
 steps = Array[Resource]([SubResource("Resource_drad2"), SubResource("Resource_w5tdx"), SubResource("Resource_buyxc"), SubResource("Resource_81c36"), SubResource("Resource_js3ig"), SubResource("Resource_3ilyq"), SubResource("Resource_6piho"), SubResource("Resource_4ugmq"), SubResource("Resource_a70oa"), SubResource("Resource_hqnh2"), SubResource("Resource_kmw5i")])
 next_chapter = "day2"

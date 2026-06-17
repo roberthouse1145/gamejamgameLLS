@@ -20,6 +20,7 @@ const ElasticProgressClass = preload("res://scripts/activity/elastic_progress.gd
 const ActivityChatClass = preload("res://scripts/activity/activity_chat.gd")
 const MomentGeneratorClass = preload("res://scripts/activity/moment_generator.gd")
 const SceneWindowClass = preload("res://scripts/activity/scene_window.gd")
+const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
 
 const DEFAULT_PROGRESS_DURATION: float = 8.0
 const PROGRESS_REACTION_DELAY: float = 0.5
@@ -270,6 +271,70 @@ func begin_session(entry_id: String, progress_duration: float = DEFAULT_PROGRESS
 	payload.merge(session.duplicate(true))
 	session_started.emit(session_id, payload)
 	return payload
+
+
+# 拒绝分支：和 begin_session 同形态，但走 refusal topic，结束后不消耗 AP / 不结算 / 不发 progress。
+# refusal_data 约定字段：refusal_id, warning_desc, fallback, short
+func begin_refusal_session(entry_id: String, refusal_data: Dictionary) -> Dictionary:
+	var normalized_id := entry_id.strip_edges()
+	var entry: Dictionary = _find_entry(normalized_id)
+	if entry.is_empty():
+		return _legacy_trigger_refusal(refusal_data)
+
+	if not _pending_sessions.is_empty():
+		return _legacy_trigger_refusal(refusal_data)
+
+	_session_counter += 1
+	var session_id := "%s_refusal_%04d" % [_get_activity_type(), _session_counter]
+	var session: Dictionary = _build_base_session(session_id, normalized_id, entry, false, 0.0, false)
+	# 合并子类的 entry-specific 字段（如 part_time 的 job、date 的 location），
+	# 让 _on_session_begin 的卡片钩子能复用同一份字段。
+	var extra: Dictionary = _build_session(session_id, normalized_id, entry)
+	session.merge(extra, true)
+	session["is_refusal"] = true
+	session["refusal_data"] = refusal_data.duplicate(true)
+	# 拒绝流程不会走到 progress / followup / moment / settlement
+	# 把这些状态置为已完成防止误触发
+	session["departure_done"] = true
+	session["progress_phase_started"] = true
+	session["progress_phase_complete"] = true
+	session["followup_done"] = true
+	session["moment_done"] = true
+	session["settlement_done"] = true
+	_pending_sessions[session_id] = session
+
+	print("[%s] Refusal session started: %s -> %s" % [name, session_id, normalized_id])
+
+	# 复用 _on_session_begin 钩子：子类用 session.is_refusal 判断是否要在拒绝时发卡片
+	_on_session_begin(session)
+
+	if not _start_refusal_topic(session_id):
+		_pending_sessions.erase(session_id)
+		return _legacy_trigger_refusal(refusal_data)
+
+	var payload: Dictionary = {
+		"success": false,
+		"refused": true,
+		"session_id": session_id,
+		"error": str(refusal_data.get("short", "")),
+	}
+	return payload
+
+
+# entry 不存在 / session 占用 / topic 启动失败时的兜底：保留旧 NpcRefusalCenter 行为。
+func _legacy_trigger_refusal(refusal_data: Dictionary) -> Dictionary:
+	var refusal_center: Node = get_node_or_null("/root/NpcRefusalCenter")
+	if refusal_center != null and refusal_center.has_method("trigger_refusal"):
+		refusal_center.trigger_refusal(
+			str(refusal_data.get("refusal_id", "")),
+			str(refusal_data.get("warning_desc", "")),
+			str(refusal_data.get("fallback", "")),
+		)
+	return {
+		"success": false,
+		"refused": true,
+		"error": str(refusal_data.get("short", "")),
+	}
 
 
 func has_pending_session(session_id: String) -> bool:
@@ -756,6 +821,8 @@ func _on_chat_stage_completed(session_id: String, stage: String, summary: String
 		session["followup_text"] = summary
 		_pending_sessions[session_id] = session
 		_try_finish_session(session_id)
+	elif stage == "refusal":
+		_on_refusal_topic_completed(session_id)
 
 
 func _on_chat_stage_timeout(session_id: String, stage: String) -> void:
@@ -767,6 +834,96 @@ func _on_chat_stage_timeout(session_id: String, stage: String) -> void:
 	elif stage == "followup":
 		_store_local_followup(session_id)
 		_try_finish_session(session_id)
+	elif stage == "refusal":
+		# 拒绝 topic 取消：本地兜底文本 + 清理 session
+		_send_local_refusal_fallback(session_id)
+		_on_refusal_topic_completed(session_id)
+
+
+# Refusal topic：直接通过 ChatManager 激活一个 casual_interaction topic，
+# 借助 ActivityChat 的 stage 路由（context_data 写入 _stage_key=refusal）回到本管理器。
+func _start_refusal_topic(session_id: String) -> bool:
+	if not _pending_sessions.has(session_id):
+		return false
+	var session: Dictionary = _pending_sessions[session_id]
+	var refusal_data: Dictionary = session.get("refusal_data", {}) if session.get("refusal_data") is Dictionary else {}
+	var entry: Dictionary = session.get("entry", {}) if session.get("entry") is Dictionary else {}
+
+	var refusal_center: Node = get_node_or_null("/root/NpcRefusalCenter")
+	if refusal_center == null or not refusal_center.has_method("build_refusal_prompt"):
+		return false
+	var prompt_text: String = str(refusal_center.build_refusal_prompt(str(refusal_data.get("warning_desc", "")))).strip_edges()
+	if prompt_text.is_empty():
+		return false
+
+	var chat: Node = get_node_or_null("/root/ChatManager")
+	if chat == null or not chat.has_method("activate_topic") or not chat.has_method("request_topic_npc_reply"):
+		return false
+	if chat.has_method("has_active_topic") and chat.has_active_topic(ActivityChatClass.DM_CHANNEL_ID):
+		return false
+
+	var refusal_id: String = str(refusal_data.get("refusal_id", _get_activity_type()))
+	var topic := ChatTopicClass.new()
+	topic.topic_id = "%s_refusal_%s_%d" % [_get_activity_type(), refusal_id, int(Time.get_unix_time_from_system())]
+	topic.topic_type = "casual_interaction"
+	topic.display_title = "林夏的拒绝（%s）" % str(entry.get("title", _get_activity_type()))
+	topic.npc_id = ActivityChatClass.NPC_ID
+	topic.channel_id = ActivityChatClass.DM_CHANNEL_ID
+	topic.system_prompt = prompt_text
+	topic.goal_description = "拒绝玩家本次行动：%s" % refusal_id
+	topic.timeout_seconds = 0
+	topic.context_data = {
+		"session_id": session_id,
+		_get_chat_stage_key(): "refusal",
+		"activity_type": _get_activity_type(),
+		"activity_stage": "refusal",
+		"entry_id": str(session.get("entry_id", "")),
+		"is_refusal": true,
+		"npc_refusal": true,
+		"refusal_id": refusal_id,
+		"linkchat_open_mode": "force",
+		"complete_after_first_reply": true,
+		"suppress_system_notice": true,
+	}
+
+	if not chat.activate_topic(topic):
+		push_warning("[%s] activate refusal topic failed: %s" % [name, refusal_id])
+		return false
+	if not chat.request_topic_npc_reply(ActivityChatClass.DM_CHANNEL_ID, "", false, true):
+		var topic_mgr: Variant = chat.get("topic_manager")
+		if topic_mgr != null:
+			var active_topic: ChatTopic = chat.get_active_topic(ActivityChatClass.DM_CHANNEL_ID)
+			if active_topic != null and active_topic.topic_id == topic.topic_id:
+				topic_mgr.cancel_topic(active_topic, "refusal_initial_reply_failed")
+		return false
+	print("[%s] Refusal topic activated: %s" % [name, refusal_id])
+	return true
+
+
+# Refusal topic 完成 / 取消后的统一清理：不消耗 AP / 不结算。
+func _on_refusal_topic_completed(session_id: String) -> void:
+	if not _pending_sessions.has(session_id):
+		return
+	var session: Dictionary = (_pending_sessions[session_id] as Dictionary).duplicate(true)
+	var refusal_data: Dictionary = session.get("refusal_data", {}) if session.get("refusal_data") is Dictionary else {}
+	_pending_sessions.erase(session_id)
+	print("[%s] Refusal session finished: %s" % [name, session_id])
+	var error_msg: String = str(refusal_data.get("short", ""))
+	if not error_msg.is_empty():
+		session_failed.emit(error_msg)
+
+
+func _send_local_refusal_fallback(session_id: String) -> void:
+	if not _pending_sessions.has(session_id):
+		return
+	var session: Dictionary = _pending_sessions[session_id]
+	var refusal_data: Dictionary = session.get("refusal_data", {}) if session.get("refusal_data") is Dictionary else {}
+	var fallback_text: String = str(refusal_data.get("fallback", "")).strip_edges()
+	if fallback_text.is_empty():
+		return
+	var chat: Node = get_node_or_null("/root/ChatManager")
+	if chat != null and chat.has_method("store_npc_message"):
+		chat.store_npc_message(ActivityChatClass.DM_CHANNEL_ID, ActivityChatClass.NPC_ID, fallback_text)
 
 
 func _on_moment_completed(session_id: String, moment: Dictionary) -> void:
@@ -798,7 +955,15 @@ func _try_finish_session(session_id: String) -> void:
 	# 活动全部完成后才消耗 AP，触发时间段推进
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
 	if glm != null:
-		glm.consume_ap(1, str(session.get("activity_type", _get_activity_type())), str(session.get("entry_id", "")))
+		var entry_title: String = ""
+		if session.get("entry") is Dictionary:
+			entry_title = str((session["entry"] as Dictionary).get("title", "")).strip_edges()
+		glm.consume_ap(
+			1,
+			str(session.get("activity_type", _get_activity_type())),
+			str(session.get("entry_id", "")),
+			entry_title,
+		)
 
 	var payload: Dictionary = {
 		"success": true,

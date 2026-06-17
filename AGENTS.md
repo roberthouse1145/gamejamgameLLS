@@ -54,6 +54,32 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
+# 双层游戏视角
+
+这个项目经常同时包含两层体验：
+
+- 玩家游玩层：玩家直接看到和操作的内容，包括日常选择、资源消耗、角色互动、小游戏、反馈、阶段性展示等。
+- 创作/开发层：系统、代理或工具在后台推动作品内容生成、修改、验证、沉淀知识和准备后续可游玩内容。
+
+处理相关任务时，先判断改动影响哪一层，再确认两层之间的桥接关系：
+
+- 玩家做了什么操作。
+- 玩家立刻获得什么反馈。
+- 后台是否触发创作、生成、整理、审查或发布流程。
+- 后台结果如何回到玩家可见内容。
+- 失败、取消、延迟完成时，玩家侧和后台侧分别保留什么状态。
+
+修改和阅读代码时关注这些问题：
+
+- 入口：玩家从哪里进入当前功能。
+- 状态：玩家层状态和后台层状态分别存在哪里。
+- 触发：哪一步把玩家行为转换为后台工作。
+- 产物：后台工作写入什么内容，如何验证。
+- 回流：产物通过什么界面、事件或阶段展示给玩家。
+- 边界：调试入口、内部工具和正式玩家入口是否混在一起。
+
+不要把当前实现细节写成长期规则。具体技术栈、目录结构、类名、节点名、资源名都可能随 gamejam 迭代变化。描述新约定时优先写意图、状态关系、验证方式和玩家体验。
+
 # Godot 开发规范
 
 ## 可用工具
@@ -67,11 +93,14 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 1. 编写代码后查看输出检查语法错误。gdscript非python
 2. 测试必须以“场景 + 脚本”成对存在，禁止单脚本运行
    - 每个 `test_xxx.gd` 都必须有对应的 `test_xxx.tscn`
-   - 测试文件统一放在 `tests/` 目录下，避免继续把所有测试堆进单一根目录入口
+   - 自动测试放在 `tests/automated/<domain>/`，现有 `tests/` 根目录和 `tests/<domain>/` 中的 `test_*.gd/.tscn` 仍按自动测试处理
+   - 人工打开、交互、目视检查的入口放在 `tests/playtest/<domain>/`，文件名使用 `playtest_`
+   - 真实 LLM/API、长流程实验、配置诊断入口放在 `tests/lab/<domain>/`
+   - 不再新增 `scripts/tests/` 或 `scenes/tests/` 分离式测试入口；测试脚本和测试场景保持同名同目录
    - Godot 的 autoload 单例只有在运行场景时才会被引擎实例化
    - 单脚本运行时 autoload 不存在，访问任何 autoload 节点必定报错
-   - 因此所有测试都必须通过对应测试场景运行，例如 `mcp_godot_mcp_run_project` 指定 `tests/test_xxx.tscn`
-3. 使用 mcp 运行对应的 `tests/test_xxx.tscn` 测试场景检查启动错误
+   - 因此所有测试都必须通过对应测试场景运行，例如 `mcp_godot_mcp_run_project` 指定对应 `.tscn`
+3. 使用 mcp 运行对应测试场景检查启动错误
 4. 使用 mcp 获取运行时错误
 5. 需要交互测试时，提示用户手动测试并反馈
 6. **严禁**使用单脚本无场景测试（即使是 `@tool` + `EditorScript` 也不推荐，因为无法测试依赖 autoload 的逻辑）

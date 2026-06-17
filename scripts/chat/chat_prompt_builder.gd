@@ -34,7 +34,7 @@ static func build(
 		"project_shared_context": _build_project_shared_context(project_shared_context),
 		"lore_facts": "",
 		"lore_constraints": "",
-		"topic": _build_topic_static(topic),
+		"topic": _build_topic(topic),
 		"topic_runtime": _build_topic_runtime(topic),
 		"speaker_ids": _build_speaker_ids(npcs),
 	}
@@ -137,7 +137,7 @@ static func _build_player_identity() -> String:
 	else:
 		identity_line += "（%s学生）" % university_name
 
-	return "%s。与女友林夏一起参加 ARCADE GRAND JAM 2027。\n【绝对禁止】用其他名字称呼玩家，也禁止自行编造玩家的言行。" % identity_line
+	return "%s。与女友林夏一起参加帧语·新星叙事大赛 2027。\n【绝对禁止】用其他名字称呼玩家，也禁止自行编造玩家的言行。" % identity_line
 
 
 static func _build_history(chat_history: Array[Dictionary], max_count: int = 20) -> String:
@@ -285,7 +285,11 @@ static func _build_memories(relevant_memories: Array) -> String:
 	return "\n".join(lines)
 
 
-static func _build_topic_static(topic: ChatTopic) -> String:
+## 仅返回 topic 的"静态部分"——同一个 topic 内不应变化的内容。
+## 运行时（轮次、超时计数等）放到 _build_topic_runtime() 中，由模板尾部消费，
+## 这样在同一 topic 的多轮对话中 {{topic}} 的展开结果保持稳定，不会冲掉
+## DeepSeek 上下文硬盘缓存的前缀命中。
+static func _build_topic(topic: ChatTopic) -> String:
 	if topic == null:
 		return "当前无特定话题，自由聊天即可。"
 
@@ -295,16 +299,18 @@ static func _build_topic_static(topic: ChatTopic) -> String:
 	return "\n".join(parts)
 
 
+## 返回 topic 的运行时状态——每轮都会变的部分。
+## 调用方应把它注入模板的尾部（在 chat_history 之后），让前缀尽可能稳定。
 static func _build_topic_runtime(topic: ChatTopic) -> String:
 	if topic == null:
-		return "当前无 topic 运行时状态。"
+		return ""
 
-	var runtime_parts: Array[String] = []
-	runtime_parts.append("当前 topic 轮次：第 %d 轮" % maxi(1, int(topic.turn_count)))
+	var lines: Array[String] = []
+	lines.append("- 当前 topic 轮次：第 %d 轮" % maxi(1, int(topic.turn_count)))
 	var timeout_followup_count: int = int(topic.context_data.get("timeout_followup_count", 0))
 	if timeout_followup_count > 0:
-		runtime_parts.append("本 topic 已因玩家沉默触发过 %d 次超时续聊" % timeout_followup_count)
-	return "- %s" % "\n- ".join(runtime_parts)
+		lines.append("- 本 topic 已因玩家沉默触发过 %d 次超时续聊" % timeout_followup_count)
+	return "\n".join(lines)
 
 
 static func _build_user_message(player_messages: Array[String]) -> String:

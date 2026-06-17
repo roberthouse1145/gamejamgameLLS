@@ -297,6 +297,7 @@ static func _db_list(args: Dictionary) -> Dictionary:
 			var is_placeholder_shell: bool = AVGCharacter.looks_like_template_shell(item)
 			entry["key"] = character_key
 			entry["occupied"] = not character_key.is_empty() or not is_placeholder_shell
+			entry["profile"] = str(item.profile if "profile" in item else "").strip_edges()
 		if type == "scenes" and "folder" in item:
 			entry["folder"] = item.folder
 		if type == "variables":

@@ -34,11 +34,16 @@
 - `post_moment` — 以 NPC 身份发朋友圈。参数：`content`（必填）、`npc_id`、`image_hint`、`likes`
 - `lock_app_window` — 锁定窗口。参数：`app_id`（必填）、`close_locked`、`minimize_locked`、`focus`
 - `unlock_app_window` — 解锁窗口。参数：`app_id`（必填）
+- `set_activity_lock` — 设置叙事活动锁。参数：`mode`（`blacklist`/`whitelist`）、`activities`（必填，可用 `|` 分隔多个活动）、`reason`
+- `clear_activity_lock` — 清除叙事活动锁。
 - `generate_work_order` — 根据对话内容让 LLM 生成结构化工单并派发。参数：`title`（必填，工单提示标题）、`prompt`（可选，指定工单应覆盖的要点）
 
 示例：
 ```
-[open_browser url=gamejam://rules/overview]
+[open_browser url=framestory://rules/overview]
+[set_activity_lock mode=blacklist activities="browser_surf" reason="先看完这页再说。"]
+[open_browser url=framestory://forum/theme]
+[clear_activity_lock]
 [post_moment content="刚和搭档讨论完剧本大纲，感觉有戏！" image_hint="笔记本上的手绘草图"]
 [generate_work_order title="作品企划初稿" prompt="作品类型、故事基调、主角设定、核心主题"]
 ```
@@ -47,3 +52,4 @@
 
 - 参数值包含空格时必须用引号包裹：`content="这是一段话"`
 - 只输出当前 topic 明确要求你使用的事件和动作，不要凭空捏造
+- `open_browser` 只负责打开网页，不会自动禁用 Browser 首页的摸鱼搜索。需要剧情期间禁用摸鱼时，请显式配合 `set_activity_lock activities="browser_surf"`。

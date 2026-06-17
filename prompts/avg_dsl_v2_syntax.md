@@ -1,5 +1,7 @@
 DSL V2 语法。所有角色引用必须使用 `character_name`（如 `LinXia`），禁止使用 `character_id`（如 `char_001`）。
 
+❌ **禁止直接使用引擎内部 command_type 形式**（即"全大写下划线"开头并以括号调用结尾的行，例如 `JUMP_SCENE(scene_id="x")`、`SHOW_CHARACTER(...)`、`CALL_EVENT(...)` 等）。这些是底层指令名，**不是用户语法**。所有可写形式都在本文档中明确给出（例如跳转用 `scene.jump("scene_id")`、角色出场用 `角色名.show(...)`），任何不在文档中的"看起来像命令"的写法都会被解析器拒绝。
+
 背景/环境：
 - `bg.show("bg_park_grass", fade_duration=0.4)`
 - `screen.time_of_day("dusk", duration=0.6)`，值：day / dusk / night
@@ -37,8 +39,45 @@ DSL V2 语法。所有角色引用必须使用 `character_name`（如 `LinXia`�
 - `camera.reset(duration=0.4)`
 
 屏幕特效：
-- `screen.fade(direction="in", duration=0.35)`；transition：fade / dissolve / wipe_left / wipe_right / wipe_up / wipe_down。
-- `screen.flash(color="#FFFFFF", duration=0.15, intensity=0.8)`；`intensity` 必须是 `0.0-1.0` 数值，禁止写 small/medium/large 或 轻/中/重。
+
+`screen.fade(...)` 语义（**最高优先级·写错就黑屏 bug**）：
+- `direction="in"` —— **从全黑淡入正常画面**（**开场必用**：屏幕本来是黑的，这条命令把它点亮到游戏画面）
+- `direction="out"` —— **从正常画面淡出到全黑**（场景**结束** / 章节切换 / 时间跳跃前用；调完后屏幕会留在全黑状态）
+- 可选参数 transition：fade / dissolve / wipe_left / wipe_right / wipe_up / wipe_down
+
+**配对硬约束**：每个 `screen.fade(direction="out")` 之后**屏幕会一直黑着**，直到出现一条 `screen.fade(direction="in")` 把它点亮。任何 `out` 都必须有后续 `in`——**除非**这是整个场景最末一条命令（黑屏作为收尾结束）。
+
+❌ **典型 bug**：
+```
+screen.fade(direction="out", duration=0.35)   # 屏幕变黑
+bg.show("bg_campus_gate")                      # 没用！屏幕还是黑的，bg 看不见
+bgm.play("bgm_pure_and_naive")
+# => TextBlock(speaker="LinXia") > ...        # 整段对话玩家都在看黑屏
+```
+`screen.fade(out)` 不是「开场转场」，它就是字面意义的「淡出到黑」。`bg.show(...)` 自带 `fade_duration` 参数做柔和切换，**开场不需要**前面再加 `fade(out)`。
+
+✅ **正确开场**：
+```
+screen.fade(direction="in", duration=0.35)    # 从黑屏点亮
+bg.show("bg_campus_gate", fade_duration=0.4)
+bgm.play("bgm_pure_and_naive")
+# 后面正常写场景
+```
+
+✅ **场景中段切换地点**（不需要 fade，`bg.show` 自带过渡即可）：
+```
+bg.show("bg_park_grass", fade_duration=0.4)
+```
+
+✅ **场景中段需要时间跳跃 / 强转场**（fade out → 切换 → fade in **一对完整使用**）：
+```
+screen.fade(direction="out", duration=0.4)
+bg.show("bg_apartment_living")
+screen.time_of_day("night")
+screen.fade(direction="in", duration=0.4)
+```
+
+`screen.flash(color="#FFFFFF", duration=0.15, intensity=0.8)`；`intensity` 必须是 `0.0-1.0` 数值，禁止写 small/medium/large 或 轻/中/重。
 
 音频：
 - `bgm.play("bgm_alias_name")`
@@ -51,6 +90,7 @@ DSL V2 语法。所有角色引用必须使用 `character_name`（如 `LinXia`�
 - `cg.show("cg_event_001")` / `cg.hide()`
 - CG 默认：`cg.show` 使用 `transition="crossfade"`、`fade_duration=0.25`；`cg.hide` 默认 `fade_duration=0.2`。
 - transition：fade / crossfade / fade_through_black / instant。
+- **CG 互切（同场景同位置，仅切换表情/姿态）一律省略 transition 参数，让默认 crossfade 平滑接管。`fade_through_black` 只在"场景切换 / 时间跳跃 / 从背景首次切入 CG"时使用，绝不要在两张相邻 CG 之间复用前一处的 transition 写法。**
 - 图片/CG 名必须来自资产清单，不能把角色立绘当普通图片/CG。
 
 等待：
@@ -71,6 +111,20 @@ DSL V2 语法。所有角色引用必须使用 `character_name`（如 `LinXia`�
   `> 欢迎光临！请问想喝点什么？`
 - speaker：已注册角色用 `character_name`，纯文本 NPC 直接写中文身份，禁止用 `"Stranger"` 等英文通称。
 - 台词只写角色说出口的话，禁止括号动作或舞台说明，如 `> 芜湖！（笑）`。
+- **配对铁律**：每个 `>` 行必须紧邻自己的 `# => TextBlock(...)` 声明，是一对一关系。多句连续对话必须为每句单独写一组 `# => TextBlock` + `>`。未紧邻 `# =>` 的 `>` 行会被自动视为 speaker 为空的旁白（运行时隐藏名字框）。
+  - ❌ 错误（一个 TextBlock 跟多行 `>`）：
+	```
+	# => TextBlock(speaker="LinXia")
+	> 我也不想告诉你。
+	> 他没有告诉林夏。     # ← 这行虽然意图是旁白，但被视为旁白（不再误归到 LinXia）
+	```
+  - ✅ 正确（每句对话独立配对，旁白显式声明）：
+	```
+	# => TextBlock(speaker="LinXia")
+	> 我也不想告诉你。
+	# => TextBlock()
+	> 他没有告诉林夏。
+	```
 
 分支选项：
 仅当导演指导明确要求生成分支时使用。
@@ -103,7 +157,7 @@ DSL V2 语法。所有角色引用必须使用 `character_name`（如 `LinXia`�
 - 已注册且有立绘的角色，第一次说话前必须先 `角色名.show(...)`、`stage.set(...)` 或 `stage.enter(...)`。
 - 2 个以上角色同时在场时，优先用 `stage.set/enter/exit` 自动排位。
 - 全员退场优先 `stage.clear()`，不要逐个 hide。
-- 第一屏推荐顺序：`screen.fade(...)` -> `bg.show(...)` -> `bgm.play(...)` -> 角色出场 -> 第一段对白/旁白。
+- 第一屏推荐顺序：`screen.fade(direction="in", duration=0.35)`（**必须 in、不能 out**）-> `bg.show(...)` -> `bgm.play(...)` -> 角色出场 -> 第一段对白/旁白。
 - `角色名.expression/outfit/effect(...)` 只能用于已出场角色。
 - 默认线性叙事，不用 ChoiceBlock；若场景要求明确要分支，则生成 2~3 个选项。
 - 背景、服装、表情、角色、BGM、SFX、图片、CG 都只能来自资产清单，禁止编造，禁止写 `res://...`。

@@ -47,6 +47,8 @@ job_title=校园复印店晚班
 company_name=临江复印店
 district=大学城 / 门口
 reward_money=120
+reward_stress=10
+reward_passion=-5
 subtitle=文书 / 双人晚班
 description=真实招聘软件里的岗位正文，2到4句话，不要二人称对话腔。
 valid_phases=AFTERNOON|NIGHT
@@ -61,6 +63,8 @@ detail_prompt=2到3句话，描述物理环境、声音、气味和氛围，并�
 - company_name 是虚构店名或组织名。
 - district 写大学城、商业区、住宅区等可理解区域。
 - reward_money 是单次数值，80 到 260 之间。
+- reward_stress 是本次兼职带来的压力，8 到 18 之间。高薪、体力、社死、夜班、混乱班次取高值；安静、轻松、猫咖、书店、校园轻活取低值。
+- reward_passion 是本次兼职对创作热情的影响，通常是 -3 到 -8。越累、越打断创作节奏、越社死，下降越多。
 - subtitle 是岗位卡片小字，短、好扫读。
 - detail_prompt 给后续 AVG 场景使用，不是给玩家看的招聘文案；写环境和可发生的自然互动，不要写结果。
 - zone_path 只能是 res://resources/maps/zone_school.tres、res://resources/maps/zone_commercial.tres、res://resources/maps/zone_residential.tres。

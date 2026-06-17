@@ -112,6 +112,10 @@ func reset() -> void:
 
 func _build_inventory_item_from_order(order: Dictionary) -> Dictionary:
 	var snap: Dictionary = order.get("item_snapshot", {}).duplicate(true)
+	var stats_raw: Variant = snap.get("instant_stats", {})
+	var instant_stats: Dictionary = {}
+	if stats_raw is Dictionary:
+		instant_stats = (stats_raw as Dictionary).duplicate(true)
 	return {
 		"inventory_id": _next_id("inv"),
 		"instance_id": str(snap.get("instance_id", "")),
@@ -119,7 +123,8 @@ func _build_inventory_item_from_order(order: Dictionary) -> Dictionary:
 		"base_id": str(snap.get("base_id", snap.get("item_id", ""))),
 		"title": str(snap.get("title", "")),
 		"category": str(snap.get("category", "")),
-		"effect_archetype": str(snap.get("effect_archetype", "flavor_no_effect")),
+		"effect_archetype": str(snap.get("effect_archetype", "mood_up_small")),
+		"instant_stats": instant_stats,
 		"giftable": bool(snap.get("giftable", false)),
 		"tags": snap.get("tags", []).duplicate(true),
 		"state": "ready",

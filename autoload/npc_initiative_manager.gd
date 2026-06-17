@@ -30,6 +30,8 @@ const INITIATIVE_TOPIC_TIMEOUT: int = 180
 
 ## 调试模式：设为 true 时 100% 触发、无冷却、无次数限制
 var debug_force_trigger: bool = false
+## 诊断模式：设为 true 时打印每次 phase_changed 评估时的阻塞原因
+var debug_log_blocks: bool = false
 
 var _active_initiative: Dictionary = {}
 var _initiatives_today: int = 0
@@ -106,33 +108,50 @@ func _on_day_changed(new_day: int) -> void:
 
 func _evaluate_initiative() -> void:
 	if not _active_initiative.is_empty():
+		_log_block("active_initiative_in_progress")
 		return
-	if not _can_trigger():
+	var block_reason: String = _get_trigger_block_reason()
+	if not block_reason.is_empty():
+		_log_block(block_reason)
 		return
 
 	var candidate: Dictionary = _select_activity()
 	if candidate.is_empty():
+		_log_block("no_candidate_activity")
 		return
 
 	# 概率性跳过，体现角色自主性
 	if randf() > _compute_trigger_chance():
+		_log_block("probability_roll_skipped")
 		return
 
 	_send_initiative(candidate)
 
 
 func _can_trigger() -> bool:
+	return _get_trigger_block_reason().is_empty()
+
+
+func _get_trigger_block_reason() -> String:
 	if not debug_force_trigger and _initiatives_today >= MAX_INITIATIVES_PER_DAY:
-		return false
-	if not ActivityLockUtilsClass.is_free_period():
-		return false
+		return "daily_limit_reached(%d/%d)" % [_initiatives_today, MAX_INITIATIVES_PER_DAY]
+	var free_reason: String = ActivityLockUtilsClass.get_free_period_block_reason()
+	if not free_reason.is_empty():
+		return "not_free_period: %s" % free_reason
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	if glm == null or not glm.can_consume_ap(1):
-		return false
+	if glm == null:
+		return "game_loop_manager_missing"
+	if not glm.can_consume_ap(1):
+		return "ap_insufficient"
 	var chat: Node = get_node_or_null("/root/ChatManager")
 	if chat != null and chat.has_method("has_active_topic") and chat.has_active_topic(DM_CHANNEL_ID):
-		return false
-	return true
+		return "chat_topic_active"
+	return ""
+
+
+func _log_block(reason: String) -> void:
+	if debug_log_blocks:
+		print("[NpcInitiativeManager] not triggered: %s" % reason)
 
 
 func _compute_trigger_chance() -> float:
@@ -142,12 +161,10 @@ func _compute_trigger_chance() -> float:
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
 		return chance
-	# 高好感度提高主动性
-	if int(gm.affection) >= 60:
-		chance += 0.15
-	# 高压力降低主动性
-	if int(gm.stress) >= 60:
-		chance -= 0.15
+	if int(gm.get("stress")) >= 60:
+		chance += 0.10
+	if int(gm.get("passion")) <= 35:
+		chance += 0.10
 	return clampf(chance, 0.1, 0.7)
 
 
@@ -246,29 +263,34 @@ func _date_weight() -> float:
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
 		return 1.0
-	# 高好感更倾向约会
-	if int(gm.affection) >= 50:
-		return 2.0
-	return 1.0
+	var weight := 1.0
+	if int(gm.get("stress")) >= 60:
+		weight += 1.2
+	if int(gm.get("passion")) <= 35:
+		weight += 0.4
+	return weight
 
 
 func _sbeam_weight() -> float:
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
 		return 1.0
-	# 压力大时更想一起放松
-	if int(gm.stress) >= 50:
-		return 1.5
-	return 1.0
+	var weight := 1.0
+	if int(gm.get("passion")) <= 35:
+		weight += 1.6
+	if int(gm.get("stress")) >= 60:
+		weight += 0.8
+	return weight
 
 
 func _part_time_weight() -> float:
 	var gm: Node = get_node_or_null("/root/GameManager")
 	if gm == null:
 		return 1.0
-	# 缺钱时更倾向兼职
-	if int(gm.money) < 200:
-		return 2.0
+	if int(gm.get("stress")) >= 65 or int(gm.get("passion")) <= 30:
+		return 0.1
+	if int(gm.get("money")) < 200:
+		return 2.2
 	return 0.8
 
 
@@ -354,6 +376,7 @@ func _build_invite_prompt(candidate: Dictionary) -> String:
 			"initiative_activity_type_label": _get_type_label(activity_type),
 			"initiative_title": title,
 			"initiative_summary": summary,
+			"initiative_state_summary": _build_state_summary(),
 		}
 		var resolved: String = str(pm.resolve_with_vars(PROMPT_KEY, vars_dict)).strip_edges()
 		if not resolved.is_empty() and resolved != PROMPT_KEY:
@@ -365,6 +388,7 @@ func _build_invite_prompt(candidate: Dictionary) -> String:
 		"你是林夏。你想邀请玩家一起去%s——「%s」。\n"
 		% [type_label, title]
 		+ "%s\n" % summary
+		+ "当前状态：%s\n" % _build_state_summary()
 		+ "【严禁虚构事实】只能使用上方给出的标题、类型、价格、简介、看点等信息。"
 		+ "不要臆造价格、折扣、免费、限免、销量、评分、获奖、开发商等上方没有给出的属性。"
 		+ "尤其不要说游戏是“免费”、“限免”、“打折”、“促销”，除非上方字段里明确写了这些字样。\n"
@@ -390,6 +414,17 @@ func _get_type_label(activity_type: String) -> String:
 		"part_time":
 			return "做兼职"
 	return "做点什么"
+
+
+func _build_state_summary() -> String:
+	var gm: Node = get_node_or_null("/root/GameManager")
+	if gm == null:
+		return "状态未知"
+	return "压力 %d/100，创作热情 %d/100，金钱 %d" % [
+		int(gm.get("stress")),
+		int(gm.get("passion")),
+		int(gm.get("money")),
+	]
 
 
 # =============================================================================

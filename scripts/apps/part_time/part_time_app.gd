@@ -486,7 +486,8 @@ func _update_detail_panel(job: Dictionary) -> void:
 
 	var can_apply: bool = bool(job.get("enabled", true)) and _active_session_id.is_empty()
 	if _active_session_id.is_empty():
-		_detail_status.text = "这是一次双人兼职事件。投递后会通过 LinkChat 和约会场景链路推进。"
+		var disabled_reason := str(job.get("disabled_reason", "")).strip_edges()
+		_detail_status.text = disabled_reason if not can_apply and not disabled_reason.is_empty() else "这是一次双人兼职事件。投递后会通过 LinkChat 和约会场景链路推进。"
 	else:
 		_detail_status.text = "当前已有一份兼职正在进行，先完成这一班。"
 	_apply_button.disabled = not can_apply

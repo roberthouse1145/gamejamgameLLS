@@ -38,7 +38,7 @@ value: 魔法学院与异世界
 apps: linkchat, dev_work
 
 [ensure_dev_work_task]
-template_path: res://resources/dev_work/story_tasks/day1_creative_brief.json
+template_path: res://resources/dev_work/story_tasks/lock_creative_direction.json
 
 [activate_topic]
 topic_path: res://resources/story/topics/day1_night_plan.tres
@@ -63,5 +63,5 @@ app_id: dev_work
 force: true
 
 wait: dev_task_completed
-  task_id: day1_creative_brief
+  task_id: lock_creative_direction
 ->

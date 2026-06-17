@@ -2,6 +2,7 @@ class_name MinigameContentService
 extends Node
 
 const ActivityOptionLLMServiceClass = preload("res://scripts/activity/activity_option_llm_service.gd")
+const ChatProjectContextBuilderClass = preload("res://scripts/chat/chat_project_context_builder.gd")
 
 const PRIMARY_ROLE: String = "minigame"
 const FALLBACK_ROLES: Array[String] = ["chat_default"]
@@ -72,7 +73,11 @@ func _ready() -> void:
 		"MinigameContentLLMService",
 		PRIMARY_ROLE,
 		FALLBACK_ROLES,
-		{},
+		{
+			"use_chat_agent": true,
+			"enable_project_tools": true,
+			"max_tool_iterations": 2,
+		},
 		{
 			"temperature": 0.5,
 		}
@@ -243,7 +248,8 @@ func _build_kb_context(task_data: Dictionary) -> String:
 
 	var kb_sources: Array[String] = _extract_kb_sources(task_data)
 	if kb_sources.is_empty():
-		return "暂无可用知识库摘要。"
+		var builder := ChatProjectContextBuilderClass.new()
+		return builder.build_kb_context("")
 
 	var lines: PackedStringArray = []
 	var total_chars: int = 0
@@ -274,7 +280,10 @@ func _build_kb_context(task_data: Dictionary) -> String:
 			break
 
 	if lines.is_empty():
-		return "暂无可用知识库摘要。"
+		var builder := ChatProjectContextBuilderClass.new()
+		return builder.build_kb_context("")
+	lines.append("")
+	lines.append("如需确认未展开的知识库全文，可调用 kb_read(category=\"...\") 或 kb_read(doc_id=\"...\") 工具。最终仍必须只输出小游戏内容 DSL。")
 	return "\n\n".join(lines)
 
 

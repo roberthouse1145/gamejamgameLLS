@@ -30,38 +30,28 @@ func _run_test() -> void:
 		return
 	print("[OK] DevPlannerAgent exposes work order summary tool")
 
-	var parsed_seed: Variant = pm.call("_parse_json_array_output", """```json
-[
-  {"title":"任务A","description":"描述A","topic_config":{"goal_description":"目标A"}}
-]
-```""")
-	if not parsed_seed is Array or parsed_seed.size() != 1:
-		print("[FAIL] PlanningManager failed to parse seed task JSON array")
-		return
-	print("[OK] PlanningManager parsed seed task JSON array")
-
-	var parsed_seed_with_preamble: Variant = pm.call("_parse_json_array_output", """当前没有任务，我需要先生成第一批 dev work。
+	var parsed_with_preamble: Variant = pm.call("_parse_json_array_output", """当前任务池快空了，我来续杯一批。
 
 ```json
 [
-  {"title":"任务B","description":"描述B","topic_config":{"goal_description":"目标B"}}
+  {"title":"任务A","description":"描述A","task_type":"minigame","minigame_type":"typing_code","post_task_work_order":{"title":"x","description":"y"}}
 ]
 ```""")
-	if not parsed_seed_with_preamble is Array or parsed_seed_with_preamble.size() != 1:
-		print("[FAIL] PlanningManager should parse seed task arrays even when the LLM adds preamble text before the JSON block")
+	if not parsed_with_preamble is Array or parsed_with_preamble.size() != 1:
+		print("[FAIL] PlanningManager should parse a task JSON array even when the LLM adds preamble text before the JSON block")
 		return
-	print("[OK] PlanningManager parsed seed task JSON array with preamble text")
+	print("[OK] PlanningManager parsed task JSON array with preamble text")
 
-	var parsed_seed_with_open_fence: Variant = pm.call("_parse_json_array_output", """我会优先处理最前面的创作缺口。
+	var parsed_with_open_fence: Variant = pm.call("_parse_json_array_output", """我会优先处理最前面的创作缺口。
 
 ```json
 [
-  {"title":"任务C","description":"描述C","topic_config":{"goal_description":"目标C"}}
+  {"title":"任务B","description":"描述B","task_type":"minigame","minigame_type":"typing_code","post_task_work_order":{"title":"x","description":"y"}}
 ]""")
-	if not parsed_seed_with_open_fence is Array or parsed_seed_with_open_fence.size() != 1:
-		print("[FAIL] PlanningManager should parse seed task arrays even when the code fence is left open but the JSON array is complete")
+	if not parsed_with_open_fence is Array or parsed_with_open_fence.size() != 1:
+		print("[FAIL] PlanningManager should parse a task JSON array even when the code fence is left open but the JSON array is complete")
 		return
-	print("[OK] PlanningManager parsed seed task JSON array with an open code fence")
+	print("[OK] PlanningManager parsed task JSON array with an open code fence")
 
 	var parsed_plan: Variant = pm.call("_parse_json_array_output", """[
 	{

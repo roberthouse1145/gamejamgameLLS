@@ -6,6 +6,9 @@ const ScriptToolsClass = preload("res://scripts/avg/dev_tools/script_tools.gd")
 const ProjectToolsClass = preload("res://scripts/avg/dev_tools/project_tools.gd")
 const AVGVariableClass = preload("res://scripts/avg/resources/avg_variable.gd")
 
+const DEFAULT_INDEX_ITEM_LIMIT: int = 80
+const INDEX_TEXT_PREVIEW_CHARS: int = 120
+
 
 static func register_gather_scene_context(ai_service: Node) -> void:
 	ai_service.register_tool("gather_scene_context", "批量收集 Writer/Executor 常用上下文：可一次获取指定场景的 DSL、相关 KB 文档、资源 alias、角色名册、变量列表、场景目录和可达性摘要。当前变量系统只允许 int / string：布尔请用 0/1，float 会被截断成 int。混用 string 和 int 做比较时，set_scene_script 会给 warning，运行时会把空字符串视为 0、非空字符串视为 1。优先使用此工具，避免连续调用多个只读工具。", {
@@ -86,6 +89,52 @@ static func register_batch_patch_scene_scripts(ai_service: Node) -> void:
 	}, func(args: Dictionary) -> Variant: return _batch_patch_scene_scripts(args), {
 		"fields": ["success", "results", "patched_count", "failed_count", "error"]
 	})
+
+
+## 构建后台工单 Agent 的稳定项目索引前缀。
+## 只包含定位信息，不包含 KB 正文或完整 DSL；全文仍由 kb_read/gather_scene_context 按需获取。
+static func build_work_order_project_index(max_items_per_section: int = DEFAULT_INDEX_ITEM_LIMIT) -> String:
+	var vars: Dictionary = build_work_order_project_index_vars(max_items_per_section)
+	var prompt_manager: Node = _get_prompt_manager()
+	if prompt_manager != null and prompt_manager.has_method("resolve_with_vars"):
+		if not prompt_manager.has_method("has_prompt") or prompt_manager.has_prompt("work_order_project_index"):
+			var resolved: String = str(prompt_manager.resolve_with_vars("work_order_project_index", vars)).strip_edges()
+			if not resolved.is_empty():
+				return resolved
+	return _build_work_order_project_index_fallback(vars)
+
+
+static func build_work_order_project_index_vars(max_items_per_section: int = DEFAULT_INDEX_ITEM_LIMIT) -> Dictionary:
+	var project: Resource = DBToolsClass.get_project()
+	if project == null:
+		return {
+			"work_order_project_summary": "- 当前未打开 AVG 项目，索引不可用。",
+			"work_order_kb_index": "- （无）",
+			"work_order_scene_index": "- （无）",
+			"work_order_character_index": "- （无）",
+			"work_order_variable_index": "- （无）",
+			"work_order_asset_index": "- （无）",
+		}
+
+	var project_name: String = str(project.project_name if "project_name" in project else "").strip_edges()
+	var summary_lines: Array[String] = []
+	if not project_name.is_empty():
+		summary_lines.append("- project_name: %s" % project_name)
+	summary_lines.append("- scenes=%d characters=%d variables=%d events=%d" % [
+		(project.scenes.size() if "scenes" in project and project.scenes is Array else 0),
+		(project.characters.size() if "characters" in project and project.characters is Array else 0),
+		(project.variables.size() if "variables" in project and project.variables is Array else 0),
+		(project.events.size() if "events" in project and project.events is Array else 0),
+	])
+
+	return {
+		"work_order_project_summary": "\n".join(summary_lines).strip_edges(),
+		"work_order_kb_index": "\n".join(_build_kb_index_lines(max_items_per_section)).strip_edges(),
+		"work_order_scene_index": "\n".join(_build_scene_index_lines(project, max_items_per_section)).strip_edges(),
+		"work_order_character_index": "\n".join(_build_character_index_lines(project, max_items_per_section)).strip_edges(),
+		"work_order_variable_index": "\n".join(_build_variable_index_lines(project, max_items_per_section)).strip_edges(),
+		"work_order_asset_index": "\n".join(_build_asset_index_lines(max_items_per_section)).strip_edges(),
+	}
 
 
 static func _gather_scene_context(args: Dictionary) -> Dictionary:
@@ -275,6 +324,147 @@ static func _collect_assets(asset_categories: Array) -> Dictionary:
 	return result
 
 
+static func _build_kb_index_lines(limit: int) -> Array[String]:
+	var read_result: Dictionary = KBToolsClass._kb_read({})
+	if not bool(read_result.get("success", false)):
+		return ["- KB 不可用：%s" % str(read_result.get("error", ""))]
+	var docs: Array = read_result.get("data", [])
+	var rows: Array[Dictionary] = []
+	for doc in docs:
+		if not (doc is Dictionary):
+			continue
+		var doc_dict: Dictionary = doc
+		rows.append({
+			"doc_id": str(doc_dict.get("doc_id", "")).strip_edges(),
+			"title": str(doc_dict.get("title", "")).strip_edges(),
+			"category": str(doc_dict.get("category", "")).strip_edges(),
+			"doc_kind": str(doc_dict.get("doc_kind", "")).strip_edges(),
+			"state": str(doc_dict.get("state", "")).strip_edges(),
+			"tags": _sorted_string_array(doc_dict.get("tags", [])),
+		})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ak: String = "%s/%s/%s" % [a.get("category", ""), a.get("doc_id", ""), a.get("title", "")]
+		var bk: String = "%s/%s/%s" % [b.get("category", ""), b.get("doc_id", ""), b.get("title", "")]
+		return ak < bk
+	)
+	var lines: Array[String] = []
+	for i in range(mini(limit, rows.size())):
+		var row: Dictionary = rows[i]
+		var tags: Array[String] = row.get("tags", [])
+		var suffix: String = ""
+		if not tags.is_empty():
+			suffix = " tags=%s" % ", ".join(tags)
+		lines.append("- %s | %s | %s | kind=%s state=%s%s" % [
+			str(row.get("category", "")),
+			str(row.get("doc_id", "")),
+			str(row.get("title", "")),
+			str(row.get("doc_kind", "")),
+			str(row.get("state", "")),
+			suffix,
+		])
+	_append_limit_notice(lines, rows.size(), limit)
+	return _ensure_non_empty_lines(lines)
+
+
+static func _build_scene_index_lines(project: Resource, limit: int) -> Array[String]:
+	var rows: Array[Dictionary] = []
+	if project != null and "scenes" in project and project.scenes is Array:
+		for scene in project.scenes:
+			if scene == null:
+				continue
+			var scene_id: String = str(scene.scene_id if "scene_id" in scene else "").strip_edges()
+			rows.append({
+				"scene_id": scene_id,
+				"scene_name": str(scene.scene_name if "scene_name" in scene else "").strip_edges(),
+				"folder": str(scene.folder if "folder" in scene else "").strip_edges(),
+				"scene_note": _one_line(str(scene.scene_note if "scene_note" in scene else ""), INDEX_TEXT_PREVIEW_CHARS),
+				"is_placeholder": DBToolsClass.is_placeholder_scene(scene),
+			})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return str(a.get("scene_id", "")) < str(b.get("scene_id", ""))
+	)
+	var lines: Array[String] = []
+	for i in range(mini(limit, rows.size())):
+		var row: Dictionary = rows[i]
+		var flags: Array[String] = []
+		if bool(row.get("is_placeholder", false)):
+			flags.append("placeholder")
+		var folder: String = str(row.get("folder", ""))
+		if not folder.is_empty():
+			flags.append("folder=%s" % folder)
+		var suffix: String = ""
+		if not flags.is_empty():
+			suffix += " [%s]" % ", ".join(flags)
+		var note: String = str(row.get("scene_note", ""))
+		if not note.is_empty():
+			suffix += " - %s" % note
+		lines.append("- %s | %s%s" % [str(row.get("scene_id", "")), str(row.get("scene_name", "")), suffix])
+	_append_limit_notice(lines, rows.size(), limit)
+	return _ensure_non_empty_lines(lines)
+
+
+static func _build_character_index_lines(project: Resource, limit: int) -> Array[String]:
+	var rows: Array[Dictionary] = _collect_character_roster(project)
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var ak: String = "%s/%s" % [a.get("character_name", ""), a.get("character_id", "")]
+		var bk: String = "%s/%s" % [b.get("character_name", ""), b.get("character_id", "")]
+		return ak < bk
+	)
+	var lines: Array[String] = []
+	for i in range(mini(limit, rows.size())):
+		var row: Dictionary = rows[i]
+		var expressions: Array[String] = _sorted_string_array(row.get("expressions", []))
+		var outfits: Array[String] = _sorted_string_array(row.get("outfits", []))
+		lines.append("- %s | %s | display=%s | key=%s | expressions=%s | outfits=%s" % [
+			str(row.get("character_id", "")),
+			str(row.get("character_name", "")),
+			str(row.get("display_name", "")),
+			str(row.get("character_key", "")),
+			_join_or_dash(expressions),
+			_join_or_dash(outfits),
+		])
+	_append_limit_notice(lines, rows.size(), limit)
+	return _ensure_non_empty_lines(lines)
+
+
+static func _build_variable_index_lines(project: Resource, limit: int) -> Array[String]:
+	var rows: Array[Dictionary] = _collect_variables(project)
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		return str(a.get("variable_key", "")) < str(b.get("variable_key", ""))
+	)
+	var lines: Array[String] = []
+	for i in range(mini(limit, rows.size())):
+		var row: Dictionary = rows[i]
+		lines.append("- %s | id=%s | type=%s | default=%s | display=%s" % [
+			str(row.get("variable_key", "")),
+			str(row.get("variable_id", "")),
+			str(row.get("value_type", "")),
+			str(row.get("default_value", "")),
+			str(row.get("display_name", "")),
+		])
+	_append_limit_notice(lines, rows.size(), limit)
+	return _ensure_non_empty_lines(lines)
+
+
+static func _build_asset_index_lines(limit: int) -> Array[String]:
+	var assets: Dictionary = _collect_assets(["backgrounds", "images", "cg", "bgm", "sfx"])
+	if assets.is_empty():
+		return ["- 当前没有可用资源索引，Writer 仍需调用 gather_scene_context 或 list_assets 确认资源。"]
+	var sections: Array[String] = []
+	var keys: Array[String] = [
+		"background_aliases", "image_aliases", "cg_aliases", "bgm_aliases", "sfx_aliases",
+		"backgrounds", "images", "cg", "bgm", "sfx",
+	]
+	for key in keys:
+		if not assets.has(key):
+			continue
+		var items: Array[String] = _sorted_string_array(assets.get(key, []))
+		if items.is_empty():
+			continue
+		sections.append("- %s: %s" % [key, _join_limited(items, limit)])
+	return _ensure_non_empty_lines(sections)
+
+
 static func _collect_character_roster(project: Resource) -> Array[Dictionary]:
 	var roster: Array[Dictionary] = []
 	if project == null or not ("characters" in project):
@@ -348,3 +538,71 @@ static func _count_successes(results: Array[Dictionary]) -> int:
 		if bool(row.get("success", false)):
 			count += 1
 	return count
+
+
+static func _get_prompt_manager() -> Node:
+	var tree: SceneTree = Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+	return tree.root.get_node_or_null("PromptManager")
+
+
+static func _build_work_order_project_index_fallback(vars: Dictionary) -> String:
+	return "\n\n".join([
+		"# 项目索引（稳定前缀）",
+		"用途：帮助后台工单 Agent 快速定位 KB、角色、变量、场景与资源 alias。这里只是索引，不是全文事实来源；需要正文或完整 DSL 时再调用工具。",
+		str(vars.get("work_order_project_summary", "")).strip_edges(),
+		"## KB 文档索引\n\n%s" % str(vars.get("work_order_kb_index", "")).strip_edges(),
+		"## 场景索引\n\n%s" % str(vars.get("work_order_scene_index", "")).strip_edges(),
+		"## 角色索引\n\n%s" % str(vars.get("work_order_character_index", "")).strip_edges(),
+		"## 变量索引\n\n%s" % str(vars.get("work_order_variable_index", "")).strip_edges(),
+		"## 资源 Alias / 文件索引\n\n%s" % str(vars.get("work_order_asset_index", "")).strip_edges(),
+	]).strip_edges()
+
+
+static func _sorted_string_array(raw_items: Variant) -> Array[String]:
+	var result: Array[String] = []
+	if raw_items is Array:
+		for item in raw_items:
+			var text: String = str(item).strip_edges()
+			if text.is_empty() or result.has(text):
+				continue
+			result.append(text)
+	result.sort()
+	return result
+
+
+static func _join_or_dash(items: Array[String]) -> String:
+	if items.is_empty():
+		return "-"
+	return ", ".join(items)
+
+
+static func _join_limited(items: Array[String], limit: int) -> String:
+	var clipped: Array[String] = []
+	for i in range(mini(limit, items.size())):
+		clipped.append(items[i])
+	var text: String = ", ".join(clipped)
+	if items.size() > limit:
+		text += " ... (+%d more)" % (items.size() - limit)
+	return text
+
+
+static func _append_limit_notice(lines: Array[String], total_count: int, limit: int) -> void:
+	if total_count > limit:
+		lines.append("- ... (+%d more; use tools for the full list)" % (total_count - limit))
+
+
+static func _ensure_non_empty_lines(lines: Array[String]) -> Array[String]:
+	if lines.is_empty():
+		return ["- （无）"]
+	return lines
+
+
+static func _one_line(text: String, max_chars: int) -> String:
+	var normalized: String = text.replace("\r", " ").replace("\n", " ").strip_edges()
+	while "  " in normalized:
+		normalized = normalized.replace("  ", " ")
+	if max_chars > 0 and normalized.length() > max_chars:
+		return normalized.left(max_chars) + "..."
+	return normalized

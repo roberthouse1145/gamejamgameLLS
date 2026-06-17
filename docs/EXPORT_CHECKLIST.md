@@ -24,11 +24,10 @@
 ### Filters to exclude files/folders from project（排除过滤器）
 
 ```
-godot-mcp/*,tests/*,design/*,docs/*,_*.py,_*.txt,_*.bak,*.bak,*.py,scratch_*.txt,temp_*.txt,output*.txt,all_emotions.txt,git_test.txt,nul,NVIDIA Corporation/*,test.gd,test.tscn,test_dsl.gd,test_git.gd,fix_theme.gd,rebuild_story_cache.gd
+tests/*,design/*,docs/*,_*.py,_*.txt,_*.bak,*.bak,*.py,scratch_*.txt,temp_*.txt,output*.txt,all_emotions.txt,git_test.txt,nul,NVIDIA Corporation/*,test.gd,test.tscn,test_dsl.gd,test_git.gd,fix_theme.gd,rebuild_story_cache.gd
 ```
 
 说明：
-- `godot-mcp/*` —— 开发期 MCP 工具，大量用了 `globalize_path`，运行时没意义；而且是编辑器脚本。
 - `tests/*` —— 140+ 个测试脚本/场景。
 - `design/`、`docs/` —— 设计稿/文档。
 - `_*.py`、`*.py` —— 根目录的脚本临时文件。
@@ -84,5 +83,5 @@ godot-mcp/*,tests/*,design/*,docs/*,_*.py,_*.txt,_*.bak,*.bak,*.py,scratch_*.txt
 
 **排除**：
 ```
-godot-mcp/*,tests/*,design/*,docs/*,_*.py,_*.txt,_*.bak,*.bak,*.py,scratch_*.txt,temp_*.txt,output*.txt,all_emotions.txt,git_test.txt,nul,NVIDIA Corporation/*,test.gd,test.tscn,test_dsl.gd,test_git.gd,fix_theme.gd,rebuild_story_cache.gd
+tests/*,design/*,docs/*,_*.py,_*.txt,_*.bak,*.bak,*.py,scratch_*.txt,temp_*.txt,output*.txt,all_emotions.txt,git_test.txt,nul,NVIDIA Corporation/*,test.gd,test.tscn,test_dsl.gd,test_git.gd,fix_theme.gd,rebuild_story_cache.gd
 ```

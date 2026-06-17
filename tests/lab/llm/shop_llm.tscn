@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://cmp3jn8sefdw0"]
+
+[ext_resource type="Script" uid="uid://bn061h77axier" path="res://tests/lab/llm/shop_llm.gd" id="1"]
+
+[node name="TestShopLLM" type="Node" unique_id=1463447459]
+script = ExtResource("1")

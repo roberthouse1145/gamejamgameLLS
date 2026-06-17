@@ -33,6 +33,8 @@ var _detail_close_btn: Button = null
 var _detail_seller: Label = null
 var _detail_rating_row: HBoxContainer = null
 var _toast_timer: Timer = null
+var _detail_tween: Tween = null
+var _tab_tween: Tween = null
 
 
 func _ready() -> void:
@@ -64,14 +66,14 @@ func _build_ui() -> void:
 
 	var body_margin := MarginContainer.new()
 	body_margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body_margin.add_theme_constant_override("margin_left", 24)
-	body_margin.add_theme_constant_override("margin_top", 16)
-	body_margin.add_theme_constant_override("margin_right", 24)
-	body_margin.add_theme_constant_override("margin_bottom", 16)
+	body_margin.add_theme_constant_override("margin_left", 36)
+	body_margin.add_theme_constant_override("margin_top", 24)
+	body_margin.add_theme_constant_override("margin_right", 36)
+	body_margin.add_theme_constant_override("margin_bottom", 24)
 	root.add_child(body_margin)
 
 	var body_hbox := HBoxContainer.new()
-	body_hbox.add_theme_constant_override("separation", 16)
+	body_hbox.add_theme_constant_override("separation", 24)
 	body_margin.add_child(body_hbox)
 
 	var left := VBoxContainer.new()
@@ -98,7 +100,7 @@ func _build_ui() -> void:
 
 	_detail_panel = _build_detail_panel()
 	_detail_panel.visible = false
-	_detail_panel.custom_minimum_size = Vector2(380, 0)
+	_detail_panel.custom_minimum_size = Vector2(520, 0)
 	body_hbox.add_child(_detail_panel)
 
 	_toast_timer = Timer.new()
@@ -110,7 +112,7 @@ func _build_ui() -> void:
 
 func _build_nav_bar() -> Control:
 	var nav := PanelContainer.new()
-	nav.custom_minimum_size = Vector2(0, 56)
+	nav.custom_minimum_size = Vector2(0, 80)
 	var nav_style := StyleBoxFlat.new()
 	nav_style.bg_color = ShopCardBuilder.C_WHITE
 	nav_style.border_color = ShopCardBuilder.C_BORDER
@@ -118,8 +120,8 @@ func _build_nav_bar() -> Control:
 	nav.add_theme_stylebox_override("panel", nav_style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_left", 36)
+	margin.add_theme_constant_override("margin_right", 36)
 	margin.add_theme_constant_override("margin_top", 0)
 	margin.add_theme_constant_override("margin_bottom", 0)
 	nav.add_child(margin)
@@ -131,13 +133,13 @@ func _build_nav_bar() -> Control:
 
 	var logo := Label.new()
 	logo.text = "好买"
-	logo.add_theme_font_size_override("font_size", 26)
+	logo.add_theme_font_size_override("font_size", 40)
 	logo.add_theme_color_override("font_color", ShopCardBuilder.C_NAV)
 	logo.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(logo)
 
 	var spacer1 := Control.new()
-	spacer1.custom_minimum_size = Vector2(32, 0)
+	spacer1.custom_minimum_size = Vector2(48, 0)
 	row.add_child(spacer1)
 
 	var tab_names: PackedStringArray = ["今日推荐", "我的订单", "我的物品"]
@@ -145,8 +147,8 @@ func _build_nav_bar() -> Control:
 		var btn := Button.new()
 		btn.text = tab_names[i]
 		btn.flat = true
-		btn.custom_minimum_size = Vector2(100, 56)
-		btn.add_theme_font_size_override("font_size", 15)
+		btn.custom_minimum_size = Vector2(130, 80)
+		btn.add_theme_font_size_override("font_size", 24)
 		btn.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
 		btn.add_theme_color_override("font_hover_color", ShopCardBuilder.C_NAV)
 		btn.add_theme_color_override("font_pressed_color", ShopCardBuilder.C_NAV)
@@ -161,17 +163,17 @@ func _build_nav_bar() -> Control:
 
 	_toast_label = Label.new()
 	_toast_label.text = ""
-	_toast_label.add_theme_font_size_override("font_size", 13)
+	_toast_label.add_theme_font_size_override("font_size", 20)
 	_toast_label.add_theme_color_override("font_color", ShopCardBuilder.C_SUCCESS)
 	_toast_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_toast_label)
 
 	var spacer3 := Control.new()
-	spacer3.custom_minimum_size = Vector2(16, 0)
+	spacer3.custom_minimum_size = Vector2(24, 0)
 	row.add_child(spacer3)
 
 	_wallet_label = Label.new()
-	_wallet_label.add_theme_font_size_override("font_size", 15)
+	_wallet_label.add_theme_font_size_override("font_size", 24)
 	_wallet_label.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT)
 	_wallet_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_wallet_label)
@@ -186,8 +188,8 @@ func _build_shop_page() -> Control:
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid = GridContainer.new()
 	_grid.columns = 3
-	_grid.add_theme_constant_override("h_separation", 16)
-	_grid.add_theme_constant_override("v_separation", 16)
+	_grid.add_theme_constant_override("h_separation", 24)
+	_grid.add_theme_constant_override("v_separation", 24)
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_grid)
 	return scroll
@@ -199,7 +201,7 @@ func _build_orders_page() -> Control:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_orders_box = VBoxContainer.new()
-	_orders_box.add_theme_constant_override("separation", 12)
+	_orders_box.add_theme_constant_override("separation", 18)
 	_orders_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(_orders_box)
 	return scroll
@@ -211,33 +213,18 @@ func _build_inventory_page() -> Control:
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 12)
+	vbox.add_theme_constant_override("separation", 18)
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(vbox)
 
-	var effects_header := Label.new()
-	effects_header.text = "当前生效"
-	effects_header.add_theme_font_size_override("font_size", 16)
-	effects_header.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT)
-	vbox.add_child(effects_header)
-
-	var effects_box := VBoxContainer.new()
-	effects_box.name = "EffectsBox"
-	effects_box.add_theme_constant_override("separation", 8)
-	vbox.add_child(effects_box)
-
-	var sep := HSeparator.new()
-	sep.add_theme_constant_override("separation", 16)
-	vbox.add_child(sep)
-
 	var inv_header := Label.new()
 	inv_header.text = "全部物品"
-	inv_header.add_theme_font_size_override("font_size", 16)
+	inv_header.add_theme_font_size_override("font_size", 26)
 	inv_header.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT)
 	vbox.add_child(inv_header)
 
 	_inventory_box = VBoxContainer.new()
-	_inventory_box.add_theme_constant_override("separation", 8)
+	_inventory_box.add_theme_constant_override("separation", 12)
 	vbox.add_child(_inventory_box)
 
 	return scroll
@@ -253,10 +240,10 @@ func _build_detail_panel() -> PanelContainer:
 	panel.add_theme_stylebox_override("panel", style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 20)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_right", 20)
-	margin.add_theme_constant_override("margin_bottom", 16)
+	margin.add_theme_constant_override("margin_left", 30)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_right", 30)
+	margin.add_theme_constant_override("margin_bottom", 24)
 	panel.add_child(margin)
 
 	var scroll := ScrollContainer.new()
@@ -265,7 +252,7 @@ func _build_detail_panel() -> PanelContainer:
 	margin.add_child(scroll)
 
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 10)
+	vbox.add_theme_constant_override("separation", 16)
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(vbox)
 
@@ -278,7 +265,7 @@ func _build_detail_panel() -> PanelContainer:
 	_detail_close_btn = Button.new()
 	_detail_close_btn.text = "✕"
 	_detail_close_btn.flat = true
-	_detail_close_btn.add_theme_font_size_override("font_size", 18)
+	_detail_close_btn.add_theme_font_size_override("font_size", 28)
 	_detail_close_btn.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
 	_detail_close_btn.add_theme_color_override("font_hover_color", ShopCardBuilder.C_TEXT)
 	_detail_close_btn.focus_mode = Control.FOCUS_NONE
@@ -286,76 +273,76 @@ func _build_detail_panel() -> PanelContainer:
 	close_row.add_child(_detail_close_btn)
 
 	_detail_title = Label.new()
-	_detail_title.add_theme_font_size_override("font_size", 20)
+	_detail_title.add_theme_font_size_override("font_size", 32)
 	_detail_title.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT)
 	_detail_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_detail_title)
 
 	_detail_subtitle = Label.new()
-	_detail_subtitle.add_theme_font_size_override("font_size", 13)
+	_detail_subtitle.add_theme_font_size_override("font_size", 20)
 	_detail_subtitle.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
 	_detail_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_detail_subtitle)
 
 	var price_row := HBoxContainer.new()
-	price_row.add_theme_constant_override("separation", 12)
+	price_row.add_theme_constant_override("separation", 18)
 	vbox.add_child(price_row)
 	_detail_price = Label.new()
-	_detail_price.add_theme_font_size_override("font_size", 28)
+	_detail_price.add_theme_font_size_override("font_size", 44)
 	_detail_price.add_theme_color_override("font_color", ShopCardBuilder.C_PRICE)
 	price_row.add_child(_detail_price)
 	var price_spacer := Control.new()
 	price_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	price_row.add_child(price_spacer)
 	_detail_rating_row = HBoxContainer.new()
-	_detail_rating_row.add_theme_constant_override("separation", 4)
+	_detail_rating_row.add_theme_constant_override("separation", 6)
 	_detail_rating_row.size_flags_vertical = Control.SIZE_SHRINK_END
 	price_row.add_child(_detail_rating_row)
 
 	vbox.add_child(ShopCardBuilder.make_separator())
 
 	_detail_seller = Label.new()
-	_detail_seller.add_theme_font_size_override("font_size", 12)
+	_detail_seller.add_theme_font_size_override("font_size", 18)
 	_detail_seller.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
 	vbox.add_child(_detail_seller)
 
 	_detail_meta = Label.new()
-	_detail_meta.add_theme_font_size_override("font_size", 13)
+	_detail_meta.add_theme_font_size_override("font_size", 20)
 	_detail_meta.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
 	_detail_meta.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	vbox.add_child(_detail_meta)
 
 	_detail_tags = HFlowContainer.new()
-	_detail_tags.add_theme_constant_override("h_separation", 6)
-	_detail_tags.add_theme_constant_override("v_separation", 6)
+	_detail_tags.add_theme_constant_override("h_separation", 10)
+	_detail_tags.add_theme_constant_override("v_separation", 10)
 	vbox.add_child(_detail_tags)
 
 	_detail_desc = RichTextLabel.new()
 	_detail_desc.bbcode_enabled = false
 	_detail_desc.fit_content = true
 	_detail_desc.scroll_active = false
-	_detail_desc.add_theme_font_size_override("normal_font_size", 14)
+	_detail_desc.add_theme_font_size_override("normal_font_size", 22)
 	_detail_desc.add_theme_color_override("default_color", ShopCardBuilder.C_TEXT)
 	vbox.add_child(_detail_desc)
 
 	vbox.add_child(ShopCardBuilder.make_separator())
 
 	var comments_header := HBoxContainer.new()
-	comments_header.add_theme_constant_override("separation", 8)
+	comments_header.add_theme_constant_override("separation", 12)
 	vbox.add_child(comments_header)
 	var ch_label := Label.new()
 	ch_label.text = "宝贝评价"
-	ch_label.add_theme_font_size_override("font_size", 15)
+	ch_label.add_theme_font_size_override("font_size", 24)
 	ch_label.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT)
 	comments_header.add_child(ch_label)
 
 	_detail_comments_box = VBoxContainer.new()
-	_detail_comments_box.add_theme_constant_override("separation", 10)
+	_detail_comments_box.add_theme_constant_override("separation", 16)
 	vbox.add_child(_detail_comments_box)
 
 	_detail_buy_btn = Button.new()
 	_detail_buy_btn.text = "立即购买"
-	_detail_buy_btn.custom_minimum_size = Vector2(0, 44)
+	_detail_buy_btn.custom_minimum_size = Vector2(0, 60)
 	ShopCardBuilder.style_primary_btn(_detail_buy_btn)
 	_detail_buy_btn.pressed.connect(_on_buy_pressed)
 	vbox.add_child(_detail_buy_btn)
@@ -419,17 +406,6 @@ func _refresh_orders() -> void:
 
 func _refresh_inventory() -> void:
 	_clear_children(_inventory_box)
-	var inv_page: Control = _body_stack[2]
-	var effects_box: VBoxContainer = inv_page.find_child("EffectsBox", true, false) as VBoxContainer
-	if effects_box != null:
-		_clear_children(effects_box)
-		var effects: Array = _shop.get_active_effects() if _shop != null else []
-		if effects.is_empty():
-			effects_box.add_child(ShopCardBuilder.empty_hint("暂无生效中的物品"))
-		else:
-			for e in effects:
-				effects_box.add_child(ShopCardBuilder.build_effect_card(e as Dictionary))
-
 	var inv: Array = _shop.get_inventory() if _shop != null else []
 	if inv.is_empty():
 		_inventory_box.add_child(ShopCardBuilder.empty_hint("背包空空如也"))
@@ -456,7 +432,7 @@ func _refresh_detail() -> void:
 
 	_detail_meta.text = "%s · %s" % [
 		ShopCardBuilder.category_text(str(item.get("category", ""))),
-		ShopCardBuilder.effect_summary(str(item.get("effect_archetype", ""))),
+		ShopCardBuilder.item_effect_summary(item),
 	]
 
 	_detail_desc.text = str(item.get("desc", ""))
@@ -472,23 +448,23 @@ func _refresh_detail() -> void:
 	for _i in range(full_stars):
 		var star := Label.new()
 		star.text = "★"
-		star.add_theme_font_size_override("font_size", 13)
+		star.add_theme_font_size_override("font_size", 20)
 		star.add_theme_color_override("font_color", ShopCardBuilder.C_WARN)
 		_detail_rating_row.add_child(star)
 	if rating - full_stars >= 0.5:
 		var half_star := Label.new()
 		half_star.text = "★"
-		half_star.add_theme_font_size_override("font_size", 13)
+		half_star.add_theme_font_size_override("font_size", 20)
 		half_star.add_theme_color_override("font_color", Color("#FFD700", 0.5))
 		_detail_rating_row.add_child(half_star)
 	var rating_num := Label.new()
 	rating_num.text = " %.1f" % rating
-	rating_num.add_theme_font_size_override("font_size", 13)
+	rating_num.add_theme_font_size_override("font_size", 20)
 	rating_num.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
 	_detail_rating_row.add_child(rating_num)
 	var sales_label := Label.new()
 	sales_label.text = "  已售%s" % ShopCardBuilder.format_sales_count(int(item.get("sales_count", 0)))
-	sales_label.add_theme_font_size_override("font_size", 13)
+	sales_label.add_theme_font_size_override("font_size", 20)
 	sales_label.add_theme_color_override("font_color", ShopCardBuilder.C_TEXT_SEC)
 	_detail_rating_row.add_child(sales_label)
 
@@ -523,27 +499,60 @@ func _on_tab_pressed(index: int) -> void:
 
 func _switch_tab(index: int) -> void:
 	_current_tab = index
+	if index != 0:
+		_force_close_detail()
 	for i in range(_body_stack.size()):
-		_body_stack[i].visible = (i == index)
+		var page: Control = _body_stack[i]
+		if i == index:
+			page.visible = true
+			page.modulate.a = 0.0
+			if _tab_tween != null and _tab_tween.is_valid():
+				_tab_tween.kill()
+			_tab_tween = create_tween()
+			_tab_tween.tween_property(page, "modulate:a", 1.0, 0.18).set_ease(Tween.EASE_OUT)
+		else:
+			page.visible = false
+			page.modulate.a = 1.0
 	for i in range(_nav_tabs.size()):
 		var active: bool = (i == index)
 		_nav_tabs[i].add_theme_color_override("font_color", ShopCardBuilder.C_NAV if active else ShopCardBuilder.C_TEXT_SEC)
-	if index != 0:
-		_close_detail()
 	_refresh_all()
 
 
 func _on_item_selected(instance_id: String) -> void:
 	_selected_item_id = instance_id
 	_detail_visible = true
-	_detail_panel.visible = true
 	_refresh_grid()
 	_refresh_detail()
+	if _detail_tween != null and _detail_tween.is_valid():
+		_detail_tween.kill()
+	var already_open: bool = _detail_panel.visible
+	_detail_panel.visible = true
+	if not already_open:
+		_detail_panel.modulate.a = 0.0
+		_detail_tween = create_tween()
+		_detail_tween.tween_property(_detail_panel, "modulate:a", 1.0, 0.2).set_ease(Tween.EASE_OUT)
+	else:
+		_detail_panel.modulate.a = 1.0
 
 
 func _close_detail() -> void:
+	if not _detail_panel.visible:
+		return
 	_detail_visible = false
+	if _detail_tween != null and _detail_tween.is_valid():
+		_detail_tween.kill()
+	_detail_tween = create_tween()
+	_detail_tween.tween_property(_detail_panel, "modulate:a", 0.0, 0.15).set_ease(Tween.EASE_IN)
+	_detail_tween.tween_callback(func(): _detail_panel.visible = false)
+
+
+func _force_close_detail() -> void:
+	_detail_visible = false
+	if _detail_tween != null and _detail_tween.is_valid():
+		_detail_tween.kill()
 	_detail_panel.visible = false
+	_detail_panel.modulate.a = 1.0
 
 
 func _on_buy_pressed() -> void:
@@ -575,15 +584,8 @@ func _on_inventory_action_pressed(inventory_id: String, category: String) -> voi
 		var mode: String = str(result.get("mode", "consume"))
 		var item_title: String = str(result.get("item", {}).get("title", ""))
 		var verb: String = "已使用"
-		match mode:
-			"gift":
-				verb = "已赠出"
-			"equip":
-				verb = "已装备"
-			"consume":
-				verb = "已使用"
-			"flavor":
-				verb = "已摆放"
+		if mode == "gift":
+			verb = "已赠出"
 		var stats_text: String = ShopCardBuilder.format_stats_change(result)
 		var msg: String = "%s：%s" % [verb, item_title]
 		if not stats_text.is_empty():

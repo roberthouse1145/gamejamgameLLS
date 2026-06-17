@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://scenes/apps/project_manager/title_settings_panel.tscn" id="6_title_settings"]
 [ext_resource type="PackedScene" path="res://scenes/apps/project_manager/screen_settings_panel.tscn" id="7_screen_settings"]
 [ext_resource type="PackedScene" path="res://scenes/apps/project_manager/project_settings_panel.tscn" id="8_project_settings"]
+[ext_resource type="PackedScene" path="res://scenes/apps/project_manager/game_ui_panel.tscn" id="9_game_ui"]
 
 [node name="StoryProjectManager" type="Control"]
 layout_mode = 3
@@ -94,6 +95,16 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="TitleSettingsPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("6_title_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="GameUIPanel" parent="HSplitContainer/ContentContainer" instance=ExtResource("9_game_ui")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

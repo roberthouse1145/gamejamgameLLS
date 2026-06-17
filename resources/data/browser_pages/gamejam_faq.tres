@@ -4,112 +4,79 @@
 
 [resource]
 script = ExtResource("1_script")
-url = "gamejam://faq"
-title = "AGJ 2027 - 常见问题"
-hint = "Arcade Grand Jam 2027 新星赛道的常见问题解答。"
-content = "<vbox sep=0>
+url = "framestory://faq"
+title = "帧语·新星叙事大赛 2027 - 常见问题"
+hint = "帧语·新星叙事大赛 2027 新星组的常见问题解答。"
+content = "::: card bg=#1A2238 pad=20
+::: row sep=24
+[color=#5B8AFF]帧语[/color] [color=#E8622A]2027[/color]
+::: col fill
+:::
+[REGISTRATION](url:framestory://signup color=#C8D3F0)
+[SCHEDULE](url:framestory://schedule color=#C8D3F0)
+[NEWS](url:framestory://news color=#C8D3F0)
+[color=#5B8AFF]FAQ[/color]
+:::
+:::
 
-  <panel bg=#080B12>
-    <margin 60>
-      <vbox sep=6>
-        <hbox sep=10>
-          <label size=30 color=#ECEEF8>AGJ</label>
-          <label size=16 color=#E8622A>2027</label>
-          <label size=20 color=#3D4460>|</label>
-          <vbox width=100><link size=16 color=#7A82A0 action=open_url url=gamejam://signup>REGISTRATION</link></vbox>
-          <vbox width=80><link size=16 color=#7A82A0 action=open_url url=gamejam://schedule>SCHEDULE</link></vbox>
-          <vbox width=60><link size=16 color=#7A82A0 action=open_url url=gamejam://news>NEWS</link></vbox>
-          <vbox width=40><label size=16 color=#5B8AFF>FAQ</label></vbox>
-        </hbox>
-      </vbox>
-    </margin>
-  </panel>
+::: col bg=#F5F7FA pad=40 sep=18
 
-  <panel bg=#0A0D18>
-    <margin 60>
-      <vbox sep=8>
-        <label size=48 color=#ECEEF8>FAQ</label>
-        <label size=22 color=#5B8AFF>常见问题</label>
-      </vbox>
-    </margin>
-  </panel>
+# FAQ
+### 常见问题
 
-  <panel bg=#080B12>
-    <margin 60>
-      <vbox sep=24>
+::: card bg=#FFFFFF pad=20
+### Q: 谁可以参加新星组？
+所有在校大学生均可报名。参赛者需以 2-5 人 小队形式参加，队员可以来自不同学校或不同专业。
+:::
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=14>
-              <label size=20 color=#ECEEF8>Q: 谁可以参加新星赛道？</label>
-              <label size=20 color=#7A82A0>A: 所有在校大学生均可报名。参赛者需以 2-5 人小队形式参加，队员可以来自不同学校或不同专业。</label>
-            </vbox>
-          </margin>
-        </panel>
+::: card bg=#FFFFFF pad=20
+### Q: 赛制和开发规则是什么？
+本届赛事将采用全新赛制，具体规则（包括开发工具、素材要求、主题等）将在 *报名截止后* 统一公布。帧语平台表示，新规则旨在「让所有参赛者站在同一起跑线上」。敬请期待。
+:::
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=14>
-              <label size=20 color=#ECEEF8>Q: 赛制和开发规则是什么？</label>
-              <label size=20 color=#7A82A0>A: 本届赛事将采用全新赛制，具体规则（包括开发工具、素材要求、主题等）将在报名截止后统一公布。组委会表示，新规则旨在「让所有参赛者站在同一起跑线上」。敬请期待。</label>
-            </vbox>
-          </margin>
-        </panel>
+::: card bg=#FFFFFF pad=20
+### Q: 可以使用 AI 生成内容吗？
+禁止 使用 AI 生成图片素材。
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=14>
-              <label size=20 color=#ECEEF8>Q: 可以使用 AI 生成内容吗？</label>
-              <label size=20 color=#7A82A0>A: 禁止使用 AI 生成图片素材。文本创作方面，允许使用 AI 辅助构思和润色，但最终作品的核心创意和叙事结构必须由参赛者本人完成。评审会对疑似 AI 批量生成的内容进行审查。</label>
-            </vbox>
-          </margin>
-        </panel>
+文本创作方面，允许使用 AI 辅助构思和润色，但最终作品的核心创意和叙事结构必须由参赛者本人完成。评审会对疑似 AI 批量生成的内容进行审查。
+:::
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=14>
-              <label size=20 color=#ECEEF8>Q: 报名后可以修改信息吗？</label>
-              <label size=20 color=#7A82A0>A: 不可以。报名信息一经提交即锁定，包括选手名称、队伍名和所属学院。请在提交前仔细核对所有信息。</label>
-            </vbox>
-          </margin>
-        </panel>
+::: card bg=#FFFFFF pad=20
+### Q: 报名后可以修改信息吗？
+不可以。报名信息一经提交即锁定，包括选手名称、队伍名和所属学院。请在提交前仔细核对所有信息。
+:::
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=14>
-              <label size=20 color=#ECEEF8>Q: 阶段性 Demo 提交是什么？</label>
-              <label size=20 color=#7A82A0>A: 在开发周期中，组委会会设置若干个 Demo 提交节点。参赛队伍需要在指定时间前提交当前版本的可运行 Demo。这既是进度检查，也是获取社区反馈的机会。未按时提交 Demo 的队伍将视为弃赛。</label>
-            </vbox>
-          </margin>
-        </panel>
+::: card bg=#FFFFFF pad=20
+### Q: 阶段性 Demo 提交是什么？
+在开发周期中，帧语平台会设置若干个 Demo 提交节点。参赛队伍需要在指定时间前提交当前版本的可运行 Demo。
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=14>
-              <label size=20 color=#ECEEF8>Q: 奖项设置有哪些？</label>
-              <label size=20 color=#7A82A0>A: 主要奖项包括：最佳作品奖、最佳叙事奖、最佳视觉表现奖、社区人气奖、最佳新人奖。总奖金池超过 50,000 元人民币。具体奖金分配将在赛事正式开始后公布。</label>
-            </vbox>
-          </margin>
-        </panel>
+这既是 *进度检查*，也是 *获取社区反馈* 的机会。未按时提交 Demo 的队伍将视为弃赛。
+:::
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=14>
-              <label size=20 color=#ECEEF8>Q: 遇到技术问题怎么办？</label>
-              <label size=20 color=#7A82A0>A: 可以通过官方论坛或邮件联系技术支持。赛事期间会有专门的技术答疑频道，组委会也会定期发布引擎使用教程和常见问题修复指南。</label>
-            </vbox>
-          </margin>
-        </panel>
+::: card bg=#FFFFFF pad=20
+### Q: 奖项设置有哪些？
+主要奖项包括：
 
-        <label size=16 color=#3D4460 align=center>ARCADE GRAND JAM 2027  |  support@arcadegrandjam.com</label>
-        <spacer 30/>
+- 最佳作品奖
+- 最佳叙事奖
+- 最佳视觉表现奖
+- 社区人气奖
+- 最佳新人奖
 
-      </vbox>
-    </margin>
-  </panel>
+具体奖金分配将在赛事正式开始后公布。
+:::
 
-</vbox>"
+::: card bg=#FFFFFF pad=20
+### Q: 遇到技术问题怎么办？
+可以通过官方论坛或邮件联系技术支持。赛事期间会有专门的技术答疑频道，帧语官方也会定期发布引擎使用教程和常见问题修复指南。
+:::
+
+---
+
+[color=#888888]帧语·新星叙事大赛 2027  ·  support@framestory.com[/color]
+
+:::"
 design_prompt = ""
 searchable = false
-search_keywords = PackedStringArray("gamejam", "faq", "常见问题", "问答", "帮助")
-linked_urls = PackedStringArray("gamejam://signup", "gamejam://schedule", "gamejam://news")
+search_keywords = PackedStringArray("帧语", "faq", "常见问题", "问答", "帮助")
+linked_urls = PackedStringArray("framestory://signup", "framestory://schedule", "framestory://news")

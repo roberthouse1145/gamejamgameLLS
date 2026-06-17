@@ -48,11 +48,12 @@ static func _resolve_lore(lore_mode: String, lore_args: Variant, pre_resolved_pr
 		"", "none":
 			return {}
 		"chat":
+			# lore_args 经 Dictionary 传递后，字面量 [] 会变成无类型 Array，无法满足 resolve_chat 的 typed array 参数。
 			return LoreSystem.resolve_chat(
 				args.get("channel", null),
 				args.get("npcs", []),
-				args.get("chat_history", []),
-				args.get("player_messages", []),
+				_coerce_lore_chat_history(args.get("chat_history", [])),
+				_coerce_lore_player_messages(args.get("player_messages", [])),
 				args.get("topic", null),
 				pre_resolved_prompt
 			)
@@ -71,6 +72,23 @@ static func _resolve_lore(lore_mode: String, lore_args: Variant, pre_resolved_pr
 		_:
 			push_warning("[PromptPipeline] Unknown lore mode '%s'" % lore_mode)
 			return {}
+
+
+static func _coerce_lore_chat_history(raw: Variant) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if raw is Array:
+		for item in raw:
+			if item is Dictionary:
+				out.append(item)
+	return out
+
+
+static func _coerce_lore_player_messages(raw: Variant) -> Array[String]:
+	var out: Array[String] = []
+	if raw is Array:
+		for item in raw:
+			out.append(str(item))
+	return out
 
 
 static func _ensure_lore_keys(vars: Dictionary) -> void:

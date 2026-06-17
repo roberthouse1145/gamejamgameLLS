@@ -42,7 +42,7 @@ var _speaker_label: Label = null
 var _line_label: RichTextLabel = null
 var _status_label: Label = null
 var _feedback_label: Label = null
-var _option_grid: GridContainer = null
+var _option_row: HBoxContainer = null
 var _option_buttons: Array[Button] = []
 var _frame_panel: PanelContainer = null
 var _flash_rect: ColorRect = null
@@ -87,13 +87,13 @@ func _build_ui() -> void:
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 32)
-	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_top", 24)
 	margin.add_theme_constant_override("margin_right", 32)
-	margin.add_theme_constant_override("margin_bottom", 28)
+	margin.add_theme_constant_override("margin_bottom", 24)
 	add_child(margin)
 
 	var root := VBoxContainer.new()
-	root.add_theme_constant_override("separation", 18)
+	root.add_theme_constant_override("separation", 14)
 	margin.add_child(root)
 
 	var header := VBoxContainer.new()
@@ -154,7 +154,7 @@ func _build_ui() -> void:
 
 	var frame := PanelContainer.new()
 	_frame_panel = frame
-	frame.custom_minimum_size = Vector2(0, 560)
+	frame.custom_minimum_size = Vector2(0, 520)
 	frame.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	frame.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var frame_sb := StyleBoxFlat.new()
@@ -166,9 +166,9 @@ func _build_ui() -> void:
 	frame_sb.shadow_size = 20
 	frame_sb.shadow_offset = Vector2(0, 8)
 	frame_sb.content_margin_left = 40
-	frame_sb.content_margin_top = 32
+	frame_sb.content_margin_top = 28
 	frame_sb.content_margin_right = 40
-	frame_sb.content_margin_bottom = 32
+	frame_sb.content_margin_bottom = 28
 	frame.add_theme_stylebox_override("panel", frame_sb)
 	stage_wrap.add_child(frame)
 
@@ -214,7 +214,7 @@ func _build_ui() -> void:
 	# 台词卡
 	var card := PanelContainer.new()
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	card.custom_minimum_size = Vector2(0, 240)
+	card.custom_minimum_size = Vector2(0, 220)
 	var card_sb := StyleBoxFlat.new()
 	card_sb.bg_color = BG_CARD
 	card_sb.border_color = BORDER_CARD
@@ -227,23 +227,23 @@ func _build_ui() -> void:
 	card_sb.shadow_size = 12
 	card_sb.shadow_offset = Vector2(0, 6)
 	card_sb.content_margin_left = 48
-	card_sb.content_margin_top = 40
+	card_sb.content_margin_top = 32
 	card_sb.content_margin_right = 48
-	card_sb.content_margin_bottom = 40
+	card_sb.content_margin_bottom = 32
 	card.add_theme_stylebox_override("panel", card_sb)
 	frame_box.add_child(card)
-
-	var card_center := CenterContainer.new()
-	card.add_child(card_center)
 
 	var card_box := VBoxContainer.new()
 	card_box.add_theme_constant_override("separation", 14)
 	card_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	card_center.add_child(card_box)
+	card_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.add_child(card_box)
 
 	var quote_mark := Label.new()
 	quote_mark.text = "“"
 	quote_mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	quote_mark.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	quote_mark.add_theme_font_size_override("font_size", 72)
 	quote_mark.add_theme_color_override("font_color", ACCENT_SOFT)
 	card_box.add_child(quote_mark)
@@ -253,7 +253,9 @@ func _build_ui() -> void:
 	_line_label.fit_content = true
 	_line_label.scroll_active = false
 	_line_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_line_label.custom_minimum_size = Vector2(720, 0)
+	# 不再硬设 custom_minimum_size.x。之前 720 会绕过 autowrap、让长段子把整个 panel
+	# 顶出 minigame 窗口；改用 EXPAND_FILL 让 autowrap 根据实际父容器宽度工作。
+	_line_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_line_label.add_theme_font_size_override("normal_font_size", 40)
 	_line_label.add_theme_color_override("default_color", TEXT_CARD)
 	card_box.add_child(_line_label)
@@ -270,13 +272,13 @@ func _build_ui() -> void:
 	_feedback_label.add_theme_font_size_override("font_size", 26)
 	_feedback_label.add_theme_color_override("font_color", ACCENT)
 	_feedback_label.modulate.a = 0.0
+	_feedback_label.custom_minimum_size = Vector2(0, 30)
 	frame_box.add_child(_feedback_label)
 
-	_option_grid = GridContainer.new()
-	_option_grid.columns = 2
-	_option_grid.add_theme_constant_override("h_separation", 18)
-	_option_grid.add_theme_constant_override("v_separation", 18)
-	frame_box.add_child(_option_grid)
+	_option_row = HBoxContainer.new()
+	_option_row.add_theme_constant_override("separation", 16)
+	_option_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	frame_box.add_child(_option_row)
 
 	_flash_rect = ColorRect.new()
 	_flash_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -403,19 +405,18 @@ func _render_current_item() -> void:
 	_combo_label.modulate = SUCCESS if _combo > 0 else TEXT_SECONDARY
 	_update_progress_bar()
 
-	for child in _option_grid.get_children():
+	for child in _option_row.get_children():
 		child.queue_free()
 	_option_buttons.clear()
 
 	var options: Array = item.get("options", [])
-	_option_grid.columns = 2 if options.size() <= 4 else 3
 	for raw_option in options:
 		var option: String = str(raw_option).strip_edges()
 		if option.is_empty():
 			continue
 		var button := Button.new()
 		button.text = option
-		button.custom_minimum_size = Vector2(0, 64)
+		button.custom_minimum_size = Vector2(104, 64)
 		button.add_theme_font_size_override("font_size", 22)
 		button.focus_mode = Control.FOCUS_NONE
 		_apply_option_style(button, BG_OPTION, BORDER_SOFT, TEXT_CARD)
@@ -429,7 +430,7 @@ func _render_current_item() -> void:
 		button.add_theme_stylebox_override("hover", hover_sb)
 		button.add_theme_stylebox_override("pressed", hover_sb)
 		button.pressed.connect(_on_option_pressed.bind(option))
-		_option_grid.add_child(button)
+		_option_row.add_child(button)
 		_option_buttons.append(button)
 
 	_play_card_transition()

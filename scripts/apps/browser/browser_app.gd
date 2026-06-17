@@ -4,12 +4,26 @@ extends Control
 const BrowserTabDataClass = preload("res://scripts/apps/browser/browser_tab_data.gd")
 const BrowserThemeClass = preload("res://scripts/apps/browser/browser_theme.gd")
 const WebPageRendererClass = preload("res://scripts/apps/browser/web_page_renderer.gd")
-const HOMEPAGE_RES_PATH: String = "res://resources/data/browser_pages/homepage.tres"
+const ActivityPreviewHintClass = preload("res://scripts/ui/activity_preview/activity_preview_hint.gd")
+
+const _SURF_PLACEHOLDERS: Array = [
+	"萝莉和妈妈，重要的是萝莉还是妈妈？",
+	"猫娘算猫还是娘",
+	"二次元真的有灵魂吗",
+	"传武宗师为什么都能活到九十多",
+	"上厕所玩手机算不算摸鱼",
+	"宿管阿姨晚上到底睡不睡",
+	"鬼为什么没人科学研究一下",
+	"考研的人为什么都开始信佛",
+	"如果游戏能存档现实能不能也存档",
+	"怎么判断自己是真喜欢还是孤独",
+	"打开冰箱就忘了自己要拿什么",
+	"学历贬值之后还要不要继续读",
+	"莉莉丝为什么是宇宙第一的游戏公司",
+]
 
 @onready var toolbar: PanelContainer = %ToolBar
 @onready var address_display: LineEdit = %AddressDisplay
-@onready var search_input: LineEdit = %SearchInput
-@onready var search_button: Button = %SearchButton
 @onready var tab_buttons: HBoxContainer = %TabButtons
 @onready var new_tab_button: Button = %NewTabButton
 @onready var content_scroll: ScrollContainer = %ContentScroll
@@ -18,6 +32,15 @@ const HOMEPAGE_RES_PATH: String = "res://resources/data/browser_pages/homepage.t
 
 var _home_button: Button = null
 var _history_button: Button = null
+var _home_search_input: LineEdit = null
+var _home_search_button: Button = null
+var _home_block_label: Label = null
+var _surf_preview_hint: Node = null
+var _loading_tween: Tween = null
+var _loading_progress: ProgressBar = null
+var _loading_dots_label: Label = null
+var _loading_phase_label: Label = null
+var _loading_phase_index: int = 0
 
 var _tabs: Array = []
 var _tab_widgets: Dictionary = {}
@@ -84,13 +107,22 @@ func _style_content_button(btn: Button) -> void:
 	btn.add_theme_font_size_override("font_size", 22)
 
 
+func _make_content_panel_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg
+	style.corner_radius_top_left = radius
+	style.corner_radius_top_right = radius
+	style.corner_radius_bottom_left = radius
+	style.corner_radius_bottom_right = radius
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = border
+	return style
+
+
 func _connect_ui() -> void:
-	if search_button:
-		search_button.pressed.connect(_on_search_pressed)
-		search_button.visible = false
-	if search_input:
-		search_input.text_submitted.connect(_on_search_submitted)
-		search_input.visible = false
 	if new_tab_button:
 		new_tab_button.pressed.connect(_on_new_tab_pressed)
 
@@ -108,20 +140,22 @@ func _connect_ui() -> void:
 		_history_button.pressed.connect(_on_history_button_pressed)
 		nav_row.add_child(_history_button)
 
+	var glm: Node = get_node_or_null("/root/GameLoopManager")
+	if glm != null:
+		var runtime_refresh := Callable(self, "_on_runtime_state_changed")
+		if glm.has_signal("ap_changed") and not glm.is_connected("ap_changed", runtime_refresh):
+			glm.connect("ap_changed", runtime_refresh)
+		if glm.has_signal("phase_changed") and not glm.is_connected("phase_changed", runtime_refresh):
+			glm.connect("phase_changed", runtime_refresh)
+		if glm.has_signal("day_changed") and not glm.is_connected("day_changed", runtime_refresh):
+			glm.connect("day_changed", runtime_refresh)
+
 
 func _connect_browser_manager() -> void:
 	var bm: Node = get_node_or_null("/root/BrowserManager")
 	if bm == null:
 		push_error("BrowserApp: BrowserManager autoload not found")
 		return
-
-	var on_search_completed := Callable(self, "_on_search_completed")
-	if not bm.is_connected("search_completed", on_search_completed):
-		bm.connect("search_completed", on_search_completed)
-
-	var on_search_failed := Callable(self, "_on_search_failed")
-	if not bm.is_connected("search_failed", on_search_failed):
-		bm.connect("search_failed", on_search_failed)
 
 	var on_page_generated := Callable(self, "_on_page_generated")
 	if not bm.is_connected("page_generated", on_page_generated):
@@ -139,6 +173,18 @@ func _connect_browser_manager() -> void:
 	if not bm.is_connected("browser_history_updated", on_history_updated):
 		bm.connect("browser_history_updated", on_history_updated)
 
+	var on_surf_started := Callable(self, "_on_surf_started")
+	if not bm.is_connected("surf_started", on_surf_started):
+		bm.connect("surf_started", on_surf_started)
+
+	var on_surf_completed := Callable(self, "_on_surf_completed")
+	if not bm.is_connected("surf_completed", on_surf_completed):
+		bm.connect("surf_completed", on_surf_completed)
+
+	var on_surf_failed := Callable(self, "_on_surf_failed")
+	if not bm.is_connected("surf_failed", on_surf_failed):
+		bm.connect("surf_failed", on_surf_failed)
+
 func _create_blank_tab() -> void:
 	var tab = BrowserTabDataClass.new()
 	_tab_counter += 1
@@ -153,46 +199,48 @@ func _create_blank_tab() -> void:
 	_render_tab(tab)
 
 
-func _start_search(keyword: String, reuse_tab_id: String = "") -> void:
+## 触发摸鱼冲浪 action：消耗 1 AP，由 LLM 调度生成一个虚拟网页。
+func _start_surf(keyword: String) -> void:
 	var query: String = keyword.strip_edges()
 	if query.is_empty():
+		_set_status("先输点关键词。")
+		return
+	var blocking_reason := _get_surf_blocking_reason()
+	if not blocking_reason.is_empty():
+		_set_status(blocking_reason)
+		_refresh_home_surf_controls()
 		return
 
-	var tab = null
-	if not reuse_tab_id.is_empty():
-		tab = _find_tab_by_id(reuse_tab_id)
-
-	if tab == null:
-		tab = BrowserTabDataClass.new()
-		_tab_counter += 1
-		tab.tab_id = "tab_%d" % _tab_counter
-		_tabs.append(tab)
-		_create_tab_widget(tab)
+	# 每次冲浪都新开一个标签页，保留主页和已有结果
+	var tab = BrowserTabDataClass.new()
+	_tab_counter += 1
+	tab.tab_id = "tab_%d" % _tab_counter
+	_tabs.append(tab)
+	_create_tab_widget(tab)
 
 	tab.keyword = query
-	tab.display_url = query
-	tab.is_search_result = true
+	tab.display_url = "browser://surf?q=%s" % query
 	tab.state = BrowserTabDataClass.TabState.LOADING
-	tab.title = "[搜索] %s" % query
-	tab.search_results = []
+	tab.title = "[冲浪] %s" % query
 	tab.page_content = {}
 	tab.error_message = ""
 	_update_tab_title(tab)
 	_switch_tab(tab.tab_id)
-	_set_status("搜索中...")
-	_render_loading(tab, "正在生成搜索结果...")
+	_set_status("正在调度本次摸鱼内容...")
+	_render_loading(tab, "正在打开新的网页...")
 
 	var bm: Node = get_node_or_null("/root/BrowserManager")
 	if bm == null:
 		_set_tab_error(tab, "BrowserManager 不存在")
 		return
 
-	var request_id: String = bm.search(query)
+	var request_id: String = bm.surf(query)
 	if request_id.is_empty():
-		_set_tab_error(tab, "搜索请求创建失败")
+		_set_tab_error(tab, "冲浪请求创建失败")
 		return
 	_request_to_tab[request_id] = tab.tab_id
 	tab.request_id = request_id
+	_refresh_window_lock()
 
 
 func _open_page(url: String, design_prompt: String = "", reuse_tab_id: String = "", page_context: String = "") -> void:
@@ -225,10 +273,8 @@ func _open_page(url: String, design_prompt: String = "", reuse_tab_id: String = 
 
 	tab.display_url = target_url
 	tab.design_prompt = design_prompt
-	tab.is_search_result = false
 	tab.state = BrowserTabDataClass.TabState.LOADING
 	tab.title = target_url
-	tab.search_results = []
 	tab.page_content = {}
 	tab.error_message = ""
 	_update_tab_title(tab)
@@ -247,6 +293,7 @@ func _open_page(url: String, design_prompt: String = "", reuse_tab_id: String = 
 		return
 	_request_to_tab[request_id] = tab.tab_id
 	tab.request_id = request_id
+	_refresh_window_lock()
 
 
 func _create_tab_widget(tab) -> void:
@@ -360,130 +407,320 @@ func _render_tab(tab: BrowserTabData) -> void:
 		BrowserTabDataClass.TabState.ERROR:
 			_render_error(tab.error_message)
 		BrowserTabDataClass.TabState.READY:
-			if tab.is_search_result:
-				_render_search_results(tab.search_results)
-			else:
-				_render_page(tab.page_content)
+			_render_page(tab.page_content)
 		_:
 			_render_idle_placeholder()
 
 
 func _render_loading(_tab, text: String) -> void:
 	_clear_content_root()
-	var loading := Label.new()
-	loading.text = text
-	loading.add_theme_color_override("font_color", BrowserThemeClass.COLOR_TEXT_DIM)
-	loading.add_theme_font_size_override("font_size", 24)
-	content_root.add_child(loading)
+	var T := BrowserThemeClass
+	var wrapper := VBoxContainer.new()
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrapper.add_theme_constant_override("separation", 18)
+	content_root.add_child(wrapper)
+
+	var top_spacer := Control.new()
+	top_spacer.custom_minimum_size.y = 56
+	wrapper.add_child(top_spacer)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(640, 0)
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 18))
+	wrapper.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 28)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_right", 28)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	panel.add_child(margin)
+
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 14)
+	margin.add_child(body)
+
+	var title := Label.new()
+	title.text = "正在冲浪"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_color_override("font_color", T.COLOR_TEXT)
+	body.add_child(title)
+
+	_loading_dots_label = Label.new()
+	_loading_dots_label.text = text
+	_loading_dots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_dots_label.add_theme_font_size_override("font_size", 18)
+	_loading_dots_label.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
+	body.add_child(_loading_dots_label)
+
+	if _tab != null and not str(_tab.keyword).strip_edges().is_empty():
+		var keyword := Label.new()
+		keyword.text = "关键词：%s" % str(_tab.keyword).strip_edges()
+		keyword.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		keyword.add_theme_font_size_override("font_size", 16)
+		keyword.add_theme_color_override("font_color", T.COLOR_TEXT_MUTED)
+		body.add_child(keyword)
+
+	_loading_progress = ProgressBar.new()
+	_loading_progress.min_value = 0
+	_loading_progress.max_value = 100
+	_loading_progress.value = 14
+	_loading_progress.custom_minimum_size = Vector2(0, 12)
+	_loading_progress.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(_loading_progress)
+
+	_loading_phase_label = Label.new()
+	_loading_phase_label.text = "正在挑选一个看起来真实的网站"
+	_loading_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading_phase_label.add_theme_font_size_override("font_size", 15)
+	_loading_phase_label.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
+	body.add_child(_loading_phase_label)
+
+	var skeleton := VBoxContainer.new()
+	skeleton.add_theme_constant_override("separation", 8)
+	body.add_child(skeleton)
+	for ratio in [0.92, 0.72, 0.84]:
+		skeleton.add_child(_make_loading_skeleton_line(ratio))
+
+	call_deferred("_start_loading_animation")
+
+
+func _make_loading_skeleton_line(width_ratio: float) -> Control:
+	var row := HBoxContainer.new()
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var line := PanelContainer.new()
+	line.custom_minimum_size = Vector2(0, 12)
+	line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.size_flags_stretch_ratio = clampf(width_ratio, 0.05, 1.0)
+	line.add_theme_stylebox_override("panel", _make_content_panel_style(BrowserThemeClass.COLOR_SURFACE_ALT, BrowserThemeClass.COLOR_SURFACE_ALT, 6))
+	row.add_child(line)
+
+	if width_ratio < 0.999:
+		var spacer := Control.new()
+		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		spacer.size_flags_stretch_ratio = maxf(0.01, 1.0 - width_ratio)
+		row.add_child(spacer)
+	return row
+
+
+func _start_loading_animation() -> void:
+	if _loading_progress == null or not is_instance_valid(_loading_progress):
+		return
+	if _loading_tween != null and is_instance_valid(_loading_tween):
+		_loading_tween.kill()
+	_loading_tween = null
+	_loading_phase_index = 0
+	_advance_loading_phase()
+	_loading_tween = create_tween()
+	_loading_tween.set_loops()
+	_loading_tween.tween_property(_loading_progress, "value", 92.0, 1.2).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_loading_tween.tween_callback(_advance_loading_phase)
+	_loading_tween.tween_property(_loading_progress, "value", 16.0, 1.0).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_loading_tween.tween_callback(_advance_loading_phase)
+
+
+func _advance_loading_phase() -> void:
+	var phases: PackedStringArray = [
+		"正在挑选一个看起来真实的网站",
+		"正在翻找相关内容",
+		"正在排版页面",
+		"马上就好"
+	]
+	if _loading_phase_label != null and is_instance_valid(_loading_phase_label):
+		_loading_phase_label.text = phases[_loading_phase_index % phases.size()]
+	if _loading_dots_label != null and is_instance_valid(_loading_dots_label):
+		var dots := ".".repeat(1 + (_loading_phase_index % 3))
+		_loading_dots_label.text = "页面正在生成%s" % dots
+	_loading_phase_index += 1
+
+
+func _stop_loading_animation() -> void:
+	if _loading_tween != null and is_instance_valid(_loading_tween):
+		_loading_tween.kill()
+	_loading_tween = null
+	_loading_progress = null
+	_loading_dots_label = null
+	_loading_phase_label = null
 
 
 func _render_error(text: String) -> void:
 	_clear_content_root()
+	var T := BrowserThemeClass
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(560, 0)
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 14))
+	content_root.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_bottom", 18)
+	panel.add_child(margin)
+
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 12)
+	margin.add_child(body)
+
 	var label := Label.new()
-	label.text = "加载失败: %s" % text
+	label.text = "加载失败：%s" % text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_color_override("font_color", BrowserThemeClass.COLOR_ERROR)
-	label.add_theme_font_size_override("font_size", 24)
-	content_root.add_child(label)
+	label.add_theme_font_size_override("font_size", 20)
+	body.add_child(label)
+
+	var home_btn := Button.new()
+	home_btn.text = "返回主页"
+	home_btn.pressed.connect(_on_home_button_pressed)
+	_style_content_button(home_btn)
+	body.add_child(home_btn)
 
 
 func _render_idle_placeholder() -> void:
 	_render_home_page()
-	var label := Label.new()
-	label.text = "在顶部输入关键词开始搜索"
+
+
+func _build_home_quick_card(title_text: String, desc_text: String, url: String) -> Control:
+	var T := BrowserThemeClass
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 12))
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 16)
+	margin.add_theme_constant_override("margin_top", 14)
+	margin.add_theme_constant_override("margin_right", 16)
+	margin.add_theme_constant_override("margin_bottom", 14)
+	panel.add_child(margin)
+
+	var body := VBoxContainer.new()
+	body.add_theme_constant_override("separation", 6)
+	margin.add_child(body)
+
+	var title := Label.new()
+	title.text = title_text
+	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_color_override("font_color", T.COLOR_TEXT)
+	body.add_child(title)
+
+	var desc := Label.new()
+	desc.text = desc_text
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.add_theme_font_size_override("font_size", 14)
+	desc.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
+	body.add_child(desc)
+
+	panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	panel.gui_input.connect(_on_home_quick_card_gui_input.bind(url))
+	return panel
+
+
+func _build_home_history_card() -> Control:
+	var card := _build_home_quick_card("历史", "翻看刚才打开过的网页", "browser://history")
+	return card
+
+
+func _on_home_quick_card_gui_input(event: InputEvent, url: String) -> void:
+	if not event is InputEventMouseButton:
+		return
+	var mouse_event := event as InputEventMouseButton
+	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+		return
+	if url == "browser://history":
+		_on_history_button_pressed()
+		return
+	_open_page(url)
 
 
 func _render_home_page() -> void:
 	_clear_content_root()
-	var res: WebPageResource = load(HOMEPAGE_RES_PATH) as WebPageResource
-	if res == null or res.content.strip_edges().is_empty():
-		_render_error("主页资源加载失败")
-		return
+	_home_search_input = null
+	_home_search_button = null
+	_home_block_label = null
 
-	var page: Dictionary = DslPageParser.parse(res.content)
-	if page.is_empty():
-		_render_error("主页 DSL 解析失败")
-		return
-	var on_action := Callable(self, "_on_page_action")
-	var rendered: Control = WebPageRendererClass.render(page, on_action, {"page_url": "browser://home"})
-	content_root.add_child(rendered)
+	var T := BrowserThemeClass
+	var wrapper := VBoxContainer.new()
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrapper.add_theme_constant_override("separation", 18)
+	content_root.add_child(wrapper)
 
+	var hero := PanelContainer.new()
+	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 18))
+	wrapper.add_child(hero)
 
-func _render_search_results(results: Array) -> void:
-	_clear_content_root()
-	if results.is_empty():
-		var empty := Label.new()
-		empty.text = "没有结果"
-		empty.add_theme_color_override("font_color", BrowserThemeClass.COLOR_TEXT_DIM)
-		content_root.add_child(empty)
-		return
+	var hero_margin := MarginContainer.new()
+	hero_margin.add_theme_constant_override("margin_left", 32)
+	hero_margin.add_theme_constant_override("margin_top", 30)
+	hero_margin.add_theme_constant_override("margin_right", 32)
+	hero_margin.add_theme_constant_override("margin_bottom", 30)
+	hero.add_child(hero_margin)
 
-	for item in results:
-		if not item is Dictionary:
-			continue
-		var card := PanelContainer.new()
-		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var card_style := StyleBoxFlat.new()
-		card_style.bg_color = BrowserThemeClass.COLOR_SURFACE
-		card_style.corner_radius_top_left = 8
-		card_style.corner_radius_top_right = 8
-		card_style.corner_radius_bottom_left = 8
-		card_style.corner_radius_bottom_right = 8
-		card_style.border_width_left = 1
-		card_style.border_width_top = 1
-		card_style.border_width_right = 1
-		card_style.border_width_bottom = 1
-		card_style.border_color = BrowserThemeClass.COLOR_BORDER
-		card.add_theme_stylebox_override("panel", card_style)
+	var hero_body := VBoxContainer.new()
+	hero_body.add_theme_constant_override("separation", 16)
+	hero_margin.add_child(hero_body)
 
-		var margin := MarginContainer.new()
-		margin.add_theme_constant_override("margin_left", 14)
-		margin.add_theme_constant_override("margin_top", 12)
-		margin.add_theme_constant_override("margin_right", 14)
-		margin.add_theme_constant_override("margin_bottom", 12)
-		card.add_child(margin)
+	var title := Label.new()
+	title.text = "PixelNet"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_color_override("font_color", T.COLOR_ACCENT)
+	hero_body.add_child(title)
 
-		var body := VBoxContainer.new()
-		body.add_theme_constant_override("separation", 4)
-		margin.add_child(body)
+	var subtitle := Label.new()
+	subtitle.text = "搜点想看的内容，随便冲浪一下。"
+	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	subtitle.add_theme_font_size_override("font_size", 18)
+	subtitle.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
+	hero_body.add_child(subtitle)
 
-		# 标题作为超链接
-		var item_url: String = str(item.get("url", "")).strip_edges()
-		var item_design: String = str(item.get("design_prompt", "")).strip_edges()
-		var item_title: String = str(item.get("title", "")).strip_edges()
-		var item_hint: String = str(item.get("hint", "")).strip_edges()
-		var page_context: String = item_title
-		if not item_hint.is_empty():
-			page_context += ("\n" if not page_context.is_empty() else "") + item_hint
+	var search_row := HBoxContainer.new()
+	search_row.add_theme_constant_override("separation", 10)
+	search_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hero_body.add_child(search_row)
 
-		var title_link := RichTextLabel.new()
-		title_link.bbcode_enabled = true
-		title_link.fit_content = true
-		title_link.scroll_active = false
-		title_link.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		title_link.add_theme_font_size_override("normal_font_size", 24)
-		var title_text: String = str(item.get("title", "无标题"))
-		title_link.text = "[color=#4A7CFF][url=%s]%s[/url][/color]" % [item_url, title_text]
-		title_link.meta_clicked.connect(_on_search_link_clicked.bind(item_url, item_design, page_context))
-		body.add_child(title_link)
+	_home_search_input = LineEdit.new()
+	_home_search_input.placeholder_text = "猜你想搜： %s" % _SURF_PLACEHOLDERS[randi() % _SURF_PLACEHOLDERS.size()]
+	_home_search_input.clear_button_enabled = true
+	_home_search_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_home_search_input.custom_minimum_size.y = 46
+	_home_search_input.add_theme_font_size_override("font_size", 20)
+	_home_search_input.text_submitted.connect(_on_home_search_submitted)
+	search_row.add_child(_home_search_input)
 
-		var hint := Label.new()
-		hint.text = str(item.get("hint", ""))
-		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hint.add_theme_font_size_override("font_size", 20)
-		hint.add_theme_color_override("font_color", BrowserThemeClass.COLOR_TEXT_DIM)
-		body.add_child(hint)
+	_home_search_button = Button.new()
+	_home_search_button.text = "开始冲浪"
+	_home_search_button.custom_minimum_size = Vector2(128, 46)
+	_home_search_button.pressed.connect(_on_home_search_pressed)
+	_style_content_button(_home_search_button)
+	_surf_preview_hint = ActivityPreviewHintClass.new()
+	_home_search_button.add_child(_surf_preview_hint)
+	_surf_preview_hint.set_payload_resolver(Callable(self, "_build_surf_preview_payload"))
+	search_row.add_child(_home_search_button)
 
-		var url_label := Label.new()
-		url_label.text = item_url
-		url_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		url_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		url_label.add_theme_font_size_override("font_size", 18)
-		url_label.add_theme_color_override("font_color", BrowserThemeClass.COLOR_TEXT_MUTED)
-		body.add_child(url_label)
+	_home_block_label = Label.new()
+	_home_block_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_home_block_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_home_block_label.add_theme_font_size_override("font_size", 14)
+	_home_block_label.add_theme_color_override("font_color", T.COLOR_TEXT_MUTED)
+	hero_body.add_child(_home_block_label)
 
-		content_root.add_child(card)
+	var quick_grid := GridContainer.new()
+	quick_grid.columns = 2
+	quick_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	quick_grid.add_theme_constant_override("h_separation", 12)
+	quick_grid.add_theme_constant_override("v_separation", 12)
+	wrapper.add_child(quick_grid)
+	quick_grid.add_child(_build_home_quick_card("资讯", "看看最近有什么新消息", "framestory://news"))
+	quick_grid.add_child(_build_home_quick_card("赛程", "比赛时间、规则和安排", "framestory://schedule"))
+	quick_grid.add_child(_build_home_quick_card("帮助", "常见问题和注意事项", "framestory://faq"))
+	quick_grid.add_child(_build_home_history_card())
+
+	_refresh_home_surf_controls()
 
 
 func _render_page(page_content: Dictionary) -> void:
@@ -518,6 +755,69 @@ func _render_page(page_content: Dictionary) -> void:
 		rendered = inner
 
 	content_root.add_child(rendered)
+
+
+func _on_home_search_submitted(text: String) -> void:
+	_submit_surf_from_home(text)
+
+
+func _on_home_search_pressed() -> void:
+	if _home_search_input == null or not is_instance_valid(_home_search_input):
+		return
+	_submit_surf_from_home(_home_search_input.text)
+
+
+func _submit_surf_from_home(keyword: String) -> void:
+	var query := keyword.strip_edges()
+	if query.is_empty():
+		_set_status("先输点关键词。")
+		return
+	var blocking_reason := _get_surf_blocking_reason()
+	if not blocking_reason.is_empty():
+		_set_status(blocking_reason)
+		_refresh_home_surf_controls()
+		return
+	_start_surf(query)
+
+
+func _get_surf_blocking_reason() -> String:
+	var bm: Node = get_node_or_null("/root/BrowserManager")
+	if bm == null:
+		return "BrowserManager 不存在"
+	if bm.has_method("get_surf_blocking_reason"):
+		return str(bm.call("get_surf_blocking_reason")).strip_edges()
+	return ""
+
+
+func _build_surf_preview_payload() -> Dictionary:
+	return {
+		"title": "摸鱼冲浪",
+		"text": "打开不知道能找到什么的网页。\n可能很无聊，可能有点用，可能完全超出预期。\n状态效果随机。",
+		"conditions": ["消耗 1 行动力"],
+		"rewards": {},
+		"disabled_reason": _get_surf_blocking_reason(),
+	}
+
+
+func _refresh_home_surf_controls() -> void:
+	var blocking_reason := _get_surf_blocking_reason()
+	var enabled := blocking_reason.is_empty()
+	if _home_search_input != null and is_instance_valid(_home_search_input):
+		_home_search_input.editable = enabled
+	if _home_search_button != null and is_instance_valid(_home_search_button):
+		_home_search_button.disabled = not enabled
+	if _home_block_label != null and is_instance_valid(_home_block_label):
+		_home_block_label.text = "现在可以随便搜点东西。" if enabled else blocking_reason
+		_home_block_label.add_theme_color_override(
+			"font_color",
+			BrowserThemeClass.COLOR_TEXT_MUTED if enabled else BrowserThemeClass.COLOR_ERROR
+		)
+
+
+func _on_runtime_state_changed(_arg1: Variant = null, _arg2: Variant = null) -> void:
+	var tab = _find_tab_by_id(_current_tab_id)
+	if tab != null and tab.state == BrowserTabDataClass.TabState.IDLE:
+		_refresh_home_surf_controls()
 
 
 func _instantiate_scene_page(scene_path: String, _page_content: Dictionary, _current_url: String) -> Control:
@@ -556,6 +856,7 @@ func _configure_scene_page(scene_page: Control, page_content: Dictionary, curren
 func _clear_content_root() -> void:
 	if content_root == null:
 		return
+	_stop_loading_animation()
 	for child in content_root.get_children():
 		child.queue_free()
 
@@ -572,6 +873,26 @@ func _set_tab_error(tab, message: String) -> void:
 	if tab.tab_id == _current_tab_id:
 		_render_error(message)
 		_set_status("失败")
+	_refresh_window_lock()
+
+
+func _has_loading_tabs() -> bool:
+	for tab in _tabs:
+		if tab != null and tab.state == BrowserTabDataClass.TabState.LOADING:
+			return true
+	return false
+
+
+func _refresh_window_lock() -> void:
+	var app_mgr: Node = get_node_or_null("/root/AppManager")
+	if app_mgr == null:
+		return
+	if _has_loading_tabs():
+		if app_mgr.has_method("lock_app_window"):
+			app_mgr.call("lock_app_window", "browser")
+	else:
+		if app_mgr.has_method("unlock_app_window"):
+			app_mgr.call("unlock_app_window", "browser")
 
 
 func _update_tab_title(tab) -> void:
@@ -592,8 +913,6 @@ func _find_tab_by_id(tab_id: String):
 
 func _find_page_tab_by_url(url: String):
 	for tab in _tabs:
-		if tab.is_search_result:
-			continue
 		if tab.display_url == url:
 			return tab
 	return null
@@ -609,6 +928,11 @@ func _find_tab_by_request(request_id: String):
 func _close_tab(tab_id: String) -> void:
 	var tab = _find_tab_by_id(tab_id)
 	if tab == null:
+		return
+
+	if tab.state == BrowserTabDataClass.TabState.LOADING:
+		_set_status("页面正在生成，先等结果再关闭。")
+		_switch_tab(tab_id)
 		return
 
 	for i in range(_tabs.size()):
@@ -631,28 +955,12 @@ func _close_tab(tab_id: String) -> void:
 
 	if _tabs.is_empty():
 		_create_blank_tab()
+		_refresh_window_lock()
 		return
 
 	if _current_tab_id == tab_id:
 		_switch_tab(_tabs[0].tab_id)
-
-
-func _on_search_pressed() -> void:
-	_on_search_submitted(search_input.text if search_input else "")
-
-
-func _on_search_submitted(text: String) -> void:
-	var input_text: String = text.strip_edges()
-	if input_text.is_empty():
-		return
-
-	# 如果当前标签页是空白页（IDLE），复用它
-	var reuse_id: String = ""
-	var current = _find_tab_by_id(_current_tab_id)
-	if current != null and current.state == BrowserTabDataClass.TabState.IDLE:
-		reuse_id = current.tab_id
-
-	_start_search(input_text, reuse_id)
+	_refresh_window_lock()
 
 
 func _on_new_tab_pressed() -> void:
@@ -689,33 +997,6 @@ func _on_browser_history_updated() -> void:
 		_render_history_page()
 
 
-func _on_search_link_clicked(_meta: Variant, url: String, design_prompt: String, page_context: String = "") -> void:
-	_open_page(url, design_prompt, "", page_context)
-
-
-func _on_search_completed(request_id: String, keyword: String, results: Array) -> void:
-	var tab = _find_tab_by_request(request_id)
-	if tab == null:
-		return
-	_request_to_tab.erase(request_id)
-	tab.state = BrowserTabDataClass.TabState.READY
-	tab.keyword = keyword
-	tab.search_results = results.duplicate(true)
-	tab.title = "[搜索] %s" % keyword
-	_update_tab_title(tab)
-	if tab.tab_id == _current_tab_id:
-		_render_search_results(tab.search_results)
-		_set_status("搜索完成")
-
-
-func _on_search_failed(request_id: String, _keyword: String, error: String) -> void:
-	var tab = _find_tab_by_request(request_id)
-	if tab == null:
-		return
-	_request_to_tab.erase(request_id)
-	_set_tab_error(tab, error)
-
-
 func _on_page_generated(request_id: String, url: String, content: Dictionary) -> void:
 	var tab = _find_tab_by_request(request_id)
 	if tab == null:
@@ -733,6 +1014,7 @@ func _on_page_generated(request_id: String, url: String, content: Dictionary) ->
 			address_display.text = tab.display_url
 		_render_page(tab.page_content)
 		_set_status("网页已生成")
+	_refresh_window_lock()
 
 
 func _on_page_failed(request_id: String, _url: String, error: String) -> void:
@@ -747,17 +1029,57 @@ func _on_url_open_requested(url: String, design_prompt: String, page_context: St
 	_open_page(url, design_prompt, "", page_context)
 
 
+func _on_surf_started(_request_id: String, _keyword: String) -> void:
+	_set_status("摸鱼开始，给你看个新的...")
+
+
+func _on_surf_completed(request_id: String, _keyword: String, url: String, _page_summary: String, page: Dictionary) -> void:
+	if not _request_to_tab.has(request_id):
+		return
+	var tab_id: String = _request_to_tab[request_id]
+	_request_to_tab.erase(request_id)
+	var tab = _find_tab_by_id(tab_id)
+	if tab == null:
+		return
+	tab.state = BrowserTabDataClass.TabState.READY
+	tab.display_url = url
+	tab.page_content = page.duplicate(true)
+	var page_title: String = str(page.get("title", "")).strip_edges()
+	if page_title.is_empty():
+		page_title = url
+	tab.title = page_title
+	_update_tab_title(tab)
+	if tab.tab_id == _current_tab_id:
+		if address_display:
+			address_display.text = tab.display_url
+		_render_page(tab.page_content)
+		_set_status("页面已生成。")
+	_refresh_window_lock()
+
+
+func _on_surf_failed(request_id: String, _keyword: String, error: String) -> void:
+	if not _request_to_tab.has(request_id):
+		return
+	var tab_id: String = _request_to_tab[request_id]
+	_request_to_tab.erase(request_id)
+	var tab = _find_tab_by_id(tab_id)
+	if tab != null:
+		_set_tab_error(tab, error)
+
+
 # ── 统一页面动作路由 ──────────────────────────────────
 
 func _on_page_action(action_data: Dictionary) -> void:
 	var action: String = str(action_data.get("action", ""))
 	match action:
 		"open_url":
-			_open_page(str(action_data.get("url", "")), str(action_data.get("design_prompt", "")))
+			_open_premade_link(str(action_data.get("url", "")), str(action_data.get("design_prompt", "")))
 		"perform_action":
-			_set_status("互联网行动已经迁移到 Community 应用。")
-		"search":
-			_start_search(str(action_data.get("keyword", "")))
+			_set_status("已迁移到主页搜索框（摸鱼冲浪）。")
+		"surf":
+			var form_data: Dictionary = action_data.get("__form_data", {})
+			var keyword: String = str(form_data.get("keyword", action_data.get("keyword", ""))).strip_edges()
+			_start_surf(keyword)
 		"open_history":
 			_on_history_entry_pressed(str(action_data.get("entry_id", "")))
 		"open_history_page":
@@ -767,15 +1089,22 @@ func _on_page_action(action_data: Dictionary) -> void:
 		"story_event":
 			_submit_story_event(action_data)
 		"go_home":
-			var current = _find_tab_by_id(_current_tab_id)
-			if current != null:
-				current.state = BrowserTabDataClass.TabState.IDLE
-				current.display_url = "browser://home"
-				_update_tab_title(current)
-			_render_home_page()
+			_on_home_button_pressed()
 		_:
 			if not action.is_empty():
 				push_warning("BrowserApp: 未知页面动作: %s" % action)
+
+
+func _open_premade_link(url: String, design_prompt: String = "") -> void:
+	var normalized := url.strip_edges()
+	if normalized.is_empty():
+		return
+	var bm: Node = get_node_or_null("/root/BrowserManager")
+	if bm == null or not bm.has_method("has_premade_page"):
+		return
+	if not bool(bm.call("has_premade_page", normalized)):
+		return
+	_open_page(normalized, design_prompt)
 
 
 func _submit_story_form(action_data: Dictionary) -> void:
@@ -843,15 +1172,12 @@ func _parse_story_value(raw_value: Variant) -> Variant:
 
 
 func _on_home_button_pressed() -> void:
-	var current = _find_tab_by_id(_current_tab_id)
-	if current != null:
-		current.state = BrowserTabDataClass.TabState.IDLE
-		current.display_url = "browser://home"
-		current.title = "Browser"
-		_update_tab_title(current)
-		if address_display:
-			address_display.text = "browser://home"
-	_render_home_page()
+	# 优先切到已有的主页 tab；没有就新开一个，避免覆盖当前 LOADING/READY tab
+	for tab in _tabs:
+		if tab != null and tab.state == BrowserTabDataClass.TabState.IDLE and tab.display_url == "browser://home":
+			_switch_tab(tab.tab_id)
+			return
+	_create_blank_tab()
 
 
 func _on_history_button_pressed() -> void:

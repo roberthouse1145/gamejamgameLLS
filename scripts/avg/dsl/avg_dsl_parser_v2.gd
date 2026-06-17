@@ -116,6 +116,7 @@ var _rx_else_if_stmt: RegEx
 var _rx_else_stmt: RegEx
 var _rx_kwargs_extractor: RegEx
 var _rx_legacy_jump_scene: RegEx
+var _rx_uppercase_command: RegEx
 var _rx_embedded_var_op: RegEx
 var _rx_embedded_method_call: RegEx
 var _rx_embedded_prop_assign: RegEx
@@ -184,6 +185,12 @@ func _compile_regexes() -> void:
 	# jump_scene("scene_id") - legacy syntax compatibility
 	_rx_legacy_jump_scene = RegEx.new()
 	_rx_legacy_jump_scene.compile("^\\s*jump_scene\\((.*)\\)\\s*$")
+
+	# 引擎内部 command_type 形式（如 JUMP_SCENE(...) / SHOW_CHARACTER(...)）。
+	# 这些不是用户语法，LLM 偶尔会"还原"出来。匹配后必须报错而非降级旁白，
+	# 否则玩家会在游戏画面看到字面命令文本。
+	_rx_uppercase_command = RegEx.new()
+	_rx_uppercase_command.compile("^\\s*([A-Z][A-Z_]+)\\s*\\(.*\\)\\s*$")
 
 	_rx_embedded_var_op = RegEx.new()
 	_rx_embedded_var_op.compile("var\\[(\\w+)\\]\\s*([+\\-*/%]?=)\\s*.+$")
@@ -284,11 +291,16 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			continue
 			
 		# 3. 对话行 (>)
+		# 每个 > 行只能消费一次紧邻它的 # => TextBlock(...) 声明。
+		# 用完即清，避免后续连续的 > 行错误沿用上一个 speaker。
+		# 这样 LLM 即使忘记加 # => TextBlock() 旁白块，遗漏的 > 也只会降级为无 speaker 旁白，
+		# 不会被错误归属到前一个角色名下。
 		var dialogue_match: RegExMatch = _rx_dialogue_line.search(prepared_line)
 		if dialogue_match:
 			var text_content: String = dialogue_match.get_string(1).strip_edges()
 			var cmd: AVGCommand = _create_dialogue_command(text_content, current_text_block_kwargs)
 			parsed_cmds.append(cmd)
+			current_text_block_kwargs.clear()
 			i += 1
 			continue
 			
@@ -378,6 +390,16 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			})
 			i += 1
 			continue
+
+		# 4.7. `else:` 只能由前面的 IF 分支消费。走到这里说明它没有匹配到同级 if。
+		var else_match: RegExMatch = _rx_else_stmt.search(prepared_line)
+		if else_match:
+			errors.append({
+				"line": i + 1,
+				"message": "Unexpected else without matching if. Make sure else: immediately follows the if block and uses the same indentation."
+			})
+			i += 1
+			continue
 			
 		# 5. 变量计算 (var[1] += 5)
 		var var_match: RegExMatch = _rx_var_op.search(prepared_line)
@@ -431,8 +453,20 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 				parsed_cmds.append(legacy_jump_cmd)
 			i += 1
 			continue
-			
-		# 其他未识别的行：自动降级为旁白 DIALOGUE（容错 LLM 输出裸文本）
+
+		# 8.5. 显式拒绝引擎内部 command_type 形式（JUMP_SCENE / SHOW_CHARACTER 等）。
+		# 必须在第 9 步旁白兜底之前拦截，否则会被当作旁白文本说给玩家听。
+		var upper_cmd_match: RegExMatch = _rx_uppercase_command.search(prepared_line)
+		if upper_cmd_match:
+			var upper_name: String = upper_cmd_match.get_string(1)
+			errors.append({
+				"line": i + 1,
+				"message": "Forbidden uppercase internal command '%s(...)'. Use the documented user-facing syntax instead (e.g. scene.jump(...), 角色.show(...))." % upper_name
+			})
+			i += 1
+			continue
+
+		# 9. 其他未识别的行：自动降级为旁白 DIALOGUE（容错 LLM 输出裸文本）
 		var bare_text: String = line.strip_edges()
 		if not bare_text.is_empty():
 			var fallback_cmd: AVGCommand = _create_dialogue_command(bare_text, {})
@@ -566,10 +600,10 @@ func _find_next_indent(lines: Array[String], start_idx: int) -> int:
 
 
 func _prepare_line_for_parse(raw_line: String) -> String:
-	var stripped: String = _strip_inline_comment_suffix(raw_line)
-	var embedded: String = _extract_embedded_command_from_comment(stripped)
+	var embedded: String = _extract_embedded_command_from_comment(raw_line)
 	if not embedded.is_empty():
 		return embedded
+	var stripped: String = _strip_inline_comment_suffix(raw_line)
 	return stripped
 
 

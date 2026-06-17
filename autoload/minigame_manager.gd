@@ -23,6 +23,87 @@ const REVIEW_TYPE_DESC_FALLBACKS := {
 	"structured_form": "搭档刚刚把一份结构化方案填完并提交给你确认",
 }
 
+## 给 LLM 规划层用的 minigame 目录。结构与 plan_generation.md / dev_planner_agent.md 共享。
+## category: "output"（产出型，玩家输入会成为后续工单输入） / "atmosphere"（氛围型，仅装饰）
+## work_order_policy: 决定该类型是否能挂 post_task_work_order
+##   "required"  —— 必须挂工单（工单以玩家本次输入为输入材料）
+##   "optional_independent" —— 氛围型；默认不挂；只有当工单通过"独立性测试"
+##      （离开小游戏后仅靠 KB 就能交付）才可以挂
+const MINIGAME_PROMPT_INFO := {
+	"creative_decision": {
+		"category": "output",
+		"summary": "玩家在 N 个 AI 生成的方向选项中讨论并拍板",
+		"use_case": "设计角色 / 世界观方向（需要玩家敲定设定）",
+		"work_order_policy": "required",
+	},
+	"script_fill": {
+		"category": "output",
+		"summary": "玩家给 AVG 场景填台词 / 选择分支",
+		"use_case": "撰写具体章节剧本",
+		"work_order_policy": "required",
+	},
+	"typing_code": {
+		"category": "atmosphere",
+		"summary": "键盘敲落代码关键字的打字节奏游戏",
+		"use_case": "埋头写代码 / 引擎侧集成 / 功能实装",
+		"work_order_policy": "optional_independent",
+	},
+	"find_bugs": {
+		"category": "atmosphere",
+		"summary": "翻牌配对找出预设 Bug",
+		"use_case": "检查 / 审查 / 校对 / 找问题",
+		"work_order_policy": "optional_independent",
+	},
+	"code_puzzle": {
+		"category": "atmosphere",
+		"summary": "把打乱的流程步骤按正确顺序排好",
+		"use_case": "理清流程 / 梳理顺序",
+		"work_order_policy": "optional_independent",
+	},
+	"emotion_tag": {
+		"category": "atmosphere",
+		"summary": "给台词片段打情绪标签（选择被打分后丢弃，不持久化）",
+		"use_case": "感受基调 / 体验角色情绪切片",
+		"work_order_policy": "optional_independent",
+	},
+}
+
+const DEFAULT_WINDOW_PROFILE := {
+	"min": Vector2(960, 640),
+	"preferred": Vector2(1280, 800),
+}
+
+const WINDOW_PROFILES := {
+	"typing_code": {
+		"min": Vector2(960, 640),
+		"preferred": Vector2(1280, 800),
+	},
+	"find_bugs": {
+		"min": Vector2(900, 620),
+		"preferred": Vector2(1120, 760),
+	},
+	"code_puzzle": {
+		"min": Vector2(1040, 620),
+		"preferred": Vector2(1180, 760),
+	},
+	"creative_decision": {
+		"min": Vector2(1080, 720),
+		"preferred": Vector2(1280, 800),
+	},
+	"structured_form": {
+		"min": Vector2(920, 620),
+		"preferred": Vector2(980, 760),
+	},
+	"script_fill": {
+		"min": Vector2(900, 660),
+		"preferred": Vector2(1100, 780),
+	},
+	"emotion_tag": {
+		"min": Vector2(1180, 840),
+		"preferred": Vector2(1240, 900),
+	},
+}
+
 #region 信号
 ## 小游戏启动
 signal minigame_started(task_id: String, minigame_type: String)
@@ -94,6 +175,42 @@ func get_registered_types() -> Array[String]:
 	return result
 
 
+## 给 PromptManager 用：返回结构化的 minigame 目录文本，供规划层 prompt 注入。
+## 由 res://config/prompt_providers.json 中 "minigames_prompt" 键绑定。
+func get_prompt_summary() -> String:
+	var output_lines: Array[String] = []
+	var atmos_lines: Array[String] = []
+	for type_id in MINIGAME_PROMPT_INFO.keys():
+		var info: Dictionary = MINIGAME_PROMPT_INFO[type_id]
+		var policy: String = str(info.get("work_order_policy", "")).strip_edges()
+		var policy_hint: String = _format_work_order_policy_hint(policy)
+		var line: String = "- `%s`：%s。用于「%s」。%s" % [type_id, info["summary"], info["use_case"], policy_hint]
+		if info["category"] == "output":
+			output_lines.append(line)
+		else:
+			atmos_lines.append(line)
+	var parts: Array[String] = []
+	parts.append("### 产出型（玩家输入会成为 LLM 后续工单的输入）")
+	parts.append_array(output_lines)
+	parts.append("")
+	parts.append("### 氛围型（玩家操作不影响 LLM 后续产出，仅参与感装饰）")
+	parts.append("默认**不挂** `post_task_work_order`——玩家玩不玩都不该影响 KB/场景落盘。")
+	parts.append("只有当工单通过**独立性测试**时才可以挂：把工单 description 单独喂给 Worker，不给它任何小游戏上下文，它仍能仅凭 KB 素材交付。")
+	parts.append("禁止在这些工单的【输入材料】里出现「玩家本次 XX 输入」之类的占位符——这些数据永远不会到达 Worker。")
+	parts.append_array(atmos_lines)
+	return "\n".join(parts)
+
+
+func _format_work_order_policy_hint(policy: String) -> String:
+	match policy:
+		"required":
+			return "工单策略：**必须**挂 `post_task_work_order`，以玩家本次输入为关键输入材料。"
+		"optional_independent":
+			return "工单策略：**默认省略** `post_task_work_order`；需要挂时必须通过独立性测试。"
+		_:
+			return ""
+
+
 ## 是否有小游戏正在运行
 func is_running() -> bool:
 	return (
@@ -155,7 +272,8 @@ func _is_generated_minigame_type(minigame_type: String) -> bool:
 func _start_generated_minigame(task_data: Dictionary) -> bool:
 	var task_id: String = str(task_data.get("task_id", ""))
 	var window_title: String = str(task_data.get("title", "开发任务"))
-	if not _open_loading_window(window_title, "正在根据当前项目内容生成任务…"):
+	var minigame_type: String = str(task_data.get("minigame_type", ""))
+	if not _open_loading_window(window_title, "正在根据当前项目内容生成任务…", minigame_type):
 		push_warning("[MinigameManager] Failed to open loading window")
 		return false
 
@@ -201,7 +319,7 @@ func _launch_minigame_instance(task_data: Dictionary, generated_content: Diction
 
 	# 在独立窗口中打开小游戏
 	var window_title: String = str(task_data.get("title", "开发任务"))
-	if not _open_minigame_window(window_title, _current_minigame):
+	if not _open_minigame_window(window_title, _current_minigame, minigame_type):
 		push_warning("[MinigameManager] Failed to open minigame window")
 		_current_minigame.queue_free()
 		_current_minigame = null
@@ -225,7 +343,7 @@ func _launch_minigame_instance(task_data: Dictionary, generated_content: Diction
 
 
 ## 在独立 PseudoWindow 中打开小游戏
-func _open_minigame_window(title: String, content: Control) -> bool:
+func _open_minigame_window(title: String, content: Control, minigame_type: String = "") -> bool:
 	var app_manager: Node = get_node_or_null("/root/AppManager")
 	if app_manager == null or app_manager.window_manager == null:
 		push_warning("[MinigameManager] AppManager or WindowManager not available")
@@ -242,21 +360,20 @@ func _open_minigame_window(title: String, content: Control) -> bool:
 
 	_used_standalone_window = true
 
-	# 设置窗口大小并居中：固定舒适尺寸（1280x800），若屏幕太小则回退到 70% 视口
-	_minigame_window.custom_minimum_size = Vector2(960, 640)
-	var preferred_size: Vector2 = Vector2(1280, 800)
-	var viewport := _minigame_window.get_viewport()
-	if viewport != null:
-		var vp_size: Vector2 = viewport.get_visible_rect().size
-		var max_size: Vector2 = vp_size * 0.7
-		_minigame_window.size = Vector2(
-			minf(preferred_size.x, max_size.x),
-			minf(preferred_size.y, max_size.y)
-		)
+	var profile := _get_window_profile(minigame_type)
+	var min_size: Vector2 = profile.get("min", DEFAULT_WINDOW_PROFILE["min"])
+	var preferred_size: Vector2 = profile.get("preferred", DEFAULT_WINDOW_PROFILE["preferred"])
+
+	# 设置窗口大小并居中：不同小游戏使用各自舒适尺寸，再交给 WindowManager 按桌面可用区域兜底。
+	_minigame_window.custom_minimum_size = min_size
+	if "min_size" in _minigame_window:
+		_minigame_window.min_size = min_size
+	_minigame_window.size = preferred_size
+	if wm.has_method("fit_window_to_container"):
+		wm.fit_window_to_container(_minigame_window)
 	else:
-		_minigame_window.size = preferred_size
-	if _minigame_window.has_method("center_in_screen"):
-		_minigame_window.center_in_screen()
+		if _minigame_window.has_method("center_in_screen"):
+			_minigame_window.center_in_screen()
 
 	# 锁定窗口：禁止关闭和最小化
 	if _minigame_window.has_method("set_close_locked"):
@@ -267,7 +384,14 @@ func _open_minigame_window(title: String, content: Control) -> bool:
 	return true
 
 
-func _open_loading_window(title: String, message: String) -> bool:
+func _get_window_profile(minigame_type: String) -> Dictionary:
+	var normalized_type := minigame_type.strip_edges()
+	if WINDOW_PROFILES.has(normalized_type):
+		return WINDOW_PROFILES[normalized_type]
+	return DEFAULT_WINDOW_PROFILE
+
+
+func _open_loading_window(title: String, message: String, minigame_type: String = "") -> bool:
 	var loading_root := Control.new()
 	loading_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
@@ -302,7 +426,7 @@ func _open_loading_window(title: String, message: String) -> bool:
 	status.add_theme_font_size_override("font_size", 15)
 	box.add_child(status)
 
-	return _open_minigame_window(title, loading_root)
+	return _open_minigame_window(title, loading_root, minigame_type)
 
 
 ## 关闭小游戏窗口
@@ -615,8 +739,11 @@ func _build_fallback_review_performance_desc(result: Dictionary, minigame_type: 
 			return "你只补出了%d/%d处关键空位，像是刚把最难下手的那几处先试着写下来" % [filled_slots, slot_count]
 		"creative_decision":
 			var total_rounds: int = int(result.get("total_rounds", 0))
-			var decision_count: int = int(result.get("decisions", []).size()) if result.get("decisions", []) is Array else 0
-			return "搭档和你一起完成了 %d 轮创意决策，定下了 %d 个关键方向" % [total_rounds, decision_count]
+			var final_proposal: Dictionary = result.get("final_proposal", {}) if result.get("final_proposal", {}) is Dictionary else {}
+			var final_title: String = str(final_proposal.get("title", "")).strip_edges()
+			if final_title.is_empty():
+				final_title = "未敲定方向"
+			return "搭档和林夏在讨论室来回 %d 轮，最后落在「%s」这个方向" % [total_rounds, final_title]
 		_:
 			if score >= 0.9:
 				return "表现非常出色，完成了%d/%d行代码，准确率%.0f%%，最大连击%d" % [completed_lines, total_lines, accuracy * 100.0, max_combo]
@@ -661,7 +788,7 @@ func _build_review_prompt(work_desc: String, performance_desc: String, score: fl
 			if not resolved.is_empty():
 				return resolved
 
-	return """你是林夏，{player_name}的 GameJam 搭档。%s刚完成了一项工作，你要对此做出简短回应。
+	return """你是林夏，{player_name}的叙事大赛搭档。%s刚完成了一项工作，你要对此做出简短回应。
 
 【工作内容】%s
 【工作类型】%s

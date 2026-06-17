@@ -1,0 +1,176 @@
+chapter: day5_night
+name: 第五天·夜 - DEMO 试玩与心里话
+desc: 林夏宣布 DEMO 可以运行了，邀请玩家试玩；试玩后撒娇要一起睡，睡前说出心里话。若完成度过低则触发坏结局。
+trigger:
+  day: 5
+  phase: NIGHT
+next_chapter:
+
+=== day5_night_01_init ===
+# 初始化第五天夜晚
+
+wait: immediate
+next_conditions:
+  completion < 0 -> day5_night_bad_01_confront
+  default -> day5_night_02_demo_ready
+
+=== day5_night_02_demo_ready ===
+# 林夏兴奋地告诉玩家 DEMO 可以运行了，邀请试玩
+
+[activate_topic]
+topic_path: res://resources/story/topics/day5_night_demo_ready.tres
+npc_speaks_first: true
+
+wait: topic_completed
+  topic_id: day5_night_demo_ready
+-> day5_night_03_playtest
+
+=== day5_night_03_playtest ===
+# 剧情固化第一个可玩里程碑，然后自动打开 GamePreviewer，从初始场景开始试玩
+
+[create_bithub_milestone]
+name: 第五天 DEMO 试玩版
+entry_scene_id:
+
+[preview_current_project]
+preview_id: day5_night_demo_preview
+window_title: DEMO 试玩
+
+wait: project_preview_finished
+  preview_id: day5_night_demo_preview
+capture:
+  playtest_completed: payload.completed
+  playtest_closed: payload.closed
+  playtest_end_reason: payload.end_reason
+  playtest_end_scene: payload.scene_id
+  playtest_project_name: payload.project_name
+-> day5_night_04_close_preview
+
+=== day5_night_04_close_preview ===
+# 关闭试玩窗口
+
+[close_app]
+app_id: game_previewer
+force: true
+
+wait: immediate
+-> day5_night_05_review
+
+=== day5_night_05_review ===
+# 林夏问玩家试玩感受（氛围对话，不做深入讨论）
+
+[activate_topic]
+topic_path: res://resources/story/topics/day5_night_review.tres
+npc_speaks_first: true
+
+wait: topic_completed
+  topic_id: day5_night_review
+-> day5_night_06_sleep_invite
+
+=== day5_night_06_sleep_invite ===
+# 林夏撒娇要求一起睡觉
+
+[activate_topic]
+topic_path: res://resources/story/topics/day5_night_sleep_invite.tres
+npc_speaks_first: true
+
+wait: topic_completed
+  topic_id: day5_night_sleep_invite
+capture:
+  sleep_invite_rejected: result.topic_failed
+next_conditions:
+  sleep_invite_rejected == true -> day5_night_08_declined_sleep
+  default -> day5_night_07_sleep_avg
+
+=== day5_night_07_sleep_avg ===
+# 一起睡觉 AVG：林夏说心里话，有分支选项，最后睡着
+
+[play_avg]
+scene_id: day5_night_sleep
+title: 晚安
+window_title: 晚安
+prompt_key: story/day5_night_sleep
+generation_transit_title: 晚安
+generation_transit_window_title: 剧情生成中
+generation_transit_stages: 灯光慢慢暗下来...,月光透过窗帘洒进房间...,林夏靠过来了...
+
+wait: avg_scene_ended
+  scene_id: day5_night_sleep
+capture:
+  sleep_avg_summary: outcome.summary
+-> day5_night_09_cleanup
+
+=== day5_night_08_declined_sleep ===
+# 玩家拒绝一起睡，标记后继续
+
+[set_variable]
+key: day5_sleep_declined
+value: true
+
+wait: immediate
+-> day5_night_09_cleanup
+
+=== day5_night_09_cleanup ===
+# 收尾：最小化播放器，消耗 AP 进入第二天
+
+[minimize_app_window]
+app_id: avg_player
+ignore_missing: true
+
+[consume_ap]
+amount: 1
+action_type: story
+detail: day5_night
+
+wait: immediate
+-> day5_night_10_done
+
+=== day5_night_10_done ===
+# 第五天夜晚结束
+
+wait: immediate
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  坏结局分支：完成度低于 10%，林夏不再相信能做完游戏
+# ═══════════════════════════════════════════════════════════════════
+
+=== day5_night_bad_01_confront ===
+# 林夏在家里发起对峙，表示不想继续做游戏了。
+
+[activate_topic]
+topic_path: res://resources/story/topics/day5_night_bad_confront.tres
+npc_speaks_first: true
+
+wait: topic_completed
+  topic_id: day5_night_bad_confront
+-> day5_night_bad_02_breakup_avg
+
+=== day5_night_bad_02_breakup_avg ===
+# 坏结局：对峙后的沉默一路走到林夏离开
+
+[play_avg]
+scene_id: day5_night_bad_breakup
+title: 算了吧
+window_title: 算了吧
+prompt_key: story/day5_night_bad_breakup
+generation_transit_title: 算了吧
+generation_transit_window_title: ……
+generation_transit_stages: 房间安静了下来...,她没有再看你...,然后她开始收东西...
+
+wait: avg_scene_ended
+  scene_id: day5_night_bad_breakup
+-> day5_night_bad_03_game_over
+
+=== day5_night_bad_03_game_over ===
+# 分手线：游戏结束
+
+[set_variable]
+key: game_over
+value: true
+
+[set_variable]
+key: game_over_reason
+value: bad_ending_breakup
+
+wait: immediate

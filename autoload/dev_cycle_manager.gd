@@ -23,16 +23,13 @@ const DEVELOPMENT_BATCH_MAX_COUNT: int = 3
 const DEVELOPMENT_BATCH_TRIGGER_PENDING_COUNT: int = 0
 const DEFAULT_PRODUCTION_MINIGAME_TYPE: String = "typing_code"
 const ALLOW_DIRECT_COMPLETE_DEV_TASKS: bool = false
-const CREATIVE_SEED_SOURCE_ID: String = "creative_brief"
-const CREATIVE_CORE_DOC_ID: String = "creative_core"
-const OPEN_DESIGN_QUESTIONS_DOC_ID: String = "open_design_questions"
-const SEED_DEVELOPMENT_BACKBONE_DOC_ID: String = "seed_development_backbone"
-const DEFAULT_CHAT_STRESS_LOAD: int = 4
-const DEFAULT_CHAT_PASSION_COST: int = 4
-const DEFAULT_DEV_STRESS_LOAD: int = 6
-const DEFAULT_DEV_PASSION_COST: int = 6
-const SEED_TASK_MIN_COUNT: int = 2
-const SEED_FALLBACK_KB_SOURCES := ["world", "characters", "story", "notes"]
+## 项目立项讨论结果落地后写入 KB 的稳定 doc_id；用作"是否已立项"的探测依据
+const CREATIVE_BRIEF_DOC_ID: String = "creative_brief"
+const DEFAULT_CHAT_STRESS_LOAD: int = 10
+const DEFAULT_CHAT_PASSION_COST: int = 6
+const DEFAULT_DEV_STRESS_LOAD: int = 20
+const DEFAULT_DEV_PASSION_COST: int = 18
+const DEV_WORK_PASSION_REFUSE_THRESHOLD: int = 20
 #endregion
 
 #region 信号
@@ -61,20 +58,12 @@ var _plan_generated: bool = false
 var _plan_generating: bool = false
 ## 计划生成请求 ID
 var _plan_gen_request_id: String = ""
-## 当前 seed 阶段的闸门任务（完成后才进入完整开发计划）
-var _concept_gate_task_ids: Array[String] = []
-## 已完成 concept task 中，仍在等待隐藏工单真正完成的任务 ID
-var _concept_gate_pending_order_task_ids: Array[String] = []
-## 最近一次提交的创作基点原始数据
-var _latest_creative_brief: Dictionary = {}
-## 第一批 dev work 生成中
-var _seed_task_generating: bool = false
-## 第一批 dev work 请求 ID
-var _seed_task_gen_request_id: String = ""
 ## lab 测试捷径：跳过讨论/小游戏，直接完成任务并触发工单
 var _debug_direct_execute_interactive_tasks: bool = false
 ## 表层任务顺序号，保证 DevWork 按 planner 顺位逐个放出
 var _task_surface_sequence_counter: int = 0
+## 当前时段已经被林夏拒绝过 dev_work（按时段重置）。空字符串表示未被拒绝。
+var _dev_work_refused_this_phase: String = ""
 #endregion
 
 
@@ -104,15 +93,12 @@ func _connect_signals() -> void:
 
 	var planning: Node = get_node_or_null("/root/PlanningManager")
 	if planning != null:
-		if planning.has_signal("seed_task_plan_completed"):
-			planning.seed_task_plan_completed.connect(_on_seed_task_plan_completed)
 		if planning.has_signal("development_plan_completed"):
 			planning.development_plan_completed.connect(_on_development_plan_completed)
 
 
 func reset_runtime_state() -> void:
 	_cleanup_plan_gen_ai()
-	_cleanup_seed_task_gen_ai()
 	_task_pool.clear()
 	_order_queue.clear()
 	_active_task_id = ""
@@ -120,10 +106,8 @@ func reset_runtime_state() -> void:
 	_completed_task_ids.clear()
 	_plan_generated = false
 	_plan_generating = false
-	_concept_gate_task_ids.clear()
-	_concept_gate_pending_order_task_ids.clear()
-	_latest_creative_brief.clear()
 	_task_surface_sequence_counter = 0
+	_dev_work_refused_this_phase = ""
 	var planning: Node = get_node_or_null("/root/PlanningManager")
 	if planning != null and planning.has_method("reset_runtime_state"):
 		planning.reset_runtime_state()
@@ -220,6 +204,26 @@ func activate_task(task_id: String) -> bool:
 			push_warning("[DevCycleManager] Prerequisite not met: %s requires %s" % [task_id, str(prereq_id)])
 			return false
 
+	# 已经被林夏拒绝过 → 静默拒绝，不再触发新的对话，UI 应已 disable
+	if not _dev_work_refused_this_phase.is_empty():
+		push_warning("[DevCycleManager] dev_work refused this phase: %s" % _dev_work_refused_this_phase)
+		return false
+
+	# 当前数值不适合开发 → 触发林夏拒绝消息，并在当前时段禁用
+	var refusal := _check_dev_work_refusal()
+	if not refusal.is_empty():
+		_dev_work_refused_this_phase = str(refusal.get("short", "林夏拒绝了这个时段的开发"))
+		var refusal_center: Node = get_node_or_null("/root/NpcRefusalCenter")
+		if refusal_center != null and refusal_center.has_method("trigger_refusal"):
+			refusal_center.trigger_refusal(
+				str(refusal.get("refusal_id", "dev_work")),
+				str(refusal.get("warning_desc", "")),
+				str(refusal.get("fallback", ""))
+			)
+		tasks_updated.emit()
+		print("[DevCycleManager] dev_work refused: %s" % str(refusal.get("refusal_id", "")))
+		return false
+
 	var task_type: String = str(task.get("task_type", "")).strip_edges()
 
 	if _debug_direct_execute_interactive_tasks:
@@ -276,62 +280,50 @@ func is_debug_direct_execute_interactive_tasks_enabled() -> bool:
 	return _debug_direct_execute_interactive_tasks
 
 
-## 企划书提交后的桥接入口：
-## 直接把原始创作基点写入 KB → 再生成第一批 dev work
-## [param brief_data] 企划书数据字典，包含 game_title / game_genre / game_tags / game_outline
-func on_creative_brief_completed(brief_data: Dictionary) -> void:
-	_latest_creative_brief = brief_data.duplicate(true)
-
-	if _seed_task_generating:
-		print("[DevCycleManager] Creative seed pipeline already running, skipping duplicate brief bridge")
-		return
-
-	if _plan_generated or _plan_generating:
-		print("[DevCycleManager] Plan already generated/generating, skipping brief bridge")
-		return
-
-	_persist_creative_brief_to_kb(brief_data)
-	print("[DevCycleManager] Creative brief completed, source doc updated in KnowledgeBase")
-	_generate_seed_tasks_from_context()
+## 当前时段是否已被林夏拒绝过 dev_work（用于 UI disable 与 tooltip）。
+## 拒绝理由会持续到下一时段；下一时段重新允许玩家点击触发检测。
+func get_dev_work_disabled_reason() -> String:
+	return _dev_work_refused_this_phase
 
 
-func _persist_creative_brief_to_kb(brief_data: Dictionary) -> void:
-	var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
-	if kb == null or not kb.has_method("upsert_document"):
-		push_warning("[DevCycleManager] KnowledgeBaseManager unavailable for creative brief persistence")
-		return
+## 兼容旧调用：返回是否已被拒绝（不再做"提前禁用"，仅返回已拒绝状态）。
+func get_dev_work_blocking_reason() -> String:
+	return _dev_work_refused_this_phase
 
-	var title: String = str(brief_data.get("game_title", "")).strip_edges()
-	var genre: String = str(brief_data.get("game_genre", "")).strip_edges()
-	var tags: String = str(brief_data.get("game_tags", "")).strip_edges()
-	var outline: String = str(brief_data.get("game_outline", "")).strip_edges()
-	var content_lines: PackedStringArray = [
-		"## 基本信息",
-		"- 固定背景：日式魔法异世界学院",
-		"- 作品名称：%s" % title,
-		"- 作品类型：%s" % genre,
-		"- 基调标签：%s" % tags,
-		"",
-		"## 故事大纲",
-		outline if not outline.is_empty() else "（待补充）",
-	]
 
-	var doc_tags: Array = ["brief", "direction"]
-	if not genre.is_empty() and genre not in doc_tags:
-		doc_tags.append(genre)
-
-	kb.upsert_document(
-		CREATIVE_SEED_SOURCE_ID,
-		"项目企划书",
-		"\n".join(content_lines),
-		"notes",
-		doc_tags,
-		"player",
-		{
-			"doc_kind": "brief",
-			"state": "confirmed",
+## 当玩家点击 dev_work 时，根据当前数值判定是否需要被林夏拒绝。
+## 返回结构化拒绝信息：
+##   refusal_id: 给 NpcRefusalCenter 用的标识
+##   warning_desc: 给 LLM 的拒绝起因语义描述（第三人称视角，数值归属必须明确）
+##   short: UI tooltip / 当前时段禁用原因（短文案）
+##   fallback: LLM 不可用时的本地兜底句（这条是林夏直接说出口的话，所以用第一人称）
+## 不需要拒绝时返回空字典。
+func _check_dev_work_refusal() -> Dictionary:
+	var gm: Node = get_node_or_null("/root/GameManager")
+	if gm == null:
+		return {}
+	var passion_value := int(gm.get("passion"))
+	if passion_value <= DEV_WORK_PASSION_REFUSE_THRESHOLD:
+		return {
+			"refusal_id": "dev_work_passion_low",
+			"warning_desc": (
+				"搭档（玩家）想给林夏派一个新的开发任务，让她在这个时段动手干活。"
+				+ "但林夏自己当前的创作热情已经掉到 %d（阈值≤%d，已是危险值）。"
+				+ "林夏不想接这个工单，她希望搭档先放过她，让她去做点能找回灵感的事，或者干脆让她歇会儿。"
+			) % [passion_value, DEV_WORK_PASSION_REFUSE_THRESHOLD],
+			"short": "林夏现在没心情开发，先换换脑子",
+			"fallback": "我现在真的写不动……先去找点能让我提起劲的事吧。",
 		}
-	)
+	return {}
+
+
+## 探测当前 KB 是否已经写入立项 brief（worker 工单整理后会写一篇 doc_id=creative_brief 的文档）
+func _has_creative_brief_in_kb() -> bool:
+	var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
+	if kb == null or not kb.has_method("get_document"):
+		return false
+	var doc: Dictionary = kb.get_document(CREATIVE_BRIEF_DOC_ID)
+	return not doc.is_empty()
 
 #endregion
 
@@ -405,7 +397,6 @@ func _activate_work_order_task(task: Dictionary) -> bool:
 	if task_id not in _completed_task_ids:
 		_completed_task_ids.append(task_id)
 	task_status_changed.emit(task_id, "completed")
-	_track_concept_gate_follow_up(task)
 
 	# 静默派发/排队隐藏工单（底层，玩家不可见）
 	if _active_task_id.is_empty():
@@ -415,7 +406,6 @@ func _activate_work_order_task(task: Dictionary) -> bool:
 		print("[DevCycleManager] Order queued: %s (queue size: %d)" % [task_id, _order_queue.size()])
 
 	tasks_updated.emit()
-	_check_concept_completion()
 	_ensure_development_task_supply()
 	return true
 
@@ -434,7 +424,6 @@ func _activate_debug_chat_topic_task(task: Dictionary) -> bool:
 	if task_id not in _completed_task_ids:
 		_completed_task_ids.append(task_id)
 	task_status_changed.emit(task_id, "completed")
-	_track_concept_gate_follow_up(task, {"chat_task": true, "work_order_created": true})
 
 	if _active_task_id.is_empty():
 		_dispatch_order_silently(task_id)
@@ -443,7 +432,6 @@ func _activate_debug_chat_topic_task(task: Dictionary) -> bool:
 		print("[DevCycleManager] Debug chat-topic order queued: %s (queue size: %d)" % [task_id, _order_queue.size()])
 
 	tasks_updated.emit()
-	_check_concept_completion()
 	_ensure_development_task_supply()
 	return true
 
@@ -462,7 +450,6 @@ func _activate_simple_task(task: Dictionary) -> bool:
 	_completed_task_ids.append(task_id)
 	task_status_changed.emit(task_id, "completed")
 	tasks_updated.emit()
-	_check_concept_completion()
 	_ensure_development_task_supply()
 	print("[DevCycleManager] Simple task completed: %s" % task_id)
 	return true
@@ -504,12 +491,9 @@ func _dispatch_order_silently(task_id: String) -> void:
 	task.erase("_last_completion_result")
 
 	if wom.dispatch_order(order.id):
-		if wom.has_method("is_order_running") and wom.is_order_running(order.id):
-			_active_task_id = task_id
-			_active_order_id = order.id
-			print("[DevCycleManager] Silently dispatched order %s for task %s" % [order.id, task_id])
-		else:
-			print("[DevCycleManager] Order queued in WorkOrderManager: %s (task: %s)" % [order.id, task_id])
+		_active_task_id = task_id
+		_active_order_id = order.id
+		print("[DevCycleManager] Silently dispatched order %s for task %s" % [order.id, task_id])
 	else:
 		push_warning("[DevCycleManager] Failed to dispatch order for task: %s" % task_id)
 		_active_task_id = ""
@@ -667,6 +651,9 @@ func _build_post_task_performance_block(wo_template: Dictionary, completion_resu
 func _build_creative_prompt_block(completion_result: Dictionary) -> String:
 	if completion_result.is_empty():
 		return ""
+	var work_order_brief: String = str(completion_result.get("work_order_brief", "")).strip_edges()
+	if not work_order_brief.is_empty():
+		return work_order_brief
 	var creative_prompt: String = str(completion_result.get("creative_prompt", "")).strip_edges()
 	if not creative_prompt.is_empty():
 		return creative_prompt
@@ -674,12 +661,16 @@ func _build_creative_prompt_block(completion_result: Dictionary) -> String:
 
 
 ## 工单状态变化回调（底层静默处理，不通知玩家）
+## 任何工单 completed 都会触发一次 _ensure_development_task_supply 续杯尝试，
+## 第一个 worker 完成（即立项讨论的整理工单）就由这条路径触发首次 plan_generation。
 func _on_order_status_changed(order_id: String, _old_status: String, new_status: String) -> void:
-	_sync_concept_gate_follow_up_state(order_id, new_status)
+	if new_status == "completed":
+		# 任意 worker 完成都给一次续杯机会（含非 active_order 的子工单 / 异步派发完成）
+		_ensure_development_task_supply()
 
 	if order_id != _active_order_id:
 		return
-	if new_status not in ["completed", "needs_input", "pending", "failed"]:
+	if new_status not in ["completed", "needs_input", "failed"]:
 		return
 
 	if new_status == "completed":
@@ -761,79 +752,44 @@ func _on_minigame_review_completed(task_id: String, _result: Dictionary) -> void
 	var post_task_work_order := _get_post_task_work_order(task)
 	_handle_post_task_handler(task, _result)
 	if not post_task_work_order.is_empty():
-		_track_concept_gate_follow_up(task, _result)
 		task["_last_completion_result"] = _result.duplicate(true)
 		_enqueue_silent_order(task_id)
-	elif bool(_result.get("chat_task", false)) and bool(_result.get("work_order_created", false)):
-		_track_concept_gate_follow_up(task, _result)
 
 	tasks_updated.emit()
 
-	# 检查概念期是否全部完成 → 触发计划生成
-	_check_concept_completion()
 	_ensure_development_task_supply()
 
 #endregion
 
 
+## post_task_handler 是任务模板里 result 完成时由 DevCycleManager 同步执行的钩子。
+## 当前没有任何 handler 类型在使用；保留分发入口以便未来扩展。
 func _handle_post_task_handler(task: Dictionary, result: Dictionary) -> void:
 	var raw_handler: Variant = task.get("post_task_handler", {})
 	if not raw_handler is Dictionary:
 		return
 	var handler: Dictionary = raw_handler
 	var handler_type := str(handler.get("type", "")).strip_edges()
-	match handler_type:
-		"creative_brief_completed":
-			_handle_creative_brief_form_result(result)
-
-
-func _handle_creative_brief_form_result(result: Dictionary) -> void:
-	if str(result.get("result_kind", "")) != "structured_form":
+	if handler_type.is_empty():
 		return
-	var values: Dictionary = result.get("form_values", {})
-	if values.is_empty():
-		push_warning("[DevCycleManager] Creative brief form result has no form_values")
-		return
-
-	var tags_value: Variant = values.get("game_tags", [])
-	var tags_text := _format_form_value_for_brief(tags_value)
-	var brief_data: Dictionary = {
-		"game_title": str(values.get("game_title", "")).strip_edges(),
-		"game_genre": str(values.get("game_genre", "")).strip_edges(),
-		"game_tags": tags_text,
-		"game_outline": str(values.get("game_outline", "")).strip_edges(),
-	}
-
-	var story_director: Node = get_node_or_null("/root/StoryDirector")
-	if story_director != null and story_director.has_method("set_variable"):
-		story_director.set_variable("game_title", brief_data["game_title"])
-		story_director.set_variable("game_genre", brief_data["game_genre"])
-		story_director.set_variable("game_tags", brief_data["game_tags"])
-		story_director.set_variable("creative_brief_submitted", true)
-
-	on_creative_brief_completed(brief_data)
-
-
-func _format_form_value_for_brief(value: Variant) -> String:
-	if value is Array:
-		var parts: PackedStringArray = []
-		for item in value:
-			var text := str(item).strip_edges()
-			if not text.is_empty():
-				parts.append(text)
-		return ", ".join(parts)
-	return str(value).strip_edges()
+	push_warning("[DevCycleManager] Unknown post_task_handler type: %s (task=%s, result_kind=%s)" % [
+		handler_type,
+		str(task.get("task_id", "")),
+		str(result.get("result_kind", "")),
+	])
 
 
 #region ──── 时间事件 ────
 
-## 时段变化 → 解锁新任务
+## 时段变化 → 解锁新任务，并清除上一时段的 dev_work 拒绝状态
 func _on_phase_changed(_new_phase: int) -> void:
+	_dev_work_refused_this_phase = ""
 	tasks_updated.emit()
 
 
-## 日变化 → 解锁新任务
+## 日变化 → 解锁新任务，并清除上一时段的 dev_work 拒绝状态
 func _on_day_changed(_new_day: int) -> void:
+	_dev_work_refused_this_phase = ""
 	tasks_updated.emit()
 
 #endregion
@@ -897,88 +853,18 @@ func _get_default_passion_cost(task: Dictionary) -> int:
 
 #region ──── 动态计划生成 ────
 
-## 概念期任务全部完成 → 读取 KB → 调用 LLM 生成开发计划
-func _check_concept_completion() -> void:
-	if _plan_generated or _plan_generating:
-		return
-	if _seed_task_generating:
-		return
-	if _concept_gate_task_ids.is_empty():
-		return
-
-	for cid in _concept_gate_task_ids:
-		if cid not in _completed_task_ids:
-			return  # 还有概念任务未完成
-		if cid in _concept_gate_pending_order_task_ids:
-			return  # 对应隐藏工单仍未真正完成
-
-	print("[DevCycleManager] All concept tasks and follow-up orders completed, generating development plan...")
-	_generate_development_plan()
-
-
-func _track_concept_gate_follow_up(task: Dictionary, completion_result: Dictionary = {}) -> void:
-	var task_id: String = str(task.get("task_id", "")).strip_edges()
-	if task_id.is_empty() or task_id not in _concept_gate_task_ids:
-		return
-	if not _concept_task_requires_follow_up_completion(task, completion_result):
-		return
-	if task_id not in _concept_gate_pending_order_task_ids:
-		_concept_gate_pending_order_task_ids.append(task_id)
-
-
-func _concept_task_requires_follow_up_completion(task: Dictionary, completion_result: Dictionary = {}) -> bool:
-	if task.is_empty():
-		return false
-	if not _get_post_task_work_order(task).is_empty():
-		return true
-	if bool(completion_result.get("chat_task", false)):
-		return bool(completion_result.get("work_order_created", false))
-	return false
-
-
-func _sync_concept_gate_follow_up_state(order_id: String, new_status: String) -> void:
-	if new_status != "completed":
-		return
-
-	var wom: Node = get_node_or_null("/root/WorkOrderManager")
-	if wom == null or not wom.has_method("get_order"):
-		return
-
-	var order: Resource = wom.get_order(order_id)
-	if order == null:
-		return
-	if str(order.source_type).strip_edges() != "dev_task":
-		return
-
-	var task_id: String = str(order.source_id).strip_edges()
-	if task_id.is_empty() or task_id not in _concept_gate_task_ids:
-		return
-
-	if task_id in _concept_gate_pending_order_task_ids:
-		_concept_gate_pending_order_task_ids.erase(task_id)
-	_check_concept_completion()
-
-
 ## 读取 KB 概念文档 → 构建 prompt → 调用 LLM
 func _generate_development_plan() -> void:
 	_plan_generating = true
 
-	# 收集 KB 中的概念设计文档
-	var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
-	var kb_content: String = ""
-	if kb != null and kb.has_method("get_documents"):
-		var docs: Array = kb.get_documents()
-		for doc in docs:
-			var cat: String = str(doc.get("category", ""))
-			var title: String = str(doc.get("title", ""))
-			var content: String = str(doc.get("content", ""))
-			if content.is_empty():
-				continue
-			kb_content += "### [%s] %s\n%s\n\n" % [cat, title, content]
-
+	# KB 索引摘要：只给 doc_id / 标题 / 分类 / state / 首行，不给全文。
+	# 这样模型必须调 kb_read 或 kb_summarize_state 才能引用具体内容，
+	# 强制激活工具循环；同时保住 prompt cache 命中（索引比全文稳定）。
+	var kb_content: String = _build_kb_index_text()
 	if kb_content.is_empty():
 		push_warning("[DevCycleManager] KB is empty, using minimal context for plan generation")
 		kb_content = "（暂无概念设计文档，请生成一份通用的日式异世界 AVG 开发计划）"
+	kb_content += "\n\n上面只是索引。编写任何 `post_task_work_order.description` 之前，至少 `kb_read` 一次你打算引用的具体 doc，或 `kb_summarize_state` 再看一遍最新状态。"
 
 	var planning: Node = get_node_or_null("/root/PlanningManager")
 	if planning == null or not planning.has_method("request_development_plan"):
@@ -1004,6 +890,7 @@ func _on_development_plan_completed(request_id: String, success: bool, tasks: Ar
 	_cleanup_plan_gen_ai()
 
 	if success:
+		_print_generated_tasks("[DevCycle][development_plan]", tasks)
 		var injected: int = inject_planned_tasks(tasks)
 		_plan_generated = true
 		_plan_generating = false
@@ -1040,489 +927,21 @@ func _extract_json_from_response(text: String) -> String:
 #endregion
 
 
-#region ──── 创作基点 → 第一批 Dev Work ────
-
-func _generate_seed_tasks_from_context() -> void:
-	if _seed_task_generating:
-		return
-	if _plan_generated or _plan_generating:
-		return
-
-	var planning: Node = get_node_or_null("/root/PlanningManager")
-	if planning == null or not planning.has_method("request_seed_task_plan"):
-		push_warning("[DevCycleManager] PlanningManager unavailable, using fallback seed tasks")
-		_apply_seed_task_generation_result([])
-		return
-
-	_seed_task_generating = true
-	_seed_task_gen_request_id = str(planning.request_seed_task_plan(_build_creative_seed_context()))
-	if _seed_task_gen_request_id.is_empty():
-		push_warning("[DevCycleManager] Failed to start seed task planning request, using fallback seed tasks")
-		_cleanup_seed_task_gen_ai()
-		_apply_seed_task_generation_result([])
-		return
-	print("[DevCycleManager] Seed dev work generation delegated to PlanningManager: %s" % _seed_task_gen_request_id)
-
-
-func _on_seed_task_plan_completed(request_id: String, success: bool, tasks: Array, raw_output: String) -> void:
-	if request_id != _seed_task_gen_request_id:
-		return
-
-	_cleanup_seed_task_gen_ai()
-
-	if success:
-		var added_count := _apply_seed_task_generation_result(tasks)
-		if added_count > 0:
-			print("[DevCycleManager] Seed dev work generated via PlanningManager: %d tasks" % added_count)
-			_notify_seed_tasks_ready(added_count)
-			return
-
-	push_warning("[DevCycleManager] Failed to parse seed dev work output, using fallback tasks: %s" % raw_output.left(200))
-	_apply_seed_task_generation_result([])
-
-
-func _cleanup_seed_task_gen_ai() -> void:
-	_seed_task_gen_request_id = ""
-	_seed_task_generating = false
-
-
-func _apply_seed_task_generation_result(raw_tasks: Array) -> int:
-	if not _concept_gate_task_ids.is_empty():
-		var existing_count := 0
-		for task_id in _concept_gate_task_ids:
-			if _task_pool.has(task_id) or task_id in _completed_task_ids:
-				existing_count += 1
-		if existing_count == _concept_gate_task_ids.size():
-			return existing_count
-
-	var normalized_tasks := _normalize_seed_task_batch(raw_tasks)
-	if normalized_tasks.size() < SEED_TASK_MIN_COUNT:
-		for fallback_task in _build_seed_task_fallbacks():
-			var fallback_id := str(fallback_task.get("task_id", "")).strip_edges()
-			var fallback_title := str(fallback_task.get("title", "")).strip_edges()
-			if _seed_task_id_exists(normalized_tasks, fallback_id):
-				continue
-			if _seed_task_title_exists(normalized_tasks, fallback_title):
-				continue
-			normalized_tasks.append(fallback_task.duplicate(true))
-
-	var added_ids: Array[String] = []
-	for task in normalized_tasks:
-		var added_id := add_dynamic_task(task)
-		if not added_id.is_empty():
-			added_ids.append(added_id)
-
-	_concept_gate_task_ids.assign(added_ids)
-	if added_ids.is_empty():
-		push_warning("[DevCycleManager] Seed dev work registration failed; no tasks were added")
-		return 0
-
-	tasks_updated.emit()
-	return added_ids.size()
-
-
-func _normalize_seed_task_batch(raw_tasks: Array) -> Array[Dictionary]:
-	var normalized: Array[Dictionary] = []
-	var used_ids: Dictionary = {}
-	for i in range(raw_tasks.size()):
-		if not raw_tasks[i] is Dictionary:
-			continue
-		var task := _normalize_seed_task(raw_tasks[i], i, used_ids)
-		if task.is_empty():
-			continue
-		normalized.append(task)
-		used_ids[task["task_id"]] = true
-	return normalized
-
-
-func _normalize_seed_task(raw_task: Dictionary, index: int, used_ids: Dictionary) -> Dictionary:
-	var title: String = str(raw_task.get("title", "")).strip_edges()
-	var description: String = str(raw_task.get("description", "")).strip_edges()
-	if title.is_empty() or description.is_empty():
-		return {}
-
-	var task_id: String = str(raw_task.get("task_id", "")).strip_edges()
-	if task_id.is_empty():
-		task_id = "seed_generated_%02d" % (index + 1)
-	if used_ids.has(task_id):
-		task_id = "%s_%02d" % [task_id, index + 1]
-
-	var normalized: Dictionary = {
-		"task_id": task_id,
-		"title": title,
-		"description": description,
-		"weight": int(raw_task.get("weight", 9)),
-		"stress_cost": int(raw_task.get("stress_cost", 1)),
-		"one_time": bool(raw_task.get("one_time", true)),
-		"stat_changes": _normalize_seed_stat_changes(raw_task.get("stat_changes", {}), raw_task),
-	}
-
-	if raw_task.has("passion_cost"):
-		normalized["passion_cost"] = int(raw_task.get("passion_cost", 0))
-
-	var prerequisites: Array = []
-	if raw_task.get("prerequisites", []) is Array:
-		for raw_prereq in raw_task.get("prerequisites", []):
-			var prereq_id := str(raw_prereq).strip_edges()
-			if prereq_id.is_empty():
-				continue
-			prerequisites.append(prereq_id)
-	if not prerequisites.is_empty():
-		normalized["prerequisites"] = prerequisites
-
-	var task_type: String = str(raw_task.get("task_type", "")).strip_edges()
-	var has_topic_config: bool = raw_task.get("topic_config", {}) is Dictionary and not (raw_task.get("topic_config", {}) as Dictionary).is_empty()
-	var raw_post_task_work_order := _extract_post_task_work_order(raw_task)
-	var has_post_task_work_order: bool = not raw_post_task_work_order.is_empty()
-	var discussion_intent: bool = _looks_like_seed_discussion_intent(title, description)
-	var production_intent: bool = _looks_like_seed_production_intent(title, description)
-
-	if task_type == "chat_topic" or has_topic_config:
-		if production_intent and not discussion_intent:
-			push_warning("[DevCycleManager] Seed task looks production-oriented but was emitted as chat_topic: %s" % title)
-		# 向后兼容：将旧的 chat_topic 转换为 creative_decision 小游戏
-		normalized["task_type"] = "minigame"
-		normalized["minigame_type"] = "creative_decision"
-		normalized["topic_config"] = _normalize_seed_topic_config(task_id, title, description, raw_task.get("topic_config", {}))
-		# 若无 post_task_work_order，基于 topic_config 自动生成
-		if not has_post_task_work_order:
-			var tc: Dictionary = normalized["topic_config"]
-			var kb_cat: String = str(tc.get("kb_category", "notes"))
-			normalized["post_task_work_order"] = {
-				"title": "整理讨论结果：%s" % title,
-				"description": "将讨论中确认的内容整理到知识库。只处理 %s 维度，越界内容一律保留待定。" % kb_cat,
-				"kb_sources": [kb_cat],
-				"performance_context": "summary",
-			}
-		else:
-			normalized["post_task_work_order"] = _normalize_seed_work_order_template(title, description, raw_post_task_work_order)
-		return normalized
-
-	if task_type == "minigame" or not str(raw_task.get("minigame_type", "")).strip_edges().is_empty() or has_post_task_work_order:
-		if discussion_intent and not production_intent:
-			push_warning("[DevCycleManager] Seed task looks discussion-oriented but was emitted as minigame: %s" % title)
-		var work_order_template := _normalize_seed_work_order_template(title, description, raw_post_task_work_order)
-		if work_order_template.is_empty():
-			return {}
-		if not work_order_template.has("performance_context"):
-			work_order_template["performance_context"] = "summary"
-		normalized["task_type"] = "minigame"
-		normalized["minigame_type"] = str(raw_task.get("minigame_type", DEFAULT_PRODUCTION_MINIGAME_TYPE)).strip_edges()
-		if str(normalized.get("minigame_type", "")).is_empty():
-			normalized["minigame_type"] = DEFAULT_PRODUCTION_MINIGAME_TYPE
-		normalized["post_task_work_order"] = work_order_template
-		return normalized
-
-	return {}
-
-
-func _normalize_seed_stat_changes(raw_changes: Variant, raw_task: Dictionary) -> Dictionary:
-	if raw_changes is Dictionary and not (raw_changes as Dictionary).is_empty():
-		return (raw_changes as Dictionary).duplicate(true)
-	var task_type: String = str(raw_task.get("task_type", "")).strip_edges()
-	var minigame_type: String = str(raw_task.get("minigame_type", "")).strip_edges()
-	if task_type == "chat_topic" or raw_task.has("topic_config") or minigame_type == "creative_decision":
-		return {"quality": 5, "completion": 2}
-	return {"quality": 3, "completion": 6}
-
-
-func _normalize_seed_topic_config(task_id: String, title: String, description: String, raw_topic: Variant) -> Dictionary:
-	var topic: Dictionary = raw_topic.duplicate(true) if raw_topic is Dictionary else {}
-	var goal_description: String = str(topic.get("goal_description", title)).strip_edges()
-	if goal_description.is_empty():
-		goal_description = title
-	# 注意：旧版会在这里生成 chat_topic 风格的 system_prompt。
-	# 新的 creative_decision 小游戏有自己的 DSL 规格 system prompt，
-	# 这里不再注入 legacy system_prompt，交由小游戏本身决定格式。
-	var system_prompt: String = str(topic.get("system_prompt", "")).strip_edges()
-
-	var kb_category: String = str(topic.get("kb_category", "")).strip_edges().to_lower()
-	if kb_category not in ["world", "characters", "story", "notes"]:
-		kb_category = _infer_seed_kb_category("%s %s" % [title, description])
-
-	var kb_entry_id: String = str(topic.get("kb_entry_id", task_id)).strip_edges()
-	if kb_entry_id.is_empty():
-		kb_entry_id = task_id
-
-	return {
-		"system_prompt": system_prompt,
-		"goal_description": goal_description,
-		"kb_category": kb_category,
-		"kb_entry_id": kb_entry_id,
-	}
-
-
-func _normalize_seed_work_order_template(task_title: String, task_description: String, raw_template: Variant) -> Dictionary:
-	if not raw_template is Dictionary:
-		return {}
-	var template: Dictionary = raw_template.duplicate(true)
-	var title: String = str(template.get("title", task_title)).strip_edges()
-	var description: String = str(template.get("description", task_description)).strip_edges()
-	if title.is_empty() or description.is_empty():
-		return {}
-
-	var normalized: Dictionary = {
-		"title": title,
-		"description": description,
-	}
-
-	if template.get("kb_sources", []) is Array:
-		var kb_sources: Array = []
-		for raw_source in template.get("kb_sources", []):
-			var source_name := str(raw_source).strip_edges().to_lower()
-			if source_name in ["world", "characters", "story", "notes"] and source_name not in kb_sources:
-				kb_sources.append(source_name)
-		if not kb_sources.is_empty():
-			normalized["kb_sources"] = kb_sources
-
-	var scene_target: String = str(template.get("scene_target", "")).strip_edges()
-	if not scene_target.is_empty():
-		normalized["scene_target"] = scene_target
-
-	if template.has("priority"):
-		normalized["priority"] = int(template.get("priority", 3))
-
-	if template.has("performance_context"):
-		normalized["performance_context"] = str(template.get("performance_context", "none")).strip_edges().to_lower()
-
-	return normalized
-
-
-func _infer_seed_kb_category(text: String) -> String:
-	var normalized := text.to_lower()
-	for keyword in ["角色", "人物", "关系", "主角", "女主", "搭档"]:
-		if keyword in normalized:
-			return "characters"
-	for keyword in ["世界", "设定", "规则", "学院", "社会", "背景"]:
-		if keyword in normalized:
-			return "world"
-	for keyword in ["剧情", "章节", "场景", "开场", "第一幕", "第一章", "事件", "结局"]:
-		if keyword in normalized:
-			return "story"
-	return "notes"
-
-
-func _build_seed_task_fallbacks() -> Array[Dictionary]:
-	var fallback_tasks: Array[Dictionary] = []
-
-	for suggestion in _extract_seed_backbone_suggestions():
-		var task := _build_seed_task_from_backbone_suggestion(suggestion, fallback_tasks.size())
-		if task.is_empty():
-			continue
-		fallback_tasks.append(task)
-
-	for question in _extract_seed_open_questions():
-		var task := _build_seed_discussion_fallback_task(question, fallback_tasks.size())
-		if task.is_empty() or _seed_task_title_exists(fallback_tasks, str(task.get("title", ""))):
-			continue
-		fallback_tasks.append(task)
-
-	if fallback_tasks.size() >= SEED_TASK_MIN_COUNT:
-		return fallback_tasks
-
-	for suggestion in _build_generic_seed_fallback_suggestions():
-		var task := _build_seed_task_from_backbone_suggestion(suggestion, fallback_tasks.size())
-		if task.is_empty() or _seed_task_title_exists(fallback_tasks, str(task.get("title", ""))):
-			continue
-		fallback_tasks.append(task)
-
-	return fallback_tasks
-
-
-func _extract_seed_backbone_suggestions() -> Array[Dictionary]:
-	var suggestions: Array[Dictionary] = []
-	var content := _get_seed_doc_content(SEED_DEVELOPMENT_BACKBONE_DOC_ID)
-	if content.is_empty():
-		return suggestions
-
-	for raw_line in content.split("\n"):
-		var line := _normalize_seed_doc_line(str(raw_line))
-		if line.begins_with("[discussion]"):
-			var text := line.trim_prefix("[discussion]").strip_edges()
-			if not text.is_empty():
-				suggestions.append({"kind": "discussion", "text": text})
-		elif line.begins_with("[production]"):
-			var text := line.trim_prefix("[production]").strip_edges()
-			if not text.is_empty():
-				suggestions.append({"kind": "production", "text": text})
-
-	return suggestions
-
-
-func _extract_seed_open_questions() -> Array[String]:
-	var questions: Array[String] = []
-	var content := _get_seed_doc_content(OPEN_DESIGN_QUESTIONS_DOC_ID)
-	if content.is_empty():
-		return questions
-
-	for raw_line in content.split("\n"):
-		var line := _normalize_seed_doc_line(str(raw_line))
-		if line.is_empty():
-			continue
-		if line.begins_with("#"):
-			continue
-		if line.length() < 6:
-			continue
-		if line in questions:
-			continue
-		questions.append(line)
-	return questions
-
-
-func _normalize_seed_doc_line(raw_line: String) -> String:
-	var line := raw_line.strip_edges()
-	if line.begins_with("-"):
-		line = line.trim_prefix("-").strip_edges()
-	if line.begins_with("*"):
-		line = line.trim_prefix("*").strip_edges()
-	if line.begins_with("•"):
-		line = line.trim_prefix("•").strip_edges()
-	var dot_index := line.find(".")
-	if dot_index > 0:
-		var prefix := line.substr(0, dot_index).strip_edges()
-		if prefix.is_valid_int():
-			line = line.substr(dot_index + 1).strip_edges()
-	return line
-
-
-func _get_seed_doc_content(doc_id: String) -> String:
-	var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
-	if kb == null or not kb.has_method("get_document"):
-		return ""
-	var doc: Dictionary = kb.get_document(doc_id)
-	if doc.is_empty():
-		return ""
-	return str(doc.get("content", "")).strip_edges()
-
-
-func _build_seed_task_from_backbone_suggestion(suggestion: Dictionary, index: int) -> Dictionary:
-	var kind := str(suggestion.get("kind", "")).strip_edges()
-	var text := str(suggestion.get("text", "")).strip_edges()
-	if text.is_empty():
-		return {}
-	if kind == "production":
-		return _build_seed_production_fallback_task(text, index)
-	return _build_seed_discussion_fallback_task(text, index)
-
-
-func _build_seed_discussion_fallback_task(text: String, index: int) -> Dictionary:
-	var clean_text := text.strip_edges()
-	if clean_text.is_empty():
-		return {}
-	var title := _format_seed_discussion_title(clean_text)
-	return {
-		"task_id": "seed_discuss_%02d" % (index + 1),
-		"title": title,
-		"description": "和林夏把这个关键问题聊清楚，再决定后面的开发怎么推进。",
-		"task_type": "minigame",
-		"minigame_type": "creative_decision",
-		"stat_changes": {"quality": 5, "completion": 2},
-		"stress_cost": 1,
-		"weight": 10,
-		"one_time": true,
-		"topic_config": {
-			"goal_description": clean_text,
-			"kb_category": _infer_seed_kb_category(clean_text),
-			"kb_entry_id": "seed_discussion_%02d" % (index + 1),
-		},
-		"post_task_work_order": {
-			"title": "整理讨论结果：%s" % title,
-			"description": "将讨论中确认的内容整理到知识库。只处理 %s 维度，越界内容一律保留待定。" % _infer_seed_kb_category(clean_text),
-			"kb_sources": [_infer_seed_kb_category(clean_text)],
-			"performance_context": "summary",
-		},
-	}
-
-
-func _build_seed_production_fallback_task(text: String, index: int) -> Dictionary:
-	var clean_text := text.strip_edges()
-	if clean_text.is_empty():
-		return {}
-	var title := _format_seed_production_title(clean_text)
-	return {
-		"task_id": "seed_production_%02d" % (index + 1),
-		"title": title,
-		"description": "把当前已经够清楚的部分往前推进一步，先产出一份能继续接力的内容骨架。",
-		"task_type": "minigame",
-		"minigame_type": DEFAULT_PRODUCTION_MINIGAME_TYPE,
-		"stat_changes": {"quality": 3, "completion": 6},
-		"stress_cost": 2,
-		"weight": 10,
-		"one_time": true,
-		"post_task_work_order": {
-			"title": title,
-			"description": "根据当前创作基点和已确认内容，推进这项前期制作：%s。\n\n只处理已经有信息支撑的部分；遇到真正缺口时请明确标注待定，不要擅自补完。" % clean_text,
-			"kb_sources": _build_seed_work_order_sources(clean_text),
-			"performance_context": "summary",
-		},
-	}
-
-
-func _format_seed_discussion_title(text: String) -> String:
-	var title := text.replace("？", "").replace("?", "").strip_edges()
-	for prefix in ["讨论", "决定", "确定", "澄清", "补齐", "梳理"]:
-		if title.begins_with(prefix):
-			return title
-	if title.length() <= 14:
-		return "讨论" + title
-	return title
-
-
-func _format_seed_production_title(text: String) -> String:
-	var title := text.replace("？", "").replace("?", "").strip_edges()
-	for prefix in ["整理", "编写", "补齐", "拆出", "输出", "推进", "锁定", "收束", "搭出"]:
-		if title.begins_with(prefix):
-			return title
-	if title.length() <= 14:
-		return "推进" + title
-	return title
-
-
-func _build_seed_work_order_sources(text: String) -> Array:
-	var category := _infer_seed_kb_category(text)
-	match category:
-		"characters":
-			return ["characters", "notes"]
-		"world":
-			return ["world", "notes"]
-		"story":
-			return ["story", "characters", "world", "notes"]
-		_:
-			return SEED_FALLBACK_KB_SOURCES.duplicate()
-
-
-func _seed_task_title_exists(tasks: Array[Dictionary], title: String) -> bool:
-	for task in tasks:
-		if str(task.get("title", "")) == title:
-			return true
-	return false
-
-
-func _seed_task_id_exists(tasks: Array[Dictionary], task_id: String) -> bool:
-	for task in tasks:
-		if str(task.get("task_id", "")) == task_id:
-			return true
-	return false
-
-
-func _looks_like_seed_discussion_intent(title: String, description: String) -> bool:
-	var combined_text: String = ("%s\n%s" % [title, description]).to_lower()
-	for keyword in [
-		"讨论", "决定", "确定", "澄清", "拍板", "取舍", "聊清", "先定", "该选", "哪种", "哪一个", "到底是什么", "到底要不要", "先聊",
-	]:
-		if keyword in combined_text:
-			return true
-	return false
-
-
-func _looks_like_seed_production_intent(title: String, description: String) -> bool:
-	var combined_text: String = ("%s\n%s" % [title, description]).to_lower()
-	for keyword in [
-		"撰写", "编写", "整理", "收束", "输出", "补齐", "文档", "底稿", "草案", "节拍", "骨架", "设定文档", "可写", "场景",
-	]:
-		if keyword in combined_text:
-			return true
-	return false
+#region ──── 计划批次工具 ────
+
+func _print_generated_tasks(prefix: String, tasks: Array) -> void:
+	print("%s total=%d" % [prefix, tasks.size()])
+	for i in tasks.size():
+		var t: Dictionary = tasks[i] if tasks[i] is Dictionary else {}
+		var title: String = str(t.get("title", "")).strip_edges()
+		var task_type: String = str(t.get("task_type", "")).strip_edges()
+		var wo: Dictionary = t.get("post_task_work_order", {}) if t.get("post_task_work_order") is Dictionary else {}
+		var wo_title: String = str(wo.get("title", "")).strip_edges()
+		var wo_desc: String = str(wo.get("description", "")).strip_edges()
+		print("%s [%d] %s (type=%s) → wo=%s" % [prefix, i, title, task_type, wo_title])
+		if not wo_desc.is_empty():
+			for line in wo_desc.split("\n"):
+				print("%s     %s" % [prefix, line])
 
 
 func _are_task_prerequisites_met(task: Dictionary) -> bool:
@@ -1538,76 +957,52 @@ func _are_task_prerequisites_met(task: Dictionary) -> bool:
 	return true
 
 
-func _build_generic_seed_fallback_suggestions() -> Array[Dictionary]:
-	return [
-		{"kind": "discussion", "text": "当前最影响开工的创作缺口到底是什么"},
-		{"kind": "production", "text": "整理第一批能直接开工的内容骨架"},
-		{"kind": "discussion", "text": "决定接下来一小段开发该先推进哪一步"},
-	]
-
-
-func _build_creative_seed_context() -> String:
-	var sections: PackedStringArray = []
+## 构建 KB 索引摘要：每个文档一行 `[category] doc_id — title (state=..., updated=...)`，
+## 再附首行 ~120 字摘要。不含正文。让 Planner 必须用工具拉全文才能引用具体内容。
+func _build_kb_index_text() -> String:
 	var kb: Node = get_node_or_null("/root/KnowledgeBaseManager")
-	if kb != null and kb.has_method("get_document"):
-		for doc_id in [CREATIVE_SEED_SOURCE_ID, CREATIVE_CORE_DOC_ID, OPEN_DESIGN_QUESTIONS_DOC_ID, SEED_DEVELOPMENT_BACKBONE_DOC_ID]:
-			var doc: Dictionary = kb.get_document(doc_id)
-			if doc.is_empty():
-				continue
-			sections.append("### [%s] %s\n%s" % [
-				str(doc.get("category", "")),
-				str(doc.get("title", "")),
-				str(doc.get("content", "")),
-			])
+	if kb == null or not kb.has_method("get_documents"):
+		return ""
 
-	if sections.is_empty():
-		sections.append(_format_brief_data_as_markdown(_latest_creative_brief))
-	return "\n\n".join(sections)
+	var docs: Array = kb.get_documents()
+	if docs.is_empty():
+		return ""
 
+	var lines: PackedStringArray = ["## KB 索引（只列条目，不含正文）"]
+	for doc in docs:
+		if not doc is Dictionary:
+			continue
+		var doc_id: String = str(doc.get("doc_id", ""))
+		var title: String = str(doc.get("title", ""))
+		var category: String = str(doc.get("category", ""))
+		var state: String = str(doc.get("state", ""))
+		var updated_at: String = str(doc.get("updated_at", ""))
+		var meta_parts: PackedStringArray = []
+		if not state.is_empty():
+			meta_parts.append("state=%s" % state)
+		if not updated_at.is_empty():
+			meta_parts.append("updated=%s" % updated_at)
+		var meta_text: String = ""
+		if meta_parts.size() > 0:
+			meta_text = "（%s）" % ", ".join(meta_parts)
 
-func _build_brief_summary_text() -> String:
-	var title := str(_latest_creative_brief.get("game_title", "")).strip_edges()
-	var genre := str(_latest_creative_brief.get("game_genre", "")).strip_edges()
-	var tags := str(_latest_creative_brief.get("game_tags", "")).strip_edges()
-	var outline := str(_latest_creative_brief.get("game_outline", "")).strip_edges()
-	var parts: PackedStringArray = [
-		"固定背景：日式魔法异世界学院",
-		"作品名称：%s" % title,
-		"作品类型：%s" % genre,
-		"基调标签：%s" % tags,
-	]
-	if not outline.is_empty():
-		parts.append("页面大纲：%s" % outline)
-	return "\n".join(parts)
+		lines.append("- [%s] %s — %s%s" % [category, doc_id, title, meta_text])
 
+		var content: String = str(doc.get("content", ""))
+		if content.is_empty():
+			continue
+		var newline_idx: int = content.find("\n")
+		var first_line: String = content if newline_idx < 0 else content.substr(0, newline_idx)
+		first_line = first_line.strip_edges()
+		if first_line.length() > 120:
+			first_line = first_line.substr(0, 120) + "…"
+		if not first_line.is_empty():
+			lines.append("    > %s" % first_line)
 
-func _format_brief_data_as_markdown(brief_data: Dictionary) -> String:
-	var title := str(brief_data.get("game_title", "")).strip_edges()
-	var genre := str(brief_data.get("game_genre", "")).strip_edges()
-	var tags := str(brief_data.get("game_tags", "")).strip_edges()
-	var outline := str(brief_data.get("game_outline", "")).strip_edges()
-	var lines: PackedStringArray = [
-		"### [creative_brief] 玩家原始创作基点",
-		"- 固定背景：日式魔法异世界学院",
-		"- 作品名称：%s" % title,
-		"- 作品类型：%s" % genre,
-		"- 基调标签：%s" % tags,
-		"- 页面大纲：%s" % outline,
-	]
 	return "\n".join(lines)
 
 
 #endregion
-
-
-func _notify_seed_tasks_ready(added_count: int) -> void:
-	if added_count <= 0:
-		return
-	var visible_count := get_visible_tasks().size()
-	var body := "林夏整理出了 %d 个新的开发任务，先去 Dev Work 看看吧。" % added_count
-	if visible_count > 0:
-		body = "林夏整理出了 %d 个新的开发任务，当前先展示 %d 个可执行项。" % [added_count, visible_count]
-	DesktopNotificationUtilsClass.show_hint("Dev Work 已更新", body, "document", 4.8)
 
 
 func _notify_dev_work_plan_ready(added_task_count: int) -> void:
@@ -1654,10 +1049,10 @@ func _count_pending_runtime_tasks() -> int:
 	return count
 
 
+## 任务池快空就续杯一批 dev work：
+## 也是首次 plan_generation 的触发点——开场立项讨论的 worker 工单完成后触发。
 func _ensure_development_task_supply() -> void:
-	if not _plan_generated:
-		return
-	if _plan_generating or _seed_task_generating:
+	if _plan_generating:
 		return
 	if not _active_task_id.is_empty() or not _order_queue.is_empty():
 		return
@@ -1848,7 +1243,7 @@ func _on_creative_task_requested(context: Dictionary) -> void:
 	var sys_prompt: String = str(context.get("system_prompt", ""))
 	if sys_prompt.is_empty():
 		sys_prompt = (
-			"你是林夏，{player_name}的 GameJam 搭档。\n"
+			"你是林夏，{player_name}的叙事大赛搭档。\n"
 			+ "你在开发过程中发现需要和搭档讨论一下：%s\n\n" % topic
 			+ "背景：%s\n\n" % description
 			+ "用1-2条简短消息回应，觉得讨论已经收束时在最后加 [TOPIC_COMPLETE]\n\n"

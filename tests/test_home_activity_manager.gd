@@ -7,13 +7,9 @@ var _last_completed_payload: Dictionary = {}
 
 func _ready() -> void:
 	print("=== Home Activity Manager Test ===")
-	await _test_chat_casual_flow()
-	await _test_chat_deep_flow()
-	await _test_personal_overuse_flow()
-	await _test_watch_flow()
-	await _test_review_flow()
 	await _test_rest_flow()
 	await _test_rest_early_flow()
+	await _test_old_home_activities_removed()
 	print("=== Home Activity Manager Test Complete ===")
 	print("[RESULT] passed=%d failed=%d" % [_passed, _failed])
 
@@ -214,15 +210,15 @@ func _test_rest_flow() -> void:
 
 	var result: Dictionary = home.begin_rest()
 	_assert_true("rest begin", bool(result.get("success", false)), "休息应能成功开始")
+	if bool(result.get("success", false)):
+		home._finish_session(str(result.get("session_id", "")))
 
-	await get_tree().process_frame
-	await get_tree().process_frame
+	await get_tree().create_timer(1.2).timeout
 
 	_assert_equal("rest next day", int(glm.get("current_day")), 2)
 	_assert_equal("rest next phase", glm.get_phase_name(glm.time_phase), "MORNING")
-	# 初始 stress=20, rest stress_delta=-3 → 17, 然后 advance_to_next_day → on_new_day stress -2 = 15
-	_assert_equal("rest stress", int(gm.get("stress")), 15)
-	_assert_equal("rest payload reward stress", int((_last_completed_payload.get("rewards", {}) as Dictionary).get("stress", 0)), -3)
+	_assert_equal("rest stress", int(gm.get("stress")), 0)
+	_assert_equal("rest payload reward stress", int((_last_completed_payload.get("rewards", {}) as Dictionary).get("stress", 0)), -25)
 	_assert_true("rest cleared", not home.has_any_pending_sessions(), "休息结束后不应残留 session")
 
 
@@ -237,7 +233,8 @@ func _test_rest_early_flow() -> void:
 		_fail("rest_early", "autoload 缺失")
 		return
 
-	# 在早上就选择休息（提前休息，牺牲剩余时段）
+	# 在早上就选择休息：rest 与其它行动一致，只消耗当前 1 个时段，
+	# 不会跳过整天（设计已修正：只有晚上 rest 自然进入下一天）
 	_assert_equal("rest_early pre phase", glm.get_phase_name(glm.time_phase), "MORNING")
 
 	var activities: Array[Dictionary] = home.get_available_activities("MORNING")
@@ -245,16 +242,33 @@ func _test_rest_early_flow() -> void:
 	_assert_true("rest_early enabled", bool(rest_activity.get("enabled", false)), "早上也应可休息")
 
 	var result: Dictionary = home.begin_rest()
-	_assert_true("rest_early begin", bool(result.get("success", false)), "提前休息应能成功开始")
+	_assert_true("rest_early begin", bool(result.get("success", false)), "早上休息应能成功开始")
+	if bool(result.get("success", false)):
+		home._finish_session(str(result.get("session_id", "")))
 
 	await get_tree().process_frame
 	await get_tree().process_frame
+	await get_tree().process_frame
 
-	# 提前休息：消耗 1 AP + advance_to_next_day → 跳过下午和晚上
-	_assert_equal("rest_early next day", int(glm.get("current_day")), 2)
-	_assert_equal("rest_early next phase", glm.get_phase_name(glm.time_phase), "MORNING")
+	# 早上 rest 只推进到下午，仍是同一天
+	_assert_equal("rest_early same day", int(glm.get("current_day")), 1)
+	_assert_equal("rest_early next phase", glm.get_phase_name(glm.time_phase), "AFTERNOON")
 	_assert_true("rest_early payload has rewards", (_last_completed_payload.get("rewards", {}) as Dictionary).has("stress"), "提前休息结果应包含 stress")
-	_assert_true("rest_early cleared", not home.has_any_pending_sessions(), "提前休息结束后不应残留 session")
+	_assert_true("rest_early cleared", not home.has_any_pending_sessions(), "休息结束后不应残留 session")
+
+
+func _test_old_home_activities_removed() -> void:
+	_reset_managers()
+	await get_tree().process_frame
+
+	var home: Node = get_node_or_null("/root/HomeActivityManager")
+	if home == null:
+		_fail("old_home_removed", "autoload 缺失")
+		return
+
+	for old_id in ["chat_casual", "chat_deep", "personal", "watch", "review"]:
+		var result: Dictionary = home.begin_activity(old_id)
+		_assert_true("%s removed" % old_id, not bool(result.get("success", false)), "旧居家活动不应再能启动")
 
 
 # === 工具函数 ===

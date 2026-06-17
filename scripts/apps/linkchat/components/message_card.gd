@@ -793,10 +793,19 @@ func _set_children_mouse_filter(root: Node) -> void:
 func _on_shell_gui_input(event: InputEvent, panel: PanelContainer, _normal_style: StyleBoxFlat) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		panel.add_theme_stylebox_override("panel", _get_shell_hover_style())
-		_on_web_card_pressed()
+		_dispatch_card_pressed()
 	elif event is InputEventMouseMotion:
 		# 简易 hover 效果
 		pass
+
+
+func _dispatch_card_pressed() -> void:
+	var card_type := str(_card_data.get("type", "")).strip_edges().to_lower()
+	match card_type:
+		"web_page":
+			_on_web_card_pressed()
+		_:
+			pass
 
 
 func _create_image_media(image_path: String, preview_width: float, preview_height: float) -> Control:
@@ -910,6 +919,8 @@ func _get_mock_card_style() -> StyleBoxFlat:
 			return LCTheme.rounded_flat(Color("#F7F1E3"), LCTheme.RADIUS_SM, Color("#D9C8A9"), 1)
 		"poster":
 			return LCTheme.rounded_flat(Color("#FFF4E2"), LCTheme.RADIUS_SM, Color("#F0BF7A"), 1)
+		"pomodoro":
+			return LCTheme.rounded_flat(Color("#F3E5FF"), LCTheme.RADIUS_SM, Color("#D9B3FF"), 1)
 		_:
 			return LCTheme.rounded_flat(Color("#EEF1F4"), LCTheme.RADIUS_SM, Color("#D3D9DF"), 1)
 
@@ -921,6 +932,8 @@ func _default_mock_badge() -> String:
 			return "合同快照"
 		"poster":
 			return "海报卡片"
+		"pomodoro":
+			return "睡眠计时"
 		_:
 			return "伪图片卡片"
 
@@ -951,6 +964,8 @@ func _mock_accent_color(theme_name: String, alpha: float = 1.0) -> Color:
 			return Color("#8B6914", alpha)
 		"poster":
 			return Color("#C47F17", alpha)
+		"pomodoro":
+			return Color("#9D4EDD", alpha)
 		_:
 			return Color("#6B7B8D", alpha)
 
@@ -975,6 +990,8 @@ func _mock_badge_icon(theme_name: String) -> String:
 			return "📜"
 		"poster":
 			return "🎨"
+		"pomodoro":
+			return "💤"
 		_:
 			return "📄"
 

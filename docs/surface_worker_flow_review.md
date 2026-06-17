@@ -121,6 +121,8 @@
 - `request_clarification`（请求玩家补充说明）
 - `request_creative_task`（请求玩家参与创意讨论）
 
+> 编辑注（review 后续进展）：`request_clarification` 以及对应的 `wo_request_clarification` 工具已被移除。原因：只是静默挂一个 topic，既不让 NPC 开口、也不唤起 LinkChat，还容易被频道冲突/story_event 抢占导致工单永久卡死。重做前请改走 `worker_feedback` 统一上浮格式（见本文件"最值得先做的 5 件事"）。
+
 它们的方向是对的：
 
 - `request_clarification` 会把底层疑问抬到 `LinkChat`，让 NPC 用自然聊天的方式追问玩家。

@@ -36,6 +36,11 @@ var _full_text: String = ""
 var _is_typing: bool = false
 ## 打字 Tween
 var _type_tween: Tween = null
+## 点击指示器循环动画 Tween（呼吸 + 上下浮动）
+var _indicator_tween: Tween = null
+## 指示器动画目标节点 & 基础 Y（用于停止时恢复，避免 base_y 漂移）
+@warning_ignore("unused_private_class_variable") var _indicator_target: Control = null
+@warning_ignore("unused_private_class_variable") var _indicator_base_y: float = 0.0
 ## 角色数据（character_id -> data）
 var _character_data: Dictionary = {}
 ## 对话设置引用
@@ -62,6 +67,24 @@ func _ready() -> void:
 		click_indicator.visible = false
 		click_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_update_click_indicator_style()
+	# 视觉子节点必须 IGNORE，否则它们默认 STOP 会吞掉点击，
+	# 导致点在对话框本身上时推进不了剧情（只有点空白才推进）。
+	if box_panel != null:
+		box_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if text_margin_container != null:
+		text_margin_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if text_label != null:
+		text_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if name_panel != null:
+		name_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if name_margin_container != null:
+		name_margin_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if name_label != null:
+		name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if cursor_arrow_label != null:
+		cursor_arrow_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if cursor_texture_rect != null:
+		cursor_texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	gui_input.connect(_on_gui_input)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	resized.connect(_on_resized)
@@ -73,6 +96,9 @@ func _on_resized() -> void:
 		_apply_settings()
 		# 如果当前有对话在显示，重新定位
 		_relayout_current()
+		# 若指示器可见，需要基于新布局重启动画（base_y 会变）
+		if click_indicator != null and click_indicator.visible:
+			_start_indicator_animation()
 
 
 ## 使用上次的参数重新布局（viewport resize 时调用）
@@ -172,6 +198,7 @@ func clear() -> void:
 		text_label.visible_characters = 0
 	if click_indicator != null:
 		click_indicator.visible = false
+	_stop_indicator_animation()
 	_full_text = ""
 	_is_typing = false
 	_voice_playing = false
@@ -183,6 +210,7 @@ func clear() -> void:
 ## 隐藏对话框
 func hide_box() -> void:
 	visible = false
+	_stop_indicator_animation()
 
 
 ## 是否正在打字
@@ -429,6 +457,7 @@ func _start_typewriter(text: String, speed: float, wait_points: Dictionary = {})
 
 		if click_indicator != null:
 			click_indicator.visible = false
+		_stop_indicator_animation()
 
 		var stripped_length: int = _get_stripped_text_length(text)
 
@@ -494,7 +523,57 @@ func _on_typewriter_finished() -> void:
 	_is_typing = false
 	if click_indicator != null:
 		click_indicator.visible = true
+		_start_indicator_animation()
 	text_finished.emit()
+
+
+## 启动点击指示器循环动画（呼吸 + 上下浮动）
+## 作用在当前可见的子节点（CursorTexture 或 Arrow）上，不影响 ClickIndicator 自身的 layout。
+func _start_indicator_animation() -> void:
+	_stop_indicator_animation()
+	if click_indicator == null or not click_indicator.visible:
+		return
+
+	var target: Control = null
+	if cursor_texture_rect != null and cursor_texture_rect.visible:
+		target = cursor_texture_rect
+	elif cursor_arrow_label != null and cursor_arrow_label.visible:
+		target = cursor_arrow_label
+	if target == null:
+		return
+
+	# 重置基础状态并记录基准 Y（下次 stop 时用于精确还原）
+	target.modulate.a = 1.0
+	_indicator_target = target
+	_indicator_base_y = target.position.y
+	var float_distance: float = 6.0
+	var half_duration: float = 0.6
+
+	_indicator_tween = create_tween().set_loops()
+	# 相位 1：淡出 + 向下浮动（并行）
+	_indicator_tween.set_parallel(true)
+	_indicator_tween.tween_property(target, "modulate:a", 0.35, half_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_indicator_tween.tween_property(target, "position:y", _indicator_base_y + float_distance, half_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# 相位 2：淡入 + 回到原位（并行，chain 切换到新的 step）
+	_indicator_tween.chain()
+	_indicator_tween.tween_property(target, "modulate:a", 1.0, half_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_indicator_tween.tween_property(target, "position:y", _indicator_base_y, half_duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## 停止点击指示器动画，恢复基础状态
+func _stop_indicator_animation() -> void:
+	if _indicator_tween != null and _indicator_tween.is_valid():
+		_indicator_tween.kill()
+	_indicator_tween = null
+	# 恢复到动画开始前的状态，避免 position.y 漂移
+	if _indicator_target != null and is_instance_valid(_indicator_target):
+		_indicator_target.position.y = _indicator_base_y
+		_indicator_target.modulate.a = 1.0
+	_indicator_target = null
+	if cursor_texture_rect != null:
+		cursor_texture_rect.modulate.a = 1.0
+	if cursor_arrow_label != null:
+		cursor_arrow_label.modulate.a = 1.0
 
 
 ## 获取去除 BBCode 标签后的纯文本长度
@@ -779,3 +858,7 @@ func restore_state(state: Dictionary) -> void:
 	# 显示点击指示器（如果对话框可见且有文本）
 	if click_indicator != null:
 		click_indicator.visible = should_visible and not full_text.is_empty()
+		if click_indicator.visible:
+			_start_indicator_animation()
+		else:
+			_stop_indicator_animation()

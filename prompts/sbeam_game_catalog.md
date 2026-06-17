@@ -15,8 +15,8 @@
 - review_summary
 - hook_moment
 
-其中 `rewards` 必须是对象，并且至少包含 `money` 键表示购买花费，例如 `{ "money": -38, "affection": 1, "passion": 1 }`。
-除 `money` 外，还可以按共同体验补充 `affection`、`stress`、`passion` 等数值变化。
+其中 `rewards` 必须是对象，并且至少包含 `money` 键表示购买花费，例如 `{ "money": -38, "stress": -8, "passion": 6 }`。
+除 `money` 外，只按共同体验补充 `stress`、`passion` 等当前主平衡数值；不要输出 `affection`。
 
 写作原则：
 - sbeam 里的游戏是共同情绪的引子，不是论述中心。

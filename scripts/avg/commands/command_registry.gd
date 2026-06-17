@@ -44,6 +44,7 @@ func register_handler(handler) -> void:
 	
 	if _handlers.has(handler.command_type):
 		push_warning("Overwriting existing handler for command type: " + handler.command_type)
+		return
 	
 	_handlers[handler.command_type] = handler
 

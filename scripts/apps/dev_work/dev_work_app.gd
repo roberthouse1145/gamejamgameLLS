@@ -106,7 +106,8 @@ func _render_task_list() -> void:
 		_set_subtitle("今天先喘口气，没有排上新的工作")
 		return
 
-	var can_act: bool = _can_consume_ap()
+	var disabled_reason := _get_dev_work_disabled_reason()
+	var can_act: bool = disabled_reason.is_empty()
 	task_list.add_child(_create_current_task_card(current_task, can_act))
 	_set_subtitle(_build_subtitle_text(current_task, can_act))
 
@@ -503,7 +504,8 @@ func _on_task_pressed(task_id: String) -> void:
 		return
 
 	if not dcm.activate_task(task_id):
-		_set_subtitle("这个时间段已经安排过事情了")
+		var reason := _get_dev_work_disabled_reason()
+		_set_subtitle(reason if not reason.is_empty() else "这个时间段已经安排过事情了")
 		return
 
 	_render_task_list()
@@ -538,7 +540,7 @@ func _build_task_preview_payload(task: Dictionary, enabled: bool) -> Dictionary:
 		"text": "开发会明显消耗林夏的状态。连续埋头做活会快速提高压力，也会降低创作热情。",
 		"conditions": conditions,
 		"rewards": _get_task_reward_preview(task),
-		"disabled_reason": "" if enabled or task_status in ["active", "queued"] else "这个时间段已经安排过事情了。",
+		"disabled_reason": "" if enabled or task_status in ["active", "queued"] else _get_dev_work_disabled_reason(),
 	}
 
 
@@ -578,7 +580,8 @@ func _build_subtitle_text(task: Dictionary, can_act: bool) -> String:
 		_:
 			if can_act:
 				return "和林夏一起，把工程一点一点往前推"
-			return "这个时间段已经安排过事情了，先把当前节奏走完"
+			var reason := _get_dev_work_disabled_reason()
+			return reason if not reason.is_empty() else "这个时间段已经安排过事情了，先把当前节奏走完"
 
 
 func _get_task_reward_preview(task: Dictionary) -> Dictionary:
@@ -658,7 +661,6 @@ func _format_stat_changes(task: Dictionary) -> String:
 		return ""
 	var label_map: Dictionary = {
 		"money": "金钱",
-		"affection": "好感",
 		"stress": "压力",
 		"passion": "激情",
 		"completion": "完成度",
@@ -666,7 +668,7 @@ func _format_stat_changes(task: Dictionary) -> String:
 		"stability": "稳定",
 		"hype": "热度",
 	}
-	var order: Array[String] = ["money", "affection", "stress", "passion", "completion", "quality", "stability", "hype"]
+	var order: Array[String] = ["money", "stress", "passion", "completion", "quality", "stability", "hype"]
 	var parts: Array[String] = []
 	var consumed: Dictionary = {}
 	for key in order:
@@ -676,6 +678,9 @@ func _format_stat_changes(task: Dictionary) -> String:
 	var extra_keys: Array[String] = []
 	for raw_key in rewards.keys():
 		var key_text: String = str(raw_key)
+		if key_text == "affection":
+			consumed[key_text] = true
+			continue
 		if not consumed.has(key_text):
 			extra_keys.append(key_text)
 	extra_keys.sort()
@@ -703,5 +708,20 @@ func _set_subtitle(text: String) -> void:
 
 
 func _can_consume_ap() -> bool:
+	return _get_dev_work_disabled_reason().is_empty()
+
+
+func _get_dev_work_disabled_reason() -> String:
+	# 只展示 "已被林夏拒绝" 或 "时段已用完" 这类玩家能理解的事后原因；
+	# 不再因为当前热情低就预先 disable 按钮——必须先让玩家点击触发拒绝。
+	var dcm: Node = get_node_or_null("/root/DevCycleManager")
+	if dcm != null and dcm.has_method("get_dev_work_disabled_reason"):
+		var reason := str(dcm.get_dev_work_disabled_reason()).strip_edges()
+		if not reason.is_empty():
+			return reason
 	var glm: Node = get_node_or_null("/root/GameLoopManager")
-	return glm != null and glm.can_consume_ap(1)
+	if glm == null:
+		return "GameLoopManager 不可用"
+	if not glm.can_consume_ap(1):
+		return "这个时间段已经安排过事情了"
+	return ""

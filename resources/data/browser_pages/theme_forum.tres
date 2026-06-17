@@ -4,298 +4,376 @@
 
 [resource]
 script = ExtResource("1_script")
-url = "gamejam://forum/theme"
-title = "AGJ 2027 - 主题讨论串"
+url = "framestory://forum/theme"
+title = "帧语大赛 2027 - 主题讨论串"
 hint = "官方论坛主题讨论页。"
-content = "<vbox sep=0 bg=#FFFFEE>
-  <panel bg=#800000>
-    <margin 14>
-      <vbox sep=2>
-        <label size=28 color=#FFFFFF>[AGJ新星赛道] 本届主题+赛制公告讨论串</label>
-        <label size=18 color=#FFD9D9>ARCADE GRAND JAM 2027 / 新星赛道 / HOT</label>
-      </vbox>
-    </margin>
-  </panel>
-  <margin 14>
-    <vbox sep=8>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]1[/b] - AGJ官方运营 2027/05/05 14:00:00 ID:AGJ_STAFF</rich>
-            <rich size=18 color=#800000>[b]【公告】AGJ 2027 新星赛道 - 主题与赛制正式公布[/b]</rich>
-            <rich size=20 color=#1A1A1A>
-各位参赛选手好：
+content = "::: card bg=#FFFFFF pad=10
+[color=#5B86E5]帧语论坛[/color]  ›  [color=#888888]新星组版[/color]  ›  [color=#2C5F9E]主题讨论[/color]
+:::
 
-经 AGJ 组委会讨论通过，本届新星赛道的主题与赛制正式公布如下。
+::: col bg=#F5F7F9 pad=20 sep=14
 
-[font_size=30][b][color=#800000]本届主题：『异世界』[/color][/b][/font_size]
+::: card bg=#FFFFFF pad=18
+[color=#C04A4A]置顶[/color]  [color=#E8622A]热门[/color]  [color=#2C5F9E]【官方】帧语大赛 2027 新星组 — 主题正式公布：《异世界魔法学院》[/color]
 
-这是一个开放性主题。只要作品的核心叙事围绕「异世界」这一概念展开即可。
-你可以写经典的穿越异世界，也可以写日常之外的异质空间、心理异境、梦中世界，
-甚至是「对自己来说陌生的世界」。我们鼓励对这个词的多元解读。
+[color=#888888]发起人 FSW_STAFF  ·  发布于 2027/05/05 14:00  ·  阅读 23,481  ·  回复 412[/color]
+:::
 
-[font_size=26][b][color=#800000]赛制重大变更[/color][/b][/font_size]
+::: card bg=#FFFFFF pad=0
 
-鉴于近年来部分选手过度依赖预制工程和外部资源，本届新星赛道采用全新限制赛制：
+::: card bg=#EEF2F6 pad=10
+[color=#2C5F9E]#1[/color]  ·  [color=#2C5F9E]FSW_STAFF[/color]  [color=#C04A4A][官方][/color]  ·  [color=#888888]2027/05/05 14:00:00  ·  ID:FSW_STAFF[/color]
+:::
 
-[b]1. 统一引擎[/b]
-所有参赛作品必须使用官方提供的 AVG 专用引擎进行开发。
-禁止使用任何第三方引擎、框架或自研工具。
+::: col pad=18 sep=8
+[color=#C04A4A]【公告】帧语大赛 2027 新星组 — 主题与赛制正式公布[/color]
 
-[b]2. 统一素材包[/b]
-官方将在赛制公布后 24 小时内下发统一素材包，包括角色立绘、背景、UI、音效等。
-禁止导入任何外部美术、音频、程序资源。
+各位参赛选手好，
 
-[b]3. 禁止预制工程[/b]
-所有开发工作必须在主题公布后开始。
-提交作品时会进行工程时间戳审计。
+经帧语平台讨论通过，本届新星组的主题与赛制正式公布如下。
 
-[b]4. 开发周期[/b]
-自主题公布之日起，比赛总周期为 45 天。
-第 30 天为初赛截止日，届时需提交最终版本作为初赛作品。
-第 45 天为决赛日，入围队伍将进行现场答辩。
+[color=#2C5F9E]本届主题：《异世界魔法学院》[/color]
 
-[b]5. 评审标准[/b]
-- 叙事完成度 40%
-- 创意表现力 30%
-- 情感共鸣 20%
-- 技术完成度 10%
+主题包含两个核心限制：异世界设定 与 魔法学院场景。作品的主舞台必须是某种 *魔法学院*（学校 / 学园 / 研究所 / 巫师塔均可），且该场景所处的世界与现实日常有明显差异（异世界、平行世界、梦境、独立次元等）。
 
-以上规则最终解释权归 AGJ 组委会所有。
-如有疑问请在本帖回复或联系赛事邮箱。
+我们希望通过较具体的主题，引导大家深入挖掘这一类型下的叙事可能：师生关系、入学与退学、魔法体系的代价、学院制度的灰色地带、学院之外的世界、特殊学生的孤独……都是值得书写的方向。
 
-祝各位创作顺利。
-            </rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <hr/>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]2[/b] - 无名的参赛者 2027/05/05 14:01:33 ID:xK9a2</rich>
-            <rich size=20 color=#1A1A1A>？？？？统一引擎？？？
-我花了三个月搭的叙事框架白费了？？？</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]3[/b] - 无名的参赛者 2027/05/05 14:02:07 ID:Rw82s</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>2[/color]
-笑死，这就是预制菜选手的末日 www
-组委会早该这么干了</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]4[/b] - 无名的参赛者 2027/05/05 14:03:18 ID:a3Kx9</rich>
-            <rich size=20 color=#1A1A1A>异世界主题 + 统一引擎素材，这组合也太狠了吧。
-等于全场站在同一条起跑线上，只比创意和叙事力。
-某些靠堆资源的队伍这次彻底没优势了哈哈哈。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]5[/b] - 三连冠预定 2027/05/05 14:04:51 ID:JmP41</rich>
-            <rich size=20 color=#1A1A1A>说真的，统一引擎这个决定我举双手赞成。
+[color=#2C5F9E]赛制重大变更[/color]
+
+鉴于近年来部分选手过度依赖预制工程和外部资源，本届新星组采用全新限制赛制：
+
+1. 统一引擎：所有作品必须使用官方提供的 AVG 专用引擎开发，禁止第三方引擎与自研工具。
+
+2. 统一素材包：官方将在 24 小时内下发统一素材包（角色立绘、背景、UI、音效）。禁止导入任何外部美术、音频、程序资源。
+
+3. 禁止预制工程：所有开发工作必须在主题公布后开始。提交时进行工程时间戳审计。
+
+4. 开发周期：自主题公布之日起 45 天。第 30 天初赛截止，第 45 天决赛日。
+
+5. 评审标准：
+- 叙事完成度  40%
+- 创意表现力  30%
+- 情感共鸣    20%
+- 技术完成度  10%
+
+最终解释权归帧语平台所有。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#2[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:01:33  ·  ID:xK9a2[/color]
+:::
+
+::: col pad=18 sep=4
+等了一周等到的就是异世界魔法学院？？？
+
+我以为这一届至少能整点新东西，结果还是这种用烂了的题材
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#3[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:02:07  ·  ID:Rw82s[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>2[/color]
+正因为题材烂熟，才考验真功夫吧 www
+谁都能写魔法学院，能写出新意的才是真本事
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#4[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:03:18  ·  ID:a3Kx9[/color]
+:::
+
+::: col pad=18 sep=4
+异世界魔法学院 + 统一引擎素材，这组合也太狠了
+
+等于全场都得在同一套立绘 / 同一套校服 / 同一套教室背景里讲不同的故事
+某些靠美术堆叠的队伍这次彻底没优势了哈哈哈
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#5[/color]  ·  [color=#2C5F9E]三连冠预定[/color]  ·  [color=#888888]2027/05/05 14:04:51  ·  ID:JmP41[/color]
+:::
+
+::: col pad=18 sep=6
+说真的，统一素材这个决定我举双手赞成
+
 去年那个冠军作品，画面确实华丽，但你们看过工程文件吗？
-底层框架跟前年参赛作几乎一模一样，换了层皮就端上来了。
-这叫 GameJam？这叫换皮大赛。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]6[/b] - 无名的参赛者 2027/05/05 14:06:22 ID:vN55c</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>5[/color]
-你这话说得也太绝对了吧，人家至少内容做得好啊。
-不是所有用现成框架的人都在换皮好吗。
-有些人只是提前把基础设施搭好了而已。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]7[/b] - 三连冠预定 2027/05/05 14:07:40 ID:JmP41</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>6[/color]
+底层框架跟前年参赛作几乎一模一样，换了层皮就端上来了
+
+这叫视觉小说比赛？这叫换皮大赛。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#6[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:06:22  ·  ID:vN55c[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>5[/color]
+你这话也太绝对了，人家至少内容做得好啊
+不是所有用现成框架的都在换皮
+有些人只是提前把基础设施搭好了而已
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#7[/color]  ·  [color=#2C5F9E]三连冠预定[/color]  ·  [color=#888888]2027/05/05 14:07:40  ·  ID:JmP41[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>6[/color]
 「提前做好基础设施」和「提前做好 80% 工程，等主题公布后再现编故事」，
 你觉得区别大吗？
-组委会这次就是彻底堵住这条路了，我觉得挺好。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]8[/b] - 无名的参赛者 2027/05/05 14:09:15 ID:c2Lp7</rich>
-            <rich size=20 color=#1A1A1A>先不吵引擎的事了，说说主题吧。
-「异世界」这题目乍看很俗，但其实空间很大。
-关键词是「异」而不是「穿」，重点是和日常不同的世界。
-可以是字面意义上的奇幻异界，也可以是隐喻层面的陌生环境。
-比如升入大学后突然变得陌生的城市，也算某种「异世界」吧。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]9[/b] - 无名的参赛者 2027/05/05 14:10:43 ID:Y7gAn</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>8[/color]
-确实，而且公告里也说了鼓励多元解读。
-不过我赌八成的人还是会写「穿越到剑与魔法的世界」www
-然后素材包里大概率不会有中世纪骑士立绘，
-到时候他们怎么圆。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]10[/b] - 无名的参赛者 2027/05/05 14:12:20 ID:FmR3x</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>9[/color]
-你这个观察太准了。统一素材包意味着你写什么题材都得适配那套美术。
-如果素材包是校园 / 都市风，那写经典穿越异世界就会很别扭。
-反过来想，也许「都市里的异世界」才是最适合统一素材的方向？
-或者干脆把日常本身写成异世界，那才是高级操作。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]11[/b] - 本届新人 2027/05/05 14:14:08 ID:pVn8R</rich>
-            <rich size=20 color=#1A1A1A>官方引擎好用吗？有没有用过的老哥说说。
-我只用过 Ren'Py 和 Unity 做过视觉小说。
-现在要从头学一个新引擎，45 天够不够啊？</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]12[/b] - 三连冠预定 2027/05/05 14:15:37 ID:JmP41</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>11[/color]
-去年测试版我用过，比想象中简单。
-就是对白、分支、立绘、背景切换这些基本功能。
-花几天看文档差不多就能上手了。
-复杂机制确实做不了，但 AVG 本来就该靠叙事取胜，不是吗。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]13[/b] - 无名的参赛者 2027/05/05 14:17:19 ID:dSk4Q</rich>
-            <rich size=20 color=#1A1A1A>评审标准居然叙事完成度占 40%，技术只占 10%。
-这明摆着告诉你，别想着玩花活，老老实实讲好你的故事。
-不知道是不是因为去年技术流太泛滥了，组委会被搞烦了。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]14[/b] - 无名的参赛者 2027/05/05 14:18:52 ID:Qp8mT</rich>
-            <rich size=20 color=#1A1A1A>情感共鸣 20% 也挺高的。
-说明评委要的是真能打动人的东西，不是纯炫技。
-这反而让我对今年作品质量有点期待了。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]15[/b] - 无名的参赛者 2027/05/05 14:20:31 ID:Ht6wZ</rich>
-            <rich size=20 color=#1A1A1A>所以总结一下这届玩法：
+
+帧语这次就是彻底堵住这条路了，挺好。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#8[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:09:15  ·  ID:c2Lp7[/color]
+:::
+
+::: col pad=18 sep=4
+认真讨论一下题材吧
+
+《异世界魔法学院》最容易写的方向：转生 / 入学 / 第一次施法 / 期末考试 / 暗黑魔法社团
+最容易踩雷的方向： 这些都是
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#9[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:10:43  ·  ID:Y7gAn[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>8[/color]
+确实，公告里也说了「学院之外的世界、特殊学生的孤独」也算合规
+我赌八成的人还是会写「转生废柴变天才」www
+
+然后素材包里大概率不会有黑暗系立绘，到时候他们怎么圆。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#10[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:12:20  ·  ID:FmR3x[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>9[/color]
+这个观察太准了。统一素材包意味着你写什么子题材都得适配那套美术
+
+反过来想，也许「日常向 + 极致细节」才是最适合统一素材的方向？
+比如就讲一个普通学生日复一日的早课、抄写、晚自习，但慢慢揭示这个学院的某个不对劲——这种反而契合素材限制。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#11[/color]  ·  [color=#2C5F9E]本届新人[/color]  ·  [color=#888888]2027/05/05 14:14:08  ·  ID:pVn8R[/color]
+:::
+
+::: col pad=18 sep=4
+官方引擎好用吗？有没有用过的老哥说说
+
+我只用过 Ren'Py 和 Unity 做过视觉小说。现在要从头学一个新引擎，45 天够不够啊？
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#12[/color]  ·  [color=#2C5F9E]三连冠预定[/color]  ·  [color=#888888]2027/05/05 14:15:37  ·  ID:JmP41[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>11[/color]
+去年测试版我用过，比想象中简单。就是对白、分支、立绘、背景切换这些基本功能。
+花几天看文档差不多就能上手
+
+复杂机制确实做不了，但视觉小说本来就该靠叙事取胜，不是吗。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#13[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:17:19  ·  ID:dSk4Q[/color]
+:::
+
+::: col pad=18 sep=4
+评审标准：叙事完成度 40% / 技术只占 10%
+
+这不就明摆着告诉你：别想着玩花活，老老实实讲好故事。
+而且《异世界魔法学院》这种题材，就是天然适合写情感的——
+
+师生告别、同窗离散、毕业前的最后一夜、第一次召唤失败的那个晚上……要素已经齐了。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#14[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:18:52  ·  ID:Qp8mT[/color]
+:::
+
+::: col pad=18 sep=4
+情感共鸣 20% 也挺高的。说明评委要的是真能打动人的东西，不是炫技
+
+这反而让我对今年的作品质量有点期待了。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#15[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:20:31  ·  ID:Ht6wZ[/color]
+:::
+
+::: col pad=18 sep=4
+总结一下这届玩法：
 - 统一引擎：不能靠工具链取巧
 - 统一素材：不能靠美术砸钱
-- 开放主题：考验你的解读深度
+- 限定题材：考验你在限制里的解读深度
 - 叙事为王：技术分只占一成
 
-这不就是在说「你们好好写故事就行了，别整那些有的没的」吗。
-我喜欢 www</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]16[/b] - 怒退不玩了 2027/05/05 14:22:08 ID:xK9a2</rich>
-            <rich size=20 color=#1A1A1A>你们说得好听，但有人花了大量时间研究引擎和框架，
-现在一纸公告就全部清零了，这公平吗？
+不就是在说「你们好好讲个魔法学院的故事就行了，别整有的没的」吗。
+我喜欢 www
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#16[/color]  ·  [color=#2C5F9E]怒退不玩了[/color]  ·  [color=#888888]2027/05/05 14:22:08  ·  ID:xK9a2[/color]
+:::
+
+::: col pad=18 sep=4
+你们说得好听，但有人花了大量时间研究引擎和框架，现在一纸公告全部清零了，这公平吗？
+
 那些只会写字不会写代码的反而成了最大受益者？
-我报名费都交了，现在退还来得及吗？</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]17[/b] - 无名的参赛者 2027/05/05 14:23:45 ID:kLx02</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>16[/color]
-原来预制菜选手在这里啊。
-你口中的「只会写字不会写代码」，恰恰是这个赛道本来就该比拼的东西吧。
-新星赛道的全名是「新星·叙事赛道」，你忘了？
-而且你之前研究的框架又不是只为这次比赛做的，以后还是能用啊。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]18[/b] - 无名的参赛者 2027/05/05 14:25:33 ID:Rw82s</rich>
-            <rich size=20 color=#1A1A1A>别吵了别吵了，说说你们准备怎么切入「异世界」这个主题吧。
-我和队友现在在讨论要不要写一个「现实中的异世界」的故事。
-不是字面穿越，而是主角在某个瞬间突然觉得自己一直生活的地方变得陌生了。
-但具体怎么做还没想好。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]19[/b] - 无名的参赛者 2027/05/05 14:27:11 ID:c2Lp7</rich>
-            <rich size=20 color=#1A1A1A>[color=#789922]>>18[/color]
-这个方向挺好的，而且跟统一素材包应该很契合。
-毕竟素材包大概率是日常系画风，你直接在日常场景里做出异世界感，
-反而是在限制里做创意的高阶玩法。
-建议你试试，至少不会跟那帮穿越流撞车。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <panelcontainer bg=#F0E0D6 fill>
-        <margin 10>
-          <vbox sep=4>
-            <rich size=18 color=#117743>[b]20[/b] - 只想安静参赛 2027/05/05 14:29:40 ID:nB3w6</rich>
-            <rich size=20 color=#1A1A1A>看完整个帖子，感觉论坛已经分成三派了：
+我报名费都交了，现在退还来得及吗？
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#17[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:23:45  ·  ID:kLx02[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>16[/color]
+原来预制菜选手在这里啊
+你口中的「只会写字不会写代码」，恰恰是这个赛道本来就该比拼的东西吧
+
+新星组的全名是「新星叙事组」，你忘了？
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#18[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:25:33  ·  ID:Rw82s[/color]
+:::
+
+::: col pad=18 sep=4
+说说你们准备怎么切入《异世界魔法学院》这个题吧
+
+我和队友现在在讨论：要不要写一个 「魔法学院的失败者」 的故事
+不是天才学生，而是一个一直施不出来咒的学生，最后一年的故事。
+
+最后他要不要选择留下，要不要选择以非魔法的方式继续，是核心。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#19[/color]  ·  [color=#2C5F9E]无名的参赛者[/color]  ·  [color=#888888]2027/05/05 14:27:11  ·  ID:c2Lp7[/color]
+:::
+
+::: col pad=18 sep=6
+[color=#6A8A3C]>>18[/color]
+这个方向挺好的，而且跟统一素材包应该很契合
+毕竟素材包大概率是日常系画风，你直接在日常场景里做出 *失败者的孤独感*，反而是在限制里做创意的高阶玩法
+
+不要写第一次召唤恶魔的瞬间，写他第十次失败之后回宿舍路上的那段沉默。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=0
+
+::: card bg=#EEF2F6 pad=10
+[color=#6B7785]#20[/color]  ·  [color=#2C5F9E]只想安静参赛[/color]  ·  [color=#888888]2027/05/05 14:29:40  ·  ID:nB3w6[/color]
+:::
+
+::: col pad=18 sep=4
+看完整个帖子，论坛已经分成三派了：
+
 1. 支持派：终于不用跟预制菜比了
 2. 反对派：凭什么限制我的工具
-3. 分析派：已经开始讨论创意方向了
+3. 分析派：已经开始讨论故事方向了
 
-我觉得吧，与其在这吵，不如回去开始想故事。
+我觉得吧，与其在这吵，不如回去开始想故事
 45 天说长不长，说短不短。
-不管你支持还是反对，规则就是这样，该干活干活吧。</rich>
-          </vbox>
-        </margin>
-      </panelcontainer>
-      <spacer 12/>
-      <panel bg=#F0E0D6>
-        <margin 10>
-          <label size=18 color=#800000>- 1-20/87 - 帖子持续更新中 - 下一页 >></label>
-        </margin>
-      </panel>
-    </vbox>
-  </margin>
-</vbox>"
+
+不管你支持还是反对，规则就是这样，该干活干活吧。
+:::
+
+:::
+
+::: card bg=#FFFFFF pad=12
+::: row sep=10 align=center
+[‹ 上一页](action:prev_page)
+[color=#888888]1 - 20 / 412  ·  本帖共 21 页[/color]
+[下一页 ›](action:next_page bg_color=#5B86E5 color=#FFFFFF)
+:::
+:::
+
+:::"
 design_prompt = ""
 searchable = false
-search_keywords = PackedStringArray()
+search_keywords = PackedStringArray("forum", "论坛", "讨论", "异世界魔法学院", "主题")
 linked_urls = PackedStringArray()

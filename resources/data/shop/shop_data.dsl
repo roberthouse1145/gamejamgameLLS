@@ -42,7 +42,7 @@ default=0.2
 # ── 禁词 ──────────────────────────────────────────
 
 [BANNED_TERMS]
-items=淘宝|天猫|京东|apple|任天堂|自杀|枪|炸弹|血腥
+items=淘宝|天猫|京东|apple|任天堂|自杀|枪|炸弹|血腥|装备|武器|盔甲|防具|buff
 [/BANNED_TERMS]
 
 
@@ -57,7 +57,7 @@ items=日用好物精选|深夜补给站|桌面生活馆|创意杂货铺|小确�
 
 [STAT_LABELS]
 stress=压力
-passion=激情
+passion=热情
 affection=好感
 completion=完成度
 quality=质量
@@ -89,96 +89,63 @@ rule_6=*|*|*|category|eq|gift|1
 
 
 # ═══════════════════════════════════════════════════
-#  效果原型
+#  效果原型（仅保留 use_mode + 显示名，数值移至商品）
 # ═══════════════════════════════════════════════════
 
 [EFFECT]
 id=sleep_recovery_small
-display_name=改善睡眠
-use_mode=equip
-modifier_slot=sleep
-instant_stats=stress:-2
-modifiers=sleep_stress_recovery_mult|睡眠时压力恢复 +12%|multiplier|0.12
-summary=睡眠恢复会更好一点。
+display_name=助眠道具
+use_mode=consume
+summary=立刻帮你把压力往下压一点。
 [/EFFECT]
 
 [EFFECT]
 id=sleep_recovery_medium
-display_name=大幅改善睡眠
-use_mode=equip
-modifier_slot=sleep
-instant_stats=stress:-3
-modifiers=sleep_stress_recovery_mult|睡眠时压力恢复 +20%|multiplier|0.20
-summary=明显改善睡眠恢复效果。
+display_name=强效助眠
+use_mode=consume
+summary=一次性明显缓解压力。
 [/EFFECT]
 
 [EFFECT]
 id=creative_focus_small
-display_name=提升专注
-use_mode=equip
-modifier_slot=desk
-instant_stats=passion:2
-modifiers=creative_focus_mult|创作专注效率 +12%|multiplier|0.12
-summary=更容易进入创作状态。
+display_name=找回灵感
+use_mode=consume
+summary=立刻补回一截创作热情。
 [/EFFECT]
 
 [EFFECT]
 id=creative_focus_with_stress
 display_name=专注↑ 压力↑
-use_mode=equip
-modifier_slot=desk
-instant_stats=stress:2
-modifiers=creative_focus_mult|夜间创作效率 +15%|multiplier|0.15||chat_interrupt_mult|闲聊打断触发率 -15%|multiplier|-0.15
-summary=会更专注，但也更像把自己锁进桌面里。
+use_mode=consume
+summary=短期推进效率更高，但会明显伤神。
 [/EFFECT]
 
 [EFFECT]
 id=mood_up_small
 display_name=改善心情
 use_mode=consume
-instant_stats=stress:-5|passion:2
 summary=立刻让心情好一点。
 [/EFFECT]
 
 [EFFECT]
-id=gift_affection_small
-display_name=好感↑
+id=gift_item
+display_name=礼物
 use_mode=gift
-instant_stats=affection:6
-summary=适合送给她，主要提升好感。
-[/EFFECT]
-
-[EFFECT]
-id=gift_trust_small
-display_name=信任↑
-use_mode=gift
-instant_stats=affection:4|passion:2
-summary=更像是"你有在认真记得她"的那种礼物。
+summary=送给她的一次性小礼物，具体数值由商品的 instant_stats 决定。
 [/EFFECT]
 
 [EFFECT]
 id=late_night_efficiency_small
 display_name=短期效率↑
 use_mode=consume
-instant_stats=completion:2|stress:3
 summary=短期推进效率更高，但也更伤神。
 [/EFFECT]
 
 [EFFECT]
 id=room_ambience_small
 display_name=氛围加成
-use_mode=equip
-modifier_slot=ambience
-instant_stats=stress:-1
-modifiers=ambient_stress_recovery_bonus|日常减压恢复 +1|flat|1
+use_mode=consume
 summary=房间会更有"待在这里也行"的感觉。
-[/EFFECT]
-
-[EFFECT]
-id=flavor_no_effect
-display_name=纯风味
-use_mode=flavor
-summary=主要提供生活气息，没有直接数值收益。
 [/EFFECT]
 
 
@@ -191,6 +158,7 @@ blueprint_id=sleep_aid
 category=life
 sub_category=sleep_aid
 effect_archetype=sleep_recovery_small
+instant_stats=stress:-12
 giftable=true
 price_band=mid
 price_range=58|118
@@ -211,6 +179,7 @@ blueprint_id=desk_focus
 category=creative
 sub_category=desk_focus
 effect_archetype=creative_focus_small
+instant_stats=passion:10
 giftable=true
 price_band=mid
 price_range=42|138
@@ -231,6 +200,7 @@ blueprint_id=snack
 category=life
 sub_category=snack
 effect_archetype=mood_up_small
+instant_stats=stress:-8|passion:2
 giftable=true
 price_band=low
 price_range=16|48
@@ -250,7 +220,8 @@ reaction_hints=她会边吐槽边顺走一半。|她大概会说你在用碳水�
 blueprint_id=gift_cute
 category=gift
 sub_category=cute_gift
-effect_archetype=gift_trust_small
+effect_archetype=gift_item
+instant_stats=passion:4
 giftable=true
 price_band=mid
 price_range=25|99
@@ -271,6 +242,7 @@ blueprint_id=ambience
 category=weird
 sub_category=desk_decor
 effect_archetype=room_ambience_small
+instant_stats=stress:-5
 giftable=true
 price_band=mid
 price_range=33|109
@@ -291,6 +263,7 @@ blueprint_id=late_night_supply
 category=creative
 sub_category=late_night_supply
 effect_archetype=late_night_efficiency_small
+instant_stats=stress:8|passion:-3
 giftable=false
 price_band=low
 price_range=19|59
@@ -305,64 +278,3 @@ seller_styles=社畜求生|深夜冲刺区
 user_comments=推进是真的推进了，代价也是真的代价。|喝下去那一刻很燃，凌晨四点就没那么浪漫了。
 reaction_hints=她会觉得你又想和凌晨三点做朋友了。|她大概会提醒你别把身体也拿去赶工。
 [/BLUEPRINT]
-
-
-# ═══════════════════════════════════════════════════
-#  固定核心商品（每日必出）
-# ═══════════════════════════════════════════════════
-
-[CORE_ITEM]
-item_id=core_pillow
-category=life
-effect_archetype=sleep_recovery_medium
-title=松软记忆枕
-subtitle=把今天的疲惫先放下
-desc=不是黑科技，只是终于肯让脖子休息一下。\n\n回弹慢，支撑感也刚好，属于一看就很适合在截稿周抱着躺平的那种日用品。
-price=128
-shipping_days=1
-giftable=true
-tags=助眠|居家|柔软
-user_comments=买来第一晚没什么感觉，第三晚开始不想离开床。|谈不上改变人生，但至少先把肩颈哄好了。
-[/CORE_ITEM]
-
-[CORE_ITEM]
-item_id=core_headphones
-category=creative
-effect_archetype=creative_focus_with_stress
-title=夜色降噪耳机
-subtitle=深夜赶稿专用
-desc=把杂音隔开一点，也把自己和世界隔开一点。\n\n并不是录音棚级别的设备，但夜里写东西、改分镜、调情绪时会让桌面安静很多。
-price=229
-shipping_days=2
-giftable=true
-tags=创作|专注|夜间
-user_comments=戴上以后世界总算愿意闭嘴一会儿。|专注是专注了，就是别人喊我吃饭经常听不见。
-[/CORE_ITEM]
-
-[CORE_ITEM]
-item_id=core_cake
-category=gift
-effect_archetype=gift_affection_small
-title=晚安小蛋糕
-subtitle=情绪低的时候比道理更有用
-desc=奶油不算惊艳，但它长得就像一句软一点的话。\n\n小小一盒，适合夜里顺手带回去。不是重大礼物，却很容易让某个时刻变得温柔一点。
-price=36
-shipping_days=1
-giftable=true
-tags=礼物|甜点|安慰
-user_comments=工作做不完的时候，先把这口甜的吃掉也不错。|送人成功率比自己熬过去高。
-[/CORE_ITEM]
-
-[CORE_ITEM]
-item_id=core_coffee_box
-category=creative
-effect_archetype=late_night_efficiency_small
-title=截稿周咖啡箱
-subtitle=看起来很专业，喝起来很拼命
-desc=适合写下'今天一定收尾'，也适合明天继续熬。\n\n一整箱速溶咖啡，摆在桌上就很像进入了真正的赶工状态，但代价通常也写在第二天的脸上。
-price=49
-shipping_days=1
-giftable=false
-tags=熬夜|效率|咖啡
-user_comments=推进是真的推进了，代价也是真的代价。|不是好喝，是有用。
-[/CORE_ITEM]

@@ -82,7 +82,10 @@ signal conversation_updated(conversation_id: String, messages: Array)
 @export var default_thinking: String = "disabled"
 ## 兼容部分 OpenAI-compatible provider 的思考开关
 @export var default_enable_thinking: bool = false
-## 思考强度，留空则不发送。DeepSeek 支持 "high" / "max"
+## 思考强度，留空则不发送。
+## 接受 low / medium / high / xhigh / max；实际下发前会按 base_url 自动适配 provider：
+##   - DeepSeek：low/medium/high → high；xhigh/max → max
+##   - 其他 OpenAI 兼容（含 OpenAI o-series）：xhigh/max → high；其余原样下发
 @export var default_reasoning_effort: String = ""
 
 @export_group("Conversation Settings")
@@ -100,7 +103,25 @@ signal conversation_updated(conversation_id: String, messages: Array)
 @export var max_tool_iterations: int = 10
 ## 是否输出完整响应与逐步工具调用日志（默认关闭，避免刷屏）
 @export var verbose_debug_logging: bool = false
-const TERMINAL_TOOL_NAMES: PackedStringArray = ["finish"]
+const TERMINAL_TOOL_NAMES: PackedStringArray = ["finish", "wo_finish_order"]
+const TOOL_EXECUTION_POLICY_PARALLEL: String = "parallel"
+const TOOL_EXECUTION_POLICY_READ_PARALLEL_WRITE_SERIAL: String = "read_parallel_write_serial"
+const TOOL_EFFECT_READ: String = "read"
+const TOOL_EFFECT_WRITE: String = "write"
+const TOOL_EFFECT_TERMINAL: String = "terminal"
+const READ_TOOL_NAMES: PackedStringArray = [
+	"kb_read", "db_list", "db_get", "get_story_outline", "get_scene_script",
+	"gather_scene_context", "list_assets", "list_scene_catalog",
+	"analyze_story_reachability", "project_info", "wo_get_order_details",
+	"wo_list_order_summaries", "research",
+]
+const WRITE_TOOL_NAMES: PackedStringArray = [
+	"kb_write", "kb_delete", "db_create", "db_update", "db_delete",
+	"set_scene_script", "batch_patch_scene_scripts", "project_save",
+	"import_project_asset", "preview_scene", "set_initial_scene",
+	"wo_complete_task", "occupy_character_shell", "activate_skill",
+	"deactivate_skill",
+]
 
 @export_group("Debug Metadata")
 ## 由 AIConfigManager 写入的业务 role，用于定位缓存命中日志来源。
@@ -320,7 +341,8 @@ func _trim_history(conversation_id: String) -> void:
 ##   - Array[String]: 按 dotted path 选择返回字段，如 ["success", "data.scene_id", "data.dsl"]
 ##   - Dictionary: {"fields": [...]} 或 {"raw": true}
 ##   - Callable: func(result) -> Variant，自定义投影
-func register_tool(tool_name: String, description: String, parameters: Dictionary, callback: Callable = Callable(), llm_view: Variant = null) -> void:
+## [param metadata] 可选。工具调度元数据，如 {"effect": "read"|"write"|"terminal"}。
+func register_tool(tool_name: String, description: String, parameters: Dictionary, callback: Callable = Callable(), llm_view: Variant = null, metadata: Dictionary = {}) -> void:
 	_registered_tools[tool_name] = {
 		"type": "function",
 		"function": {
@@ -330,6 +352,7 @@ func register_tool(tool_name: String, description: String, parameters: Dictionar
 		},
 		"callback": callback,
 		"llm_view": llm_view,
+		"metadata": metadata.duplicate(true),
 	}
 
 ## 注册多个工具
@@ -337,11 +360,32 @@ func register_tools(tools: Array[Dictionary]) -> void:
 	for tool in tools:
 		var cb = tool.get("callback", Callable())
 		var llm_view: Variant = tool.get("llm_view", null)
-		register_tool(tool.name, tool.description, tool.parameters, cb, llm_view)
+		var metadata: Dictionary = tool.get("metadata", {})
+		register_tool(tool.name, tool.description, tool.parameters, cb, llm_view, metadata)
 
 ## 取消注册工具
 func unregister_tool(tool_name: String) -> void:
 	_registered_tools.erase(tool_name)
+
+
+func set_tool_metadata(tool_name: String, metadata: Dictionary, merge: bool = true) -> void:
+	if not _registered_tools.has(tool_name):
+		return
+	var tool_data: Dictionary = _registered_tools[tool_name]
+	var current: Dictionary = tool_data.get("metadata", {})
+	if merge:
+		for key in metadata.keys():
+			current[key] = metadata[key]
+	else:
+		current = metadata.duplicate(true)
+	tool_data["metadata"] = current
+	_registered_tools[tool_name] = tool_data
+
+
+func get_tool_metadata(tool_name: String) -> Dictionary:
+	if not _registered_tools.has(tool_name):
+		return {}
+	return (_registered_tools[tool_name] as Dictionary).get("metadata", {}).duplicate(true)
 
 ## 获取所有已注册的工具定义（用于发送给API）
 func get_tools_definition() -> Array:
@@ -722,8 +766,9 @@ func _build_chat_request(messages: Array, options: Dictionary) -> Dictionary:
 	body["thinking"] = {"type": thinking_type}
 	body["enable_thinking"] = options.get("enable_thinking", default_enable_thinking)
 	var reasoning_effort: String = str(options.get("reasoning_effort", default_reasoning_effort)).strip_edges()
-	if not reasoning_effort.is_empty():
-		body["reasoning_effort"] = reasoning_effort
+	var normalized_effort: String = _normalize_reasoning_effort(reasoning_effort, str(options.get("api_url", api_base_url)))
+	if not normalized_effort.is_empty():
+		body["reasoning_effort"] = normalized_effort
 	
 	# Seed for reproducibility
 	if options.has("seed"):
@@ -861,20 +906,22 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	if _has_tool_calls(response):
 		var tool_calls = _extract_tool_calls(response)
 		var tc_content: String = ""
+		var tc_reasoning: String = AIService.extract_reasoning_content(response)
 		if response.has("choices") and response["choices"].size() > 0:
 			var msg = response["choices"][0].get("message", {})
 			tc_content = _get_message_content_text(msg)
-			if not tc_content.is_empty():
-				request_completed.emit(original_id, response)
-		
+		# 工具轮必须始终通知监听方（如 ChatAgent）：即使 assistant 正文为空，也要先写入带 tool_calls 的 assistant，
+		# 再追加 tool 消息；否则下一轮请求会出现「tool 前无 tool_calls」而被 API 拒绝。
+		request_completed.emit(original_id, response)
+
 		tool_calls_requested.emit(original_id, tool_calls, tc_content)
 		if tool_calls.size() == 1:
 			var tc = tool_calls[0]
 			var args = _parse_tool_arguments(tc.function.arguments)
 			function_call_requested.emit(original_id, tc.function.name, args)
-		
+
 		if auto_execute_tools and original_request.get("auto_tools", false):
-			_auto_execute_tool_calls(request_id, original_id, tool_calls, original_request, tc_content)
+			_auto_execute_tool_calls(request_id, original_id, tool_calls, original_request, tc_content, tc_reasoning)
 		else:
 			_cleanup_request(request_id)
 	else:
@@ -930,6 +977,8 @@ func _on_stream_completed(result: int, response_code: int, _headers: PackedStrin
 	_update_conversation_from_response(request_id, final_response)
 	
 	if tool_calls.size() > 0:
+		# 与非流式一致：工具轮必须触发 request_completed，供 ChatAgent 写入 tool_calls  assistant（正文可为空）。
+		request_completed.emit(original_id, final_response)
 		# 发出信号（用于监听）
 		var stream_content: String = full_content if full_content != "" else ""
 		tool_calls_requested.emit(original_id, tool_calls, stream_content)
@@ -940,7 +989,8 @@ func _on_stream_completed(result: int, response_code: int, _headers: PackedStrin
 		
 		# 检查是否自动执行工具
 		if auto_execute_tools and original_request.get("auto_tools", false):
-			_auto_execute_tool_calls(request_id, original_id, tool_calls, original_request, stream_content)
+			var stream_reasoning: String = AIService.extract_reasoning_content(final_response)
+			_auto_execute_tool_calls(request_id, original_id, tool_calls, original_request, stream_content, stream_reasoning)
 		else:
 			_cleanup_request(request_id)
 	else:
@@ -1152,7 +1202,9 @@ func _parse_tool_arguments(args_str: String) -> Dictionary:
 	return {}
 
 ## 自动执行工具调用并继续对话
-func _auto_execute_tool_calls(request_id: String, original_id: String, tool_calls: Array, original_request: Dictionary, assistant_content: String = "") -> void:
+## assistant_reasoning_content：在 thinking 模式下必须把第一回合的 reasoning 回传，
+## 否则 DeepSeek 等服务商会返回 400「reasoning_content must be passed back to the API」。
+func _auto_execute_tool_calls(request_id: String, original_id: String, tool_calls: Array, original_request: Dictionary, assistant_content: String = "", assistant_reasoning_content: String = "") -> void:
 	var debug_meta: Dictionary = _request_debug_meta.get(request_id, _request_debug_meta.get(original_id, {})).duplicate()
 	# 检查迭代次数
 	var iteration = _tool_iteration_counts.get(original_id, 0)
@@ -1186,42 +1238,18 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 		"content": content_val,
 		"tool_calls": tool_calls
 	}
+	# thinking 模式下必须保留 reasoning_content，否则下一轮调用会被服务商拒掉
+	if not assistant_reasoning_content.is_empty():
+		assistant_msg["reasoning_content"] = assistant_reasoning_content
 	if _conversations.has(conversation_id):
 		_conversations[conversation_id].append(assistant_msg)
-	
-	# 执行每个工具调用（支持异步）
-	var terminal_tool_response: Dictionary = {}
-	for tc in tool_calls:
-		var func_name = tc.function.name
-		var args = _parse_tool_arguments(tc.function.arguments)
-		
-		if verbose_debug_logging:
-			print("[AIService] Auto-executing tool: %s with args: %s" % [func_name, str(args)])
-		
-		# 使用await支持异步回调
-		var result = await execute_tool_callback(func_name, args)
-		var result_str = _summarize_tool_result_for_conversation(func_name, result, original_request.get("options", {}))
-		
-		# 记录工具调用历史
-		_tool_call_history[original_id].append({
-			"name": func_name,
-			"arguments": args,
-			"result": result
-		})
-		
-		# 发出工具执行信号
-		tool_executed.emit(original_id, func_name, args, result, tc.id)
-		
-		# 添加工具结果到对话历史
-		if _conversations.has(conversation_id):
-			_conversations[conversation_id].append({
-				"role": "tool",
-				"tool_call_id": tc.id,
-				"content": result_str
-			})
 
-		if TERMINAL_TOOL_NAMES.has(func_name) and _is_terminal_tool_success(result):
-			terminal_tool_response = _build_terminal_tool_response(result)
+	var terminal_tool_response: Dictionary = await _execute_tool_calls_with_policy(
+		tool_calls,
+		original_request,
+		original_id,
+		conversation_id
+	)
 	
 	# 清理当前请求
 	_cleanup_request(request_id)
@@ -1263,6 +1291,140 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 	_retry_counts[new_request_id] = 0
 
 
+func _execute_tool_calls_with_policy(tool_calls: Array, original_request: Dictionary, original_id: String, conversation_id: String) -> Dictionary:
+	var options: Dictionary = original_request.get("options", {})
+	var policy: String = str(options.get("tool_execution_policy", TOOL_EXECUTION_POLICY_PARALLEL)).strip_edges()
+	if policy == TOOL_EXECUTION_POLICY_READ_PARALLEL_WRITE_SERIAL:
+		return await _execute_tool_calls_read_parallel_write_serial(tool_calls, original_request, original_id, conversation_id)
+	return await _execute_tool_calls_parallel(tool_calls, original_request, original_id, conversation_id)
+
+
+func _execute_tool_calls_parallel(tool_calls: Array, original_request: Dictionary, original_id: String, conversation_id: String) -> Dictionary:
+	var tool_states: Array = []
+	for tc in tool_calls:
+		var state: Dictionary = _build_tool_state(tc)
+		tool_states.append(state)
+		_run_one_tool_async(state)
+	await _wait_for_parallel_tool_states(tool_states)
+	return _record_tool_states(tool_states, original_request, original_id, conversation_id)
+
+
+func _execute_tool_calls_read_parallel_write_serial(tool_calls: Array, original_request: Dictionary, original_id: String, conversation_id: String) -> Dictionary:
+	var pending_read_states: Array = []
+	for tc in tool_calls:
+		var state: Dictionary = _build_tool_state(tc)
+		var effect: String = _get_tool_effect(str(state.get("func_name", "")))
+		if effect == TOOL_EFFECT_READ:
+			pending_read_states.append(state)
+			continue
+
+		if not pending_read_states.is_empty():
+			await _execute_read_tool_batch(pending_read_states)
+			var read_terminal: Dictionary = _record_tool_states(pending_read_states, original_request, original_id, conversation_id)
+			pending_read_states = []
+			if not read_terminal.is_empty():
+				return read_terminal
+
+		await _execute_tool_state_serial(state)
+		var terminal_response: Dictionary = _record_tool_states([state], original_request, original_id, conversation_id)
+		if not terminal_response.is_empty():
+			return terminal_response
+
+	if not pending_read_states.is_empty():
+		await _execute_read_tool_batch(pending_read_states)
+		return _record_tool_states(pending_read_states, original_request, original_id, conversation_id)
+
+	return {}
+
+
+func _build_tool_state(tc: Dictionary) -> Dictionary:
+	var func_name: String = tc.function.name
+	var args: Dictionary = _parse_tool_arguments(tc.function.arguments)
+	if verbose_debug_logging:
+		print("[AIService] Auto-executing tool: %s with args: %s" % [func_name, str(args)])
+	return {
+		"tc": tc,
+		"func_name": func_name,
+		"args": args,
+		"completed": false,
+		"result": null,
+	}
+
+
+func _execute_read_tool_batch(states: Array) -> void:
+	for state in states:
+		_run_one_tool_async(state)
+	await _wait_for_parallel_tool_states(states)
+
+
+func _wait_for_parallel_tool_states(states: Array) -> void:
+	for state in states:
+		while not bool(state.get("completed", false)):
+			await get_tree().process_frame
+
+
+func _execute_tool_state_serial(state: Dictionary) -> void:
+	state["result"] = await execute_tool_callback(state["func_name"], state["args"])
+	state["completed"] = true
+
+
+func _record_tool_states(states: Array, original_request: Dictionary, original_id: String, conversation_id: String) -> Dictionary:
+	var terminal_tool_response: Dictionary = {}
+	for state in states:
+		var func_name: String = state["func_name"]
+		var args: Dictionary = state["args"]
+		var tc: Dictionary = state["tc"]
+		var result: Variant = state["result"]
+		var result_str = _summarize_tool_result_for_conversation(func_name, result, original_request.get("options", {}))
+
+		_tool_call_history[original_id].append({
+			"name": func_name,
+			"arguments": args,
+			"result": result,
+		})
+
+		tool_executed.emit(original_id, func_name, args, result, tc.id)
+
+		if _conversations.has(conversation_id):
+			_conversations[conversation_id].append({
+				"role": "tool",
+				"tool_call_id": tc.id,
+				"content": result_str,
+			})
+
+		if _is_terminal_tool_name(func_name) and _is_terminal_tool_success(result):
+			terminal_tool_response = _build_terminal_tool_response(result)
+			break
+	return terminal_tool_response
+
+
+func _is_terminal_tool_name(function_name: String) -> bool:
+	if TERMINAL_TOOL_NAMES.has(function_name):
+		return true
+	return _get_tool_effect(function_name) == TOOL_EFFECT_TERMINAL
+
+
+func _get_tool_effect(function_name: String) -> String:
+	var metadata: Dictionary = get_tool_metadata(function_name)
+	var explicit_effect: String = str(metadata.get("effect", "")).strip_edges()
+	if explicit_effect in [TOOL_EFFECT_READ, TOOL_EFFECT_WRITE, TOOL_EFFECT_TERMINAL]:
+		return explicit_effect
+	if TERMINAL_TOOL_NAMES.has(function_name):
+		return TOOL_EFFECT_TERMINAL
+	if READ_TOOL_NAMES.has(function_name):
+		return TOOL_EFFECT_READ
+	if WRITE_TOOL_NAMES.has(function_name):
+		return TOOL_EFFECT_WRITE
+	return TOOL_EFFECT_WRITE
+
+
+## Fan-out 协程：执行单个 tool callback，结果写回 state 字典。
+## 调用方不 await 此函数，多个调用便能并发推进各自的 await 点。
+func _run_one_tool_async(state: Dictionary) -> void:
+	state["result"] = await execute_tool_callback(state["func_name"], state["args"])
+	state["completed"] = true
+
+
 func _is_terminal_tool_success(result: Variant) -> bool:
 	if not (result is Dictionary):
 		return false
@@ -1273,6 +1435,8 @@ func _build_terminal_tool_response(result: Variant) -> Dictionary:
 	var summary: String = ""
 	if result is Dictionary:
 		summary = str((result as Dictionary).get("summary", "")).strip_edges()
+		if summary.is_empty():
+			summary = str((result as Dictionary).get("message", "")).strip_edges()
 	var content: String = "<result>%s</result>" % summary
 	return {
 		"choices": [{
@@ -1471,6 +1635,45 @@ static func extract_content(response: Dictionary) -> String:
 		return str(_split_reasoning_from_text(content_text).get("content", ""))
 	var refusal_value: Variant = message.get("refusal", null)
 	return refusal_value if refusal_value is String else ""
+
+
+## 把通用 reasoning_effort 标签映射为对应 provider 实际支持的合法值。
+##
+## 不同 provider 的 reasoning_effort 词表不一样：
+##   - OpenAI o-series：low / medium / high
+##   - DeepSeek 思考模型：仅 high / max（low、medium 会被 reject）
+##
+## 为了让上层配置（cfg / options）不必关心 provider 差异，在这里做一次兼容映射。
+## 对未知 provider 默认按 OpenAI 兼容处理（直通），避免错误改写合法值。
+static func _normalize_reasoning_effort(effort: String, base_url: String) -> String:
+	var normalized: String = effort.strip_edges().to_lower()
+	if normalized.is_empty():
+		return ""
+
+	var url_lower: String = base_url.to_lower()
+	var is_deepseek: bool = url_lower.contains("deepseek")
+
+	if is_deepseek:
+		# DeepSeek 仅有 high / max 两档
+		match normalized:
+			"low", "medium", "high":
+				return "high"
+			"xhigh", "max":
+				return "max"
+			_:
+				# 未知值：按 high 兜底（比 reject 更友好）
+				return "high"
+
+	# 其他 provider（OpenAI 兼容）
+	match normalized:
+		"xhigh":
+			# OpenAI 不识别 xhigh，向下取 high
+			return "high"
+		"max":
+			# 同上，OpenAI 不识别 max
+			return "high"
+		_:
+			return normalized
 
 
 static func extract_reasoning_content(response: Dictionary) -> String:

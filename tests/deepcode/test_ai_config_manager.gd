@@ -36,10 +36,7 @@ const REQUIRED_ROLES: Array = [
 	"creative_decision",
 	"date_scene_reviewer",
 	"work_order",
-	"work_order_controller",
-	"work_order_planner",
-	"work_order_writer",
-	"work_order_executor",
+	"work_order_agent",
 ]
 
 var _runner: PropertyTestRunner

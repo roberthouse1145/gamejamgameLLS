@@ -4,71 +4,56 @@
 
 [resource]
 script = ExtResource("1_script")
-url = "gamejam://news"
-title = "AGJ 2027 - 新闻动态"
-hint = "Arcade Grand Jam 2027 新星赛道的最新新闻与公告。"
-content = "<vbox sep=0>
+url = "framestory://news"
+title = "帧语·新星叙事大赛 2027 - 新闻动态"
+hint = "帧语·新星叙事大赛 2027 新星组的最新新闻与公告。"
+content = "::: card bg=#1A2238 pad=20
+::: row sep=24
+[color=#5B8AFF]帧语[/color] [color=#E8622A]2027[/color]
+::: col fill
+:::
+[REGISTRATION](url:framestory://signup color=#C8D3F0)
+[SCHEDULE](url:framestory://schedule color=#C8D3F0)
+[color=#5B8AFF]NEWS[/color]
+[FAQ](url:framestory://faq color=#C8D3F0)
+:::
+:::
 
-  <panel bg=#080B12>
-    <margin 60>
-      <vbox sep=6>
-        <hbox sep=10>
-          <label size=30 color=#ECEEF8>AGJ</label>
-          <vbox width=60><label size=16 color=#E8622A>2027</label></vbox>
-          <vbox width=20><label size=20 color=#3D4460>|</label></vbox>
-          <vbox width=120><link size=16 color=#7A82A0 action=open_url url=gamejam://signup>REGISTRATION</link></vbox>
-          <vbox width=100><link size=16 color=#7A82A0 action=open_url url=gamejam://schedule>SCHEDULE</link></vbox>
-          <vbox width=60><label size=16 color=#5B8AFF>NEWS</label></vbox>
-          <vbox width=60><link size=16 color=#7A82A0 action=open_url url=gamejam://faq>FAQ</link></vbox>
-        </hbox>
-      </vbox>
-    </margin>
-  </panel>
+::: col bg=#F5F7FA pad=40 sep=18
 
-  <panel bg=#0A0D18>
-    <margin 60>
-      <vbox sep=8>
-        <label size=48 color=#ECEEF8>NEWS</label>
-        <label size=22 color=#5B8AFF>新闻动态</label>
-      </vbox>
-    </margin>
-  </panel>
+# NEWS
+### 新闻动态
 
-  <panel bg=#080B12>
-    <margin 60>
-      <vbox sep=36>
+::: card bg=#FFFFFF pad=28
 
-        <panel bg=#0D1020 border=#1A1F35>
-          <margin 36>
-            <vbox sep=20>
-              <hbox sep=10>
-                <panelcontainer shrink bg=#1E3A8A border=#3D6FFF><margin 4><label size=15 color=#3D6FFF nowrap>ANNOUNCEMENT</label></margin></panelcontainer>
-                <label size=16 color=#7A82A0>2027.05.05</label>
-              </hbox>
-              <label size=30 color=#ECEEF8>Arcade Grand Jam 2027 新星赛道正式启动</label>
-              <panel bg=#141828><margin 0><spacer 1/></margin></panel>
-              <label size=20 color=#7A82A0>经过数月筹备，Arcade Grand Jam 2027 新星赛道于今日正式面向全球高校学生开放报名。本届赛事延续了 AGJ 一贯的公平竞技理念，并将在赛制上进行重大改革——具体规则将在报名截止后统一公布。</label>
-              <label size=20 color=#7A82A0>本届新星赛道允许 2-5 人组队参赛。组委会希望通过新规则，将比赛的焦点从技术堆砌和资源比拼，拉回到创意本身。</label>
-              <label size=20 color=#7A82A0>赛事总奖金池超过 50,000 元人民币，涵盖最佳作品、最佳叙事、最佳视觉表现、社区人气等多个奖项。所有获奖作品将在 AGJ 官方平台进行展示。</label>
-              <label size=20 color=#7A82A0>报名现已开放，截止日期前均可提交。每位参赛者只能加入一支队伍，报名信息提交后不可修改。</label>
-              <spacer 8/>
-              <hbox sep=12>
-                <panelcontainer shrink bg=#1E3A8A border=#3D6FFF><margin 8><link size=16 color=#5B8AFF nowrap action=open_url url=gamejam://signup>立即报名</link></margin></panelcontainer>
-                <panelcontainer shrink bg=#7A3010 border=#E8622A><margin 8><link size=16 color=#E8622A nowrap action=open_url url=gamejam://schedule>查看赛程</link></margin></panelcontainer>
-              </hbox>
-            </vbox>
-          </margin>
-        </panel>
+[color=#3D6FFF]ANNOUNCEMENT[/color]  ·  [color=#888888]2027.05.05[/color]
 
-        <label size=16 color=#3D4460 align=center>ARCADE GRAND JAM 2027  |  support@arcadegrandjam.com</label>
-        <spacer 30/>
+## 帧语·新星叙事大赛 2027 正式启动
 
-      </vbox>
-    </margin>
-  </panel>
+---
 
-</vbox>"
+经过数月筹备，帧语·新星叙事大赛 2027 于今日正式面向全国高校学生开放报名。本届赛事延续了帧语大赛一贯的 公平竞技 理念，并将在赛制上进行重大改革——具体规则将在报名截止后统一公布。
+
+本届新星组允许 2-5 人组队 参赛。帧语平台希望通过新规则，将比赛的焦点从资源比拼，拉回到 *叙事本身*。
+
+赛事涵盖最佳作品、最佳叙事、最佳视觉表现、社区人气等多个奖项。所有获奖作品将在帧语平台进行展示。
+
+报名现已开放，截止日期前均可提交。每位参赛者只能加入一支队伍，*报名信息提交后不可修改*。
+
+::: row sep=12
+[立即报名](action:open_url url=framestory://signup bg_color=#3D6FFF color=#FFFFFF)
+[查看赛程](url:framestory://schedule)
+[阅读 FAQ](url:framestory://faq)
+:::
+
+:::
+
+---
+
+[color=#888888]帧语·新星叙事大赛 2027  ·  support@framestory.com[/color]
+
+:::"
 design_prompt = ""
 searchable = false
-search_keywords = PackedStringArray("gamejam", "news", "新闻", "公告", "动态")
-linked_urls = PackedStringArray("gamejam://signup", "gamejam://schedule", "gamejam://faq")
+search_keywords = PackedStringArray("帧语", "news", "新闻", "公告", "动态")
+linked_urls = PackedStringArray("framestory://signup", "framestory://schedule", "framestory://faq")

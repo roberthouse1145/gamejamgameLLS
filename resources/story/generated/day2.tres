@@ -8,14 +8,6 @@ script = ExtResource("2_70cn7")
 step_id = "day2_01_init"
 description = "进入第二天早晨，解锁所有APP"
 actions = Array[Dictionary]([{
-"day": 2,
-"phase": "MORNING",
-"type": "set_phase"
-}, {
-"crossfade": 2.0,
-"path": "res://Assets/sounds/bgm/Blush (loop).ogg",
-"type": "play_bgm"
-}, {
 "mode": "all",
 "type": "set_app_access"
 }, {
@@ -26,7 +18,7 @@ next = "day2_02_dev_kickoff"
 [sub_resource type="Resource" id="Resource_a0qrt"]
 script = ExtResource("2_70cn7")
 step_id = "day2_02_dev_kickoff"
-description = "林夏告知开发计划：一周内把项目进度推进到10%，但也可以适当放松"
+description = "林夏告知开发计划：五天内把项目进度推进到10%，但也可以适当放松"
 actions = Array[Dictionary]([{
 "npc_speaks_first": true,
 "topic_path": "res://resources/story/topics/day2_dev_kickoff.tres",
@@ -41,10 +33,9 @@ wait_for = {
 script = ExtResource("1_bjl77")
 chapter_id = "day2"
 chapter_name = "第二天 - 开发开始"
-description = "企划卡提交后的第二天，解锁所有APP，林夏告知一周内需将项目进度推进到10%"
+description = "企划卡提交后的第二天，解锁所有APP，林夏告知五天内需将项目进度推进到10%"
 trigger = {
 "day": 2,
-"phase": "MORNING",
-"required_chapters": ["day1"]
+"phase": "MORNING"
 }
 steps = Array[Resource]([SubResource("Resource_unhki"), SubResource("Resource_a0qrt")])

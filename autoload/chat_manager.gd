@@ -444,7 +444,7 @@ func debug_send_image_card(channel_id: String = "dm_lin_xia", sender_id: String 
 func debug_send_mock_card(channel_id: String = "dm_lin_xia", sender_id: String = "npc_lin_xia") -> void:
 	_store_message_data(channel_id, sender_id, {
 		"speaker": sender_id,
-		"content": "我拍给你看。",
+		"content": "",
 		"card": {
 			"type": "mock_image",
 			"theme": "contract",
@@ -460,7 +460,7 @@ func debug_send_mock_card(channel_id: String = "dm_lin_xia", sender_id: String =
 func debug_send_web_card(channel_id: String = "dm_lin_xia", sender_id: String = "npc_lin_xia") -> void:
 	_store_message_data(channel_id, sender_id, {
 		"speaker": sender_id,
-		"content": "你先看这个页面。",
+		"content": "",
 		"card": {
 			"type": "web_page",
 			"title": "爱情 - 百科",
@@ -906,16 +906,16 @@ func _should_use_collaborator_agent(channel: ChatChannel, npcs: Array[NPCCharact
 	return npc != null and npc.can_access_project_context()
 
 
-func _build_project_context_for_channel(_channel: ChatChannel, npcs: Array[NPCCharacter]) -> String:
+func _build_project_context_for_channel(_channel: ChatChannel, npcs: Array[NPCCharacter], scan_text: String = "") -> String:
 	if _project_context_builder == null or npcs.size() != 1:
 		return ""
-	return _project_context_builder.build_for_channel(_channel, npcs)
+	return _project_context_builder.build_for_channel(_channel, npcs, scan_text)
 
 
-func _build_project_context_for_chat(raw_npc: Variant) -> String:
+func _build_project_context_for_chat(raw_npc: Variant, scan_text: String = "") -> String:
 	if _project_context_builder == null:
 		return ""
-	return _project_context_builder.build_for_chat(raw_npc)
+	return _project_context_builder.build_for_chat(raw_npc, scan_text)
 
 
 func _build_dev_cycle_context_for_chat() -> String:
@@ -930,10 +930,10 @@ func _build_work_order_context_for_chat() -> String:
 	return _project_context_builder.build_work_order_context()
 
 
-func _build_kb_context_for_chat() -> String:
+func _build_kb_context_for_chat(scan_text: String = "") -> String:
 	if _project_context_builder == null:
 		return "- 当前知识库不可用"
-	return _project_context_builder.build_kb_context()
+	return _project_context_builder.build_kb_context(scan_text)
 
 
 func _send_collaborator_agent_request(channel_id: String, prompt_data: Dictionary) -> bool:
@@ -1019,7 +1019,9 @@ func _on_batch_ready_for_channel(
 		chat_history.assign(channel.get_recent_messages(20))
 
 	var relevant_memories := memory_manager.retrieve_memories(primary_npc_id, " ".join(messages), 5)
-	var project_shared_context := _build_project_context_for_channel(channel, npcs)
+	# 给 KB 命中匹配用的扫描文本：玩家本轮消息 + 最近 chat_history + topic 文本
+	var kb_scan_text := ChatProjectContextBuilderClass.build_chat_scan_text(chat_history, messages, topic)
+	var project_shared_context := _build_project_context_for_channel(channel, npcs, kb_scan_text)
 	var prompt_data := ChatPromptBuilder.build(
 		channel,
 		npcs,
@@ -1206,7 +1208,10 @@ func _finalize_ai_response(
 
 	var clean_body: String = str(stripped.body).strip_edges()
 	var parsed_response := _parse_ai_response_text(clean_body, fallback_npc_id)
-	var parsed_messages: Array[Dictionary] = parsed_response.get("messages", [])
+	var parsed_messages: Array[Dictionary] = []
+	var raw_messages: Variant = parsed_response.get("messages", [])
+	if raw_messages is Array:
+		parsed_messages.assign(raw_messages)
 	_append_required_topic_cards(parsed_messages, topic, fallback_npc_id)
 	print("[ChatManager] Parsed response flags (%s): complete=%s failed=%s auto_store=%s complete_after_response=%s" % [
 		channel_id,
@@ -1219,7 +1224,10 @@ func _finalize_ai_response(
 		print("[ChatManager] Parsed messages (%s): %s" % [channel_id, str(parsed_messages)])
 
 	# 解析推荐回复
-	var recommended_replies: Array[String] = parsed_response.get("recommended_replies", [])
+	var recommended_replies: Array[String] = []
+	var raw_replies: Variant = parsed_response.get("recommended_replies", [])
+	if raw_replies is Array:
+		recommended_replies.assign(raw_replies)
 	var topic_complete_from_protocol: bool = bool(parsed_response.get("topic_complete", false))
 	var topic_failed_from_protocol: bool = bool(parsed_response.get("topic_failed", false))
 	var topic_summary_from_protocol := str(parsed_response.get("topic_summary", "")).strip_edges()
