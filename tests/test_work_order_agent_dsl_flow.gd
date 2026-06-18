@@ -6,6 +6,7 @@ const DBToolsClass = preload("res://scripts/avg/dev_tools/db_tools.gd")
 const PROBE_PREFIXES: Array[String] = [
 	"scene_agent_dsl_probe_",
 	"scene_agent_create_with_dsl_",
+	"scene_agent_placeholder_",
 ]
 
 var _pass_count: int = 0
@@ -17,6 +18,7 @@ var _old_worker_auto_run: bool = true
 var _did_override_worker_auto_run: bool = false
 var _scene_id: String = ""
 var _direct_dsl_scene_id: String = ""
+var _placeholder_scene_id: String = ""
 
 
 func _ready() -> void:
@@ -55,25 +57,25 @@ func _run_test() -> void:
 		return
 
 	var tool_names: Dictionary = _collect_tool_names(agent_service.get_tools_definition())
-	for required_tool in ["gather_scene_context", "db_create", "set_scene_script", "project_save", "wo_finish_order", "research"]:
+	for required_tool in ["get_project_context", "upsert_scene", "edit_scenes", "wo_finish_order", "research"]:
 		_assert("agent exposes %s" % required_tool, tool_names.has(required_tool), str(tool_names.keys()))
 	_assert("agent does not expose finish", not tool_names.has("finish"), str(tool_names.keys()))
+	_assert("agent hides db_create", not tool_names.has("db_create"), str(tool_names.keys()))
+	_assert("agent hides set_scene_script", not tool_names.has("set_scene_script"), str(tool_names.keys()))
+	_assert("agent hides project_save", not tool_names.has("project_save"), str(tool_names.keys()))
 
-	var create_result: Dictionary = await _call_tool(agent_service, "db_create", {
-		"type": "scenes",
-		"fields": {
-			"scene_id": _scene_id,
-			"scene_name": "WorkOrderAgent DSL Probe",
-			"scene_note": "自动测试：模拟底层 LLM 创建场景"
-		}
+	var create_result: Dictionary = await _call_tool(agent_service, "upsert_scene", {
+		"scene_id": _scene_id,
+		"scene_name": "WorkOrderAgent DSL Probe",
+		"scene_note": "自动测试：模拟正式 LLM 创建场景"
 	})
-	_assert("step 1 create scene via agent tool", bool(create_result.get("success", false)), str(create_result))
+	_assert("step 1 create scene via high-level tool", bool(create_result.get("success", false)), str(create_result))
 	if not bool(create_result.get("success", false)):
 		_print_summary()
 		return
-	_assert("step 1 returns real scene id", str(create_result.get("id", "")) == _scene_id, str(create_result))
+	_assert("step 1 returns real scene id", str(create_result.get("scene_id", "")) == _scene_id, str(create_result))
 
-	var open_result: Dictionary = await _call_tool(agent_service, "gather_scene_context", {
+	var open_result: Dictionary = await _call_tool(agent_service, "get_project_context", {
 		"scene_ids": [_scene_id],
 		"include_scene_catalog": true
 	})
@@ -82,46 +84,76 @@ func _run_test() -> void:
 	_assert("step 2 opened scene is present", not opened_scene.is_empty() and not bool(opened_scene.get("missing", false)), str(open_result))
 	_assert("step 2 opened scene starts empty", str(opened_scene.get("dsl", "")).strip_edges().is_empty(), str(opened_scene))
 
+	_placeholder_scene_id = "scene_agent_placeholder_%d" % Time.get_ticks_msec()
 	var dsl: String = "\n".join([
 		"screen.fade(direction=\"in\", duration=0.2)",
 		"> 这是底层 LLM 写入 DSL 的探针。",
 		"> 如果这行能被重新读出，说明写入链路可用。",
+		"var[agent_probe_score] = 1",
+		"scene.jump(\"%s\")" % _placeholder_scene_id,
 	])
-	var set_result: Dictionary = await _call_tool(agent_service, "set_scene_script", {
+	var set_result: Dictionary = await _call_tool(agent_service, "upsert_scene", {
 		"scene_id": _scene_id,
-		"mode": "replace",
 		"dsl": dsl,
+		"include_reachability": true,
 	})
-	_assert("step 3 write DSL via agent tool", bool(set_result.get("success", false)), str(set_result))
+	_assert("step 3 write DSL via high-level tool", bool(set_result.get("success", false)), str(set_result))
+	_assert("step 3 returns auto variable", (set_result.get("auto_created_variable_keys", []) as Array).has("agent_probe_score"), str(set_result))
+	_assert("step 3 returns placeholder scene", (set_result.get("auto_created_placeholder_scene_ids", []) as Array).has(_placeholder_scene_id), str(set_result))
 
-	var verify_result: Dictionary = await _call_tool(agent_service, "gather_scene_context", {
-		"scene_ids": [_scene_id]
+	var verify_result: Dictionary = await _call_tool(agent_service, "get_project_context", {
+		"scene_ids": [_scene_id, _placeholder_scene_id],
+		"include_variables": true
 	})
 	var verify_scene: Dictionary = _first_scene_payload(verify_result)
 	var verify_dsl: String = str(verify_scene.get("dsl", ""))
 	_assert("step 3 DSL can be read back", verify_dsl.contains("底层 LLM 写入 DSL 的探针"), str(verify_result))
+	_assert("step 3 placeholder can be read back", _scene_payload_by_id(verify_result, _placeholder_scene_id).has("scene_id"), str(verify_result))
+
+	var patch_result: Dictionary = await _call_tool(agent_service, "edit_scenes", {
+		"edits": [{
+			"scene_id": _scene_id,
+			"mode": "patch",
+			"old_dsl": "> 如果这行能被重新读出，说明写入链路可用。",
+			"new_dsl": "> 如果这行能被 patch，说明批量编辑链路可用。",
+			"scene_note": "自动测试：已通过 edit_scenes patch"
+		}],
+		"include_reachability": true
+	})
+	_assert("step 3a patch scene via edit_scenes", bool(patch_result.get("success", false)), str(patch_result))
+
+	var after_patch_result: Dictionary = await _call_tool(agent_service, "get_project_context", {
+		"scene_ids": [_scene_id]
+	})
+	var after_patch_dsl: String = str(_first_scene_payload(after_patch_result).get("dsl", ""))
+	_assert("step 3a patched DSL can be read back", after_patch_dsl.contains("批量编辑链路可用"), str(after_patch_result))
+
+	var bad_write_result: Dictionary = await _call_tool(agent_service, "upsert_scene", {
+		"scene_id": _scene_id,
+		"dsl": "if var[agent_probe_score] >= 1:\n    > 命中\nelif var[agent_probe_score] >= 2:\n    > 不应写入"
+	})
+	_assert("step 3b parse error rejected", not bool(bad_write_result.get("success", true)), str(bad_write_result))
+	var after_bad_result: Dictionary = await _call_tool(agent_service, "get_project_context", {
+		"scene_ids": [_scene_id]
+	})
+	var after_bad_dsl: String = str(_first_scene_payload(after_bad_result).get("dsl", ""))
+	_assert("step 3b parse error does not overwrite", after_bad_dsl.contains("批量编辑链路可用") and not after_bad_dsl.contains("不应写入"), str(after_bad_result))
 
 	_direct_dsl_scene_id = "scene_agent_create_with_dsl_%d" % Time.get_ticks_msec()
-	var direct_create_result: Dictionary = await _call_tool(agent_service, "db_create", {
-		"type": "scenes",
-		"fields": {
-			"scene_id": _direct_dsl_scene_id,
-			"scene_name": "WorkOrderAgent Direct DSL Probe",
-			"scene_note": "自动测试：模拟底层 LLM 创建场景时直接写 DSL",
-			"dsl": "> 这是 db_create 直接写入 DSL 的探针。"
-		}
+	var direct_create_result: Dictionary = await _call_tool(agent_service, "upsert_scene", {
+		"scene_id": _direct_dsl_scene_id,
+		"scene_name": "WorkOrderAgent Direct DSL Probe",
+		"scene_note": "自动测试：模拟正式 LLM 创建场景时直接写 DSL",
+		"dsl": "> 这是 upsert_scene 直接写入 DSL 的探针。"
 	})
-	_assert("step 3b create scene with dsl via db_create", bool(direct_create_result.get("success", false)), str(direct_create_result))
+	_assert("step 3c create scene with dsl via upsert_scene", bool(direct_create_result.get("success", false)), str(direct_create_result))
 
-	var direct_verify_result: Dictionary = await _call_tool(agent_service, "gather_scene_context", {
+	var direct_verify_result: Dictionary = await _call_tool(agent_service, "get_project_context", {
 		"scene_ids": [_direct_dsl_scene_id]
 	})
 	var direct_verify_scene: Dictionary = _first_scene_payload(direct_verify_result)
 	var direct_verify_dsl: String = str(direct_verify_scene.get("dsl", ""))
-	_assert("step 3b direct db_create DSL can be read back", direct_verify_dsl.contains("db_create 直接写入 DSL 的探针"), str(direct_verify_result))
-
-	var save_result: Dictionary = await _call_tool(agent_service, "project_save", {})
-	_assert("step 4 save project via agent tool", bool(save_result.get("success", false)), str(save_result))
+	_assert("step 3c direct upsert_scene DSL can be read back", direct_verify_dsl.contains("upsert_scene 直接写入 DSL 的探针"), str(direct_verify_result))
 
 	_print_summary()
 
@@ -145,6 +177,15 @@ func _first_scene_payload(result: Dictionary) -> Dictionary:
 	var first: Variant = scenes[0]
 	if first is Dictionary:
 		return first
+	return {}
+
+
+func _scene_payload_by_id(result: Dictionary, scene_id: String) -> Dictionary:
+	var data: Dictionary = result.get("data", {})
+	var scenes: Array = data.get("scenes", [])
+	for scene in scenes:
+		if scene is Dictionary and str(scene.get("scene_id", "")) == scene_id:
+			return scene
 	return {}
 
 

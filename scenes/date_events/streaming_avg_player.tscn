@@ -1,0 +1,261 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/date_events/streaming_avg_player.gd" id="1_stream"]
+[ext_resource type="Theme" uid="uid://c7c4qoevl14xp" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/avg_runtime/character_display.tscn" id="3_char"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stream_frame"]
+bg_color = Color(0.94, 0.92, 0.96, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.29, 0.19, 0.72, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chat_panel"]
+content_margin_left = 18.0
+content_margin_top = 16.0
+content_margin_right = 18.0
+content_margin_bottom = 16.0
+bg_color = Color(0.952, 0.932, 0.972, 1)
+border_width_left = 2
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.29, 0.19, 0.72, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_subtitle"]
+content_margin_left = 18.0
+content_margin_top = 10.0
+content_margin_right = 18.0
+content_margin_bottom = 10.0
+bg_color = Color(0.22, 0.16, 0.72, 0.72)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_skip"]
+content_margin_left = 14.0
+content_margin_top = 4.0
+content_margin_right = 14.0
+content_margin_bottom = 4.0
+bg_color = Color(0.91, 0.82, 0.97, 0.96)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.46, 0.28, 0.86, 1)
+
+[sub_resource type="StyleBoxLine" id="StyleBoxLine_chat_sep"]
+color = Color(0.6, 0.5, 0.85, 1)
+thickness = 1
+
+[node name="StreamingAVGPlayer" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_stream")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.945, 0.935, 0.960, 1)
+
+[node name="MainMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="StreamLayout" type="HBoxContainer" parent="MainMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LeftColumn" type="VBoxContainer" parent="MainMargin/StreamLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 2.2
+theme_override_constants/separation = 8
+
+[node name="TopBar" type="HBoxContainer" parent="MainMargin/StreamLayout/LeftColumn"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="LiveMark" type="Label" parent="MainMargin/StreamLayout/LeftColumn/TopBar"]
+layout_mode = 2
+text = "▶ live"
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.88, 0.22, 0.34, 1)
+
+[node name="AspectRoot" type="Control" parent="MainMargin/StreamLayout/LeftColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 300)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="VideoFrame" type="Control" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot"]
+unique_name_in_owner = true
+layout_mode = 0
+
+[node name="FramePanel" type="Panel" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stream_frame")
+
+[node name="StageClip" type="Control" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame"]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 2.0
+offset_top = 2.0
+offset_right = -2.0
+offset_bottom = -2.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StageDesign" type="Control" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame/StageClip"]
+unique_name_in_owner = true
+layout_mode = 0
+offset_right = 1024.0
+offset_bottom = 768.0
+
+[node name="FallbackBackground" type="ColorRect" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame/StageClip/StageDesign"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.94, 0.81, 0.94, 1)
+
+[node name="BackgroundTexture" type="TextureRect" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame/StageClip/StageDesign"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+expand_mode = 1
+stretch_mode = 6
+
+[node name="CharacterDisplay" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame/StageClip/StageDesign" instance=ExtResource("3_char")]
+unique_name_in_owner = true
+
+[node name="SubtitlePanel" type="PanelContainer" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame/StageClip/StageDesign"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 0
+offset_left = 152.0
+offset_top = 575.0
+offset_right = 872.0
+offset_bottom = 691.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_subtitle")
+
+[node name="SubtitleLabel" type="Label" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame/StageClip/StageDesign/SubtitlePanel"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+theme_override_font_sizes/font_size = 30
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+
+[node name="SkipButton" type="Button" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -104.0
+offset_top = 14.0
+offset_right = -16.0
+offset_bottom = 46.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_skip")
+theme_override_styles/hover = SubResource("StyleBoxFlat_skip")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_skip")
+text = "SKIP"
+
+[node name="VideoInfo" type="VBoxContainer" parent="MainMargin/StreamLayout/LeftColumn"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="StreamTitleLabel" type="Label" parent="MainMargin/StreamLayout/LeftColumn/VideoInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "直播"
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.25, 0.18, 0.58, 1)
+
+[node name="StreamStatsLabel" type="Label" parent="MainMargin/StreamLayout/LeftColumn/VideoInfo"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+text = ""
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.44, 0.4, 0.56, 1)
+
+[node name="ChatPanel" type="PanelContainer" parent="MainMargin/StreamLayout"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 1.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_chat_panel")
+
+[node name="ChatVBox" type="VBoxContainer" parent="MainMargin/StreamLayout/ChatPanel"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ChatHeader" type="Label" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox"]
+layout_mode = 2
+text = "正在选择留言"
+theme_override_font_sizes/font_size = 15
+theme_override_colors/font_color = Color(0.28, 0.18, 0.62, 1)
+
+[node name="ChatSep" type="HSeparator" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox"]
+layout_mode = 2
+theme_override_styles/separator = SubResource("StyleBoxLine_chat_sep")
+
+[node name="ChatScroll" type="ScrollContainer" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="ChatList" type="VBoxContainer" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox/ChatScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="ChatFooter" type="Label" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox"]
+layout_mode = 2
+text = "待读留言 ▶"
+horizontal_alignment = 2
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.5, 0.45, 0.70, 0.8)

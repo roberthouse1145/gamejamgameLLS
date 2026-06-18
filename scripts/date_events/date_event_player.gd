@@ -1,26 +1,17 @@
 class_name DateEventPlayer extends Control
 ## AVG 剧情播放器 APP
-## 包含三个页面：首页 (Home) / 播放记录 (History) / 播放 (Playback)
-## 外部通过 play_scene_package / play_event 触发播放，播放结束后回到首页
+## 包含首页、播放记录、普通 AVG 播放、streaming AVG 播放
+## 外部通过 play_scene_package / play_event / play_stream_package 触发播放，播放结束后回到首页
 
 signal playback_finished(session_id: String, outcome: Dictionary)
 ## 剧情开始播放时发出（用于通知 music_player 之类的 App 进入互斥状态）
-## 注意：只在真正进入 PLAYBACK 页并成功启动 scene_runner 时发出
+## 注意：只在真正进入播放页并成功启动对应播放器时发出
 signal playback_started(session_id: String)
 
-enum Page { HOME, HISTORY, PLAYBACK }
+enum Page { HOME, HISTORY, PLAYBACK, STREAMING }
 
 const CHOICE_VAR_ID: String = "var_001"
 const DESIGN_RESOLUTION: Vector2 = Vector2(2560, 1440)
-
-## 截图相关常量
-const THUMBNAIL_DIR: String = "user://avg_thumbnails"
-const THUMBNAIL_SIZE: Vector2i = Vector2i(640, 360)
-const MAX_ROLLING_CAPTURES: int = 3
-const CAPTURE_WORTHY_COMMANDS: Array[String] = [
-	"CHANGE_BACKGROUND", "DIALOGUE", "SHOW_CHARACTER", "CHOICE",
-]
-const CAPTURE_DELAY: float = 0.3
 
 ## 历史记录
 const MAX_HISTORY_ENTRIES: int = 50
@@ -30,7 +21,6 @@ const MAX_HISTORY_ENTRIES: int = 50
 @onready var title_label: Label = %TitleLabel
 @onready var content_container: Control = %ContentContainer
 @onready var preview_container: SubViewportContainer = %PreviewContainer
-@onready var preview_viewport: SubViewport = %PreviewViewport
 
 # -- 页面节点 --
 @onready var top_bar: PanelContainer = %TopBar
@@ -38,8 +28,10 @@ const MAX_HISTORY_ENTRIES: int = 50
 @onready var home_page: ScrollContainer = %HomePage
 @onready var history_page: ScrollContainer = %HistoryPage
 @onready var playback_page: Control = %PlaybackPage
+@onready var streaming_page: Control = %StreamingPage
 @onready var home_content: VBoxContainer = %HomeContent
 @onready var history_list: VBoxContainer = %HistoryList
+@onready var streaming_player: Control = %StreamingAVGPlayer
 
 # -- 导航按钮 --
 @onready var nav_home_btn: Button = %NavHomeBtn
@@ -53,12 +45,6 @@ var _finished: bool = false
 var _current_page: Page = Page.HOME
 var _record_history_on_finish: bool = true
 
-## 截图功能开关
-var _capture_enabled: bool = false
-var _rolling_captures: Array[Image] = []
-var _first_capture: Image = null
-var _capture_timer: Timer = null
-
 ## 历史数据缓存
 var _history_entries: Array = []
 ## Whether we paused the global AudioManager BGM during playback
@@ -70,6 +56,8 @@ var _is_playing_scene: bool = false
 func _ready() -> void:
 	if scene_runner != null:
 		scene_runner.scene_ended.connect(_on_scene_ended)
+	if streaming_player != null and streaming_player.has_signal("stream_finished"):
+		streaming_player.stream_finished.connect(_on_stream_finished)
 	if content_container != null:
 		content_container.resized.connect(_on_content_resized)
 	if preview_container != null:
@@ -102,10 +90,12 @@ func navigate_to(page: Page) -> void:
 		history_page.visible = (page == Page.HISTORY)
 	if playback_page != null:
 		playback_page.visible = (page == Page.PLAYBACK)
+	if streaming_page != null:
+		streaming_page.visible = (page == Page.STREAMING)
 
 	# 顶部导航在播放时隐藏
 	if top_bar != null:
-		top_bar.visible = (page != Page.PLAYBACK)
+		top_bar.visible = (page != Page.PLAYBACK and page != Page.STREAMING)
 
 	# 按钮高亮
 	_update_nav_highlight()
@@ -195,26 +185,7 @@ func _create_hero_banner(entry: Dictionary) -> PanelContainer:
 	hbox.add_theme_constant_override("separation", 20)
 	margin.add_child(hbox)
 
-	# 封面图
-	var cover_rect := TextureRect.new()
-	cover_rect.custom_minimum_size = Vector2(320, 180)
-	cover_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	cover_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	var cover_path: String = str(entry.get("cover_path", ""))
-	if cover_path != "" and FileAccess.file_exists(cover_path):
-		var img := Image.load_from_file(cover_path)
-		if img != null:
-			cover_rect.texture = ImageTexture.create_from_image(img)
-	if cover_rect.texture == null:
-		# 无封面时显示占位色块
-		var placeholder := ColorRect.new()
-		placeholder.color = Color(0.9, 0.92, 0.95, 1)
-		placeholder.custom_minimum_size = Vector2(320, 180)
-		hbox.add_child(placeholder)
-	else:
-		hbox.add_child(cover_rect)
-
-	# 右侧信息
+	# 剧情信息
 	var info_vbox := VBoxContainer.new()
 	info_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	info_vbox.add_theme_constant_override("separation", 10)
@@ -338,24 +309,6 @@ func _create_history_card(entry: Dictionary) -> PanelContainer:
 	hbox.add_theme_constant_override("separation", 16)
 	panel.add_child(hbox)
 
-	# 缩略图
-	var thumb_rect := TextureRect.new()
-	thumb_rect.custom_minimum_size = Vector2(160, 90)
-	thumb_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-	thumb_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	var cover_path: String = str(entry.get("cover_path", ""))
-	if cover_path != "" and FileAccess.file_exists(cover_path):
-		var img := Image.load_from_file(cover_path)
-		if img != null:
-			thumb_rect.texture = ImageTexture.create_from_image(img)
-	if thumb_rect.texture == null:
-		var placeholder := ColorRect.new()
-		placeholder.color = Color(0.92, 0.94, 0.96, 1)
-		placeholder.custom_minimum_size = Vector2(160, 90)
-		hbox.add_child(placeholder)
-	else:
-		hbox.add_child(thumb_rect)
-
 	# 信息
 	var info := VBoxContainer.new()
 	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -382,34 +335,6 @@ func _create_history_card(entry: Dictionary) -> PanelContainer:
 	card_time.add_theme_font_size_override("font_size", 12)
 	card_time.add_theme_color_override("font_color", Color(0.6, 0.65, 0.7, 1))
 	info.add_child(card_time)
-
-	# 添加一个轻量级操作区
-	var action_vbox := VBoxContainer.new()
-	action_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	hbox.add_child(action_vbox)
-
-	var btn := Button.new()
-	var can_replay: bool = bool(entry.get("has_replay", false))
-	btn.text = "重播" if can_replay else "无法重播"
-	btn.disabled = not can_replay
-	btn.add_theme_font_size_override("font_size", 13)
-	var btn_style := StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.9, 0.94, 0.98, 1)
-	btn_style.corner_radius_top_left = 6
-	btn_style.corner_radius_top_right = 6
-	btn_style.corner_radius_bottom_left = 6
-	btn_style.corner_radius_bottom_right = 6
-	btn_style.content_margin_left = 12
-	btn_style.content_margin_right = 12
-	btn_style.content_margin_top = 6
-	btn_style.content_margin_bottom = 6
-	btn.add_theme_stylebox_override("normal", btn_style)
-	btn.add_theme_color_override("font_color", Color(0, 0.631373, 0.839216, 1))
-
-	btn.pressed.connect(func() -> void:
-		_replay_history_entry(entry)
-	)
-	action_vbox.add_child(btn)
 
 	return panel
 
@@ -465,6 +390,7 @@ func _format_timestamp(unix_time: int) -> String:
 # =============================================================================
 
 func play_event(session_id: String, event_request: Dictionary, record_history: bool = true) -> void:
+	_stop_streaming_player()
 	_session_id = session_id
 	_event_request = event_request.duplicate(true)
 	_scene_package.clear()
@@ -492,6 +418,7 @@ func play_event(session_id: String, event_request: Dictionary, record_history: b
 
 
 func play_scene_package(session_id: String, scene_package: Dictionary, record_history: bool = true) -> void:
+	_stop_streaming_player()
 	_session_id = session_id
 	_event_request.clear()
 	_scene_package = scene_package.duplicate(true)
@@ -517,6 +444,32 @@ func play_scene_package(session_id: String, scene_package: Dictionary, record_hi
 	_pause_global_bgm()
 	_is_playing_scene = true
 	playback_started.emit(_session_id)
+
+
+func play_stream_package(session_id: String, stream_package: Dictionary, record_history: bool = true) -> void:
+	_session_id = session_id
+	_event_request.clear()
+	_scene_package = stream_package.duplicate(true)
+	_finished = false
+	_record_history_on_finish = record_history
+	print("[DateEventPlayer] Playing stream_package (session=%s)" % session_id)
+	if title_label != null:
+		title_label.text = str(_scene_package.get("title", "直播"))
+
+	navigate_to(Page.STREAMING)
+
+	if streaming_player == null or not streaming_player.has_method("play"):
+		_emit_outcome({"success": false, "error": "invalid_stream_player"})
+		return
+
+	if scene_runner != null and scene_runner.has_method("stop"):
+		scene_runner.stop()
+	set_process(false)
+	_pause_global_bgm()
+	_is_playing_scene = true
+	streaming_player.call("play", session_id, _scene_package)
+	if not _finished:
+		playback_started.emit(_session_id)
 
 
 func _on_scene_ended(_scene_id: String) -> void:
@@ -558,6 +511,12 @@ func _on_scene_ended(_scene_id: String) -> void:
 	})
 
 
+func _on_stream_finished(_finished_session_id: String, outcome: Dictionary) -> void:
+	if _finished:
+		return
+	_emit_outcome(outcome)
+
+
 func _emit_outcome(outcome: Dictionary) -> void:
 	if _finished:
 		return
@@ -566,13 +525,11 @@ func _emit_outcome(outcome: Dictionary) -> void:
 	set_process(false)
 	_resume_global_bgm()
 
-	# 保存历史记录（仅首次播放，即截图开启时）
-	if _capture_enabled and _record_history_on_finish:
-		var cover_path: String = save_cover_to_disk(_session_id)
+	if _record_history_on_finish:
 		var title: String = ""
 		if title_label != null:
 			title = title_label.text.strip_edges()
-		_add_history_entry(_session_id, title, cover_path, str(outcome.get("summary", outcome.get("choice_text", ""))))
+		_add_history_entry(_session_id, title, "", str(outcome.get("summary", outcome.get("choice_text", ""))))
 
 	# 标题标记结束
 	if title_label != null:
@@ -588,6 +545,11 @@ func _emit_outcome(outcome: Dictionary) -> void:
 		if is_instance_valid(self):
 			navigate_to(Page.HOME)
 	)
+
+
+func _stop_streaming_player() -> void:
+	if streaming_player != null and streaming_player.has_method("stop"):
+		streaming_player.call("stop")
 
 
 func _process(_delta: float) -> void:
@@ -623,102 +585,33 @@ func _on_content_resized() -> void:
 	preview_container.position = (available_size - new_size) / 2.0
 
 
-# =============================================================================
-# 截图功能
-# =============================================================================
-
 func enable_thumbnail_capture() -> void:
-	_capture_enabled = true
-	_rolling_captures.clear()
-	_first_capture = null
-	if scene_runner != null and not scene_runner.command_executed.is_connected(_on_command_executed_for_capture):
-		scene_runner.command_executed.connect(_on_command_executed_for_capture)
+	pass
 
 
 func get_cover_image() -> Image:
-	if _rolling_captures.size() > 0:
-		return _rolling_captures[_rolling_captures.size() - 1]
-	return _first_capture
+	return null
 
 
 func get_first_capture() -> Image:
-	return _first_capture
+	return null
 
 
-func _on_command_executed_for_capture(command_type: String, _command_index: int) -> void:
-	if not _capture_enabled or _finished:
-		return
-	if command_type not in CAPTURE_WORTHY_COMMANDS:
-		return
-	_schedule_capture()
-
-
-func _schedule_capture() -> void:
-	if _capture_timer != null and is_instance_valid(_capture_timer):
-		_capture_timer.stop()
-		_capture_timer.queue_free()
-	_capture_timer = Timer.new()
-	_capture_timer.wait_time = CAPTURE_DELAY
-	_capture_timer.one_shot = true
-	_capture_timer.timeout.connect(_do_capture)
-	add_child(_capture_timer)
-	_capture_timer.start()
-
-
-func _do_capture() -> void:
-	if _capture_timer != null and is_instance_valid(_capture_timer):
-		_capture_timer.queue_free()
-		_capture_timer = null
-
-	if preview_viewport == null or not is_instance_valid(preview_viewport):
-		return
-
-	var image: Image = preview_viewport.get_texture().get_image()
-	if image == null:
-		return
-
-	image.resize(THUMBNAIL_SIZE.x, THUMBNAIL_SIZE.y, Image.INTERPOLATE_LANCZOS)
-
-	if _first_capture == null:
-		_first_capture = image
-
-	_rolling_captures.append(image)
-	if _rolling_captures.size() > MAX_ROLLING_CAPTURES:
-		_rolling_captures.remove_at(0)
-
-
-func save_cover_to_disk(session_id: String) -> String:
-	var cover: Image = get_cover_image()
-	if cover == null:
-		return ""
-
-	if not DirAccess.dir_exists_absolute(THUMBNAIL_DIR):
-		DirAccess.make_dir_recursive_absolute(THUMBNAIL_DIR)
-
-	var file_path: String = "%s/%s_cover.png" % [THUMBNAIL_DIR, session_id]
-	var err: int = cover.save_png(file_path)
-	if err != OK:
-		push_warning("DateEventPlayer: Failed to save cover image to %s (error %d)" % [file_path, err])
-		return ""
-	return file_path
+func save_cover_to_disk(_unused_session_id: String) -> String:
+	return ""
 
 
 # =============================================================================
 # 历史记录持久化
 # =============================================================================
 
-func _add_history_entry(session_id: String, title: String, cover_path: String, outcome_summary: String) -> void:
+func _add_history_entry(session_id: String, title: String, _cover_path: String, outcome_summary: String) -> void:
 	var entry := {
 		"session_id": session_id,
 		"title": title,
 		"timestamp": int(Time.get_unix_time_from_system()),
-		"cover_path": cover_path,
 		"outcome_summary": outcome_summary,
 	}
-	var replay_info := _register_current_replay_payload(session_id)
-	if not replay_info.is_empty():
-		entry["has_replay"] = true
-		entry["replay_type"] = str(replay_info.get("type", ""))
 	# 新条目放在最前面
 	_history_entries.insert(0, entry)
 	if _history_entries.size() > MAX_HISTORY_ENTRIES:
@@ -727,54 +620,6 @@ func _add_history_entry(session_id: String, title: String, cover_path: String, o
 	var dm := _get_date_manager()
 	if dm != null:
 		dm.add_avg_history_entry(entry)
-
-
-func _register_current_replay_payload(session_id: String) -> Dictionary:
-	var replay_type: String = ""
-	var replay_payload: Dictionary = {}
-	if not _event_request.is_empty():
-		replay_type = "event_request"
-		replay_payload = _event_request.duplicate(true)
-	elif not _scene_package.is_empty():
-		replay_type = "scene_package"
-		replay_payload = _scene_package.duplicate(true)
-	if replay_payload.is_empty():
-		return {}
-
-	var dm := _get_date_manager()
-	if dm != null and dm.has_method("register_avg_history_replay"):
-		dm.register_avg_history_replay(session_id, replay_type, replay_payload)
-	return {"type": replay_type}
-
-
-func _replay_history_entry(entry: Dictionary) -> void:
-	var session_id := str(entry.get("session_id", "")).strip_edges()
-	if session_id.is_empty():
-		return
-
-	var replay := _get_history_replay(session_id)
-	if replay.is_empty():
-		return
-	var replay_type := str(replay.get("type", "")).strip_edges()
-	var payload_value: Variant = replay.get("payload", {})
-	if not payload_value is Dictionary:
-		return
-	var payload: Dictionary = payload_value
-	if payload.is_empty():
-		return
-
-	match replay_type:
-		"event_request":
-			play_event(session_id, payload, false)
-		"scene_package":
-			play_scene_package(session_id, payload, false)
-
-
-func _get_history_replay(session_id: String) -> Dictionary:
-	var dm := _get_date_manager()
-	if dm != null and dm.has_method("get_avg_history_replay"):
-		return dm.get_avg_history_replay(session_id)
-	return {}
 
 
 func _get_date_manager() -> Node:

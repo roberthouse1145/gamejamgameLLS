@@ -41,7 +41,7 @@ apps: linkchat, browser
 
 [set_activity_lock]
 mode: blacklist
-activities: browser_surf
+activities: browser_surf, community
 reason: 先把报名搞定再说
 
 wait: variable_equals
@@ -89,7 +89,7 @@ apps: linkchat, browser
 
 [set_activity_lock]
 mode: blacklist
-activities: browser_surf
+activities: browser_surf, community
 reason: 先看完主题公告再说
 
 [activate_topic]

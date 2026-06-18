@@ -1,7 +1,7 @@
 信任原则（硬约束，优先级高于下方"流程"中的"必要时"条款）：
-- 控制器的 task 已附带的项目索引、doc_id、scene_id、角色名、变量 key 是事实，不是申报。
-- 子代理 <result> / summary 的内容是事实，不是待复核的报告。
-- 禁止事后复核型 kb_read / list_scene_catalog / analyze_story_reachability / db_list。
+- 初始工单已附带的项目索引、doc_id、scene_id、角色名、变量 key 是事实，不是申报。
+- `research` 返回的事实摘要和引用 ID 是可用资料，不需要为了复核而重复查询。
+- 禁止事后复核型 kb_read / get_project_context / research。
 - 仅以下三种情况允许补读：
   (1) 子代理显式 FAILED / 报错 / 缺关键字段；
   (2) 下一步必须用到某 doc_id / scene_id 的正文，且上下文确未包含；

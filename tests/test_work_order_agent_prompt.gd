@@ -27,9 +27,11 @@ func _test_agent_prompt_and_budget() -> void:
 	var prompt_text: String = PromptManager.resolve("work_order_agent")
 	var required_phrases: Array[String] = [
 		"直接完成工单",
+		"get_project_context",
+		"upsert_scene",
 		"research(task)",
 		"wo_finish_order",
-		"不要用 `finish` 结束工单",
+		"不要调用 `finish` 或 `project_save`",
 	]
 	var missing: Array[String] = []
 	for phrase in required_phrases:

@@ -21,6 +21,9 @@ func _run_test() -> void:
 
 	_prepare_test_state(manager, wom)
 	await get_tree().process_frame
+	if not _run_parse_tests(manager):
+		_cleanup_test_state(manager, wom)
+		return
 
 	var order: Resource = wom.create_order("加入标题界面", "让玩家能从标题界面开始试玩 Demo。")
 	order.metadata = {
@@ -83,6 +86,61 @@ func _run_test() -> void:
 	print("[OK] Bithub App scene instantiates and renders initial UI")
 
 	_cleanup_test_state(manager, wom)
+
+
+func _run_parse_tests(manager: Node) -> bool:
+	var draft: Dictionary = {
+		"title": "原始工单",
+		"message": "原始说明",
+	}
+	if not _assert_commit_parse(manager, "standard DSL",
+		"title: 推进标题界面\nmessage: 玩家能开始试玩。",
+		draft, "推进标题界面", "玩家能开始试玩。"):
+		return false
+	if not _assert_commit_parse(manager, "full-width colon",
+		"title：完成入口\nmessage：标题界面已经接入。",
+		draft, "完成入口", "标题界面已经接入。"):
+		return false
+	if not _assert_commit_parse(manager, "multiline message",
+		"title: 扩展剧情\nmessage:\n第一句。\n第二句。",
+		draft, "扩展剧情", "第一句。\n第二句。"):
+		return false
+	if not _assert_commit_parse(manager, "fenced DSL",
+		"```dsl\ntitle: 记录里程碑\nmessage: 已生成可玩版本。\n```",
+		draft, "记录里程碑", "已生成可玩版本。"):
+		return false
+	if not _assert_commit_parse(manager, "plain quotes",
+		"title: 修复\"标题\"按钮\nmessage: 玩家点击\"开始\"后进入 Demo。",
+		draft, "修复\"标题\"按钮", "玩家点击\"开始\"后进入 Demo。"):
+		return false
+	if not _assert_commit_parse(manager, "fallback for non DSL",
+		"好的，下面是提交信息：\n完成标题界面",
+		draft, "原始工单", "原始说明"):
+		return false
+	return true
+
+
+func _assert_commit_parse(
+	manager: Node,
+	case_name: String,
+	raw_text: String,
+	draft: Dictionary,
+	expected_title: String,
+	expected_message: String
+) -> bool:
+	var parsed: Dictionary = manager.call("_parse_commit_message", raw_text, draft)
+	var actual_title: String = str(parsed.get("title", ""))
+	var actual_message: String = str(parsed.get("message", ""))
+	if actual_title != expected_title or actual_message != expected_message:
+		print("[FAIL] Bithub commit DSL parse %s expected title=%s message=%s, got %s" % [
+			case_name,
+			expected_title,
+			expected_message,
+			str(parsed),
+		])
+		return false
+	print("[OK] Bithub commit DSL parse %s" % case_name)
+	return true
 
 
 func _prepare_test_state(manager: Node, wom: Node) -> void:

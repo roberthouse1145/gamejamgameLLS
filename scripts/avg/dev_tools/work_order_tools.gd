@@ -3,6 +3,8 @@ class_name AVGDevWorkOrderTools extends RefCounted
 ## 提供 wo_get_order_details / wo_complete_task / wo_finish_order
 ## 让 AI 代理能够自主获取、执行并完成当前项目中的工单任务。
 
+const ProjectToolsClass = preload("res://scripts/avg/dev_tools/project_tools.gd")
+
 
 # =============================================================================
 # 工具注册
@@ -47,6 +49,20 @@ static func register_controller_tools(ai_service: Node) -> void:
 	}, func(args: Dictionary) -> Variant: return _wo_finish_order(args), {
 		"fields": ["success", "message", "error"]
 	})
+
+
+## WorkOrderAgent 正式路径：只暴露完成工具；完成前自动保存项目和 KB。
+static func register_finish_tool(ai_service: Node) -> void:
+	ai_service.register_tool("wo_finish_order", "保存项目并将整个工单标记为完成。summary 可选，只用于 UI 日志，不是验收证据。", {
+		"type": "object",
+		"properties": {
+			"order_id": {"type": "string", "description": "工单 ID"},
+			"summary": {"type": "string", "description": "可选。简短说明本次完成了什么。"}
+		},
+		"required": ["order_id"]
+	}, func(args: Dictionary) -> Variant: return _wo_finish_order(args), {
+		"fields": ["success", "message", "error"]
+	}, {"effect": "terminal"})
 
 
 ## 全量注册（向后兼容，保留 wo_complete_task）
@@ -177,8 +193,15 @@ static func _wo_finish_order(args: Dictionary) -> Dictionary:
 		return {"success": false, "error": "WorkOrderManager 未就绪"}
 		
 	var order_id: String = args.get("order_id", "")
+	var save_result: Dictionary = ProjectToolsClass._project_save({})
+	if not bool(save_result.get("success", false)):
+		return {"success": false, "error": "完成工单前保存失败: %s" % str(save_result.get("error", ""))}
 	
 	if mgr.has_method("finish_order") and mgr.finish_order(order_id):
-		return {"success": true, "message": "工单 %s 设置为完成" % order_id}
+		var summary: String = str(args.get("summary", "")).strip_edges()
+		var message: String = "工单 %s 已保存并设置为完成" % order_id
+		if not summary.is_empty():
+			message += "：%s" % summary
+		return {"success": true, "message": message}
 	else:
 		return {"success": false, "error": "完成工单失败，工单不存在: %s" % order_id}

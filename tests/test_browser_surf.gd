@@ -2,11 +2,9 @@ extends Control
 ## 摸鱼冲浪 Surf Action 集成测试场景
 ##
 ## 启动后自动打开 Browser APP，由用户手动验证：
-##   1. 主页应是 PixelNet 起始页（品牌区 + 搜索框 + 快捷入口）
-##   2. 输入任意关键词 → 点 [开始冲浪] → 搜索区进入等待/禁用状态，看 console 出现
-##        [surf] STARTED → [surf] COMPLETED；AP 应减 1
-##   3. LinChat 林夏 DM 应收到一张 web_page 卡片 + 一条短消息
-##   4. 同关键词再点一次 → 秒开（缓存命中）→ AP 不变 → 林夏 DM 不增加新卡片
+##   1. 主页应是 Browser 起始页（品牌区 + 快捷入口），不显示搜索框
+##   2. 旧 surf 页面动作若被触发，应快速进入关闭提示
+##   3. AP 不应因 Browser surf 扣除，林夏 DM 不应新增冲浪卡片
 
 var _wm: WindowManager = null
 
@@ -59,12 +57,9 @@ func _ready() -> void:
 		return
 
 	print("[✓] Browser 已启动，请手动测试：")
-	print("  1. 主页应显示 PixelNet 品牌区、搜索框和快捷入口")
-	print("  2. 输入任意关键词（如『红烧肉』）→ 点击 [开始冲浪]")
-	print("  3. 等待期间应出现动画 loading，搜索入口不可重复提交")
-	print("  4. 观察 console: surf_started → surf_completed，AP 应减 1")
-	print("  5. LinChat 林夏 DM 应收到一张 web_page 卡片 + 一句短消息")
-	print("  6. 同关键词再点一次 → 应秒开（缓存命中）→ AP 不变")
+	print("  1. 主页应显示 Browser 品牌区和快捷入口，不显示搜索框")
+	print("  2. 旧 surf 页面动作若被触发，应输出 surf_failed")
+	print("  3. AP 不应扣除，LinChat 林夏 DM 不应新增冲浪卡片")
 
 
 func _on_surf_started(request_id: String, keyword: String) -> void:

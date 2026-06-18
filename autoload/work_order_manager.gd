@@ -472,6 +472,25 @@ func _mark_order_completed(order_id: String) -> bool:
 	return true
 
 
+func _mark_order_failed(order_id: String, error: String) -> bool:
+	var order = _orders.get(order_id)
+	if not order:
+		return false
+
+	var old_status: String = str(order.status)
+	order.surface_status = "failed"
+	order.status = "failed"
+	order.inner_status = "failed"
+	order.updated_at = int(Time.get_unix_time_from_system())
+	if "metadata" in order:
+		order.metadata["last_error"] = error
+	print("[WorkOrderManager] 工单执行失败: %s  %s" % [order_id, error])
+	order_status_changed.emit(order_id, old_status, "failed")
+	order_updated.emit(order_id)
+	_save_orders_to_project()
+	return true
+
+
 ## 存档恢复：重启被中断的后台 LLM 生成
 func resume_pending_generations() -> void:
 	if not _worker_agents.is_empty():
@@ -504,6 +523,28 @@ func resume_order_generation(order_id: String) -> bool:
 	_spawn_worker_agent_for_order(order_id, order.assignee_npc_id, order.title)
 	_save_orders_to_project()
 	return true
+
+
+func is_order_running(order_id: String) -> bool:
+	return _worker_agents.has(order_id)
+
+
+func get_order_queue_position(order_id: String) -> int:
+	var candidate_ids: Array = _get_generation_candidate_order_ids()
+	for i in range(candidate_ids.size()):
+		if str(candidate_ids[i]) == order_id:
+			return i + 1
+	return 0
+
+
+func _get_generating_order_ids(except_order_id: String = "") -> Array[String]:
+	var result: Array[String] = []
+	for order_id in _worker_agents.keys():
+		var id: String = str(order_id)
+		if not except_order_id.is_empty() and id == except_order_id:
+			continue
+		result.append(id)
+	return result
 
 
 func run_worker_watchdog_once() -> void:
@@ -582,9 +623,8 @@ func _build_worker_agent_for_order(order_id: String) -> ChatAgent:
 
 	worker.message_failed.connect(func(_req_id: String, error: String):
 		push_warning("[WorkOrderManager] Worker %s failed: %s" % [order_id, error])
+		_mark_order_failed(order_id, error)
 		_cleanup_worker(order_id)
-		if _worker_auto_run:
-			call_deferred("resume_pending_generations")
 	)
 
 	return worker

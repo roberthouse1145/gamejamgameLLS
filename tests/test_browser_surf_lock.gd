@@ -16,6 +16,8 @@ func _ready() -> void:
 
 	ActivityLockUtilsClass.clear_narrative_lock()
 	_test_browser_surf_lock_alias(bm)
+	await _test_browser_surf_fast_disabled(bm)
+	await _test_unknown_page_fast_disabled(bm)
 	ActivityLockUtilsClass.clear_narrative_lock()
 	_print_summary()
 
@@ -47,6 +49,52 @@ func _test_browser_surf_lock_alias(bm: Node) -> void:
 		ActivityLockUtilsClass.get_narrative_blocking_reason_for_any(["browser_surf"]).is_empty(),
 		"clear_narrative_lock should remove browser_surf lock"
 	)
+
+
+func _test_browser_surf_fast_disabled(bm: Node) -> void:
+	var events: Array = []
+	var on_failed := func(failed_request_id: String, keyword: String, error: String) -> void:
+		events.append({
+			"request_id": failed_request_id,
+			"keyword": keyword,
+			"error": error,
+		})
+	bm.surf_failed.connect(on_failed)
+
+	var request_id := str(bm.call("surf", "红烧肉")).strip_edges()
+	await get_tree().process_frame
+	if bm.surf_failed.is_connected(on_failed):
+		bm.surf_failed.disconnect(on_failed)
+
+	_assert_true("surf disabled request id", not request_id.is_empty(), "disabled surf should still return a request id")
+	_assert_true("surf disabled emits failure", events.size() == 1, "disabled surf should emit one failure event")
+	if not events.is_empty():
+		var event: Dictionary = events[0]
+		_assert_true("surf disabled keyword", str(event.get("keyword", "")) == "红烧肉", "surf failure should keep keyword")
+		_assert_true("surf disabled message", str(event.get("error", "")).find("暂时关闭") >= 0, "surf failure should explain feature is disabled")
+
+
+func _test_unknown_page_fast_disabled(bm: Node) -> void:
+	var events: Array = []
+	var on_failed := func(failed_request_id: String, url: String, error: String) -> void:
+		events.append({
+			"request_id": failed_request_id,
+			"url": url,
+			"error": error,
+		})
+	bm.page_failed.connect(on_failed)
+
+	var request_id := str(bm.call("open_page", "framestory://unknown-disabled-test")).strip_edges()
+	await get_tree().process_frame
+	if bm.page_failed.is_connected(on_failed):
+		bm.page_failed.disconnect(on_failed)
+
+	_assert_true("unknown page request id", not request_id.is_empty(), "disabled page generation should still return a local request id")
+	_assert_true("unknown page emits failure", events.size() == 1, "unknown page should emit one failure event")
+	if not events.is_empty():
+		var event: Dictionary = events[0]
+		_assert_true("unknown page url", str(event.get("url", "")) == "framestory://unknown-disabled-test", "page failure should keep url")
+		_assert_true("unknown page disabled message", str(event.get("error", "")).find("网页生成暂时关闭") >= 0, "page failure should explain dynamic generation is disabled")
 
 
 func _assert_true(label: String, condition: bool, message: String = "") -> void:

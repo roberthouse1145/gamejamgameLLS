@@ -259,7 +259,7 @@ func _build_commit_draft(order_id: String, order: Resource) -> Dictionary:
 
 
 func _build_commit_system_prompt() -> String:
-	return "你是游戏内 Bithub 的提交信息生成器。请生成用于叙事渲染的 commit 文案，不要暴露真实后台实现、LLM、隐藏工单或内部黑箱。输出 JSON：{\"title\":\"一句简短提交标题\",\"message\":\"1-2 句面向玩家的项目进展说明\"}。"
+	return "你是游戏内 Bithub 的提交信息生成器。请生成用于叙事渲染的 commit 文案，不要暴露真实后台实现、LLM、隐藏工单或内部黑箱。只输出两行 DSL，不要 Markdown 代码块：\ntitle: 一句简短提交标题\nmessage: 1-2 句面向玩家的项目进展说明"
 
 
 func _build_commit_prompt(draft: Dictionary) -> String:
@@ -273,25 +273,77 @@ func _build_fallback_commit_text(draft: Dictionary) -> String:
 	var title: String = str(draft.get("title", "")).strip_edges()
 	if title.is_empty():
 		title = "完成一次开发提交"
-	return JSON.stringify({
-		"title": "完成：%s" % title,
-		"message": "后台开发完成了一项工作，项目状态已经推进到新的稳定点。",
-	})
+	return "title: 完成：%s\nmessage: 后台开发完成了一项工作，项目状态已经推进到新的稳定点。" % title
 
 
 func _parse_commit_message(raw_text: String, draft: Dictionary) -> Dictionary:
-	var text: String = raw_text.strip_edges()
-	var parsed: Variant = JSON.parse_string(text)
-	if parsed is Dictionary:
-		return parsed as Dictionary
+	var text: String = _strip_commit_dsl_fence(raw_text)
+	var title: String = ""
+	var message: String = ""
+	var collecting_message: bool = false
+	var message_lines: PackedStringArray = []
 
-	var title: String = text.get_slice("\n", 0).strip_edges()
-	var body: String = text
+	for raw_line in text.split("\n"):
+		var line: String = str(raw_line).strip_edges()
+		var title_field: Dictionary = _read_commit_dsl_field(line, "title")
+		if bool(title_field.get("matched", false)):
+			title = str(title_field.get("value", "")).strip_edges()
+			collecting_message = false
+			continue
+
+		var message_field: Dictionary = _read_commit_dsl_field(line, "message")
+		if bool(message_field.get("matched", false)):
+			message = str(message_field.get("value", "")).strip_edges()
+			collecting_message = message.is_empty()
+			message_lines.clear()
+			continue
+
+		if collecting_message:
+			message_lines.append(str(raw_line).strip_edges())
+
+	if message.is_empty() and not message_lines.is_empty():
+		message = "\n".join(message_lines).strip_edges()
 	if title.is_empty():
 		title = str(draft.get("title", "")).strip_edges()
+	if message.is_empty():
+		message = str(draft.get("message", "")).strip_edges()
 	return {
 		"title": title,
-		"message": body,
+		"message": message,
+	}
+
+
+func _strip_commit_dsl_fence(raw_text: String) -> String:
+	var text: String = raw_text.strip_edges()
+	if not text.begins_with("```"):
+		return text
+
+	var lines: PackedStringArray = text.split("\n")
+	var end_index: int = lines.size()
+	if end_index > 1 and str(lines[end_index - 1]).strip_edges() == "```":
+		end_index -= 1
+
+	var body_lines: PackedStringArray = []
+	for i in range(1, end_index):
+		body_lines.append(str(lines[i]))
+	return "\n".join(body_lines).strip_edges()
+
+
+func _read_commit_dsl_field(line: String, expected_key: String) -> Dictionary:
+	var text: String = line.strip_edges()
+	var colon_index: int = text.find(":")
+	var full_colon_index: int = text.find("：")
+	if full_colon_index >= 0 and (colon_index < 0 or full_colon_index < colon_index):
+		colon_index = full_colon_index
+	if colon_index < 0:
+		return {"matched": false, "value": ""}
+
+	var key: String = text.substr(0, colon_index).strip_edges().to_lower()
+	if key != expected_key:
+		return {"matched": false, "value": ""}
+	return {
+		"matched": true,
+		"value": text.substr(colon_index + 1).strip_edges(),
 	}
 
 

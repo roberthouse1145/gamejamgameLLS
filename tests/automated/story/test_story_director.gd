@@ -35,9 +35,40 @@ class MockStoryAVGGenerator extends Node:
 		})
 
 
+class MockStoryStreamGenerator extends Node:
+	signal stream_generated(session_id: String, package: Dictionary)
+
+	var last_session: Dictionary = {}
+	var request_count: int = 0
+
+	func is_available() -> bool:
+		return true
+
+	func generate_for_session(session_id: String, session: Dictionary) -> bool:
+		request_count += 1
+		last_session = session.duplicate(true)
+		call_deferred("_emit_generated", session_id, session)
+		return true
+
+	func _emit_generated(session_id: String, session: Dictionary) -> void:
+		stream_generated.emit(session_id, {
+			"session_id": session_id,
+			"title": str(session.get("scene_window_title", "测试直播")),
+			"stream_script": "@stream \"测试直播\" host=LinXia viewers=18\nchat \"mock stream\"\nend",
+			"events": [
+				{"type": "stream_meta", "meta": {"title": "测试直播", "host": "LinXia", "viewers": 18}},
+				{"type": "chat", "text": "mock stream", "delay": 0.0},
+				{"type": "end"},
+			],
+			"meta": {"title": "测试直播", "host": "LinXia", "viewers": 18},
+		})
+
+
 class MockSceneWindowAdapter extends RefCounted:
 	var opened_titles: Array[String] = []
 	var opened_packages: Array[Dictionary] = []
+	var opened_stream_titles: Array[String] = []
+	var opened_stream_packages: Array[Dictionary] = []
 	var minimize_calls: int = 0
 
 	func open(title: String, scene_package: Dictionary, playback_callback: Callable) -> Dictionary:
@@ -46,6 +77,15 @@ class MockSceneWindowAdapter extends RefCounted:
 		playback_callback.call_deferred(str(scene_package.get("session_id", "")), {
 			"success": true,
 			"summary": "mock finished",
+		})
+		return {"window": null}
+
+	func open_stream(title: String, stream_package: Dictionary, playback_callback: Callable) -> Dictionary:
+		opened_stream_titles.append(title)
+		opened_stream_packages.append(stream_package.duplicate(true))
+		playback_callback.call_deferred(str(stream_package.get("session_id", "")), {
+			"success": true,
+			"completed": true,
 		})
 		return {"window": null}
 
@@ -257,6 +297,62 @@ next_conditions:
 	print("  direct AVG transit started: %s (expect true)" % str(not story_avg_transit_ids.is_empty()))
 	print("  direct AVG activity_type: %s (expect story)" % str(mock_generator.last_session.get("activity_type", "")))
 	print("  direct AVG summary captured: %s (expect mock finished)" % str(sd.get_variable("direct_avg_summary", "")))
+
+	print("[INFO] Testing handwritten story streaming AVG playback...")
+	sd.reset_runtime_state()
+	var stream_window := MockSceneWindowAdapter.new()
+	sd._story_avg_scene_adapter = stream_window
+
+	var direct_stream_chapter := StoryChapterClass.new()
+	direct_stream_chapter.chapter_id = "test_direct_story_stream"
+	direct_stream_chapter.chapter_name = "直接剧情直播 AVG"
+
+	var direct_stream_step := StoryStepClass.new()
+	direct_stream_step.step_id = "test_direct_story_stream_01"
+	direct_stream_step.actions = [{
+		"type": "play_stream_avg",
+		"scene_id": "direct_story_stream",
+		"title": "测试直播",
+		"stream_script_path": "res://tests/fixtures/story_streaming_sample.stream",
+	}]
+	direct_stream_step.wait_for = {"type": "stream_avg_ended", "scene_id": "direct_story_stream"}
+	direct_stream_step.capture = {"direct_stream_completed": "outcome.completed"}
+	direct_stream_chapter.steps.append(direct_stream_step)
+	sd._chapters[direct_stream_chapter.chapter_id] = direct_stream_chapter
+	sd.start_chapter(direct_stream_chapter.chapter_id)
+	await _flush_frames(6)
+	print("  handwritten stream opened count: %s (expect 1)" % str(stream_window.opened_stream_packages.size()))
+	print("  handwritten stream completed captured: %s (expect true)" % str(bool(sd.get_variable("direct_stream_completed", false))))
+
+	print("[INFO] Testing generated story streaming AVG playback...")
+	sd.reset_runtime_state()
+	var stream_generator := MockStoryStreamGenerator.new()
+	var generated_stream_window := MockSceneWindowAdapter.new()
+	sd._story_stream_generator = stream_generator
+	sd._story_avg_scene_adapter = generated_stream_window
+
+	var generated_stream_chapter := StoryChapterClass.new()
+	generated_stream_chapter.chapter_id = "test_generated_story_stream"
+	generated_stream_chapter.chapter_name = "生成剧情直播 AVG"
+
+	var generated_stream_step := StoryStepClass.new()
+	generated_stream_step.step_id = "test_generated_story_stream_01"
+	generated_stream_step.actions = [{
+		"type": "play_stream_avg",
+		"scene_id": "generated_story_stream",
+		"title": "生成直播",
+		"prompt": "根据刚才的话题做一段自动直播叙事。",
+	}]
+	generated_stream_step.wait_for = {"type": "stream_avg_ended", "scene_id": "generated_story_stream"}
+	generated_stream_step.capture = {"generated_stream_completed": "outcome.completed"}
+	generated_stream_chapter.steps.append(generated_stream_step)
+	sd._chapters[generated_stream_chapter.chapter_id] = generated_stream_chapter
+	sd.start_chapter(generated_stream_chapter.chapter_id)
+	await _flush_frames(6)
+	print("  generated stream request count: %s (expect 1)" % str(stream_generator.request_count))
+	print("  generated stream activity_type: %s (expect story_stream)" % str(stream_generator.last_session.get("activity_type", "")))
+	print("  generated stream opened count: %s (expect 1)" % str(generated_stream_window.opened_stream_packages.size()))
+	print("  generated stream completed captured: %s (expect true)" % str(bool(sd.get_variable("generated_stream_completed", false))))
 
 	print("[INFO] Testing topic -> branch -> story AVG...")
 	sd.reset_runtime_state()

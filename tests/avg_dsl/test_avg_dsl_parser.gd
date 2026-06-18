@@ -25,12 +25,14 @@ func _ready() -> void:
 	_test_parser_accepts_trailing_inline_comment_on_command()
 	_test_parser_accepts_embedded_command_after_comment_prefix()
 	_test_parser_strips_misapplied_arrow_prefix_on_command()
+	_test_parser_reports_bare_text_warning()
 	_test_choice_inline_condition()
 	_test_choice_inline_compound_condition()
 	_test_serializer_compound_if()
 	_test_serializer_compound_choice()
 	_test_serializer_variable_to_variable_condition()
 	_test_serializer_dialogue_round_trip()
+	_test_serializer_multiline_dialogue_round_trip()
 	_test_serializer_choice_round_trip()
 	_test_serializer_stage_round_trip()
 	_test_serializer_variable_lookup()
@@ -189,6 +191,23 @@ func _test_parser_strips_misapplied_arrow_prefix_on_command() -> void:
 	var narration_cmd: AVGCommand = commands[5]
 	_assert_eq(narration_cmd.command_type, "DIALOGUE", "narration after legit TextBlock")
 	_assert_eq(str(narration_cmd.params.get("text", "")), "客厅的窗帘半拉着。", "narration text preserved")
+
+
+func _test_parser_reports_bare_text_warning() -> void:
+	var dsl: String = "这是一行裸文本"
+	var result: Dictionary = _parser.parse(dsl)
+	_assert_true(result.get("success", false), "bare text parses as narration")
+	var warnings: Array = result.get("warnings", [])
+	_assert_eq(warnings.size(), 1, "bare text warning count")
+	if warnings.is_empty():
+		return
+	_assert_true(str(warnings[0].get("message", "")).contains("auto-wrapped bare text"), "bare text warning message")
+	var commands: Array = result.get("commands", [])
+	_assert_eq(commands.size(), 1, "bare text command count")
+	if commands.is_empty():
+		return
+	var cmd: AVGCommand = commands[0]
+	_assert_eq(cmd.command_type, "DIALOGUE", "bare text fallback command type")
 
 
 func _test_if_condition_key_commands() -> void:
@@ -364,6 +383,32 @@ func _test_serializer_dialogue_round_trip() -> void:
 	_assert_eq(dialogue_cmd.params.get("speaker", ""), "LinXia", "serializer dialogue speaker")
 	_assert_eq(dialogue_cmd.params.get("emotion", ""), "happy", "serializer dialogue emotion")
 	_assert_eq(dialogue_cmd.params.get("text", ""), "你好", "serializer dialogue text")
+
+
+func _test_serializer_multiline_dialogue_round_trip() -> void:
+	var dsl: String = "# => TextBlock(speaker=\"LinXia\", expression=\"happy\")\n> 第一行。\n> 第二行。"
+	var initial: Dictionary = _parser.parse(dsl)
+	_assert_true(initial.get("success", false), "serializer multiline dialogue initial parse")
+	var commands: Array = initial.get("commands", [])
+	_assert_eq(commands.size(), 1, "serializer multiline dialogue command count")
+	if commands.is_empty():
+		return
+	var initial_cmd: AVGCommand = commands[0]
+	_assert_eq(initial_cmd.params.get("speaker", ""), "LinXia", "serializer multiline dialogue speaker")
+	_assert_eq(initial_cmd.params.get("text", ""), "第一行。\n第二行。", "serializer multiline dialogue text")
+	var serialized: String = _serializer.serialize(commands)
+	_assert_contains(serialized, "# => TextBlock(speaker=\"LinXia\", expression=\"happy\")", "serializer multiline textblock output")
+	_assert_contains(serialized, "> 第一行。\n> 第二行。", "serializer multiline text output")
+	var round_trip: Dictionary = _parser.parse(serialized)
+	_assert_true(round_trip.get("success", false), "serializer multiline dialogue round trip parse")
+	var round_trip_commands: Array = round_trip.get("commands", [])
+	_assert_eq(round_trip_commands.size(), 1, "serializer multiline dialogue round trip count")
+	if round_trip_commands.is_empty():
+		return
+	var dialogue_cmd: AVGCommand = round_trip_commands[0]
+	_assert_eq(dialogue_cmd.params.get("speaker", ""), "LinXia", "serializer multiline dialogue round trip speaker")
+	_assert_eq(dialogue_cmd.params.get("emotion", ""), "happy", "serializer multiline dialogue round trip emotion")
+	_assert_eq(dialogue_cmd.params.get("text", ""), "第一行。\n第二行。", "serializer multiline dialogue round trip text")
 
 
 func _test_serializer_choice_round_trip() -> void:

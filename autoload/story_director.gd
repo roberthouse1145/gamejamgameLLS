@@ -10,6 +10,8 @@ const StoryCompilerClass = preload("res://scripts/story/story_compiler.gd")
 const ChatTopicClass = preload("res://scripts/chat/resources/chat_topic.gd")
 const ActivityLockUtilsClass = preload("res://scripts/activity/activity_lock_utils.gd")
 const AVGSceneGeneratorClass = preload("res://scripts/activity/avg_scene_generator.gd")
+const StreamingAVGGeneratorClass = preload("res://scripts/activity/streaming_avg_generator.gd")
+const StreamingAVGDSLParserClass = preload("res://scripts/date_events/streaming_avg_dsl_parser.gd")
 const SceneWindowClass = preload("res://scripts/activity/scene_window.gd")
 
 const _CONDITION_OPERATORS: Array[String] = [">=", "<=", "==", "!=", ">", "<"]
@@ -30,6 +32,7 @@ signal chapter_started(chapter_id: String)
 signal story_variable_changed(key: String, value: Variant)
 signal all_chapters_completed()
 signal avg_scene_ended(scene_id: String, outcome: Dictionary)
+signal stream_avg_ended(scene_id: String, outcome: Dictionary)
 signal project_preview_finished(preview_id: String, payload: Dictionary)
 
 # =============================================================================
@@ -71,6 +74,9 @@ var _story_avg_generator: Node = null
 var _story_avg_scene_adapter: Variant = null
 var _story_avg_requests: Dictionary = {}
 var _story_avg_counter: int = 0
+var _story_stream_generator: Node = null
+var _story_stream_requests: Dictionary = {}
+var _story_stream_counter: int = 0
 var _project_preview_adapter: Variant = null
 var _project_preview_sessions: Dictionary = {}
 var _last_wait_payload: Dictionary = {}
@@ -322,6 +328,8 @@ func reset_runtime_state() -> void:
 	_started = false
 	_story_avg_requests.clear()
 	_story_avg_counter = 0
+	_story_stream_requests.clear()
+	_story_stream_counter = 0
 	_last_wait_payload.clear()
 
 
@@ -440,6 +448,8 @@ func _execute_action(action: Dictionary) -> void:
 			_action_modify_stats(action)
 		"play_avg":
 			_action_play_avg(action)
+		"play_stream_avg":
+			_action_play_stream_avg(action)
 		"preview_current_project":
 			_action_preview_current_project(action)
 		"create_bithub_milestone":
@@ -914,6 +924,15 @@ func _action_play_avg(action: Dictionary) -> void:
 	_start_prebuilt_story_avg(action, logical_scene_id)
 
 
+## play_stream_avg — 播放 dilidili streaming AVG 直播窗口
+func _action_play_stream_avg(action: Dictionary) -> void:
+	var logical_scene_id := _resolve_story_avg_scene_id(action)
+	if _should_generate_story_stream(action):
+		_start_generated_story_stream(action, logical_scene_id)
+		return
+	_start_prebuilt_story_stream(action, logical_scene_id)
+
+
 ## preview_current_project — 打开 GamePreviewer 并自动开始试玩当前 AVG 工程
 ## {
 ##   "type": "preview_current_project",
@@ -1355,6 +1374,276 @@ func _emit_story_avg_completed_deferred(scene_id: String, outcome: Dictionary) -
 	call_deferred("emit_signal", "avg_scene_ended", scene_id, outcome)
 
 
+func _should_generate_story_stream(action: Dictionary) -> bool:
+	return action.has("prompt") or action.has("prompt_key") or action.has("stream_prompt") or action.has("stream_prompt_key")
+
+
+func _start_generated_story_stream(action: Dictionary, logical_scene_id: String) -> void:
+	var prompt_text := _resolve_story_stream_prompt(action)
+	if prompt_text.is_empty():
+		push_warning("[StoryDirector] play_stream_avg: empty prompt for scene '%s'" % logical_scene_id)
+		_emit_story_stream_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "empty_story_stream_prompt",
+		})
+		return
+
+	var generator := _ensure_story_stream_generator()
+	if generator == null or not generator.has_method("generate_for_session"):
+		push_warning("[StoryDirector] play_stream_avg: StreamingAVGGenerator unavailable")
+		_emit_story_stream_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "story_stream_generator_unavailable",
+		})
+		return
+
+	var session_id := _reserve_story_stream_request(logical_scene_id, action)
+	_maybe_start_story_stream_generation_transit(action, session_id, logical_scene_id)
+	var session := _build_story_stream_session(action, logical_scene_id, prompt_text)
+	if not generator.generate_for_session(session_id, session):
+		_finish_story_stream_generation_transit(session_id, true)
+		_story_stream_requests.erase(session_id)
+		push_warning("[StoryDirector] play_stream_avg: failed to request generation for '%s'" % logical_scene_id)
+		_emit_story_stream_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "story_stream_generation_request_failed",
+		})
+		return
+
+	print("[StoryDirector] Streaming AVG generation requested: %s" % logical_scene_id)
+
+
+func _start_prebuilt_story_stream(action: Dictionary, logical_scene_id: String) -> void:
+	var session_id := _reserve_story_stream_request(logical_scene_id, action)
+	var package := _build_prebuilt_story_stream_package(action, session_id)
+	if package.is_empty():
+		_story_stream_requests.erase(session_id)
+		push_warning("[StoryDirector] play_stream_avg: invalid stream package for '%s'" % logical_scene_id)
+		_emit_story_stream_completed_deferred(logical_scene_id, {
+			"success": false,
+			"error": "invalid_story_stream_package",
+		})
+		return
+	_open_story_stream_package(session_id, package)
+
+
+func _ensure_story_stream_generator() -> Node:
+	if _story_stream_generator == null or not is_instance_valid(_story_stream_generator):
+		_story_stream_generator = StreamingAVGGeneratorClass.new()
+		_story_stream_generator.name = "StoryStreamingAVGGenerator"
+		add_child(_story_stream_generator)
+	if _story_stream_generator.has_signal("stream_generated") and not _story_stream_generator.is_connected("stream_generated", _on_story_stream_generated):
+		_story_stream_generator.connect("stream_generated", _on_story_stream_generated)
+	if _story_stream_generator.has_signal("stream_failed") and not _story_stream_generator.is_connected("stream_failed", _on_story_stream_failed):
+		_story_stream_generator.connect("stream_failed", _on_story_stream_failed)
+	return _story_stream_generator
+
+
+func _reserve_story_stream_request(logical_scene_id: String, action: Dictionary) -> String:
+	_story_stream_counter += 1
+	var session_id := "story_stream_%04d" % _story_stream_counter
+	_story_stream_requests[session_id] = {
+		"scene_id": logical_scene_id,
+		"title": _resolve_story_avg_window_title(action, logical_scene_id),
+	}
+	return session_id
+
+
+func _build_story_stream_session(action: Dictionary, logical_scene_id: String, prompt_text: String) -> Dictionary:
+	var game_state := _collect_game_state()
+	var phase_name := str(game_state.get("phase", "MORNING")).strip_edges().to_lower()
+	var session: Dictionary = {
+		"activity_type": "story_stream",
+		"entry_id": logical_scene_id,
+		"session_origin": "story_director",
+		"scene_window_title": _resolve_story_avg_window_title(action, logical_scene_id),
+		"story_stream_scene_id": logical_scene_id,
+		"story_stream_prompt": prompt_text,
+		"start_day": int(game_state.get("day", 1)),
+		"phase_after_action": phase_name,
+		"start_phase": phase_name,
+	}
+	var trigger_context := _build_story_trigger_context_from_last_wait_payload()
+	if not trigger_context.is_empty():
+		session.merge(trigger_context, true)
+
+	var preview_prompt_key := _interpolate(str(action.get("stream_preview_prompt_key", action.get("scene_preview_prompt_key", "")))).strip_edges()
+	if not preview_prompt_key.is_empty():
+		session["stream_preview_prompt_key"] = preview_prompt_key
+
+	var extra_context: Variant = action.get("session_context", {})
+	if extra_context is Dictionary:
+		session.merge(_interpolate_dictionary(extra_context), true)
+
+	return session
+
+
+func _build_prebuilt_story_stream_package(action: Dictionary, session_id: String) -> Dictionary:
+	var stream_script := _resolve_story_stream_script(action)
+	if stream_script.strip_edges().is_empty():
+		return {}
+
+	var parser := StreamingAVGDSLParserClass.new()
+	var parse_result: Dictionary = parser.parse(stream_script)
+	if not bool(parse_result.get("success", false)):
+		push_warning("[StoryDirector] play_stream_avg parse failed:\n%s" % parser.errors_to_text(parse_result.get("errors", [])))
+		return {}
+
+	var project: Resource = _build_story_stream_runtime_project(action)
+	var project_root_path := _resolve_story_stream_project_root_path(action)
+	if project_root_path.is_empty() and project != null and "project_root_path" in project:
+		project_root_path = str(project.project_root_path).strip_edges()
+	var asset_result: Dictionary = parser.validate_assets(parse_result.get("events", []), project, project_root_path)
+	if not bool(asset_result.get("success", false)):
+		push_warning("[StoryDirector] play_stream_avg asset validation failed:\n%s" % parser.errors_to_text(asset_result.get("errors", [])))
+		return {}
+
+	var meta: Dictionary = parse_result.get("meta", {})
+	var title := _resolve_story_avg_window_title(action, str(meta.get("title", "直播")))
+	return {
+		"session_id": session_id,
+		"title": title,
+		"stream_script": stream_script,
+		"events": parse_result.get("events", []),
+		"meta": meta,
+		"project": project,
+		"project_root_path": project_root_path,
+	}
+
+
+func _open_story_stream_package(session_id: String, stream_package: Dictionary) -> void:
+	var request: Dictionary = _story_stream_requests.get(session_id, {}).duplicate(true)
+	if request.is_empty():
+		return
+
+	_update_story_stream_generation_transit(session_id, 0.92)
+	var result := _open_story_stream_window(
+		str(request.get("title", stream_package.get("title", "直播"))),
+		stream_package,
+		Callable(self, "_on_story_stream_playback_finished")
+	)
+	if result.is_empty():
+		_finish_story_stream_generation_transit(session_id, true)
+		_finish_story_stream_request(session_id, {
+			"success": false,
+			"error": "story_stream_window_open_failed",
+		})
+		return
+
+	_finish_story_stream_generation_transit(session_id)
+	request["stream_package"] = stream_package.duplicate(true)
+	request["window"] = result.get("window", null)
+	_story_stream_requests[session_id] = request
+	print("[StoryDirector] Streaming AVG playback started: %s" % str(request.get("scene_id", session_id)))
+
+
+func _open_story_stream_window(title: String, stream_package: Dictionary, playback_callback: Callable) -> Dictionary:
+	if _story_avg_scene_adapter != null and _story_avg_scene_adapter.has_method("open_stream"):
+		return _story_avg_scene_adapter.call("open_stream", title, stream_package, playback_callback)
+	return SceneWindowClass.open_stream(title, stream_package, playback_callback)
+
+
+func _on_story_stream_generated(session_id: String, package: Dictionary) -> void:
+	if not _story_stream_requests.has(session_id):
+		return
+	_update_story_stream_generation_transit(session_id, 0.72)
+	var request: Dictionary = _story_stream_requests.get(session_id, {})
+	var package_dup := package.duplicate(true)
+	if request.has("title"):
+		package_dup["title"] = str(request.get("title", package_dup.get("title", "直播")))
+	_open_story_stream_package(session_id, package_dup)
+
+
+func _on_story_stream_failed(session_id: String, error: String) -> void:
+	if not _story_stream_requests.has(session_id):
+		return
+	_finish_story_stream_generation_transit(session_id, true)
+	_finish_story_stream_request(session_id, {
+		"success": false,
+		"error": error,
+	})
+
+
+func _on_story_stream_playback_finished(session_id: String, outcome: Dictionary) -> void:
+	if not _story_stream_requests.has(session_id):
+		return
+	_finish_story_stream_request(session_id, outcome)
+
+
+func _finish_story_stream_request(session_id: String, outcome: Dictionary) -> void:
+	var request: Dictionary = _story_stream_requests.get(session_id, {}).duplicate(true)
+	_story_stream_requests.erase(session_id)
+	if request.is_empty():
+		return
+
+	var logical_scene_id := str(request.get("scene_id", session_id)).strip_edges()
+	var normalized_outcome := outcome.duplicate(true)
+	normalized_outcome["session_id"] = session_id
+	normalized_outcome["scene_id"] = logical_scene_id
+	_emit_story_stream_completed_deferred(logical_scene_id, normalized_outcome)
+
+
+func _emit_story_stream_completed_deferred(scene_id: String, outcome: Dictionary) -> void:
+	call_deferred("emit_signal", "stream_avg_ended", scene_id, outcome)
+
+
+func _resolve_story_stream_prompt(action: Dictionary) -> String:
+	return _resolve_action_prompt(action, ["prompt_key", "stream_prompt_key"], ["prompt", "stream_prompt"])
+
+
+func _resolve_story_stream_script(action: Dictionary) -> String:
+	var script_path := _interpolate(str(action.get("stream_script_path", ""))).strip_edges()
+	if not script_path.is_empty():
+		var normalized_path := _normalize_story_stream_script_path(script_path)
+		var file := FileAccess.open(normalized_path, FileAccess.READ)
+		if file == null:
+			push_warning("[StoryDirector] play_stream_avg script not found: %s" % normalized_path)
+			return ""
+		var text := file.get_as_text()
+		file.close()
+		return _interpolate(text)
+	return _interpolate(str(action.get("stream_script", "")))
+
+
+func _normalize_story_stream_script_path(path: String) -> String:
+	var trimmed := path.strip_edges()
+	if trimmed.begins_with("res://") or trimmed.begins_with("user://") or trimmed.is_absolute_path():
+		return trimmed
+	return "res://%s" % trimmed
+
+
+func _build_story_stream_runtime_project(action: Dictionary) -> Resource:
+	var project_path := _interpolate(str(action.get("project_path", ""))).strip_edges()
+	if not project_path.is_empty() and ResourceLoader.exists(project_path):
+		return load(project_path)
+
+	var narrative_manager: Node = get_node_or_null("/root/NarrativeProjectManager")
+	if narrative_manager != null and narrative_manager.has_method("duplicate_current_project"):
+		var narrative_project: Resource = narrative_manager.duplicate_current_project()
+		if narrative_project != null:
+			return narrative_project
+
+	var storage: Node = get_node_or_null("/root/StorageManager")
+	if storage != null and storage.get("current_project") is Resource:
+		return (storage.get("current_project") as Resource).duplicate(true)
+	return null
+
+
+func _resolve_story_stream_project_root_path(action: Dictionary) -> String:
+	var explicit_root := _interpolate(str(action.get("project_root_path", ""))).strip_edges()
+	if not explicit_root.is_empty():
+		return explicit_root
+	var narrative_manager: Node = get_node_or_null("/root/NarrativeProjectManager")
+	if narrative_manager != null:
+		var narrative_path := str(narrative_manager.get("current_project_path")).strip_edges()
+		if not narrative_path.is_empty():
+			return narrative_path
+	var storage: Node = get_node_or_null("/root/StorageManager")
+	if storage != null:
+		return str(storage.get("current_project_path")).strip_edges()
+	return ""
+
+
 func _resolve_story_avg_scene_id(action: Dictionary) -> String:
 	var explicit_id: String = _interpolate(str(action.get("scene_id", ""))).strip_edges()
 	if not explicit_id.is_empty():
@@ -1544,6 +1833,70 @@ func _resolve_story_avg_generation_transit_stages(action: Dictionary) -> Array[S
 	if stages.is_empty():
 		return STORY_AVG_GENERATION_TRANSIT_STAGES.duplicate()
 	return stages
+
+
+func _maybe_start_story_stream_generation_transit(action: Dictionary, session_id: String, logical_scene_id: String) -> void:
+	if not bool(action.get("show_generation_transit", true)):
+		return
+
+	var transit: Node = get_node_or_null("/root/TransitManager")
+	if transit == null or not transit.has_method("play_transit"):
+		return
+
+	var request: Dictionary = _story_stream_requests.get(session_id, {}).duplicate(true)
+	if request.is_empty():
+		return
+
+	var transit_id := "story_stream_generation_%s" % session_id
+	transit.call("play_transit", {
+		"id": transit_id,
+		"source": "story_director",
+		"window_title": _resolve_story_avg_generation_transit_window_title(action),
+		"title": _resolve_story_avg_generation_transit_title(action, logical_scene_id),
+		"stages": _resolve_story_avg_generation_transit_stages(action),
+		"icon": _interpolate(str(action.get("generation_transit_icon", "•"))).strip_edges(),
+		"accent_color": _interpolate(str(action.get("generation_transit_accent_color", "#8FA5FF"))).strip_edges(),
+		"bg_color": _interpolate(str(action.get("generation_transit_bg_color", "#FFFFFF"))).strip_edges(),
+		"text_color": _interpolate(str(action.get("generation_transit_text_color", "#202124"))).strip_edges(),
+		"subtext_color": _interpolate(str(action.get("generation_transit_subtext_color", "#5F6368"))).strip_edges(),
+		"eta_active": _interpolate(str(action.get("generation_transit_eta_active", "生成中..."))).strip_edges(),
+		"eta_done": _interpolate(str(action.get("generation_transit_eta_done", "即将打开"))).strip_edges(),
+		"progress": 0.08,
+	})
+	request["generation_transit_id"] = transit_id
+	_story_stream_requests[session_id] = request
+
+
+func _update_story_stream_generation_transit(session_id: String, progress: float) -> void:
+	var request: Dictionary = _story_stream_requests.get(session_id, {})
+	var transit_id := str(request.get("generation_transit_id", "")).strip_edges()
+	if transit_id.is_empty():
+		return
+
+	var transit: Node = get_node_or_null("/root/TransitManager")
+	if transit == null or not transit.has_method("update_transit"):
+		return
+
+	transit.call("update_transit", transit_id, progress)
+
+
+func _finish_story_stream_generation_transit(session_id: String, cancel: bool = false) -> void:
+	var request: Dictionary = _story_stream_requests.get(session_id, {}).duplicate(true)
+	var transit_id := str(request.get("generation_transit_id", "")).strip_edges()
+	if transit_id.is_empty():
+		return
+
+	request.erase("generation_transit_id")
+	_story_stream_requests[session_id] = request
+
+	var transit: Node = get_node_or_null("/root/TransitManager")
+	if transit == null:
+		return
+	if cancel and transit.has_method("cancel_transit"):
+		transit.call("cancel_transit", transit_id)
+		return
+	if transit.has_method("finish_transit"):
+		transit.call("finish_transit", transit_id)
 
 
 ## open_browser — 请求打开浏览器页面
@@ -2126,6 +2479,9 @@ func _setup_wait(wait: Dictionary) -> void:
 		"avg_scene_ended":
 			avg_scene_ended.connect(_on_wait_avg_scene_ended)
 			_wait_connections.append({"signal": "avg_scene_ended", "callable": _on_wait_avg_scene_ended, "self": true})
+		"stream_avg_ended":
+			stream_avg_ended.connect(_on_wait_stream_avg_ended)
+			_wait_connections.append({"signal": "stream_avg_ended", "callable": _on_wait_stream_avg_ended, "self": true})
 		"project_preview_finished":
 			project_preview_finished.connect(_on_wait_project_preview_finished)
 			_wait_connections.append({"signal": "project_preview_finished", "callable": _on_wait_project_preview_finished, "self": true})
@@ -2363,6 +2719,15 @@ func _complete_story_topic_for_current_step_event(summary: String, result: Dicti
 
 
 func _on_wait_avg_scene_ended(scene_id: String, outcome: Dictionary = {}) -> void:
+	if current_step == null:
+		return
+	var expected_scene: String = str(current_step.wait_for.get("scene_id", ""))
+	if not expected_scene.is_empty() and scene_id != expected_scene:
+		return
+	_on_wait_satisfied({"scene_id": scene_id, "outcome": outcome})
+
+
+func _on_wait_stream_avg_ended(scene_id: String, outcome: Dictionary = {}) -> void:
 	if current_step == null:
 		return
 	var expected_scene: String = str(current_step.wait_for.get("scene_id", ""))

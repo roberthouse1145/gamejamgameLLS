@@ -157,7 +157,10 @@ func _serialize_dialogue(params: Dictionary, indent_level: int) -> String:
 	var text: String = str(params.get("text", ""))
 	var speaker: String = str(params.get("speaker", params.get("speaker_name", ""))).strip_edges()
 	var emotion: String = str(params.get("emotion", params.get("expression", ""))).strip_edges()
-	var text_line: String = "%s> %s" % [_indent(indent_level), text]
+	var text_lines: Array[String] = []
+	for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+		text_lines.append("%s> %s" % [_indent(indent_level), line])
+	var text_body: String = "\n".join(text_lines)
 	var text_block_args: Array[String] = []
 
 	if not speaker.is_empty():
@@ -166,11 +169,11 @@ func _serialize_dialogue(params: Dictionary, indent_level: int) -> String:
 		text_block_args.append("expression=%s" % _serialize_call_literal(emotion))
 
 	if text_block_args.is_empty():
-		return text_line
+		return text_body
 	return "%s# => TextBlock(%s)\n%s" % [
 		_indent(indent_level),
 		", ".join(text_block_args),
-		text_line
+		text_body
 	]
 
 

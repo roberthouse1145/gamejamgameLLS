@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/date_events/date_event_player.gd" id="1_player"]
 [ext_resource type="Theme" uid="uid://c7c4qoevl14xp" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_scene_runner.tscn" id="2_runner"]
+[ext_resource type="PackedScene" path="res://scenes/date_events/streaming_avg_player.tscn" id="4_stream"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
 content_margin_left = 20.0
@@ -227,3 +228,16 @@ layout_mode = 2
 text = ""
 theme_override_font_sizes/font_size = 18
 theme_override_colors/font_color = Color(0.921569, 0.945098, 1, 0.72)
+
+[node name="StreamingPage" type="Control" parent="MainLayout/ContentArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StreamingAVGPlayer" parent="MainLayout/ContentArea/StreamingPage" instance=ExtResource("4_stream")]
+unique_name_in_owner = true

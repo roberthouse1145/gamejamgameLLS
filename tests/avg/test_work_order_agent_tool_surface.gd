@@ -1,7 +1,6 @@
 extends Node
 
 const WorkOrderAgentScene = preload("res://scenes/avg/dev_tools/work_order_agent.tscn")
-const ProjectToolsClass = preload("res://scripts/avg/dev_tools/project_tools.gd")
 const AVGSceneClass = preload("res://scripts/avg/resources/avg_scene.gd")
 const AVGRootNodeClass = preload("res://scripts/avg/resources/nodes/avg_root_node.gd")
 const AVGTitleConfigClass = preload("res://scripts/avg/resources/avg_title_config.gd")
@@ -56,14 +55,20 @@ func _run_test() -> void:
 
 	var tool_names: Dictionary = _collect_tool_names(_agent.get_node("AIService").get_tools_definition())
 	for required_tool in [
-		"kb_read", "kb_write", "db_create", "db_update", "get_scene_script",
-		"set_scene_script", "gather_scene_context", "batch_patch_scene_scripts",
-		"project_save", "list_assets", "set_initial_scene",
-		"analyze_story_reachability", "wo_finish_order", "research",
+		"kb_read", "kb_write", "get_project_context", "upsert_scene",
+		"edit_scenes", "upsert_character", "upsert_variable", "upsert_event",
+		"import_project_asset", "wo_finish_order", "research",
 	]:
 		_assert("agent has %s" % required_tool, tool_names.has(required_tool), str(tool_names.keys()))
 
-	_assert("agent hides subagent finish", not tool_names.has("finish"), str(tool_names.keys()))
+	for hidden_tool in [
+		"finish", "db_create", "db_update", "db_delete", "get_scene_script",
+		"set_scene_script", "batch_patch_scene_scripts", "project_save",
+		"preview_scene", "kb_delete", "wo_complete_task", "wo_get_order_details",
+		"list_assets", "project_info", "analyze_story_reachability",
+	]:
+		_assert("agent hides %s" % hidden_tool, not tool_names.has(hidden_tool), str(tool_names.keys()))
+
 	_assert("agent has no PlannerAgent child", _agent.get_node_or_null("PlannerAgent") == null, "")
 	_assert("agent has no WriterAgent child", _agent.get_node_or_null("WriterAgent") == null, "")
 	_assert("agent has no ExecutorAgent child", _agent.get_node_or_null("ExecutorAgent") == null, "")
@@ -74,16 +79,25 @@ func _run_test() -> void:
 		_print_summary()
 		return
 
-	var set_result: Dictionary = ProjectToolsClass._set_initial_scene({"scene_id": target_scene_id})
-	_assert("set_initial_scene success", bool(set_result.get("success", false)), str(set_result))
+	var agent_service: AIService = _agent.get_node("AIService")
+	var set_result: Dictionary = await _call_tool(agent_service, "upsert_scene", {
+		"scene_id": target_scene_id,
+		"set_as_initial": true,
+		"include_reachability": true,
+	})
+	_assert("upsert_scene set_as_initial success", bool(set_result.get("success", false)), str(set_result))
 	_assert("title_config updated", project.title_config != null and str(project.title_config.first_scene_id) == target_scene_id, str(project.title_config.first_scene_id if project.title_config != null and "first_scene_id" in project.title_config else ""))
 
-	var info_result: Dictionary = ProjectToolsClass._project_info({})
-	var info_data: Dictionary = info_result.get("data", {})
-	_assert("project_info reflects initial scene", str(info_data.get("initial_scene_id", "")) == target_scene_id, str(info_result))
+	var info_result: Dictionary = await _call_tool(agent_service, "get_project_context", {
+		"include_project_info": true,
+		"include_reachability": true,
+	})
+	var context_data: Dictionary = info_result.get("data", {})
+	var info_data: Dictionary = context_data.get("project", {})
+	_assert("get_project_context reflects initial scene", str(info_data.get("initial_scene_id", "")) == target_scene_id, str(info_result))
 
-	var reachability_result: Dictionary = ProjectToolsClass._analyze_story_reachability({})
-	_assert("reachability analysis callable", bool(reachability_result.get("success", false)), str(reachability_result))
+	var reachability_data: Dictionary = context_data.get("reachability", {})
+	_assert("get_project_context reachability callable", bool(info_result.get("success", false)) and not reachability_data.is_empty(), str(info_result))
 
 	_restore_project()
 	_print_summary()
@@ -130,6 +144,15 @@ func _collect_tool_names(tools: Array) -> Dictionary:
 		if not tool_name.is_empty():
 			tool_names[tool_name] = true
 	return tool_names
+
+
+func _call_tool(service: AIService, tool_name: String, args: Dictionary) -> Dictionary:
+	if service == null:
+		return {"success": false, "error": "AIService is null"}
+	var result: Variant = await service.execute_tool_callback(tool_name, args)
+	if result is Dictionary:
+		return result
+	return {"success": false, "error": "tool returned non-dictionary", "raw": str(result)}
 
 
 func _restore_project() -> void:

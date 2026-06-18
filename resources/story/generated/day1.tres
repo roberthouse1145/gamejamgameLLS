@@ -46,7 +46,7 @@ actions = Array[Dictionary]([{
 "mode": "whitelist",
 "type": "set_app_access"
 }, {
-"activities": ["browser_surf"],
+"activities": ["browser_surf", "community"],
 "mode": "blacklist",
 "reason": "先把报名搞定再说",
 "type": "set_activity_lock"
@@ -105,7 +105,7 @@ actions = Array[Dictionary]([{
 "mode": "whitelist",
 "type": "set_app_access"
 }, {
-"activities": ["browser_surf"],
+"activities": ["browser_surf", "community"],
 "mode": "blacklist",
 "reason": "先看完主题公告再说",
 "type": "set_activity_lock"

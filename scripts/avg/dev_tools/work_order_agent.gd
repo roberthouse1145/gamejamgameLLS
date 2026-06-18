@@ -8,6 +8,7 @@ const MAIN_HISTORY_PRESERVE: int = 32
 const RESEARCH_HISTORY_MESSAGES: int = 60
 const RESEARCH_HISTORY_CHARS: int = 60000
 const RESEARCH_HISTORY_PRESERVE: int = 10
+const GameEditorToolsClass = preload("res://scripts/avg/dev_tools/game_editor_tools.gd")
 
 
 func _ready() -> void:
@@ -15,15 +16,8 @@ func _ready() -> void:
 	super._ready()
 	_ai_service.max_tool_iterations = 80
 
-	AVGDevKBTools.register_all(_ai_service)
-	AVGDevDBTools.register_all(_ai_service)
-	AVGDevScriptTools.register_all(_ai_service)
-	AVGDevProjectTools.register_all(_ai_service)
-	_ai_service.unregister_tool("finish")
-	_register_list_assets(_ai_service)
-	AVGDevContextTools.register_gather_scene_context(_ai_service)
-	AVGDevContextTools.register_batch_patch_scene_scripts(_ai_service)
-	AVGDevWorkOrderTools.register_all(_ai_service)
+	GameEditorToolsClass.register_work_order_tools(_ai_service)
+	AVGDevWorkOrderTools.register_finish_tool(_ai_service)
 	_register_research_tool()
 	_mark_tool_effects(_ai_service)
 
@@ -170,14 +164,11 @@ func _build_research_system_prompt() -> String:
 
 func _mark_tool_effects(ai_service: AIService) -> void:
 	var read_tools: Array[String] = [
-		"kb_read", "db_list", "db_get", "get_story_outline", "get_scene_script",
-		"project_info", "list_assets", "list_scene_catalog", "analyze_story_reachability",
-		"gather_scene_context", "wo_get_order_details", "wo_list_order_summaries", "research",
+		"kb_read", "get_project_context", "research",
 	]
 	var write_tools: Array[String] = [
-		"kb_write", "kb_delete", "db_create", "db_update", "db_delete",
-		"set_scene_script", "project_save", "import_project_asset", "preview_scene",
-		"set_initial_scene", "batch_patch_scene_scripts", "wo_complete_task",
+		"kb_write", "upsert_scene", "edit_scenes", "upsert_character",
+		"upsert_variable", "upsert_event", "import_project_asset",
 	]
 	for tool_name in read_tools:
 		ai_service.set_tool_metadata(tool_name, {"effect": "read"})

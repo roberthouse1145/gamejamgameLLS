@@ -31,7 +31,6 @@ var _events_by_id: Dictionary = {}
 var _date_event_builder: RefCounted = null
 var _played_important_events: Dictionary = {}
 var _avg_history: Array = []
-var _avg_history_replay_payloads: Dictionary = {}
 
 
 # =============================================================================
@@ -184,7 +183,10 @@ func load_run_state(data: Dictionary) -> bool:
 		_played_important_events = (events_state as Dictionary).duplicate(true)
 	var history_state: Variant = data.get("avg_history", [])
 	if history_state is Array:
-		_avg_history = (history_state as Array).duplicate(true)
+		_avg_history.clear()
+		for item in (history_state as Array):
+			if item is Dictionary:
+				_avg_history.append(_sanitize_avg_history_entry(item as Dictionary))
 	else:
 		_avg_history = []
 	var saved_events: Variant = data.get("daily_events", [])
@@ -204,12 +206,7 @@ func get_avg_history() -> Array:
 	for i in range(result.size()):
 		if not result[i] is Dictionary:
 			continue
-		var entry: Dictionary = (result[i] as Dictionary).duplicate(true)
-		var session_id := str(entry.get("session_id", "")).strip_edges()
-		entry["has_replay"] = _avg_history_replay_payloads.has(session_id)
-		if entry["has_replay"]:
-			entry["replay_type"] = str((_avg_history_replay_payloads[session_id] as Dictionary).get("type", ""))
-		result[i] = entry
+		result[i] = _sanitize_avg_history_entry(result[i] as Dictionary)
 	return result
 
 
@@ -219,22 +216,12 @@ func add_avg_history_entry(entry: Dictionary) -> void:
 		_avg_history.resize(50)
 
 
-func register_avg_history_replay(session_id: String, replay_type: String, payload: Dictionary) -> void:
-	var normalized_session_id := session_id.strip_edges()
-	var normalized_type := replay_type.strip_edges()
-	if normalized_session_id.is_empty() or normalized_type.is_empty() or payload.is_empty():
-		return
-	_avg_history_replay_payloads[normalized_session_id] = {
-		"type": normalized_type,
-		"payload": payload.duplicate(true),
-	}
+func register_avg_history_replay(_session_id: String, _replay_type: String, _payload: Dictionary) -> void:
+	pass
 
 
-func get_avg_history_replay(session_id: String) -> Dictionary:
-	var normalized_session_id := session_id.strip_edges()
-	if normalized_session_id.is_empty() or not _avg_history_replay_payloads.has(normalized_session_id):
-		return {}
-	return (_avg_history_replay_payloads[normalized_session_id] as Dictionary).duplicate(true)
+func get_avg_history_replay(_session_id: String) -> Dictionary:
+	return {}
 
 
 func _sanitize_avg_history_entry(entry: Dictionary) -> Dictionary:
@@ -248,7 +235,6 @@ func _sanitize_avg_history_entry(entry: Dictionary) -> Dictionary:
 func _on_reset_runtime_state() -> void:
 	_played_important_events.clear()
 	_avg_history.clear()
-	_avg_history_replay_payloads.clear()
 	_event_request_id = ""
 	_is_generating_events = false
 	if _event_generator != null and _event_generator.has_method("clear_pending_requests"):

@@ -1,8 +1,7 @@
 extends Node
-## 验证 parser 的 speaker 隔离行为：
-## 每个 > 行只消费一次紧邻的 # => TextBlock(...)，
-## 后续连续的 > 行如果没有自己的 # => 声明，会自动降级为无 speaker 旁白，
-## 而不是错误地沿用上一个 speaker。
+## 验证 parser 的 TextBlock 行归属行为：
+## 连续、同缩进的 > 行会合并进同一个 TextBlock；
+## 要切换到旁白或其他 speaker，必须显式写新的 # => TextBlock(...)。
 
 const ParserClass = preload("res://scripts/avg/dsl/avg_dsl_parser_v2.gd")
 
@@ -16,7 +15,7 @@ func _ready() -> void:
 	_test_single_dialogue_keeps_speaker()
 	_test_explicit_narration_block()
 	_test_multiple_dialogue_blocks_each_keep_own_speaker()
-	_test_consecutive_dialogue_lines_only_first_has_speaker()
+	_test_consecutive_dialogue_lines_share_text_block()
 	_test_dialogue_then_narration_explicit()
 	print("========== Tests Complete ==========")
 	if _all_passed:
@@ -68,21 +67,17 @@ func _test_multiple_dialogue_blocks_each_keep_own_speaker() -> void:
 	_assert_eq((cmds[1] as AVGCommand).params.get("text", ""), "我没问。", "case3 second text")
 
 
-## Case 4（核心修复验证）: # => TextBlock(speaker="A") + 多行 >
-## 第 1 行 → speaker="A"；第 2、3 行 → speaker=""（不再错误沿用 A）
-func _test_consecutive_dialogue_lines_only_first_has_speaker() -> void:
+## Case 4: # => TextBlock(speaker="A") + 多行 > → 同一个 speaker / 同一个 DIALOGUE
+func _test_consecutive_dialogue_lines_share_text_block() -> void:
 	var dsl: String = "# => TextBlock(speaker=\"赛琳\")\n> 我也不想告诉你。\n> 他没有告诉赛琳。\n> 他想知道她为什么这么在意。"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "case4 parse success")
 	var cmds: Array = result.get("commands", [])
-	_assert_eq(cmds.size(), 3, "case4 command count")
-	if cmds.size() < 3:
+	_assert_eq(cmds.size(), 1, "case4 command count")
+	if cmds.is_empty():
 		return
-	# 第 1 行：紧邻 # => TextBlock，speaker 生效
 	_assert_eq((cmds[0] as AVGCommand).params.get("speaker", ""), "赛琳", "case4 line1 speaker")
-	# 第 2、3 行：未紧邻 # =>，应降级为旁白（speaker=""）
-	_assert_eq((cmds[1] as AVGCommand).params.get("speaker", ""), "", "case4 line2 falls back to narration")
-	_assert_eq((cmds[2] as AVGCommand).params.get("speaker", ""), "", "case4 line3 falls back to narration")
+	_assert_eq((cmds[0] as AVGCommand).params.get("text", ""), "我也不想告诉你。\n他没有告诉赛琳。\n他想知道她为什么这么在意。", "case4 multiline text")
 
 
 ## Case 5: 角色台词后接显式旁白块，行为正常

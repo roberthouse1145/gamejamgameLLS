@@ -19,6 +19,7 @@ class_name StoryStep extends Resource
 ##   set_phase       — 设置天数/时段
 ##   modify_stats    — 修改数值
 ##   play_avg        — 生成并播放剧情 AVG，或播放预制 AVG 资源
+##   play_stream_avg — 生成并播放 dilidili streaming AVG，或播放手写 Streaming DSL
 ##   preview_current_project — 打开 GamePreviewer 并自动试玩当前玩家工程（未指定 scene_id 时从初始场景开始）
 ##   open_browser    — 打开浏览器页面
 ##   post_moment     — 发朋友圈
@@ -34,6 +35,7 @@ class_name StoryStep extends Resource
 ##   url_opened      — 等待玩家打开指定 URL
 ##   form_submitted  — 等待表单提交
 ##   avg_scene_ended — 等待 StoryDirector 触发的 AVG 场景结束
+##   stream_avg_ended — 等待 StoryDirector 触发的 streaming AVG 直播结束
 ##   project_preview_finished — 等待 GamePreviewer 试玩结束或玩家手动关闭试玩窗口
 ##   date_started    — 等待约会开始
 ##   date_completed  — 等待约会结束

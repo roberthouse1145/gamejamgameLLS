@@ -21,18 +21,18 @@
    - 关联：ChatManager、NpcInitiativeManager、SbeamManager。
 
 2. Browser（app_id: browser，显示名 Browser）
-   - 世界观：游戏内的虚拟浏览器，玩家可搜索关键字、打开网页。
-   - 职能：搜索结果与网页内容由 AI 按 DSL 生成（非 HTML），支持
-     预制 WebPageResource；记录浏览历史；可被其他系统调用打开 URL。
-   - 关联：BrowserManager、prompts/browser_search.md、browser_webpage.md。
+   - 世界观：游戏内的虚拟浏览器，用来打开剧情网页、公告页和历史页。
+   - 职能：保留预制 WebPageResource、缓存页、剧情 URL 和浏览历史；
+     主页隐藏动态搜索/冲浪入口，未知 URL 直接显示“网页生成暂时关闭”。
+   - 关联：BrowserManager、resources/browser_pages/*.tres。
 
 3. 千度贴吧（app_id: community）
-   - 世界观：以"千度贴吧"形态呈现的论坛/社区站点合集（校园论坛、
-     比赛广场、像素快讯、独立游戏圈、玩家广场等）。
-   - 职能：玩家在帖子列表中点击"分享/转发"把帖子发给 NPC 看，
-     由 CommunityActionManager 执行 browse_forum / post_promo /
-     watch_event 等行动，AI 生成网页式内容并触发 NPC 回应。
-   - 关联：CommunityActionManager、resources/data/browser_content.json。
+   - 世界观：以"千度贴吧"形态呈现的轻量论坛社区。
+   - 职能：承接玩家主动消耗 AP 的社区探索；日常吧、教程吧、项目吧
+     生成轻量帖子 DSL；首页提供自由搜索和随心一搜；帖子可转发给
+     林夏并触发 followup 回复。数值消耗和状态变化来自行动配置。
+   - 关联：CommunityActionManager、prompts/community_feed.md、
+     prompts/community_seeds.json、prompts/community_followup_reply.md。
 
 4. 休息（app_id: sleep，资源文件名为 home_app.tres）
    - 世界观：玩家在自家居所休息/推进时间的入口卡片。
@@ -80,9 +80,12 @@
 11. dilidili（app_id: avg_player）
     - 世界观：蓝白配色的"dilidili"视频/剧情播放平台。
     - 职能：以 TopBar + 卡片网格形式展示历史与首页 Hero Banner，
-      作为玩家观看已生成 AVG 剧情/章节/小游戏成片的入口。
-      公有 API（play_event / play_scene_package /
-      enable_thumbnail_capture / playback_finished）保持兼容。
+      作为玩家观看已生成 AVG 剧情/章节/小游戏成片的入口；另有
+      4:3 streaming AVG 直播窗口，用于自动时间轴字幕与 chat 留言流。
+      历史只记录标题、时间和播放结果摘要；不再保存截图封面或提供
+      历史重播。公有 API（play_event / play_scene_package /
+      play_stream_package / enable_thumbnail_capture / playback_finished）
+      保持兼容，其中 enable_thumbnail_capture 为空实现。
     - 关联：NarrativeProjectManager、StoryDirector。
 
 12. 桌宠（app_id: desktop_pet）

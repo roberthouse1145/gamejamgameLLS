@@ -12,6 +12,13 @@ static func open(title: String, scene_package: Dictionary, playback_callback: Ca
 	])
 
 
+static func open_stream(title: String, stream_package: Dictionary, playback_callback: Callable) -> Dictionary:
+	return _open_player_window(title, playback_callback, "play_stream_package", [
+		str(stream_package.get("session_id", "")),
+		stream_package,
+	])
+
+
 static func open_event(title: String, session_id: String, event_request: Dictionary, playback_callback: Callable) -> Dictionary:
 	return _open_player_window(title, playback_callback, "play_event", [
 		session_id,
@@ -43,7 +50,6 @@ static func _open_player_window(title: String, playback_callback: Callable, play
 	if app_manager.has_method("lock_app_window"):
 		app_manager.lock_app_window(APP_ID)
 
-	# 启用截图捕获（首次播放）
 	if player.has_method("enable_thumbnail_capture"):
 		player.enable_thumbnail_capture()
 
@@ -68,12 +74,16 @@ static func _find_player(window: Control) -> Control:
 	var content_container := window.get_node_or_null("ContentContainer") as Control
 	if content_container != null:
 		for child in content_container.get_children():
-			if child is Control and (child as Control).has_method("play_scene_package"):
+			if child is Control and _is_player_control(child as Control):
 				return child as Control
 	for child in window.get_children():
-		if child is Control and (child as Control).has_method("play_scene_package"):
+		if child is Control and _is_player_control(child as Control):
 			return child as Control
 	return null
+
+
+static func _is_player_control(control: Control) -> bool:
+	return control.has_method("play_scene_package") or control.has_method("play_stream_package")
 
 
 static func close(_window: Variant) -> void:

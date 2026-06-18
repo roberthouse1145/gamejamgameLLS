@@ -108,13 +108,28 @@ static func _set_script_replace(project: Resource, scene: Resource, root: Resour
 	if dsl.is_empty():
 		# 清空脚本
 		root.command_tabs = [ {"mode": 0, "condition_type": 0, "commands": [], "condition_commands": []}]
-		return {"success": true, "message": "脚本已清空"}
+		return {
+			"success": true,
+			"message": "脚本已清空",
+			"command_count": 0,
+			"parse_errors": [],
+			"semantic_errors": [],
+			"warnings": [],
+			"auto_created_variable_keys": [],
+			"auto_created_placeholder_scene_ids": [],
+			"skipped_placeholder_scene_ids": [],
+		}
 
 	var ParserClass = load("res://scripts/avg/dsl/avg_dsl_parser_v2.gd")
 	var parser = ParserClass.new()
 	var result: Dictionary = parser.parse(dsl)
 	if not result.success:
-		return {"success": false, "error": "DSL 解析失败: " + str(result.errors)}
+		return {
+			"success": false,
+			"error": "DSL 解析失败: " + str(result.errors),
+			"parse_errors": result.get("errors", []),
+			"warnings": result.get("warnings", []),
+		}
 
 	var ensure_result: Dictionary = AVGDevDBTools.ensure_variables_for_commands(project, result.commands)
 	var auto_created_keys: Array = ensure_result.get("created_keys", [])
@@ -142,7 +157,20 @@ static func _set_script_replace(project: Resource, scene: Resource, root: Resour
 		msg += "\n\n⚠ 警告："
 		for w in validation.warnings:
 			msg += "\n- " + w
-	return {"success": true, "message": msg}
+	var all_warnings: Array = []
+	all_warnings.append_array(result.get("warnings", []))
+	all_warnings.append_array(validation.get("warnings", []))
+	return {
+		"success": true,
+		"message": msg,
+		"command_count": result.commands.size(),
+		"parse_errors": [],
+		"semantic_errors": validation.get("errors", []),
+		"warnings": all_warnings,
+		"auto_created_variable_keys": auto_created_keys,
+		"auto_created_placeholder_scene_ids": placeholder_scene_ids,
+		"skipped_placeholder_scene_ids": skipped_placeholder_scene_ids,
+	}
 
 
 static func _set_script_patch(project: Resource, scene: Resource, root: Resource, args: Dictionary) -> Dictionary:
@@ -180,7 +208,12 @@ static func _set_script_patch(project: Resource, scene: Resource, root: Resource
 	var parser = ParserClass.new()
 	var result: Dictionary = parser.parse(patched_dsl)
 	if not result.success:
-		return {"success": false, "error": "Patch 后 DSL 解析失败: " + str(result.errors)}
+		return {
+			"success": false,
+			"error": "Patch 后 DSL 解析失败: " + str(result.errors),
+			"parse_errors": result.get("errors", []),
+			"warnings": result.get("warnings", []),
+		}
 
 	var ensure_result: Dictionary = AVGDevDBTools.ensure_variables_for_commands(project, result.commands)
 	var auto_created_keys: Array = ensure_result.get("created_keys", [])
@@ -208,7 +241,20 @@ static func _set_script_patch(project: Resource, scene: Resource, root: Resource
 		msg += "\n\n⚠ 警告："
 		for w in validation.warnings:
 			msg += "\n- " + w
-	return {"success": true, "message": msg}
+	var all_warnings: Array = []
+	all_warnings.append_array(result.get("warnings", []))
+	all_warnings.append_array(validation.get("warnings", []))
+	return {
+		"success": true,
+		"message": msg,
+		"command_count": result.commands.size(),
+		"parse_errors": [],
+		"semantic_errors": validation.get("errors", []),
+		"warnings": all_warnings,
+		"auto_created_variable_keys": auto_created_keys,
+		"auto_created_placeholder_scene_ids": placeholder_scene_ids,
+		"skipped_placeholder_scene_ids": skipped_placeholder_scene_ids,
+	}
 
 
 # =============================================================================

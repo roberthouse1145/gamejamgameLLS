@@ -154,7 +154,7 @@ func search(keyword: String) -> String:
 	return request_id
 
 
-func open_page(url: String, design_prompt: String = "", page_context: String = "") -> String:
+func open_page(url: String, _design_prompt: String = "", _page_context: String = "") -> String:
 	var normalized: String = url.strip_edges()
 	if normalized.is_empty():
 		return ""
@@ -164,49 +164,23 @@ func open_page(url: String, design_prompt: String = "", page_context: String = "
 	if premade != null:
 		var premade_payload: Dictionary = _build_premade_page_payload(premade)
 		if not premade_payload.is_empty():
-			var local_id := _next_local_request_id("premade")
+			var premade_id := _next_local_request_id("premade")
 			_page_cache[normalized] = {
 				"content": premade_payload.duplicate(true),
 				"updated_at": Time.get_unix_time_from_system()
 			}
-			call_deferred("_emit_cached_page", local_id, normalized, premade_payload)
-			return local_id
+			call_deferred("_emit_cached_page", premade_id, normalized, premade_payload)
+			return premade_id
 
 	if _page_cache.has(normalized):
-		var local_id := _next_local_request_id("page_cache")
+		var cache_id := _next_local_request_id("page_cache")
 		var cached_content: Dictionary = _page_cache[normalized].get("content", {})
-		call_deferred("_emit_cached_page", local_id, normalized, cached_content)
-		return local_id
+		call_deferred("_emit_cached_page", cache_id, normalized, cached_content)
+		return cache_id
 
-	if _page_inflight.has(normalized):
-		var canonical_id: String = str(_page_inflight[normalized])
-		var follower_id := _next_local_request_id("page_join")
-		_append_follower(canonical_id, follower_id)
-		return follower_id
-
-	var messages := _build_page_messages(normalized, design_prompt, page_context)
-	# 若有预制页面但 content 为空，使用其 design_prompt 和 hint
-	if premade != null:
-		if design_prompt.is_empty() and not premade.design_prompt.strip_edges().is_empty():
-			design_prompt = premade.design_prompt
-		if page_context.is_empty() and not premade.hint.strip_edges().is_empty():
-			page_context = premade.hint
-		messages = _build_page_messages(normalized, design_prompt, page_context)
-	var request_id: String = _ai_service.chat(messages, {
-		"temperature": 0.7,
-		"source": "BrowserManager",
-		"prompt_key": PAGE_PROMPT_KEY,
-	})
-	if request_id.is_empty():
-		return ""
-	_pending_requests[request_id] = {
-		"kind": "page",
-		"url": normalized,
-		"design_prompt": design_prompt,
-		"page_context": page_context
-	}
-	_page_inflight[normalized] = request_id
-	return request_id
+	var disabled_id := _next_local_request_id("page_disabled")
+	call_deferred("_emit_page_failed_with_followers", disabled_id, normalized, "网页生成暂时关闭，请从千度贴吧搜索社区内容。")
+	return disabled_id
 
 
 ## 摸鱼冲浪 action 主入口。
@@ -220,45 +194,7 @@ func surf(keyword: String) -> String:
 
 	_surf_counter += 1
 	var surf_request_id := "surf_%d_%d" % [Time.get_ticks_msec(), _surf_counter]
-
-	var blocking_reason := get_surf_blocking_reason()
-	if not blocking_reason.is_empty():
-		call_deferred("_emit_surf_failed", surf_request_id, normalized, blocking_reason)
-		return surf_request_id
-
-	# 1. 关键词缓存命中：不扣 AP，不联动林夏
-	if _surf_keyword_cache.has(normalized):
-		var cached: Dictionary = _surf_keyword_cache[normalized]
-		var cached_url: String = str(cached.get("url", ""))
-		var cached_summary: String = str(cached.get("summary", ""))
-		var cached_page: Dictionary = _page_cache.get(cached_url, {}).get("content", {})
-		call_deferred(
-			"_emit_surf_cache_hit",
-			surf_request_id,
-			normalized,
-			cached_url,
-			cached_summary,
-			cached_page
-		)
-		return surf_request_id
-
-	# 4. 调 LLM A（Director）
-	var messages := _build_surf_director_messages(normalized)
-	var director_request_id: String = _ai_service.chat(messages, {
-		"temperature": 0.7,
-		"source": "BrowserManager",
-		"prompt_key": SURF_DIRECTOR_PROMPT_KEY,
-	})
-	if director_request_id.is_empty():
-		call_deferred("_emit_surf_failed", surf_request_id, normalized, "Director 请求创建失败")
-		return surf_request_id
-
-	_pending_requests[director_request_id] = {
-		"kind": "surf_director",
-		"keyword": normalized,
-		"surf_request_id": surf_request_id,
-	}
-	call_deferred("_emit_surf_started", surf_request_id, normalized)
+	call_deferred("_emit_surf_failed", surf_request_id, normalized, "浏览器冲浪暂时关闭，请使用千度贴吧。")
 	return surf_request_id
 
 

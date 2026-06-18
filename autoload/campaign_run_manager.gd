@@ -409,6 +409,12 @@ func _connect_state_sources() -> void:
 		_connect_signal(browser, "page_generated", Callable(self, "_on_state_changed"))
 		_connect_signal(browser, "page_failed", Callable(self, "_on_state_changed"))
 
+	var community: Node = _get_autoload("CommunityActionManager")
+	if community != null:
+		_connect_signal(community, "community_action_completed", Callable(self, "_on_state_changed"))
+		_connect_signal(community, "community_action_failed", Callable(self, "_on_state_changed"))
+		_connect_signal(community, "community_feed_updated", Callable(self, "_on_state_changed"))
+
 	var shop: Node = _get_autoload("ShopManager")
 	if shop != null:
 		_connect_signal(shop, "shop_state_changed", Callable(self, "_on_state_changed"))
@@ -520,6 +526,7 @@ func _build_run_state() -> Dictionary:
 	var story_state: Dictionary = _collect_manager_state("StoryDirector")
 	var chat_state: Dictionary = _collect_manager_state("ChatManager")
 	var browser_state: Dictionary = _collect_manager_state("BrowserManager")
+	var community_state: Dictionary = _collect_manager_state("CommunityActionManager")
 	var shop_state: Dictionary = _collect_manager_state("ShopManager")
 	var date_state: Dictionary = _collect_manager_state("DateManager")
 	var part_time_state: Dictionary = _collect_manager_state("PartTimeJobManager")
@@ -533,7 +540,7 @@ func _build_run_state() -> Dictionary:
 		if not runtime_project_path.is_empty():
 			player_project_path = runtime_project_path
 
-	if game_loop_state.is_empty() and game_state.is_empty() and story_state.is_empty() and chat_state.is_empty() and browser_state.is_empty() and shop_state.is_empty() and date_state.is_empty() and part_time_state.is_empty() and sbeam_state.is_empty() and home_activity_state.is_empty() and npc_initiative_state.is_empty() and _generated_registry.is_empty():
+	if game_loop_state.is_empty() and game_state.is_empty() and story_state.is_empty() and chat_state.is_empty() and browser_state.is_empty() and community_state.is_empty() and shop_state.is_empty() and date_state.is_empty() and part_time_state.is_empty() and sbeam_state.is_empty() and home_activity_state.is_empty() and npc_initiative_state.is_empty() and _generated_registry.is_empty():
 		return {}
 
 	return {
@@ -550,6 +557,7 @@ func _build_run_state() -> Dictionary:
 		"story_state": story_state,
 		"chat_state": chat_state,
 		"browser_state": browser_state,
+		"community_state": community_state,
 		"shop_state": shop_state,
 		"date_state": date_state,
 		"part_time_state": part_time_state,
@@ -567,6 +575,7 @@ func _apply_run_state(state: Dictionary) -> bool:
 	ok = _apply_manager_state("StoryDirector", state.get("story_state", {})) and ok
 	ok = _apply_manager_state("ChatManager", state.get("chat_state", {})) and ok
 	ok = _apply_manager_state("BrowserManager", state.get("browser_state", {})) and ok
+	ok = _apply_manager_state("CommunityActionManager", state.get("community_state", {})) and ok
 	ok = _apply_manager_state("ShopManager", state.get("shop_state", {})) and ok
 	ok = _apply_manager_state("DateManager", state.get("date_state", {})) and ok
 	ok = _apply_manager_state("PartTimeJobManager", state.get("part_time_state", {})) and ok
@@ -627,7 +636,7 @@ func _get_current_day() -> int:
 
 
 func _can_write_checkpoint() -> bool:
-	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests() and not _has_pending_shop_requests()
+	return not _has_pending_activity_sessions() and not _is_chat_waiting_for_ai() and not _has_pending_browser_requests() and not _has_pending_community_requests() and not _has_pending_shop_requests()
 
 
 func _can_reset_run() -> bool:
@@ -657,6 +666,13 @@ func _has_pending_browser_requests() -> bool:
 	if browser == null or not browser.has_method("has_pending_requests"):
 		return false
 	return bool(browser.call("has_pending_requests"))
+
+
+func _has_pending_community_requests() -> bool:
+	var community: Node = _get_autoload("CommunityActionManager")
+	if community == null or not community.has_method("has_pending_requests"):
+		return false
+	return bool(community.call("has_pending_requests"))
 
 
 func _has_pending_shop_requests() -> bool:
@@ -735,6 +751,7 @@ func _reset_all_runtime_state() -> void:
 	_reset_manager_state("WorkOrderManager")
 	_reset_manager_state("ChatManager", [true])
 	_reset_manager_state("BrowserManager", [true])
+	_reset_manager_state("CommunityActionManager")
 	_reset_manager_state("ShopManager")
 	_reset_manager_state("TransitManager")
 	_reset_manager_state("DateManager")

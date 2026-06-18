@@ -234,16 +234,19 @@ func parse(dsl_text: String) -> Dictionary:
 
 	var commands: Array[AVGCommand] = []
 	var errors: Array[Dictionary] = []
+	var warnings: Array[Dictionary] = []
 	
 	# 采用统一的状态机块解析器入口
 	var result: Dictionary = _parse_block(lines, 0, 0)
 	errors.append_array(result.get("errors", []))
+	warnings.append_array(result.get("warnings", []))
 	commands = result.get("commands", [])
 
 	return {
 		"success": errors.is_empty(),
 		"commands": commands,
-		"errors": errors
+		"errors": errors,
+		"warnings": warnings
 	}
 
 
@@ -252,6 +255,7 @@ func parse(dsl_text: String) -> Dictionary:
 func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Dictionary:
 	var parsed_cmds: Array[AVGCommand] = []
 	var errors: Array[Dictionary] = []
+	var warnings: Array[Dictionary] = []
 	var i: int = start_idx
 	
 	# 用于在 TextBlock 中跨行聚合文本
@@ -291,17 +295,17 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			continue
 			
 		# 3. 对话行 (>)
-		# 每个 > 行只能消费一次紧邻它的 # => TextBlock(...) 声明。
-		# 用完即清，避免后续连续的 > 行错误沿用上一个 speaker。
-		# 这样 LLM 即使忘记加 # => TextBlock() 旁白块，遗漏的 > 也只会降级为无 speaker 旁白，
-		# 不会被错误归属到前一个角色名下。
+		# 连续、同缩进的 > 行属于同一个 TextBlock，合并为一个带换行的 DIALOGUE。
+		# 这样角色可以在同一个对话框里自然分行；要切到旁白或其他 speaker，
+		# 必须显式写新的 # => TextBlock(...)。
 		var dialogue_match: RegExMatch = _rx_dialogue_line.search(prepared_line)
 		if dialogue_match:
-			var text_content: String = dialogue_match.get_string(1).strip_edges()
+			var dialogue_block: Dictionary = _collect_dialogue_lines(lines, i, current_indent)
+			var text_content: String = str(dialogue_block.get("text", ""))
 			var cmd: AVGCommand = _create_dialogue_command(text_content, current_text_block_kwargs)
 			parsed_cmds.append(cmd)
 			current_text_block_kwargs.clear()
-			i += 1
+			i = int(dialogue_block.get("next_idx", i + 1))
 			continue
 			
 		# 4. 选项块探测 (# => ChoiceBlock)
@@ -311,6 +315,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			if block_res.has("command"):
 				parsed_cmds.append(block_res["command"])
 			errors.append_array(block_res.get("errors", []))
+			warnings.append_array(block_res.get("warnings", []))
 			i = block_res.get("next_idx", i + 1)
 			continue
 			
@@ -340,6 +345,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 				var block_res: Dictionary = _parse_block(lines, i + 1, next_indent)
 				if_cmd.params["if_commands"] = block_res.get("commands", [])
 				errors.append_array(block_res.get("errors", []))
+				warnings.append_array(block_res.get("warnings", []))
 				i = block_res.get("next_idx", i + 1)
 			else:
 				if_cmd.params["if_commands"] = []
@@ -360,6 +366,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 						var else_res: Dictionary = _parse_block(lines, i + 1, else_next_ind)
 						if_cmd.params["else_commands"] = else_res.get("commands", [])
 						errors.append_array(else_res.get("errors", []))
+						warnings.append_array(else_res.get("warnings", []))
 						i = else_res.get("next_idx", i + 1)
 					else:
 						if_cmd.params["else_commands"] = []
@@ -471,13 +478,43 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 		if not bare_text.is_empty():
 			var fallback_cmd: AVGCommand = _create_dialogue_command(bare_text, {})
 			parsed_cmds.append(fallback_cmd)
-			push_warning("DSL line %d: auto-wrapped bare text as narration: %s" % [i + 1, bare_text])
+			warnings.append({
+				"line": i + 1,
+				"message": "auto-wrapped bare text as narration: %s" % bare_text,
+				"text": bare_text,
+			})
 		i += 1
 		
 	return {
 		"commands": parsed_cmds,
 		"errors": errors,
+		"warnings": warnings,
 		"next_idx": i
+	}
+
+
+func _collect_dialogue_lines(lines: Array[String], start_idx: int, indent: int) -> Dictionary:
+	var text_lines: Array[String] = []
+	var i: int = start_idx
+	while i < lines.size():
+		var raw_line: String = lines[i]
+		if raw_line.strip_edges().is_empty():
+			break
+		if _get_indent_level(raw_line) != indent:
+			break
+		var prepared_line: String = _prepare_line_for_parse(raw_line)
+		if prepared_line.strip_edges().is_empty():
+			break
+		if _rx_comment.search(prepared_line) != null:
+			break
+		var dialogue_match: RegExMatch = _rx_dialogue_line.search(prepared_line)
+		if dialogue_match == null:
+			break
+		text_lines.append(dialogue_match.get_string(1).strip_edges())
+		i += 1
+	return {
+		"text": "\n".join(text_lines),
+		"next_idx": i,
 	}
 
 
@@ -515,6 +552,7 @@ func _parse_choice_block(lines: Array[String], start_idx: int, indent_level: int
 	cmd.params["choices"] = []
 	
 	var errs: Array[Dictionary] = []
+	var warns: Array[Dictionary] = []
 	var i: int = start_idx + 1
 	var current_choice_dict: Dictionary = {}
 	
@@ -556,6 +594,7 @@ func _parse_choice_block(lines: Array[String], start_idx: int, indent_level: int
 				var res_block: Dictionary = _parse_block(lines, i + 1, next_ind)
 				current_choice_dict["commands"] = res_block.get("commands", [])
 				errs.append_array(res_block.get("errors", []))
+				warns.append_array(res_block.get("warnings", []))
 				i = res_block.get("next_idx", i + 1)
 				continue
 				
@@ -568,6 +607,7 @@ func _parse_choice_block(lines: Array[String], start_idx: int, indent_level: int
 	return {
 		"command": cmd,
 		"errors": errs,
+		"warnings": warns,
 		"next_idx": i
 	}
 
