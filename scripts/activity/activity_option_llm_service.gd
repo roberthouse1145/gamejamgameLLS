@@ -15,7 +15,7 @@ var _default_request_options: Dictionary = {}
 var _request_contexts: Dictionary = {}
 var _use_chat_agent: bool = false
 var _enable_project_tools: bool = false
-var _max_tool_iterations: int = 2
+var _max_tool_iterations: int = 0
 
 
 func configure(
@@ -27,7 +27,7 @@ func configure(
 	) -> bool:
 	_use_chat_agent = bool(service_overrides.get("use_chat_agent", false))
 	_enable_project_tools = bool(service_overrides.get("enable_project_tools", false))
-	_max_tool_iterations = max(1, int(service_overrides.get("max_tool_iterations", 2)))
+	_max_tool_iterations = max(0, int(service_overrides.get("max_tool_iterations", 0)))
 	if _use_chat_agent:
 		_ensure_agent(service_name)
 	else:

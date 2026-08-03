@@ -1,51 +1,128 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/date_events/streaming_avg_player.gd" id="1_stream"]
 [ext_resource type="Theme" uid="uid://c7c4qoevl14xp" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/avg_runtime/character_display.tscn" id="3_char"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stream_frame"]
-bg_color = Color(0.94, 0.92, 0.96, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.29, 0.19, 0.72, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chat_panel"]
-content_margin_left = 18.0
-content_margin_top = 16.0
-content_margin_right = 18.0
-content_margin_bottom = 16.0
-bg_color = Color(0.952, 0.932, 0.972, 1)
-border_width_left = 2
-border_width_top = 1
-border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.29, 0.19, 0.72, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_subtitle"]
-content_margin_left = 18.0
-content_margin_top = 10.0
-content_margin_right = 18.0
-content_margin_bottom = 10.0
-bg_color = Color(0.22, 0.16, 0.72, 0.72)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_skip"]
-content_margin_left = 14.0
-content_margin_top = 4.0
-content_margin_right = 14.0
-content_margin_bottom = 4.0
-bg_color = Color(0.91, 0.82, 0.97, 0.96)
+bg_color = Color(1, 1, 1, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.46, 0.28, 0.86, 1)
+border_color = Color(0.76, 0.73, 0.86, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chat_panel"]
+content_margin_left = 14.0
+content_margin_top = 12.0
+content_margin_right = 14.0
+content_margin_bottom = 12.0
+bg_color = Color(1, 1, 1, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.82, 0.79, 0.90, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_subtitle"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(1, 1, 1, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_skip"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(1, 1, 1, 0.88)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.72, 0.68, 0.84, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_skip_hover"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(0.94, 0.92, 1, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.55, 0.46, 0.78, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_skip_pressed"]
+content_margin_left = 16.0
+content_margin_top = 4.0
+content_margin_right = 16.0
+content_margin_bottom = 4.0
+bg_color = Color(0.88, 0.84, 0.98, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.45, 0.36, 0.72, 1)
+corner_radius_top_left = 6
+corner_radius_top_right = 6
+corner_radius_bottom_right = 6
+corner_radius_bottom_left = 6
 
 [sub_resource type="StyleBoxLine" id="StyleBoxLine_chat_sep"]
-color = Color(0.6, 0.5, 0.85, 1)
+color = Color(0.83, 0.80, 0.91, 1)
 thickness = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_site_bar"]
+bg_color = Color(1, 1, 1, 0.78)
+border_width_bottom = 1
+border_color = Color(0.89, 0.86, 0.92, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_site_slot"]
+bg_color = Color(0.96, 0.94, 0.97, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.91, 0.88, 0.94, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_recommend_card"]
+bg_color = Color(1, 1, 1, 0.62)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.91, 0.83, 0.91, 1)
+border_blend = true
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_info_rule"]
+bg_color = Color(0.86, 0.82, 0.90, 1)
 
 [node name="StreamingAVGPlayer" type="Control"]
 layout_mode = 3
@@ -64,40 +141,64 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.945, 0.935, 0.960, 1)
+color = Color(0.984, 0.969, 0.973, 1)
 
-[node name="MainMargin" type="MarginContainer" parent="."]
+[node name="MainMargin" type="Control" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_bottom = 12
+
+[node name="SiteBar" type="HBoxContainer" parent="MainMargin"]
+unique_name_in_owner = true
+layout_mode = 0
+theme_override_constants/separation = 12
+
+[node name="MenuGlyph" type="Label" parent="MainMargin/SiteBar"]
+layout_mode = 2
+text = "≡"
+theme_override_font_sizes/font_size = 17
+theme_override_colors/font_color = Color(0.55, 0.50, 0.64, 1)
+
+[node name="LiveMark" type="Label" parent="MainMargin/SiteBar"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "▶ live"
+theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.86, 0.20, 0.34, 1)
+
+[node name="SearchSlot" type="PanelContainer" parent="MainMargin/SiteBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_site_slot")
+
+[node name="SearchSlotMin" type="Control" parent="MainMargin/SiteBar/SearchSlot"]
+custom_minimum_size = Vector2(220, 18)
+layout_mode = 2
+
+[node name="RightSlot" type="PanelContainer" parent="MainMargin/SiteBar"]
+custom_minimum_size = Vector2(150, 20)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_site_slot")
+
+[node name="RightSlotMin" type="Control" parent="MainMargin/SiteBar/RightSlot"]
+custom_minimum_size = Vector2(150, 18)
+layout_mode = 2
 
 [node name="StreamLayout" type="HBoxContainer" parent="MainMargin"]
-layout_mode = 2
+unique_name_in_owner = true
+layout_mode = 0
 theme_override_constants/separation = 16
 
 [node name="LeftColumn" type="VBoxContainer" parent="MainMargin/StreamLayout"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 size_flags_stretch_ratio = 2.2
 theme_override_constants/separation = 8
-
-[node name="TopBar" type="HBoxContainer" parent="MainMargin/StreamLayout/LeftColumn"]
-layout_mode = 2
-theme_override_constants/separation = 10
-
-[node name="LiveMark" type="Label" parent="MainMargin/StreamLayout/LeftColumn/TopBar"]
-layout_mode = 2
-text = "▶ live"
-theme_override_font_sizes/font_size = 14
-theme_override_colors/font_color = Color(0.88, 0.22, 0.34, 1)
 
 [node name="AspectRoot" type="Control" parent="MainMargin/StreamLayout/LeftColumn"]
 unique_name_in_owner = true
@@ -180,8 +281,10 @@ text = ""
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 26
 theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_outline_color = Color(0.05, 0.04, 0.07, 0.92)
+theme_override_constants/outline_size = 5
 
 [node name="SkipButton" type="Button" parent="MainMargin/StreamLayout/LeftColumn/AspectRoot/VideoFrame"]
 unique_name_in_owner = true
@@ -196,8 +299,11 @@ offset_bottom = 46.0
 grow_horizontal = 0
 theme_override_font_sizes/font_size = 15
 theme_override_styles/normal = SubResource("StyleBoxFlat_skip")
-theme_override_styles/hover = SubResource("StyleBoxFlat_skip")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_skip")
+theme_override_styles/hover = SubResource("StyleBoxFlat_skip_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_skip_pressed")
+theme_override_colors/font_color = Color(0.31, 0.26, 0.46, 1)
+theme_override_colors/font_hover_color = Color(0.24, 0.18, 0.40, 1)
+theme_override_colors/font_pressed_color = Color(0.18, 0.13, 0.32, 1)
 text = "SKIP"
 
 [node name="VideoInfo" type="VBoxContainer" parent="MainMargin/StreamLayout/LeftColumn"]
@@ -210,7 +316,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 text = "直播"
 theme_override_font_sizes/font_size = 18
-theme_override_colors/font_color = Color(0.25, 0.18, 0.58, 1)
+theme_override_colors/font_color = Color(0.13, 0.10, 0.23, 1)
 
 [node name="StreamStatsLabel" type="Label" parent="MainMargin/StreamLayout/LeftColumn/VideoInfo"]
 unique_name_in_owner = true
@@ -218,9 +324,10 @@ layout_mode = 2
 size_flags_vertical = 4
 text = ""
 theme_override_font_sizes/font_size = 13
-theme_override_colors/font_color = Color(0.44, 0.4, 0.56, 1)
+theme_override_colors/font_color = Color(0.42, 0.38, 0.52, 1)
 
 [node name="ChatPanel" type="PanelContainer" parent="MainMargin/StreamLayout"]
+unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
@@ -229,13 +336,14 @@ theme_override_styles/panel = SubResource("StyleBoxFlat_chat_panel")
 
 [node name="ChatVBox" type="VBoxContainer" parent="MainMargin/StreamLayout/ChatPanel"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 6
 
 [node name="ChatHeader" type="Label" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox"]
+unique_name_in_owner = true
 layout_mode = 2
 text = "正在选择留言"
-theme_override_font_sizes/font_size = 15
-theme_override_colors/font_color = Color(0.28, 0.18, 0.62, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_colors/font_color = Color(0.18, 0.14, 0.32, 1)
 
 [node name="ChatSep" type="HSeparator" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox"]
 layout_mode = 2
@@ -251,11 +359,120 @@ horizontal_scroll_mode = 0
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="InfoArea" type="VBoxContainer" parent="MainMargin"]
+unique_name_in_owner = true
+layout_mode = 0
 theme_override_constants/separation = 12
 
-[node name="ChatFooter" type="Label" parent="MainMargin/StreamLayout/ChatPanel/ChatVBox"]
+[node name="InfoRule" type="Panel" parent="MainMargin/InfoArea"]
+custom_minimum_size = Vector2(0, 1)
 layout_mode = 2
-text = "待读留言 ▶"
-horizontal_alignment = 2
-theme_override_font_sizes/font_size = 13
-theme_override_colors/font_color = Color(0.5, 0.45, 0.70, 0.8)
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_info_rule")
+
+[node name="IntroBlock" type="VBoxContainer" parent="MainMargin/InfoArea"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 7
+
+[node name="IntroLineA" type="ColorRect" parent="MainMargin/InfoArea/IntroBlock"]
+custom_minimum_size = Vector2(520, 8)
+layout_mode = 2
+color = Color(0.91, 0.86, 0.92, 0.72)
+
+[node name="IntroLineB" type="ColorRect" parent="MainMargin/InfoArea/IntroBlock"]
+custom_minimum_size = Vector2(420, 8)
+layout_mode = 2
+color = Color(0.93, 0.88, 0.94, 0.58)
+
+[node name="IntroLineC" type="ColorRect" parent="MainMargin/InfoArea/IntroBlock"]
+custom_minimum_size = Vector2(300, 8)
+layout_mode = 2
+color = Color(0.94, 0.90, 0.95, 0.48)
+
+[node name="RecommendRow" type="HBoxContainer" parent="MainMargin/InfoArea"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="RecommendCardA" type="PanelContainer" parent="MainMargin/InfoArea/RecommendRow"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_recommend_card")
+
+[node name="CardAMargin" type="MarginContainer" parent="MainMargin/InfoArea/RecommendRow/RecommendCardA"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="CardALines" type="VBoxContainer" parent="MainMargin/InfoArea/RecommendRow/RecommendCardA/CardAMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CardALineA" type="ColorRect" parent="MainMargin/InfoArea/RecommendRow/RecommendCardA/CardAMargin/CardALines"]
+custom_minimum_size = Vector2(160, 8)
+layout_mode = 2
+color = Color(0.91, 0.86, 0.92, 0.66)
+
+[node name="CardALineB" type="ColorRect" parent="MainMargin/InfoArea/RecommendRow/RecommendCardA/CardAMargin/CardALines"]
+custom_minimum_size = Vector2(220, 8)
+layout_mode = 2
+color = Color(0.94, 0.90, 0.95, 0.48)
+
+[node name="RecommendCardB" type="PanelContainer" parent="MainMargin/InfoArea/RecommendRow"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_recommend_card")
+
+[node name="CardBMargin" type="MarginContainer" parent="MainMargin/InfoArea/RecommendRow/RecommendCardB"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="CardBLines" type="VBoxContainer" parent="MainMargin/InfoArea/RecommendRow/RecommendCardB/CardBMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CardBLineA" type="ColorRect" parent="MainMargin/InfoArea/RecommendRow/RecommendCardB/CardBMargin/CardBLines"]
+custom_minimum_size = Vector2(140, 8)
+layout_mode = 2
+color = Color(0.91, 0.86, 0.92, 0.66)
+
+[node name="CardBLineB" type="ColorRect" parent="MainMargin/InfoArea/RecommendRow/RecommendCardB/CardBMargin/CardBLines"]
+custom_minimum_size = Vector2(210, 8)
+layout_mode = 2
+color = Color(0.94, 0.90, 0.95, 0.48)
+
+[node name="RecommendCardC" type="PanelContainer" parent="MainMargin/InfoArea/RecommendRow"]
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBoxFlat_recommend_card")
+
+[node name="CardCMargin" type="MarginContainer" parent="MainMargin/InfoArea/RecommendRow/RecommendCardC"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="CardCLines" type="VBoxContainer" parent="MainMargin/InfoArea/RecommendRow/RecommendCardC/CardCMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="CardCLineA" type="ColorRect" parent="MainMargin/InfoArea/RecommendRow/RecommendCardC/CardCMargin/CardCLines"]
+custom_minimum_size = Vector2(170, 8)
+layout_mode = 2
+color = Color(0.91, 0.86, 0.92, 0.66)
+
+[node name="CardCLineB" type="ColorRect" parent="MainMargin/InfoArea/RecommendRow/RecommendCardC/CardCMargin/CardCLines"]
+custom_minimum_size = Vector2(190, 8)
+layout_mode = 2
+color = Color(0.94, 0.90, 0.95, 0.48)

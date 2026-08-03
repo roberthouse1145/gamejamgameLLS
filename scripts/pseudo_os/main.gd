@@ -4,7 +4,9 @@ class_name Main extends Control
 const SplashScreenScene: PackedScene = preload("res://scenes/pseudo_os/splash_screen.tscn")
 const BootScreenScene: PackedScene = preload("res://scenes/pseudo_os/boot_screen.tscn")
 const LoginScreenScene: PackedScene = preload("res://scenes/pseudo_os/login_screen.tscn")
-const DesktopScene: PackedScene = preload("res://scenes/pseudo_os/game_desktop.tscn")
+const StoryDesktopScene: PackedScene = preload("res://scenes/pseudo_os/game_desktop.tscn")
+const FreeDesktopScene: PackedScene = preload("res://scenes/pseudo_os/free_desktop.tscn")
+const MODE_FREE: String = "free"
 
 enum State { SPLASH, BOOT, LOGIN, DESKTOP }
 
@@ -67,32 +69,33 @@ func _enter_login() -> void:
 	login.settings_requested.connect(_on_settings_requested)
 
 
-func _on_login_requested(player_name: String, is_new_game: bool) -> void:
+func _on_login_requested(player_name: String, is_new_game: bool, play_mode: String) -> void:
 	_save_player_name(player_name)
 	# 将网名存入 StoryDirector，供 prompt 系统使用
 	var story_director: Node = get_node_or_null("/root/StoryDirector")
 	if story_director != null and story_director.has_method("set_variable"):
 		story_director.set_variable("player_name", player_name)
 	if is_new_game:
-		_transition_to(func() -> void: _start_new_game(player_name))
+		_transition_to(func() -> void: _start_new_game(player_name, play_mode))
 	else:
-		_transition_to(func() -> void: _continue_game(player_name))
+		_transition_to(func() -> void: _continue_game(player_name, play_mode))
 
 
-func _start_new_game(player_name: String) -> void:
+func _start_new_game(player_name: String, play_mode: String) -> void:
 	print("[Main] New game started. Player: %s" % player_name)
 	_reset_all_managers()
-	_enter_desktop()
+	_enter_desktop(play_mode)
 
 
-func _continue_game(_player_name: String) -> void:
+func _continue_game(_player_name: String, play_mode: String) -> void:
 	print("[Main] Continuing game.")
-	_enter_desktop()
+	_enter_desktop(play_mode)
 
 
-func _enter_desktop() -> void:
+func _enter_desktop(play_mode: String) -> void:
 	_current_state = State.DESKTOP
-	var desktop: Control = DesktopScene.instantiate()
+	var desktop_scene: PackedScene = FreeDesktopScene if play_mode == MODE_FREE else StoryDesktopScene
+	var desktop: Control = desktop_scene.instantiate()
 	desktop.modulate.a = 0.0
 	_current_screen = desktop
 	add_child(desktop)

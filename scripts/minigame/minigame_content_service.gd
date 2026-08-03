@@ -76,7 +76,7 @@ func _ready() -> void:
 		{
 			"use_chat_agent": true,
 			"enable_project_tools": true,
-			"max_tool_iterations": 2,
+			"max_tool_iterations": 0,
 		},
 		{
 			"temperature": 0.5,

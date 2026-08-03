@@ -24,6 +24,7 @@ signal log_entry(entry: Dictionary)
 var _messages: Array = []
 var _system_prompt: String = ""
 var _is_busy: bool = false
+var _pending_tool_call_content: String = ""
 ## sub-agent 注册表: tool_name -> {agent: ChatAgent, description: String, queued: bool}
 var _sub_agents: Dictionary = {}
 ## 已激活的 skills: [{name: String, instructions: String}]
@@ -75,6 +76,7 @@ func send_message_with_options(text: String, request_options: Dictionary = {}) -
 		return ""
 
 	_is_busy = true
+	_pending_tool_call_content = ""
 
 	# 首次对话时设置 system prompt
 	if _messages.is_empty() and _system_prompt.is_empty():
@@ -114,6 +116,7 @@ func reset() -> void:
 	_messages.clear()
 	_system_prompt = ""
 	_is_busy = false
+	_pending_tool_call_content = ""
 
 
 ## 显式设置当前回合使用的 system prompt。
@@ -378,6 +381,28 @@ func _extract_result_tag(text: String) -> String:
 		return text.strip_edges()
 
 	return text.substr(start_idx + start_tag.length(), end_idx - start_idx - start_tag.length()).strip_edges()
+
+
+func _append_pending_tool_call_content(existing: String, next_content: String) -> String:
+	var normalized_next := next_content.strip_edges()
+	if normalized_next.is_empty():
+		return existing
+	var normalized_existing := existing.strip_edges()
+	if normalized_existing.is_empty():
+		return normalized_next
+	return "%s\n%s" % [normalized_existing, normalized_next]
+
+
+func _build_completed_content(content: String) -> String:
+	var normalized_content := content.strip_edges()
+	if role != "linkchat":
+		return normalized_content
+	var pending_content := _pending_tool_call_content.strip_edges()
+	if pending_content.is_empty():
+		return normalized_content
+	if normalized_content.is_empty():
+		return pending_content
+	return "%s\n%s" % [pending_content, normalized_content]
 #endregion
 
 
@@ -414,6 +439,8 @@ func _on_request_completed(_request_id: String, response: Dictionary) -> void:
 		
 		# 如果是工具调用响应，必须存入 tool_calls 才能保证下一轮对话不中断
 		if has_tool_calls:
+			if role == "linkchat" and not history_content.is_empty():
+				_pending_tool_call_content = _append_pending_tool_call_content(_pending_tool_call_content, history_content)
 			var message_node: Dictionary = response.choices[0].get("message", {})
 			var message_tool_calls_value: Variant = message_node.get("tool_calls", null)
 			var message_tool_calls: Array = message_tool_calls_value if message_tool_calls_value is Array else []
@@ -428,10 +455,12 @@ func _on_request_completed(_request_id: String, response: Dictionary) -> void:
 	if not has_tool_calls:
 		_is_busy = false
 		# 最终完成：没有 tool_calls，发出 message_completed
-		if not content.is_empty():
-			message_completed.emit(_request_id, content)
+		var completed_content: String = _build_completed_content(content)
+		if not completed_content.is_empty():
+			message_completed.emit(_request_id, completed_content)
 		else:
 			message_completed.emit(_request_id, "")
+		_pending_tool_call_content = ""
 	# 有 tool_calls 时不发 message_completed，等工具执行完后 AIService 会再次回调
 
 
@@ -441,6 +470,7 @@ func _on_request_failed(_request_id: String, error: String, _error_code: int) ->
 
 	_emit_log("error", "请求失败: " + error)
 	_is_busy = false
+	_pending_tool_call_content = ""
 	message_failed.emit(_request_id, error)
 
 

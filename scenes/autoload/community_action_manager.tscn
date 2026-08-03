@@ -9,6 +9,6 @@ script = ExtResource("1_manager")
 [node name="AIService" type="Node" parent="."]
 script = ExtResource("2_ai_service")
 auto_execute_tools = false
-max_tool_iterations = 1
+max_tool_iterations = 0
 max_concurrent_requests = 6
 stream_enabled = false

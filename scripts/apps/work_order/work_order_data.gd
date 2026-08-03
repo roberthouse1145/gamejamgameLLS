@@ -58,11 +58,6 @@ enum Status {
 	"tasks": [] # Array[{description: String, done: bool}]
 }
 
-## 来源标记：用于 DevCycle / Story 等系统回查工单归属
-@export var source_type: String = ""
-@export var source_id: String = ""
-@export var metadata: Dictionary = {}
-
 ## 父工单ID（用于子任务）
 @export var parent_order_id: String = ""
 
@@ -97,9 +92,6 @@ static func from_dict(data: Dictionary) -> Resource:
 	
 	order.dispatch_day = data.get("dispatch_day", 0)
 	order.spec = data.get("spec", {"requirements_text": "", "design_text": "", "tasks": []})
-	order.source_type = data.get("source_type", "")
-	order.source_id = data.get("source_id", "")
-	order.metadata = data.get("metadata", {})
 	order.parent_order_id = data.get("parent_order_id", "")
 	var children: Array = data.get("children_order_ids", [])
 	order.children_order_ids.assign(children)
@@ -124,9 +116,6 @@ func to_dict() -> Dictionary:
 		"linked_llm_kb_ids": linked_llm_kb_ids,
 		"dispatch_day": dispatch_day,
 		"spec": spec,
-		"source_type": source_type,
-		"source_id": source_id,
-		"metadata": metadata,
 		"parent_order_id": parent_order_id,
 		"children_order_ids": children_order_ids,
 		"created_at": created_at,

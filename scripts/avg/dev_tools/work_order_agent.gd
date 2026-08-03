@@ -14,7 +14,7 @@ const GameEditorToolsClass = preload("res://scripts/avg/dev_tools/game_editor_to
 func _ready() -> void:
 	_configure_history_budget(self, MAIN_HISTORY_MESSAGES, MAIN_HISTORY_CHARS, MAIN_HISTORY_PRESERVE)
 	super._ready()
-	_ai_service.max_tool_iterations = 80
+	_ai_service.max_tool_iterations = 0
 
 	GameEditorToolsClass.register_work_order_tools(_ai_service)
 	AVGDevWorkOrderTools.register_finish_tool(_ai_service)
@@ -69,7 +69,7 @@ func _run_research(args: Dictionary) -> Dictionary:
 	var ai_svc: AIService = AIService.new()
 	ai_svc.name = "AIService"
 	ai_svc.auto_execute_tools = true
-	ai_svc.max_tool_iterations = 30
+	ai_svc.max_tool_iterations = 0
 	agent.add_child(ai_svc)
 	_register_research_tools(ai_svc)
 	_mark_research_tool_effects(ai_svc)

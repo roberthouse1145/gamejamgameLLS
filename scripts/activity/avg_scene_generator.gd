@@ -22,10 +22,8 @@ const PREVIEW_ASSET_KEY: String = "date_scene_asset_manifest"
 const WRITER_ROLE: String = "date_scene_writer"
 const MAX_GENERATION_ATTEMPTS: int = 3
 const NORMAL_CHOICE_VAR_ID: String = "var_001"
-## 生成阶段允许 LLM 主动调 kb_read 的最多回合数。
-## 设 2 是保守起步：让模型最多查一次 KB 然后返回 DSL；偶发同时查多个 doc 时
-## 仍能在 1 轮工具调用内并发完成（参考 LinkChat 测试中 LLM 同回合并发 2 个 kb_read 的行为）。
-const WRITER_MAX_TOOL_ITERATIONS: int = 2
+## 0 表示 writer 工具循环不设本地回合上限。
+const WRITER_TOOL_ITERATIONS: int = 0
 
 const OUTLINE_COMMAND_TYPES: PackedStringArray = [
 	"DIALOGUE",
@@ -81,7 +79,7 @@ func _setup_ai_services() -> void:
 	# 开启工具循环：让 writer 在生成 DSL 前可以主动调 kb_read 取项目设定全文。
 	# 配合 system prompt 里被动注入的「索引 + 项目状态」轮廓使用。
 	_writer_service.auto_execute_tools = true
-	_writer_service.max_tool_iterations = WRITER_MAX_TOOL_ITERATIONS
+	_writer_service.max_tool_iterations = WRITER_TOOL_ITERATIONS
 	add_child(_writer_service)
 	_writer_service.request_completed.connect(_on_writer_completed)
 	_writer_service.request_failed.connect(_on_writer_failed)

@@ -1,13 +1,14 @@
-[gd_resource type="Resource" script_class="AVGGameUIConfig" format=3]
+[gd_resource type="Resource" script_class="AVGGameUIConfig" format=3 uid="uid://bymocsgkclmm5"]
 
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_ui_button.gd" id="1_ui_button"]
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_game_ui_config.gd" id="2_game_ui"]
+[ext_resource type="Script" uid="uid://bpkti8e32y4k2" path="res://scripts/avg/resources/avg_ui_button.gd" id="1_ui_button"]
+[ext_resource type="Script" uid="uid://d1y6ucevmop1x" path="res://scripts/avg/resources/avg_game_ui_config.gd" id="2_game_ui"]
 
 [sub_resource type="Resource" id="Resource_hud_save"]
 script = ExtResource("1_ui_button")
 button_id = "save"
 display_text = "存档"
 action = "save"
+visible_default = false
 norm_position = Vector2(0.55, 0.96)
 
 [sub_resource type="Resource" id="Resource_hud_load"]
@@ -15,6 +16,7 @@ script = ExtResource("1_ui_button")
 button_id = "load"
 display_text = "读档"
 action = "load"
+visible_default = false
 norm_position = Vector2(0.605, 0.96)
 order = 1
 

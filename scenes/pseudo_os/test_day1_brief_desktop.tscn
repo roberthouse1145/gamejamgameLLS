@@ -6,6 +6,3 @@
 [node name="TestDay1BriefDesktop" instance=ExtResource("1_base")]
 script = ExtResource("2_script")
 desktop_app_ids = PackedStringArray("linkchat", "dev_work", "knowledge_base", "work_order", "game_previewer")
-
-[node name="PseudoCursor" parent="." index="6"]
-layout_mode = 0

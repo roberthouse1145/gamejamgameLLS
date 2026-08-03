@@ -8,8 +8,8 @@ const DEFAULT_SAY_HOLD: float = 0.8
 const DEFAULT_CHAT_DELAY: float = 0.25
 const DEFAULT_HOST_DURATION: float = 0.2
 const DEFAULT_HOST_X: float = 0.5
-const DEFAULT_HOST_Y: float = 0.8
-const DEFAULT_HOST_SCALE: float = 1.0
+const DEFAULT_HOST_Y: float = 0.73
+const DEFAULT_HOST_SCALE: float = 1.42
 
 const STREAM_KEYS: Array[String] = ["host", "viewers", "day"]
 const SAY_KEYS: Array[String] = ["speed", "hold"]

@@ -30,7 +30,7 @@ func _test_activity_option_agent_tools() -> void:
 		{
 			"use_chat_agent": true,
 			"enable_project_tools": true,
-			"max_tool_iterations": 2,
+			"max_tool_iterations": 0,
 		},
 		{}
 	)
@@ -39,6 +39,7 @@ func _test_activity_option_agent_tools() -> void:
 	_assert_tool(ai_service, "kb_read", "ActivityOptionLLMService agent")
 	_assert_tool(ai_service, "wo_list_order_summaries", "ActivityOptionLLMService agent")
 	_assert_tool(ai_service, "get_dev_cycle_snapshot", "ActivityOptionLLMService agent")
+	_assert_tool_iterations_unlimited(ai_service, "ActivityOptionLLMService agent")
 	service.queue_free()
 
 
@@ -51,6 +52,7 @@ func _test_creative_decision_agent_tools() -> void:
 		_assert_tool(ai_service, "kb_read", agent_name)
 		_assert_tool(ai_service, "wo_list_order_summaries", agent_name)
 		_assert_tool(ai_service, "get_dev_cycle_snapshot", agent_name)
+		_assert_tool_iterations_unlimited(ai_service, agent_name)
 	cd.queue_free()
 
 
@@ -66,6 +68,17 @@ func _assert_tool(ai_service: Node, tool_name: String, label: String) -> void:
 			print("[PASS] %s has %s" % [label, tool_name])
 			return
 	_fail("%s missing %s" % [label, tool_name])
+
+
+func _assert_tool_iterations_unlimited(ai_service: Node, label: String) -> void:
+	if ai_service == null:
+		_fail("%s missing AIService" % label)
+		return
+	var max_iterations := int(ai_service.get("max_tool_iterations"))
+	if max_iterations == 0:
+		print("[PASS] %s uses unlimited tool iterations" % label)
+		return
+	_fail("%s max_tool_iterations should be 0, got %d" % [label, max_iterations])
 
 
 func _fail(message: String) -> void:

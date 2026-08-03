@@ -497,7 +497,7 @@ func _share_entry_with_lin_xia(action_id: String, entry: Dictionary, action_meta
 	if chat.has_method("store_player_message_data"):
 		chat.store_player_message_data(LIN_XIA_CHANNEL_ID, {
 			"speaker": "player",
-			"content": "我刚刷到这个帖子，发给你看看。",
+			"content": "",
 			"card": share_card,
 		})
 
@@ -597,16 +597,12 @@ func _build_action_feed_messages(action_meta: Dictionary) -> Array:
 	if day <= 0:
 		day = _get_current_day()
 	var selected_seeds: Array = action_meta.get("selected_seeds", [])
-	var gm: Node = _get_root_node("GameManager")
-	var state_prompt: String = ""
-	if gm != null and gm.has_method("get_llm_state_prompt"):
-		state_prompt = str(gm.get_llm_state_prompt()).strip_edges()
 
 	var system_prompt: String = _resolve_prompt(PAGE_PROMPT_KEY, {
 		"action_type": str(action.get("title", "社区行动")),
 		"topic_seeds": ", ".join(PackedStringArray(selected_seeds)),
 		"current_day": str(day),
-		"game_state": "当前游戏状态：%s" % state_prompt if not state_prompt.is_empty() else "",
+		"game_state": _build_public_feed_context(action_meta),
 	})
 	if system_prompt.is_empty():
 		system_prompt = "你是一个虚拟社交平台的帖子生成器。只输出帖子 DSL，不要解释。"
@@ -634,16 +630,36 @@ func _build_action_feed_user_prompt(action_meta: Dictionary) -> String:
 	match str(action_meta.get("action_id", "")):
 		FREE_SEARCH_ACTION_ID:
 			user_parts.append("这是玩家主动搜索社区得到的一条论坛帖。主楼和楼层都要紧扣搜索词，不要写成搜索结果列表。")
+			user_parts.append("根据搜索词选择主楼主体：可以是普通用户求助/测评、品牌或官方账号公告、营销贴、媒体搬运、教程作者、店铺客服、活动页转帖等。")
 		RANDOM_SEARCH_ACTION_ID:
 			user_parts.append("这是玩家随手刷到的一条社区热帖。主题可以轻松发散，但整串楼仍然只能围绕当前主题。")
+			user_parts.append("主楼主体可以多样化，例如路人热帖、官方快讯、搬运号、评测号、教程作者或营销号。")
 		"chill_browse":
 			user_parts.append("这是一条和比赛无关的闲聊帖，内容可以是情感、萌宠、游戏、校园生活等轻松话题。整体像玩家随手刷到的贴吧热帖，允许有争议、歪楼和楼中楼互呛。不要涉及比赛和游戏开发。")
 		"learn_dev":
 			user_parts.append("这是一条游戏开发相关的教程或经验帖，可以涉及引擎使用技巧、美术流程、剧本写法、项目管理等。整体像论坛里的干货帖或经验分享，楼层可以补充、质疑或追问。")
+			user_parts.append("主楼主体可以是教程作者、工具官方、资源站维护者、经验帖楼主或正在求助的开发者。")
 		"follow_contest":
-			user_parts.append("主楼必须明显围绕玩家项目或项目宣传点展开，但主楼作者是社区用户/路人，不是玩家或林夏。可以写成有人看到、转发、讨论玩家项目的宣传点；不要用第一人称替玩家发宣传帖，也不要让 NPC 误以为帖子是玩家自己写的。后续楼层是路人围观、质疑、支持和转评。")
+			user_parts.append("主楼必须明显围绕玩家项目或项目宣传点展开；主楼作者可以是路人、媒体搬运号、评测号、活动整理号或项目相关公告账号。不要用第一人称替玩家发宣传帖。后续楼层是路人围观、质疑、支持和转评。")
 	user_parts.append("楼层之间要有温差，不要所有人都一个态度。")
 	return "\n".join(user_parts)
+
+
+func _build_public_feed_context(action_meta: Dictionary) -> String:
+	var action_id: String = str(action_meta.get("action_id", ""))
+	if action_id != "follow_contest":
+		return "公开社区背景：这是玩家在社区里看到的一条帖子，主楼主体和楼层身份可以根据主题自然变化。"
+
+	var gm: Node = _get_root_node("GameManager")
+	if gm == null:
+		return "公开项目状态：当前是 GameJam 参赛项目相关讨论，发帖主体可以是路人、搬运号、评测号或公告账号。"
+
+	return "公开项目状态：完成度 %d，质量 %d，稳定 %d，热度 %d。发帖主体可以是路人、搬运号、评测号或公告账号。" % [
+		int(gm.get("completion")),
+		int(gm.get("quality")),
+		int(gm.get("stability")),
+		int(gm.get("hype")),
+	]
 
 
 func _pick_random_search_seed() -> String:

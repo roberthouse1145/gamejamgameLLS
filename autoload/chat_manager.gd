@@ -45,6 +45,7 @@ const TOPIC_TIMEOUT_CONTINUE_SEED: String = "对方在一段时间内没有回�
 const LINKCHAT_AI_TIMEOUT: float = 30.0
 const LINKCHAT_AI_MAX_RETRIES: int = 1
 const LINKCHAT_AI_RETRY_DELAY: float = 0.35
+const LINKCHAT_USE_COLLABORATOR_AGENT: bool = false
 ## 每日开始时只对白名单频道触发摘要（对话历史非空时）
 const SUMMARY_CHANNEL_WHITELIST: Array[String] = [
 	"dm_lin_xia",
@@ -896,6 +897,8 @@ func _get_channel_messages_for_protocol(channel_id: String) -> Array[Dictionary]
 #region Collaborator Project Context
 
 func _should_use_collaborator_agent(channel: ChatChannel, npcs: Array[NPCCharacter]) -> bool:
+	if not LINKCHAT_USE_COLLABORATOR_AGENT:
+		return false
 	if collaborator_agent == null or not is_instance_valid(collaborator_agent):
 		return false
 	if channel == null:

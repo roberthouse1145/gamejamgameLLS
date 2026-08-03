@@ -1,11 +1,11 @@
-[gd_resource type="Resource" script_class="AVGProject" format=3]
+[gd_resource type="Resource" script_class="AVGProject" format=3 uid="uid://bnih5mqj3oxc1"]
 
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_project.gd" id="1_script"]
-[ext_resource type="Resource" path="res://narrative_projects/main_story/characters/lin_xia_story.tres" id="2_lin_xia"]
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_screen_config.gd" id="3_3h28x"]
-[ext_resource type="Resource" path="res://narrative_projects/main_story/ui/main_story_dialog_settings.tres" id="3_dialog_settings"]
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_title_config.gd" id="5_5uyu1"]
-[ext_resource type="Resource" path="res://narrative_projects/main_story/ui/main_story_game_ui_config.tres" id="6_game_ui_config"]
+[ext_resource type="Script" uid="uid://dipn7l870oj3x" path="res://scripts/avg/resources/avg_project.gd" id="1_script"]
+[ext_resource type="Resource" uid="uid://c5v66dtxavf03" path="res://narrative_projects/main_story/characters/lin_xia_story.tres" id="2_lin_xia"]
+[ext_resource type="Script" uid="uid://dcys6ujkpwu34" path="res://scripts/avg/resources/avg_screen_config.gd" id="3_3h28x"]
+[ext_resource type="Resource" uid="uid://ghnc61mb5ya2" path="res://narrative_projects/main_story/ui/main_story_dialog_settings.tres" id="3_dialog_settings"]
+[ext_resource type="Script" uid="uid://cm2qbgaarjq40" path="res://scripts/avg/resources/avg_title_config.gd" id="5_5uyu1"]
+[ext_resource type="Resource" uid="uid://bymocsgkclmm5" path="res://narrative_projects/main_story/ui/main_story_game_ui_config.tres" id="6_game_ui_config"]
 
 [sub_resource type="Resource" id="Resource_vyht2"]
 script = ExtResource("3_3h28x")

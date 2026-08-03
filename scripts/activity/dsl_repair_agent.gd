@@ -17,7 +17,7 @@ const ValidatorClass = preload("res://scripts/avg/dsl/avg_dsl_validator.gd")
 
 const REPAIR_ROLE: String = "dsl_repair"
 const FALLBACK_ROLES: PackedStringArray = ["date_scene_writer", "chat_default"]
-const MAX_TOOL_ITERATIONS: int = 10
+const UNLIMITED_TOOL_ITERATIONS: int = 0
 const SYSTEM_PROMPT_KEY: String = "dsl_repair_system"
 
 var _repair_service: AIService = null
@@ -43,7 +43,7 @@ func _setup_repair_service() -> void:
 	_repair_service = AIService.new()
 	_repair_service.name = "DSLRepairService"
 	_repair_service.auto_execute_tools = true
-	_repair_service.max_tool_iterations = MAX_TOOL_ITERATIONS
+	_repair_service.max_tool_iterations = UNLIMITED_TOOL_ITERATIONS
 	add_child(_repair_service)
 
 	# 注册工具（常驻，回调通过 _active_repair 访问上下文）

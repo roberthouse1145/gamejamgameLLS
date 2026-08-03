@@ -11,8 +11,5 @@ inject_initial_dev_work = true
 allow_manual_story_start = false
 desktop_app_ids = PackedStringArray("linkchat", "browser", "community", "sleep", "map", "work_order", "dev_work", "knowledge_base", "part_time", "sbeam", "shop", "avg_player", "desktop_pet", "music_player", "scene_editor", "project_manager", "story_project_manager", "game_previewer", "file_manager")
 
-[node name="PseudoCursor" parent="." index="6"]
-layout_mode = 0
-
-[node name="BalanceDebugPanel" parent="." index="7" unique_id=552639436 instance=ExtResource("3_balance_debug")]
+[node name="BalanceDebugPanel" parent="." index="6" unique_id=552639436 instance=ExtResource("3_balance_debug")]
 layout_mode = 0

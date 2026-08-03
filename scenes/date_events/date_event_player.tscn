@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/date_events/date_event_player.gd" id="1_player"]
 [ext_resource type="Theme" uid="uid://c7c4qoevl14xp" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
@@ -13,35 +13,6 @@ content_margin_bottom = 10.0
 bg_color = Color(1, 1, 1, 1)
 border_width_bottom = 1
 border_color = Color(0.88, 0.92, 0.95, 1)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav_active"]
-content_margin_left = 14.0
-content_margin_top = 6.0
-content_margin_right = 14.0
-content_margin_bottom = 6.0
-bg_color = Color(0.9, 0.96, 1, 1)
-border_width_bottom = 2
-border_color = Color(0, 0.631373, 0.839216, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav_normal"]
-content_margin_left = 14.0
-content_margin_top = 6.0
-content_margin_right = 14.0
-content_margin_bottom = 6.0
-bg_color = Color(1, 1, 1, 0)
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_nav_hover"]
-content_margin_left = 14.0
-content_margin_top = 6.0
-content_margin_right = 14.0
-content_margin_bottom = 6.0
-bg_color = Color(0.95, 0.98, 1, 1)
-corner_radius_top_left = 6
-corner_radius_top_right = 6
-corner_radius_bottom_right = 6
-corner_radius_bottom_left = 6
 
 [node name="DateEventPlayer" type="Control"]
 layout_mode = 3
@@ -73,6 +44,7 @@ theme_override_constants/separation = 0
 
 [node name="TopBar" type="PanelContainer" parent="MainLayout"]
 unique_name_in_owner = true
+visible = false
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
 
@@ -93,40 +65,6 @@ text = "dilidili"
 theme_override_font_sizes/font_size = 22
 theme_override_colors/font_color = Color(0, 0.631373, 0.839216, 1)
 
-[node name="NavSpacer" type="Control" parent="MainLayout/TopBar/TopBarHBox"]
-custom_minimum_size = Vector2(12, 0)
-layout_mode = 2
-
-[node name="NavHomeBtn" type="Button" parent="MainLayout/TopBar/TopBarHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.2, 0.25, 0.3, 1)
-theme_override_colors/font_hover_color = Color(0, 0.631373, 0.839216, 1)
-theme_override_colors/font_pressed_color = Color(0, 0.631373, 0.839216, 1)
-theme_override_colors/font_focus_color = Color(0, 0.631373, 0.839216, 1)
-theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = SubResource("StyleBoxFlat_nav_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_nav_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_nav_active")
-theme_override_styles/focus = SubResource("StyleBoxFlat_nav_normal")
-text = "首页"
-
-[node name="NavHistoryBtn" type="Button" parent="MainLayout/TopBar/TopBarHBox"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.2, 0.25, 0.3, 1)
-theme_override_colors/font_hover_color = Color(0, 0.631373, 0.839216, 1)
-theme_override_colors/font_pressed_color = Color(0, 0.631373, 0.839216, 1)
-theme_override_colors/font_focus_color = Color(0, 0.631373, 0.839216, 1)
-theme_override_font_sizes/font_size = 15
-theme_override_styles/normal = SubResource("StyleBoxFlat_nav_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_nav_hover")
-theme_override_styles/pressed = SubResource("StyleBoxFlat_nav_active")
-theme_override_styles/focus = SubResource("StyleBoxFlat_nav_normal")
-text = "历史"
-
 [node name="TopBarGrow" type="Control" parent="MainLayout/TopBar/TopBarHBox"]
 layout_mode = 2
 size_flags_horizontal = 3
@@ -136,39 +74,6 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
-
-[node name="HomePage" type="ScrollContainer" parent="MainLayout/ContentArea"]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-horizontal_scroll_mode = 0
-
-[node name="HomeContent" type="VBoxContainer" parent="MainLayout/ContentArea/HomePage"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 20
-
-[node name="HistoryPage" type="ScrollContainer" parent="MainLayout/ContentArea"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-horizontal_scroll_mode = 0
-
-[node name="HistoryList" type="VBoxContainer" parent="MainLayout/ContentArea/HistoryPage"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_constants/separation = 16
 
 [node name="PlaybackPage" type="Control" parent="MainLayout/ContentArea"]
 unique_name_in_owner = true

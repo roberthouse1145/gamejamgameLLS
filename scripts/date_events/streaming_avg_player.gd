@@ -5,9 +5,26 @@ signal stream_finished(session_id: String, outcome: Dictionary)
 
 const StreamingAVGDSLParserClass = preload("res://scripts/date_events/streaming_avg_dsl_parser.gd")
 const STREAM_RESOLUTION: Vector2 = Vector2(1024, 768)
+const OFFLINE_CG_PATH: String = "res://narrative_projects/main_story/Assets/background/bg_stream_offline_mirai.png"
+const CONTENT_INSET: Vector2 = Vector2(24, 24)
+const VIDEO_MAX_SIZE: Vector2 = Vector2(960, 720)
+const VIDEO_MIN_SIZE: Vector2 = Vector2(400, 300)
+const CHAT_TARGET_WIDTH: float = 460.0
+const CHAT_MIN_WIDTH: float = 420.0
+const CONTENT_GAP: float = 16.0
+const SITE_BAR_HEIGHT: float = 30.0
+const SITE_BAR_GAP: float = 18.0
+const INFO_AREA_HEIGHT: float = 150.0
+const INFO_AREA_GAP: float = 22.0
+const VIDEO_INFO_HEIGHT: float = 48.0
+const COLUMN_GAP: float = 8.0
 
 @onready var title_label: Label = %StreamTitleLabel
 @onready var stats_label: Label = %StreamStatsLabel
+@onready var live_mark: Label = %LiveMark
+@onready var site_bar: HBoxContainer = %SiteBar
+@onready var stream_layout: HBoxContainer = %StreamLayout
+@onready var left_column: VBoxContainer = %LeftColumn
 @onready var aspect_root: Control = %AspectRoot
 @onready var video_frame: Control = %VideoFrame
 @onready var stage_clip: Control = %StageClip
@@ -18,8 +35,11 @@ const STREAM_RESOLUTION: Vector2 = Vector2(1024, 768)
 @onready var subtitle_panel: PanelContainer = %SubtitlePanel
 @onready var subtitle_label: Label = %SubtitleLabel
 @onready var skip_button: Button = %SkipButton
+@onready var chat_panel: PanelContainer = %ChatPanel
+@onready var chat_header: Label = %ChatHeader
 @onready var chat_scroll: ScrollContainer = %ChatScroll
 @onready var chat_list: VBoxContainer = %ChatList
+@onready var info_area: VBoxContainer = %InfoArea
 
 var _session_id: String = ""
 var _events: Array[Dictionary] = []
@@ -35,6 +55,7 @@ var _chat_count: int = 0
 
 
 func _ready() -> void:
+	resized.connect(_fit_stream_layout)
 	if skip_button != null:
 		skip_button.pressed.connect(_on_skip_pressed)
 	if aspect_root != null:
@@ -45,8 +66,8 @@ func _ready() -> void:
 		character_display.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		if character_display.has_method("set_design_resolution"):
 			character_display.call("set_design_resolution", STREAM_RESOLUTION)
-	call_deferred("_fit_video_frame")
-	_reset_ui()
+	_fit_stream_layout()
+	show_idle()
 
 
 func play(session_id: String, stream_package: Dictionary) -> void:
@@ -90,8 +111,13 @@ func play(session_id: String, stream_package: Dictionary) -> void:
 		title = "直播"
 	_update_header(title)
 	_reset_ui()
+	if live_mark != null:
+		live_mark.text = "▶ live"
+		live_mark.add_theme_color_override("font_color", Color(0.88, 0.22, 0.34, 1))
+	if chat_header != null:
+		chat_header.text = "留言"
 	_setup_character_display()
-	_fit_video_frame()
+	_fit_stream_layout()
 	call_deferred("_run_stream", _playback_token)
 
 
@@ -102,6 +128,35 @@ func stop() -> void:
 	_skip_requested = false
 	if character_display != null and character_display.has_method("hide_all"):
 		character_display.call("hide_all", 0.0)
+
+
+func show_idle(title: String = "Mirai 的直播间", viewers: int = 0, day_label: String = "") -> void:
+	_playback_token += 1
+	_session_id = ""
+	_events.clear()
+	_meta = {
+		"title": title,
+		"viewers": viewers,
+		"day_label": day_label,
+	}
+	_project = null
+	_project_root_path = ""
+	_chat_count = 0
+	_current_host = ""
+	_finished = true
+	_playing = false
+	_skip_requested = false
+	_update_header(title)
+	_reset_ui()
+	_set_offline_art()
+	if stats_label != null:
+		stats_label.text = "直播准备中"
+	if live_mark != null:
+		live_mark.text = "■ standby"
+		live_mark.add_theme_color_override("font_color", Color(0.45, 0.4, 0.62, 1))
+	if chat_header != null:
+		chat_header.text = "留言"
+	_fit_stream_layout()
 
 
 func is_playing() -> bool:
@@ -152,6 +207,7 @@ func _reset_ui() -> void:
 		subtitle_label.visible_characters = -1
 	if skip_button != null:
 		skip_button.disabled = not _playing
+		skip_button.visible = _playing
 	if chat_list != null:
 		for child in chat_list.get_children():
 			child.queue_free()
@@ -182,6 +238,22 @@ func _set_background(asset_ref: String) -> void:
 		fallback_bg.visible = texture == null
 
 
+func _set_offline_art() -> void:
+	var texture: Texture2D = null
+	if ResourceLoader.exists(OFFLINE_CG_PATH):
+		var resource := ResourceLoader.load(OFFLINE_CG_PATH)
+		if resource is Texture2D:
+			texture = resource as Texture2D
+	if texture == null:
+		var image := Image.new()
+		if image.load(OFFLINE_CG_PATH) == OK:
+			texture = ImageTexture.create_from_image(image)
+	if background_texture != null:
+		background_texture.texture = texture
+	if fallback_bg != null:
+		fallback_bg.visible = texture == null
+
+
 func _show_host(event: Dictionary) -> void:
 	_current_host = str(event.get("character", "")).strip_edges()
 	if _current_host.is_empty() or character_display == null:
@@ -189,7 +261,7 @@ func _show_host(event: Dictionary) -> void:
 	if not character_display.has_method("show_character"):
 		return
 	var x := clampf(float(event.get("x", 0.5)), 0.0, 1.0)
-	var y := clampf(float(event.get("y", 0.5)), 0.0, 1.0)
+	var y := clampf(float(event.get("y", 0.73)), 0.0, 1.0)
 	var pos_name := "%f,%f" % [x, y]
 	character_display.call(
 		"show_character",
@@ -198,7 +270,7 @@ func _show_host(event: Dictionary) -> void:
 		str(event.get("emotion", "default")),
 		float(event.get("duration", 0.2)),
 		false,
-		float(event.get("scale", 1.0)),
+		float(event.get("scale", 1.42)),
 		1.0,
 		str(event.get("outfit", ""))
 	)
@@ -266,17 +338,17 @@ func _add_chat_message(text: String) -> void:
 		return
 	_chat_count += 1
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 6)
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	chat_list.add_child(row)
 
 	const CHAT_COLORS: Array[Color] = [
-		Color(0.29, 0.19, 0.72, 1.0),
-		Color(0.21, 0.44, 0.94, 1.0),
-		Color(0.88, 0.22, 0.34, 1.0),
+		Color(0.48, 0.40, 0.72, 1.0),
+		Color(0.35, 0.48, 0.78, 1.0),
+		Color(0.74, 0.34, 0.47, 1.0),
 	]
 	var marker := ColorRect.new()
-	marker.custom_minimum_size = Vector2(4, 16)
+	marker.custom_minimum_size = Vector2(3, 11)
 	marker.color = CHAT_COLORS[(_chat_count - 1) % 3]
 	row.add_child(marker)
 
@@ -284,8 +356,8 @@ func _add_chat_message(text: String) -> void:
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label.add_theme_font_size_override("font_size", 16)
-	label.add_theme_color_override("font_color", Color(0.24, 0.2, 0.48, 1))
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", Color(0.24, 0.22, 0.34, 1))
 	row.add_child(label)
 	call_deferred("_scroll_chat_to_bottom")
 
@@ -330,10 +402,56 @@ func _on_skip_pressed() -> void:
 	_skip_requested = true
 
 
+func _fit_stream_layout() -> void:
+	if site_bar == null or stream_layout == null or left_column == null or aspect_root == null or chat_panel == null or info_area == null:
+		return
+	var available := size - CONTENT_INSET * 2.0
+	if available.x <= 0.0 or available.y <= 0.0:
+		return
+
+	var chat_width := minf(CHAT_TARGET_WIDTH, maxf(CHAT_MIN_WIDTH, available.x - VIDEO_MIN_SIZE.x - CONTENT_GAP))
+	var video_width := minf(VIDEO_MAX_SIZE.x, available.x - chat_width - CONTENT_GAP)
+	var video_height := minf(VIDEO_MAX_SIZE.y, video_width * 0.75)
+	var max_video_height := available.y - SITE_BAR_HEIGHT - SITE_BAR_GAP - VIDEO_INFO_HEIGHT - COLUMN_GAP - INFO_AREA_GAP - INFO_AREA_HEIGHT
+	video_height = minf(video_height, maxf(VIDEO_MIN_SIZE.y, max_video_height))
+	video_width = minf(video_width, video_height * (4.0 / 3.0))
+
+	var video_size := Vector2(floor(video_width), floor(video_height))
+	var left_height := video_size.y + COLUMN_GAP + VIDEO_INFO_HEIGHT
+	var layout_size := Vector2(video_size.x + CONTENT_GAP + chat_width, maxf(left_height, video_size.y))
+	var content_height := SITE_BAR_HEIGHT + SITE_BAR_GAP + layout_size.y + INFO_AREA_GAP + INFO_AREA_HEIGHT
+
+	var layout_position := Vector2(
+		floor(maxf(CONTENT_INSET.x, (size.x - layout_size.x) * 0.5)),
+		floor(maxf(CONTENT_INSET.y, (size.y - content_height) * 0.5 + SITE_BAR_HEIGHT + SITE_BAR_GAP))
+	)
+	site_bar.position = Vector2(layout_position.x, layout_position.y - SITE_BAR_GAP - SITE_BAR_HEIGHT)
+	site_bar.size = Vector2(layout_size.x, SITE_BAR_HEIGHT)
+	site_bar.custom_minimum_size = Vector2(layout_size.x, SITE_BAR_HEIGHT)
+	stream_layout.position = layout_position
+	stream_layout.size = layout_size
+	info_area.position = Vector2(layout_position.x, layout_position.y + layout_size.y + INFO_AREA_GAP)
+	info_area.size = Vector2(layout_size.x, INFO_AREA_HEIGHT)
+	info_area.custom_minimum_size = Vector2(layout_size.x, INFO_AREA_HEIGHT)
+	left_column.custom_minimum_size = Vector2(video_size.x, left_height)
+	left_column.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	left_column.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	aspect_root.custom_minimum_size = video_size
+	aspect_root.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	aspect_root.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	chat_panel.custom_minimum_size = Vector2(chat_width, video_size.y)
+	chat_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	chat_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	call_deferred("_fit_video_frame")
+
+
 func _fit_video_frame() -> void:
 	if aspect_root == null or video_frame == null or stage_design == null:
 		return
-	var available := aspect_root.size
+	var available := Vector2(
+		minf(aspect_root.size.x, VIDEO_MAX_SIZE.x),
+		minf(aspect_root.size.y, VIDEO_MAX_SIZE.y)
+	)
 	if available.x <= 0.0 or available.y <= 0.0:
 		return
 	var ratio := 4.0 / 3.0

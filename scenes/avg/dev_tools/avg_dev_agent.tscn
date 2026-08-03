@@ -11,5 +11,5 @@ prompt_key = "work_order_agent"
 [node name="AIService" type="Node" parent="."]
 script = ExtResource("2_ai_service")
 auto_execute_tools = true
-max_tool_iterations = 15
+max_tool_iterations = 0
 default_max_tokens = 16384

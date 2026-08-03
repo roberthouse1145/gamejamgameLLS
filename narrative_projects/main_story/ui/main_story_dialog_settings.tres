@@ -1,10 +1,10 @@
-[gd_resource type="Resource" script_class="AVGDialogSettings" format=3]
+[gd_resource type="Resource" script_class="AVGDialogSettings" format=3 uid="uid://ghnc61mb5ya2"]
 
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_dialog_settings.gd" id="1_dialog_settings"]
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_style_box.gd" id="2_style_box"]
-[ext_resource type="Texture2D" path="res://narrative_projects/main_story/Assets/UIandHUD/window01.png" id="3_window"]
-[ext_resource type="Texture2D" path="res://narrative_projects/main_story/Assets/UIandHUD/name01.png" id="4_name"]
-[ext_resource type="Texture2D" path="res://narrative_projects/main_story/Assets/UIandHUD/cursor01.png" id="5_cursor"]
+[ext_resource type="Script" uid="uid://b8kv7tdcr4mj2" path="res://scripts/avg/resources/avg_dialog_settings.gd" id="1_dialog_settings"]
+[ext_resource type="Script" uid="uid://drneohd4r71y1" path="res://scripts/avg/resources/avg_style_box.gd" id="2_style_box"]
+[ext_resource type="Texture2D" uid="uid://crmmeuipdrwpf" path="res://narrative_projects/main_story/Assets/UIandHUD/window01.png" id="3_window"]
+[ext_resource type="Texture2D" uid="uid://ditndi6fyx5lm" path="res://narrative_projects/main_story/Assets/UIandHUD/name01.png" id="4_name"]
+[ext_resource type="Texture2D" uid="uid://cpcoeom6qymdt" path="res://narrative_projects/main_story/Assets/UIandHUD/cursor01.png" id="5_cursor"]
 
 [sub_resource type="Resource" id="1_box_style"]
 script = ExtResource("2_style_box")

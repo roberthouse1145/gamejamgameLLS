@@ -99,8 +99,8 @@ signal conversation_updated(conversation_id: String, messages: Array)
 @export_group("Tool Call Settings")
 ## 是否自动处理工具调用（循环直到获得最终回复）
 @export var auto_execute_tools: bool = true
-## 最大工具调用循环次数（防止无限循环）
-@export var max_tool_iterations: int = 10
+## 最大工具调用循环次数；0 表示不设本地上限。
+@export var max_tool_iterations: int = 0
 ## 是否输出完整响应与逐步工具调用日志（默认关闭，避免刷屏）
 @export var verbose_debug_logging: bool = false
 const TERMINAL_TOOL_NAMES: PackedStringArray = ["finish", "wo_finish_order"]
@@ -1208,7 +1208,7 @@ func _auto_execute_tool_calls(request_id: String, original_id: String, tool_call
 	var debug_meta: Dictionary = _request_debug_meta.get(request_id, _request_debug_meta.get(original_id, {})).duplicate()
 	# 检查迭代次数
 	var iteration = _tool_iteration_counts.get(original_id, 0)
-	if iteration >= max_tool_iterations:
+	if max_tool_iterations > 0 and iteration >= max_tool_iterations:
 		push_warning("[AIService] Max tool iterations reached for request: " + original_id)
 		_cleanup_request(request_id)
 		_cleanup_tool_tracking(original_id)

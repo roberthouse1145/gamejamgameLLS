@@ -19,6 +19,8 @@ func _ready() -> void:
 	_test_fallback_entry_marks_fallback_source_type()
 	_test_topic_seeds_avoid_recent_history()
 	_test_feed_prompt_requests_single_thread()
+	_test_feed_prompt_uses_public_context()
+	_test_feed_prompt_supports_source_variety()
 	_test_search_actions_are_hidden_and_prompted()
 	_test_extract_content_supports_structured_ai_response()
 	_test_free_period_blocking_disables_community_actions()
@@ -152,6 +154,63 @@ func _test_feed_prompt_requests_single_thread() -> void:
 	assert(user_prompt.find("只围绕这一个主题展开") >= 0)
 
 	print("  PASS: _test_feed_prompt_requests_single_thread")
+
+
+func _test_feed_prompt_uses_public_context() -> void:
+	var manager := get_node_or_null("/root/CommunityActionManager")
+	assert(manager != null)
+	var messages: Array = manager._build_action_feed_messages({
+		"action_id": "follow_contest",
+		"action": {"title": "发帖宣传"},
+		"selected_seeds": ["路人建议加一个没想过的功能"],
+		"day": 3,
+	})
+	var combined: String = ""
+	for message in messages:
+		if message is Dictionary:
+			combined += str((message as Dictionary).get("content", "")) + "\n"
+
+	assert(combined.find("林夏") == -1)
+	assert(combined.find("当前内心状态") == -1)
+	assert(combined.find("公开项目状态") >= 0)
+
+	print("  PASS: _test_feed_prompt_uses_public_context")
+
+
+func _test_feed_prompt_supports_source_variety() -> void:
+	var manager := CommunityActionManagerClass.new()
+	manager._load_default_actions()
+
+	var free_prompt: String = manager._build_action_feed_user_prompt({
+		"action_id": "free_search",
+		"action": manager._action_definitions["free_search"],
+		"selected_seeds": ["人体工学鼠标"],
+		"day": 3,
+	})
+	assert(free_prompt.find("官方账号") >= 0)
+	assert(free_prompt.find("营销贴") >= 0)
+	assert(free_prompt.find("店铺客服") >= 0)
+
+	var dev_prompt: String = manager._build_action_feed_user_prompt({
+		"action_id": "learn_dev",
+		"action": {"title": "教程吧"},
+		"selected_seeds": ["Godot 打包体积"],
+		"day": 3,
+	})
+	assert(dev_prompt.find("工具官方") >= 0)
+	assert(dev_prompt.find("资源站维护者") >= 0)
+
+	var contest_prompt: String = manager._build_action_feed_user_prompt({
+		"action_id": "follow_contest",
+		"action": {"title": "项目吧"},
+		"selected_seeds": ["项目宣传点被搬运"],
+		"day": 3,
+	})
+	assert(contest_prompt.find("林夏") == -1)
+	assert(contest_prompt.find("媒体搬运号") >= 0)
+	assert(contest_prompt.find("评测号") >= 0)
+
+	print("  PASS: _test_feed_prompt_supports_source_variety")
 
 
 func _test_search_actions_are_hidden_and_prompted() -> void:

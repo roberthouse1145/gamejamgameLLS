@@ -15,59 +15,59 @@ const SCRIPTS: Array[String] = [
 @stream "周三下午的直播" host=LinXia viewers=248 day="第3天"
 bg bg_apartment_living
 host LinXia default casual
-say "大家好！今天准时开播了！" speed=30 hold=0.8
-chat "好耶！" delay=0.2
-chat "主播来了！" delay=0.5
+say "大家好！今天准时开播了！"
+chat "好耶！"
+chat "主播来了！"
 emotion happy
-say "上次直播说要做攻略的，今天终于来了。" speed=28 hold=1.0
-chat "等了好久！" delay=0.3
-say "我这里有个秘密存档点，普通攻略都没有的那种。" speed=25 hold=1.2
-chat "真的假的" delay=0.2
-chat "大神！" delay=0.6
+say "上次直播说要做攻略的，今天终于来了。"
+chat "等了好久！"
+say "我这里有个秘密存档点，普通攻略都没有的那种。"
+chat "真的假的"
+chat "大神！"
 emotion smirk
-say "当然是真的，不然我开这个直播干嘛。" speed=30 hold=0.8
+say "当然是真的，不然我开这个直播干嘛。"
 wait 0.5
-say "好，开始。" speed=35 hold=0.6
+say "好，开始。"
 end
 """,
 	"""
 @stream "深夜唠嗑" host=LinXia viewers=51 day="第5天"
 bg bg_apartment_bedroom
 host LinXia soft_smile loungewear
-say "今天人比较少，正好聊点平时不聊的。" speed=25 hold=1.0
-chat "我在我在" delay=0.3
+say "今天人比较少，正好聊点平时不聊的。"
+chat "我在我在"
 emotion thoughtful
-say "最近有没有人觉得……自己做的东西没人看，还要不要继续？" speed=22 hold=1.5
-chat "有过" delay=0.4
-chat "我懂这种感觉" delay=0.8
-say "我也是。上个月有段时间差点停更。" speed=24 hold=1.2
+say "最近有没有人觉得……自己做的东西没人看，还要不要继续？"
+chat "有过"
+chat "我懂这种感觉"
+say "我也是。上个月有段时间差点停更。"
 emotion sigh
-say "后来是因为收到一条评论，说我的视频帮他熬过了一段很难的时间。" speed=20 hold=1.8
-chat "谢谢你" delay=0.5
-chat "别停更！" delay=0.9
+say "后来是因为收到一条评论，说我的视频帮他熬过了一段很难的时间。"
+chat "谢谢你"
+chat "别停更！"
 emotion soft_smile
-say "所以我就想，哪怕只有一个人，也值得做下去。" speed=26 hold=1.0
+say "所以我就想，哪怕只有一个人，也值得做下去。"
 wait 0.8
-say "好了，不说丧的了。" speed=30 hold=0.5
+say "好了，不说丧的了。"
 end
 """,
 	"""
 @stream "商业街闲逛" host=LinXia viewers=132 day="第2天"
 bg bg_commercial_street
 host LinXia happy casual
-say "今天在外面给大家直播，信号应该还行吧？" speed=30 hold=0.8
-chat "听得到！" delay=0.2
-chat "清楚清楚" delay=0.4
+say "今天在外面给大家直播，信号应该还行吧？"
+chat "听得到！"
+chat "清楚清楚"
 emotion laugh
-say "太好了！这条街我特别喜欢，每次路过都忍不住逛。" speed=28 hold=1.0
-chat "哪里啊" delay=0.3
-say "就是那个……你们懂的，每家都在放音乐那种地方。" speed=26 hold=1.0
-chat "hahaha" delay=0.2
-chat "每家不同的歌好混乱" delay=0.5
+say "太好了！这条街我特别喜欢，每次路过都忍不住逛。"
+chat "哪里啊"
+say "就是那个……你们懂的，每家都在放音乐那种地方。"
+chat "hahaha"
+chat "每家不同的歌好混乱"
 emotion teasing
-say "混乱才有意思嘛，等会我要去那家卖旧磁带的店。" speed=28 hold=0.9
-chat "带我们一起！" delay=0.3
-say "带你们一起！走了！" speed=35 hold=0.6
+say "混乱才有意思嘛，等会我要去那家卖旧磁带的店。"
+chat "带我们一起！"
+say "带你们一起！走了！"
 wait 0.3
 end
 """,

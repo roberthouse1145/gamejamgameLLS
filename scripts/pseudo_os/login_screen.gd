@@ -6,7 +6,7 @@ class_name LoginScreen extends Control
 
 const UIIconLibraryClass = preload("res://scripts/ui/ui_icon_library.gd")
 
-signal login_requested(player_name: String, is_new_game: bool)
+signal login_requested(player_name: String, is_new_game: bool, play_mode: String)
 signal quit_requested
 signal settings_requested
 
@@ -18,6 +18,10 @@ const PANEL_ANIM_DURATION: float = 0.3
 const BOTTOM_ICON_MAX_WIDTH: int = 64
 const REVIEW_PROMPT_KEY: String = "review/player_name"
 const REVIEW_SYSTEM_FALLBACK: String = "审核游戏玩家网名。拒绝脏话、侮辱、色情、广告、网址、纯乱码。只输出 JSON：approved, reason, normalized_name。"
+const MODE_STORY: String = "story"
+const MODE_FREE: String = "free"
+const MODE_INFO_PANEL_SIZE: Vector2 = Vector2(440, 340)
+const MODE_INFO_PANEL_RIGHT_MARGIN: int = 96
 
 @onready var user_list: VBoxContainer = %UserList
 @onready var new_user_panel: Control = %NewUserPanel
@@ -36,6 +40,10 @@ var _review_service: Node = null
 var _review_enabled: bool = false
 var _pending_review_id: String = ""
 var _status_label: Label = null
+var _mode_select_panel: VBoxContainer = null
+var _mode_info_panel: PanelContainer = null
+var _mode_player_name: String = ""
+var _mode_is_new_game: bool = false
 
 
 func _ready() -> void:
@@ -48,6 +56,8 @@ func _ready() -> void:
 	_setup_button_animations()
 	_ensure_review_service()
 	_create_status_label()
+	_create_mode_select_panel()
+	_create_mode_info_panel()
 
 
 func _process(_delta: float) -> void:
@@ -85,10 +95,14 @@ func _setup_button_animations() -> void:
 	for btn: Button in [login_button, new_game_button, back_button, settings_button, quit_button]:
 		if btn == null:
 			continue
-		btn.pivot_offset = btn.size / 2.0
-		btn.button_down.connect(_on_btn_down.bind(btn))
-		btn.button_up.connect(_on_btn_up.bind(btn))
-		btn.resized.connect(func() -> void: btn.pivot_offset = btn.size / 2.0)
+		_setup_button_animation(btn)
+
+
+func _setup_button_animation(btn: Button) -> void:
+	btn.pivot_offset = btn.size / 2.0
+	btn.button_down.connect(_on_btn_down.bind(btn))
+	btn.button_up.connect(_on_btn_up.bind(btn))
+	btn.resized.connect(func() -> void: btn.pivot_offset = btn.size / 2.0)
 
 
 func _on_btn_down(btn: Button) -> void:
@@ -148,6 +162,8 @@ func _show_user_list() -> void:
 		_reveal_user_list()
 
 func _reveal_user_list() -> void:
+	if _mode_select_panel != null:
+		_mode_select_panel.visible = false
 	user_list.visible = true
 	user_list.modulate.a = 0.0
 	back_button.visible = false
@@ -168,6 +184,8 @@ func _reveal_user_list() -> void:
 func _show_new_user() -> void:
 	_new_user_mode = true
 	new_game_button.visible = false
+	if _mode_select_panel != null:
+		_mode_select_panel.visible = false
 	# 淡出 user_list
 	if user_list.visible:
 		var tw: Tween = create_tween()
@@ -246,7 +264,7 @@ func _create_user_card(player_name: String, is_existing: bool) -> PanelContainer
 	info.add_child(name_label)
 	if is_existing:
 		var hint := Label.new()
-		hint.text = "点击继续游戏"
+		hint.text = "点击选择入口"
 		hint.add_theme_font_size_override("font_size", 14)
 		hint.add_theme_color_override("font_color", Color(1, 1, 1, 0.65))
 		info.add_child(hint)
@@ -280,7 +298,7 @@ func _create_user_card(player_name: String, is_existing: bool) -> PanelContainer
 			tw.tween_property(card, "scale", Vector2.ONE, 0.1)
 			tw.tween_callback(func() -> void:
 				_selected_save = player_name
-				login_requested.emit(player_name, false)
+				_show_mode_select(player_name, false)
 			)
 	)
 	card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -300,7 +318,7 @@ func _on_login_pressed() -> void:
 			_do_login(player_name)
 	else:
 		if not _selected_save.is_empty():
-			login_requested.emit(_selected_save, false)
+			_show_mode_select(_selected_save, false)
 
 
 func _on_new_game_pressed() -> void:
@@ -308,6 +326,12 @@ func _on_new_game_pressed() -> void:
 
 
 func _on_back_pressed() -> void:
+	if _mode_select_panel != null and _mode_select_panel.visible:
+		if _mode_is_new_game:
+			_show_new_user()
+		else:
+			_show_user_list()
+		return
 	_show_user_list()
 
 
@@ -334,7 +358,164 @@ func _do_login(player_name: String) -> void:
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(login_button, "scale", Vector2(0.95, 0.95), 0.08)
 	tw.tween_property(login_button, "scale", Vector2.ONE, 0.1)
-	tw.tween_callback(func() -> void: login_requested.emit(player_name, true))
+	tw.tween_callback(func() -> void: _show_mode_select(player_name, true))
+
+
+func _create_mode_select_panel() -> void:
+	var parent := new_user_panel.get_parent()
+	if parent == null:
+		return
+	_mode_select_panel = VBoxContainer.new()
+	_mode_select_panel.name = "ModeSelectPanel"
+	_mode_select_panel.visible = false
+	_mode_select_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_mode_select_panel.add_theme_constant_override("separation", 14)
+	parent.add_child(_mode_select_panel)
+	parent.move_child(_mode_select_panel, user_list.get_index() + 1)
+
+	var title := Label.new()
+	title.text = "选择入口"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(1, 1, 1, 0.9))
+	_mode_select_panel.add_child(title)
+
+	var story_button := _create_mode_button("故事模式")
+	story_button.pressed.connect(func() -> void: _confirm_mode(MODE_STORY))
+	_mode_select_panel.add_child(story_button)
+
+	var free_button := _create_mode_button("自由模式")
+	free_button.pressed.connect(func() -> void: _confirm_mode(MODE_FREE))
+	_mode_select_panel.add_child(free_button)
+
+
+func _create_mode_info_panel() -> void:
+	_mode_info_panel = PanelContainer.new()
+	_mode_info_panel.name = "ModeInfoPanel"
+	_mode_info_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mode_info_panel.custom_minimum_size = MODE_INFO_PANEL_SIZE
+	_mode_info_panel.anchor_left = 1.0
+	_mode_info_panel.anchor_right = 1.0
+	_mode_info_panel.anchor_top = 0.5
+	_mode_info_panel.anchor_bottom = 0.5
+	_mode_info_panel.offset_left = -MODE_INFO_PANEL_RIGHT_MARGIN - MODE_INFO_PANEL_SIZE.x
+	_mode_info_panel.offset_right = -MODE_INFO_PANEL_RIGHT_MARGIN
+	_mode_info_panel.offset_top = -MODE_INFO_PANEL_SIZE.y * 0.5
+	_mode_info_panel.offset_bottom = MODE_INFO_PANEL_SIZE.y * 0.5
+
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.88, 0.94, 1.0, 0.22)
+	panel_style.border_width_left = 1
+	panel_style.border_width_top = 1
+	panel_style.border_width_right = 1
+	panel_style.border_width_bottom = 1
+	panel_style.border_color = Color(1, 1, 1, 0.42)
+	panel_style.corner_radius_top_left = 18
+	panel_style.corner_radius_top_right = 18
+	panel_style.corner_radius_bottom_left = 18
+	panel_style.corner_radius_bottom_right = 18
+	panel_style.shadow_color = Color(0.08, 0.16, 0.28, 0.18)
+	panel_style.shadow_size = 18
+	panel_style.shadow_offset = Vector2(0, 8)
+	_mode_info_panel.add_theme_stylebox_override("panel", panel_style)
+	add_child(_mode_info_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_top", 22)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_bottom", 22)
+	_mode_info_panel.add_child(margin)
+
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 14)
+	margin.add_child(box)
+
+	var title := Label.new()
+	title.text = "入口说明"
+	title.add_theme_font_size_override("font_size", 24)
+	title.add_theme_color_override("font_color", Color(1, 1, 1, 0.96))
+	box.add_child(title)
+
+	_add_mode_info_section(
+		box,
+		"故事模式",
+		"从相遇的第一天开始，和林夏一起准备帧语大赛；日程、对话和桌面会跟着剧情推进。",
+		Color(0.72, 0.88, 1.0, 0.95)
+	)
+	_add_mode_info_section(
+		box,
+		"自由模式",
+		"跳过剧情节奏，直接进入桌面；自由聊天、外出、打工、购物，也可以制作和试玩 AVG。",
+		Color(1.0, 0.84, 0.62, 0.95)
+	)
+
+	var tools := Label.new()
+	tools.text = "自由模式开放创作工具：Scene Editor / Project Manager / Story Project Manager / Game Previewer / File Manager"
+	tools.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tools.add_theme_font_size_override("font_size", 14)
+	tools.add_theme_color_override("font_color", Color(1, 1, 1, 0.68))
+	box.add_child(tools)
+
+
+func _add_mode_info_section(parent: VBoxContainer, title_text: String, body_text: String, accent_color: Color) -> void:
+	var section := HBoxContainer.new()
+	section.add_theme_constant_override("separation", 10)
+	parent.add_child(section)
+
+	var marker := ColorRect.new()
+	marker.color = accent_color
+	marker.custom_minimum_size = Vector2(5, 52)
+	marker.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	section.add_child(marker)
+
+	var text_box := VBoxContainer.new()
+	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_box.add_theme_constant_override("separation", 4)
+	section.add_child(text_box)
+
+	var heading := Label.new()
+	heading.text = title_text
+	heading.add_theme_font_size_override("font_size", 18)
+	heading.add_theme_color_override("font_color", Color(1, 1, 1, 0.92))
+	text_box.add_child(heading)
+
+	var body := Label.new()
+	body.text = body_text
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_theme_font_size_override("font_size", 15)
+	body.add_theme_color_override("font_color", Color(1, 1, 1, 0.72))
+	text_box.add_child(body)
+
+
+func _create_mode_button(text: String) -> Button:
+	var btn := Button.new()
+	btn.text = text
+	btn.custom_minimum_size = Vector2(360, 52)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.add_theme_font_size_override("font_size", 22)
+	_setup_button_animation(btn)
+	return btn
+
+
+func _show_mode_select(player_name: String, is_new_game: bool) -> void:
+	_mode_player_name = player_name
+	_mode_is_new_game = is_new_game
+	user_list.visible = false
+	new_user_panel.visible = false
+	new_game_button.visible = false
+	back_button.visible = true
+	if _mode_select_panel == null:
+		_confirm_mode(MODE_STORY)
+		return
+	_mode_select_panel.visible = true
+	_mode_select_panel.modulate.a = 0.0
+	var tw: Tween = create_tween()
+	tw.tween_property(_mode_select_panel, "modulate:a", 1.0, PANEL_ANIM_DURATION).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+func _confirm_mode(play_mode: String) -> void:
+	login_requested.emit(_mode_player_name, _mode_is_new_game, play_mode)
 
 
 func _create_status_label() -> void:

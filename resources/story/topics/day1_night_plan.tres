@@ -27,16 +27,17 @@ system_prompt = "【背景】你和{player_name}刚在论坛看完了帧语大�
 - 这只是创作基点，不需要现在把所有细节都定完
 - 等他在 Dev Work 里提交后，你们就能据此拆出后续开发任务
 
-【对话方向】这一步只负责把玩家引导到 Dev Work。引导后直接加 `[TOPIC_COMPLETE]`，不需要等待玩家回复
+【对话方向】第一轮回复必须明确说出下一步是去 Dev Work 完成第一版企划卡。这一步只负责把玩家引导到 Dev Work。引导后直接收束，不需要等待玩家回复。
 
 【禁止事项】
 - 禁止在聊天里替玩家完成企划
 - 禁止展开长篇创作讨论
 - 禁止编造具体的素材包内容（立绘名、背景名等）
 - 禁止编造具体的开发计划或时间表"
-goal_description = "引导玩家打开 Dev Work
+goal_description = "引导玩家去 Dev Work
 催促后立刻结束topic，无需等待玩家回复！不需要输出任何CARD！"
 context_data = {
+"complete_after_first_reply": true,
 "linkchat_open_mode": "force",
 "story_phase": "day1_afternoon",
 "suppress_system_notice": true

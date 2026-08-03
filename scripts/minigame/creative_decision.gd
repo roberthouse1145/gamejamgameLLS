@@ -24,7 +24,7 @@ const DIALOG_PROMPT_KEY: String = "minigame_creative_decision_dialog"
 const PROPOSAL_PROMPT_KEY: String = "minigame_creative_decision_proposal"
 const WORK_ORDER_BRIEF_PROMPT_KEY: String = "minigame_creative_decision_work_order_brief"
 const DEFAULT_MAX_ROUNDS: int = 12
-const AGENT_MAX_TOOL_ITERATIONS: int = 2
+const UNLIMITED_TOOL_ITERATIONS: int = 0
 
 var _dialog_ai: ChatAgent = null
 var _proposal_ai: ChatAgent = null
@@ -163,7 +163,7 @@ func _configure_ai_service(agent: ChatAgent, role: String, fallbacks: Array[Stri
 	if ai == null:
 		return false
 	ai.auto_execute_tools = true
-	ai.max_tool_iterations = AGENT_MAX_TOOL_ITERATIONS
+	ai.max_tool_iterations = UNLIMITED_TOOL_ITERATIONS
 	AVGDevKBToolsClass.register_read_only(ai)
 	AVGDevWorkOrderToolsClass.register_summary_read_only(ai)
 	agent.register_tool(
