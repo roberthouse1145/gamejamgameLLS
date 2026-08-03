@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://ctest_community_post_parser"]
-
-[ext_resource type="Script" path="res://tests/automated/community/test_community_post_parser.gd" id="1"]
-
-[node name="TestCommunityPostParser" type="Node"]
-script = ExtResource("1")

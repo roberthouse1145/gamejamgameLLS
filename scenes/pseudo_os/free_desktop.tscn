@@ -1,8 +1,0 @@
-[gd_scene load_steps=3 format=3]
-
-[ext_resource type="PackedScene" uid="uid://b3lxv6taqbb6a" path="res://scenes/pseudo_os/desktop.tscn" id="1_base"]
-[ext_resource type="Script" path="res://scripts/pseudo_os/free_desktop.gd" id="2_script"]
-
-[node name="FreeDesktop" instance=ExtResource("1_base")]
-script = ExtResource("2_script")
-desktop_app_ids = PackedStringArray("linkchat", "bithub", "browser", "community", "sleep", "map", "dev_work", "knowledge_base", "part_time", "sbeam", "shop", "avg_player", "desktop_pet", "music_player", "scene_editor", "project_manager", "story_project_manager", "game_previewer", "file_manager")

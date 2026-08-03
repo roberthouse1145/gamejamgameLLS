@@ -2,7 +2,7 @@ extends Node
 
 const AVGAssetManifestClass = preload("res://scripts/avg/assets/avg_asset_manifest.gd")
 
-const DEFAULT_PROJECT_PATH: String = "res://narrative_projects/main_story/"
+const DEFAULT_PROJECT_PATH: String = "res://narrative_projects/avg_template/"
 
 var current_project_path: String = ""
 var current_project: Resource = null

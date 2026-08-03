@@ -1,6 +1,0 @@
-[gd_scene format=3]
-
-[ext_resource type="Script" path="res://tests/deepcode/test_art_ai_service.gd" id="1_script"]
-
-[node name="TestArtAIService" type="Node"]
-script = ExtResource("1_script")

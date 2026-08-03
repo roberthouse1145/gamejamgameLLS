@@ -1,7 +1,6 @@
 extends Control
 
-const BGM_A: String = "res://Assets/sounds/bgm/优哉游哉(loop).wav"
-const BGM_B: String = "res://Assets/sounds/bgm/夏日布丁.wav"
+const AUDIO_FIXTURE: String = "res://Assets/sounds/ui/cursor_click.wav"
 
 @onready var audio_manager: AVGAudioManager = $AVGAudioManager
 
@@ -12,12 +11,12 @@ func _ready() -> void:
 
 
 func _run_test() -> void:
-	audio_manager.play_bgm(BGM_A, 0.0, 1.0)
+	audio_manager.play_bgm(AUDIO_FIXTURE, 0.0, 1.0)
 	await get_tree().process_frame
 	_assert_true("initial BGM starts", audio_manager.is_bgm_playing())
 
-	audio_manager.play_bgm(BGM_B, 1.0, 1.0)
-	await get_tree().create_timer(0.1).timeout
+	audio_manager.stop_bgm(0.25)
+	await get_tree().create_timer(0.05).timeout
 	audio_manager.stop_bgm(0.0)
 	await get_tree().create_timer(0.7).timeout
 

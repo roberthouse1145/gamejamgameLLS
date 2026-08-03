@@ -86,12 +86,10 @@ func register_prompt(key: String, template: String) -> void:
 
 
 ## 注册一个全局懒求值 Provider。resolve 时调用 Callable 获取最新值。
-## 适合"全局动态内容"，如 player_name、game_time 等。
+## 适合调用方提供的全局动态内容。
 ## [codeblock]
-## PromptManager.register_provider("player_name", func():
-##     return StorageManager.get_value("player_name", ""))
-## PromptManager.register_provider("game_time",
-##     GameLoopManager.get_time_prompt)
+## PromptManager.register_provider("runtime_context", func():
+##     return RuntimeState.get_context())
 ## [/codeblock]
 func register_provider(key: String, provider: Callable) -> void:
 	_providers[key] = provider
@@ -121,7 +119,7 @@ func get_all_keys() -> Array[String]:
 
 
 ## 从目录递归加载所有 .md 文件作为 prompt。
-## 子目录中的文件 key 带路径前缀，如 npc/lin_xia。
+## 子目录中的文件 key 带路径前缀，如 review/display_name。
 func _load_prompts_from_dir(dir_path: String, prefix: String = "") -> void:
 	var dir: DirAccess = DirAccess.open(dir_path)
 	if dir == null:

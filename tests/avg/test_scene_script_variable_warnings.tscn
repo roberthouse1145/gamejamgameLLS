@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://tests/avg/test_scene_script_variable_warnings.gd" id="1"]
-
-[node name="TestSceneScriptVariableWarnings" type="Node"]
-script = ExtResource("1")

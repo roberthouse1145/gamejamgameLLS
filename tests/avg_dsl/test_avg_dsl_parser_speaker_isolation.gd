@@ -26,7 +26,7 @@ func _ready() -> void:
 
 ## Case 1: 单组 # => TextBlock(speaker="A") + 一行 > → speaker="A"
 func _test_single_dialogue_keeps_speaker() -> void:
-	var dsl: String = "# => TextBlock(speaker=\"LinXia\", expression=\"happy\")\n> 你好"
+	var dsl: String = "# => TextBlock(speaker=\"CharacterA\", expression=\"happy\")\n> 你好"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "case1 parse success")
 	var cmds: Array = result.get("commands", [])
@@ -34,7 +34,7 @@ func _test_single_dialogue_keeps_speaker() -> void:
 	if cmds.is_empty():
 		return
 	var cmd: AVGCommand = cmds[0]
-	_assert_eq(cmd.params.get("speaker", ""), "LinXia", "case1 speaker preserved")
+	_assert_eq(cmd.params.get("speaker", ""), "CharacterA", "case1 speaker preserved")
 	_assert_eq(cmd.params.get("text", ""), "你好", "case1 text preserved")
 
 
@@ -54,14 +54,14 @@ func _test_explicit_narration_block() -> void:
 
 ## Case 3: 两组独立配对，各自保留自己的 speaker
 func _test_multiple_dialogue_blocks_each_keep_own_speaker() -> void:
-	var dsl: String = "# => TextBlock(speaker=\"LinXia\")\n> 我也不想告诉你。\n# => TextBlock(speaker=\"洛恩\")\n> 我没问。"
+	var dsl: String = "# => TextBlock(speaker=\"CharacterA\")\n> 我也不想告诉你。\n# => TextBlock(speaker=\"洛恩\")\n> 我没问。"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "case3 parse success")
 	var cmds: Array = result.get("commands", [])
 	_assert_eq(cmds.size(), 2, "case3 command count")
 	if cmds.size() < 2:
 		return
-	_assert_eq((cmds[0] as AVGCommand).params.get("speaker", ""), "LinXia", "case3 first speaker")
+	_assert_eq((cmds[0] as AVGCommand).params.get("speaker", ""), "CharacterA", "case3 first speaker")
 	_assert_eq((cmds[0] as AVGCommand).params.get("text", ""), "我也不想告诉你。", "case3 first text")
 	_assert_eq((cmds[1] as AVGCommand).params.get("speaker", ""), "洛恩", "case3 second speaker")
 	_assert_eq((cmds[1] as AVGCommand).params.get("text", ""), "我没问。", "case3 second text")
@@ -82,14 +82,14 @@ func _test_consecutive_dialogue_lines_share_text_block() -> void:
 
 ## Case 5: 角色台词后接显式旁白块，行为正常
 func _test_dialogue_then_narration_explicit() -> void:
-	var dsl: String = "# => TextBlock(speaker=\"LinXia\")\n> 我也不想告诉你。\n# => TextBlock()\n> 他没有告诉林夏。"
+	var dsl: String = "# => TextBlock(speaker=\"CharacterA\")\n> 我也不想告诉你。\n# => TextBlock()\n> 他没有告诉对方。"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "case5 parse success")
 	var cmds: Array = result.get("commands", [])
 	_assert_eq(cmds.size(), 2, "case5 command count")
 	if cmds.size() < 2:
 		return
-	_assert_eq((cmds[0] as AVGCommand).params.get("speaker", ""), "LinXia", "case5 dialogue speaker")
+	_assert_eq((cmds[0] as AVGCommand).params.get("speaker", ""), "CharacterA", "case5 dialogue speaker")
 	_assert_eq((cmds[1] as AVGCommand).params.get("speaker", ""), "", "case5 narration speaker empty")
 
 

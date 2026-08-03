@@ -12,9 +12,9 @@ func _ready() -> void:
 	print("=== AVG DSL Character Reference Validator Test ===")
 
 	var character := AVGCharacterClass.new()
-	character.character_id = "char_lin_xia"
-	character.character_name = "LinXia"
-	character.display_name = "Lin Xia"
+	character.character_id = "char_a"
+	character.character_name = "CharacterA"
+	character.display_name = "Display A"
 	character.sprites = {
 		"default": _make_test_texture(64, 128, Color(1.0, 0.6, 0.7, 1.0)),
 		"smile": _make_test_texture(64, 128, Color(0.6, 0.9, 1.0, 1.0)),
@@ -26,9 +26,9 @@ func _ready() -> void:
 	project.characters = [character]
 
 	var commands: Array = [
-		AVGCommandClass.new("SHOW_CHARACTER", {"character_id": "Lin Xia", "emotion": "smile", "outfit": "uniform"}),
-		AVGCommandClass.new("CHANGE_EXPRESSION", {"character_id": "LinXia", "expression": "smile"}),
-		AVGCommandClass.new("CHANGE_OUTFIT", {"character_id": "Lin Xia", "outfit": "uniform", "emotion": "default"}),
+		AVGCommandClass.new("SHOW_CHARACTER", {"character_id": "Display A", "emotion": "smile", "outfit": "uniform"}),
+		AVGCommandClass.new("CHANGE_EXPRESSION", {"character_id": "CharacterA", "expression": "smile"}),
+		AVGCommandClass.new("CHANGE_OUTFIT", {"character_id": "Display A", "outfit": "uniform", "emotion": "default"}),
 	]
 
 	var validator := AVGDSLValidatorClass.new()

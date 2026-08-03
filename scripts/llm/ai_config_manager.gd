@@ -6,10 +6,6 @@ class_name AIConfigManager extends RefCounted
 
 const DEFAULT_CONFIG_PATH: String = "res://ai_config.cfg"
 const USER_CONFIG_PATH: String = "user://ai_config.cfg"
-const ROLE_FALLBACKS: Dictionary = {
-	"work_order_agent": "work_order",
-}
-
 ## 全局单例（生产代码用 get_instance()，测试代码可自行 new() 隔离）
 static var _instance: AIConfigManager = null
 
@@ -26,25 +22,10 @@ var _profiles: Dictionary = {}
 var _roles: Dictionary = {}
 ## role_name -> 覆盖设置
 var _role_settings: Dictionary = {}
-## [dev] 节的键值对
-var _dev_settings: Dictionary = {}
 ## 加载来源描述
 var _loaded_from: String = ""
 ## 是否打印加载日志（测试时可设为 false 减少噪音）
 var verbose: bool = false
-
-
-## 获取 [dev] 配置项。
-func get_dev_setting(key: String, default_value: Variant = null) -> Variant:
-	return _dev_settings.get(key, default_value)
-
-
-func is_background_llm_disabled() -> bool:
-	return _is_truthy(get_dev_setting("disable_background_llm", false))
-
-
-func is_quiet_logs_enabled() -> bool:
-	return _is_truthy(get_dev_setting("quiet_debug_logs", false))
 
 
 ## 加载配置。先加载 res:// 默认配置，再用 user:// 覆盖。
@@ -53,7 +34,6 @@ func load_config() -> bool:
 	_profiles.clear()
 	_roles.clear()
 	_role_settings.clear()
-	_dev_settings.clear()
 	_loaded_from = ""
 	
 	var has_default: bool = _load_file(DEFAULT_CONFIG_PATH)
@@ -71,16 +51,9 @@ func load_config() -> bool:
 ## 返回 {base_url, api_key, model}，找不到则返回空 Dictionary。
 func get_config_for_role(role: String) -> Dictionary:
 	var profile_name: String = _roles.get(role, "")
-	var fallback_role: String = ""
-	if profile_name.is_empty():
-		fallback_role = str(ROLE_FALLBACKS.get(role, ""))
-		if not fallback_role.is_empty():
-			profile_name = _roles.get(fallback_role, "")
 	if profile_name.is_empty():
 		return {}
 	var config: Dictionary = _profiles.get(profile_name, {}).duplicate()
-	if not fallback_role.is_empty():
-		config.merge(_role_settings.get(fallback_role, {}), true)
 	config.merge(_role_settings.get(role, {}), true)
 	return config
 
@@ -109,26 +82,6 @@ func apply_to_service(ai_service: Node, role: String) -> bool:
 		if str(property_info.get("name", "")) == "service_role":
 			ai_service.set("service_role", role)
 			break
-	return true
-
-
-## 将配置应用到 ArtAIService 实例。
-## 仅支持 type="image" 的 profile。
-## 返回 true 表示成功应用。
-func apply_to_art_service(art_service: Node, role: String) -> bool:
-	var config: Dictionary = get_config_for_role(role)
-	if config.is_empty():
-		push_warning("AIConfigManager: No config found for role '%s'" % role)
-		return false
-	
-	var profile_type: String = config.get("type", "chat")
-	if profile_type != "image":
-		push_warning("AIConfigManager: Role '%s' uses type '%s', but ArtAIService requires 'image'" % [role, profile_type])
-		return false
-	
-	art_service.api_base_url = config.get("base_url", "")
-	art_service.api_key = config.get("api_key", "")
-	art_service.model = config.get("model", "")
 	return true
 
 
@@ -192,11 +145,6 @@ func _load_file(path: String) -> bool:
 			_role_settings[role_name] = role_settings
 			if verbose:
 				print("[AIConfigManager] Loaded role settings: %s -> %s" % [role_name, str(role_settings)])
-		elif section == "dev":
-			for key in config.get_section_keys("dev"):
-				_dev_settings[key] = config.get_value("dev", key, "")
-				if verbose:
-					print("[AIConfigManager] Loaded dev setting: %s = %s" % [key, str(_dev_settings[key])])
 	
 	return true
 

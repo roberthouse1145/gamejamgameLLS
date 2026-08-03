@@ -12,7 +12,7 @@ const T_TOP_EDGE: Color = Color("#B8C4D8")
 
 const TASKBAR_HEIGHT: float = 76.0
 const START_BUTTON_MIN_WIDTH: float = 72.0
-const PHASE_FONT_SIZE: int = 24
+const CLOCK_FONT_SIZE: int = 24
 const CLOCK_MIN_WIDTH: float = 240.0
 
 signal window_button_clicked(window: Control)
@@ -21,7 +21,7 @@ signal start_button_clicked
 @onready var button_container: HBoxContainer = %ButtonContainer
 
 var _window_buttons: Dictionary = {}
-var _game_loop: Node = null
+var _last_displayed_minute: int = -1
 
 @export var button_min_width: float = 160.0
 @export var button_max_width: float = 240.0
@@ -32,8 +32,8 @@ func _ready() -> void:
 		push_error("Taskbar: ButtonContainer not found")
 		return
 	_apply_theme()
-	_bind_game_loop()
-	_update_phase_label()
+	_update_clock()
+	set_process(true)
 	_bind_start_button()
 
 
@@ -106,7 +106,7 @@ func _apply_theme() -> void:
 	var phase_label := get_node_or_null("HBoxContainer/Clock") as Label
 	if phase_label != null:
 		phase_label.add_theme_color_override("font_color", T_TEXT_DIM)
-		phase_label.add_theme_font_size_override("font_size", PHASE_FONT_SIZE)
+		phase_label.add_theme_font_size_override("font_size", CLOCK_FONT_SIZE)
 		phase_label.custom_minimum_size.x = CLOCK_MIN_WIDTH
 
 	button_container.add_theme_constant_override("separation", 8)
@@ -271,32 +271,18 @@ func _on_window_button_pressed(window: Control) -> void:
 	window_button_clicked.emit(window)
 
 
-func _bind_game_loop() -> void:
-	_game_loop = get_node_or_null("/root/GameLoopManager")
-	if _game_loop != null and _game_loop.has_signal("phase_changed"):
-		if not _game_loop.phase_changed.is_connected(_on_phase_changed):
-			_game_loop.phase_changed.connect(_on_phase_changed)
-	if _game_loop != null and _game_loop.has_signal("day_changed"):
-		if not _game_loop.day_changed.is_connected(_on_day_changed):
-			_game_loop.day_changed.connect(_on_day_changed)
-
-
-func _update_phase_label() -> void:
-	var phase_label := get_node_or_null("HBoxContainer/Clock") as Label
-	if phase_label == null:
+func _process(_delta: float) -> void:
+	var now: Dictionary = Time.get_time_dict_from_system()
+	var minute: int = int(now.get("minute", 0))
+	if minute == _last_displayed_minute:
 		return
-	var day_text := "第1天"
-	var phase_text := "上午"
-	if _game_loop != null:
-		day_text = "第%d天" % int(_game_loop.get("current_day"))
-		if _game_loop.has_method("get_phase_display_name"):
-			phase_text = str(_game_loop.call("get_phase_display_name", _game_loop.get("time_phase")))
-	phase_label.text = "%s · %s" % [day_text, phase_text]
+	_update_clock(now)
 
 
-func _on_phase_changed(_phase: int) -> void:
-	_update_phase_label()
-
-
-func _on_day_changed(_day: int) -> void:
-	_update_phase_label()
+func _update_clock(now: Dictionary = {}) -> void:
+	var clock_label := get_node_or_null("HBoxContainer/Clock") as Label
+	if clock_label == null:
+		return
+	var current_time: Dictionary = now if not now.is_empty() else Time.get_time_dict_from_system()
+	_last_displayed_minute = int(current_time.get("minute", 0))
+	clock_label.text = "%02d:%02d" % [int(current_time.get("hour", 0)), _last_displayed_minute]

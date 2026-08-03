@@ -1,7 +1,5 @@
 class_name PseudoCursor extends Control
-## 虚拟光标 —— 日系仿 Windows 风格
-## 经典箭头造型 + 柔和配色 + 轻盈手感
-## 纯 _draw() 实现，无需贴图
+## 代码绘制的桌面虚拟光标。
 
 signal clicked(position: Vector2)
 
@@ -11,8 +9,8 @@ signal clicked(position: Vector2)
 @export var color_body: Color = Color.WHITE
 ## 描边（柔和深色，不要纯黑）
 @export var color_border: Color = Color("3a3d4a")
-## 点击反馈色（樱花粉，二次元感）
-@export var color_accent: Color = Color("f2a5c5")
+## 点击反馈色
+@export var color_accent: Color = Color("4a7cff")
 ## 投影色
 @export var color_shadow: Color = Color(0.0, 0.0, 0.0, 0.12)
 

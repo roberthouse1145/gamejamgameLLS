@@ -171,8 +171,8 @@ func _test_parser_strips_misapplied_arrow_prefix_on_command() -> void:
 	var dsl: String = "# => screen.fade(direction=\"out\", duration=0.3)\n" \
 		+ "# => bg.show(\"bg_apartment_living\", fade_duration=0.4)\n" \
 		+ "# => bgm.play(\"bgm_happy_end\")\n" \
-		+ "# => stage.set(\"LinXia\", emotions=\"happy\", outfits=\"loungewear\")\n" \
-		+ "# => LinXia.expression = \"happy\"\n" \
+		+ "# => stage.set(\"CharacterA\", emotions=\"happy\", outfits=\"loungewear\")\n" \
+		+ "# => CharacterA.expression = \"happy\"\n" \
 		+ "# => TextBlock()\n" \
 		+ "> 客厅的窗帘半拉着。"
 	var result: Dictionary = _parser.parse(dsl)
@@ -211,7 +211,7 @@ func _test_parser_reports_bare_text_warning() -> void:
 
 
 func _test_if_condition_key_commands() -> void:
-	var dsl: String = "if var[linxia_affection] >= 3:\n    > 命中"
+	var dsl: String = "if var[progress_score] >= 3:\n    > 命中"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "if key parse success")
 	var commands: Array = result.get("commands", [])
@@ -224,13 +224,13 @@ func _test_if_condition_key_commands() -> void:
 	if condition_commands.is_empty():
 		return
 	var cond: AVGCommand = condition_commands[0]
-	_assert_eq(cond.params.get("variable_key", ""), "linxia_affection", "if key variable key")
+	_assert_eq(cond.params.get("variable_key", ""), "progress_score", "if key variable key")
 	_assert_eq(cond.params.get("operator", ""), ">=", "if key operator")
 	_assert_eq(cond.params.get("value"), 3, "if key value")
 
 
 func _test_if_condition_variable_to_variable_commands() -> void:
-	var dsl: String = "if var[linxia_choice] > var[sujing_choice]:\n    > 命中"
+	var dsl: String = "if var[character_a_choice] > var[sujing_choice]:\n    > 命中"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "if var-to-var parse success")
 	var commands: Array = result.get("commands", [])
@@ -243,14 +243,14 @@ func _test_if_condition_variable_to_variable_commands() -> void:
 	if condition_commands.is_empty():
 		return
 	var cond: AVGCommand = condition_commands[0]
-	_assert_eq(cond.params.get("variable_key", ""), "linxia_choice", "if var-to-var lhs key")
+	_assert_eq(cond.params.get("variable_key", ""), "character_a_choice", "if var-to-var lhs key")
 	_assert_eq(cond.params.get("operator", ""), ">", "if var-to-var operator")
 	_assert_eq(cond.params.get("value_source", ""), "variable", "if var-to-var value source")
 	_assert_eq(cond.params.get("source_variable_key", ""), "sujing_choice", "if var-to-var rhs key")
 
 
 func _test_if_condition_and_commands() -> void:
-	var dsl: String = "if var[linxia_affection] >= 3 and var[player_confidence] >= 5:\n    > 命中"
+	var dsl: String = "if var[progress_score] >= 3 and var[secondary_score] >= 5:\n    > 命中"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "if and parse success")
 	var commands: Array = result.get("commands", [])
@@ -266,12 +266,12 @@ func _test_if_condition_and_commands() -> void:
 	var cond_b: AVGCommand = condition_commands[1]
 	_assert_eq(cond_a.command_type, "CHECK_VAR", "if and first condition type")
 	_assert_eq(cond_b.command_type, "CHECK_VAR", "if and second condition type")
-	_assert_eq(cond_a.params.get("variable_key", ""), "linxia_affection", "if and first key")
-	_assert_eq(cond_b.params.get("variable_key", ""), "player_confidence", "if and second key")
+	_assert_eq(cond_a.params.get("variable_key", ""), "progress_score", "if and first key")
+	_assert_eq(cond_b.params.get("variable_key", ""), "secondary_score", "if and second key")
 
 
 func _test_if_condition_or_commands() -> void:
-	var dsl: String = "if var[linxia_affection] >= 3 or (var[player_confidence] >= 5 and var[rain_route_unlocked] == true):\n    > 命中"
+	var dsl: String = "if var[progress_score] >= 3 or (var[secondary_score] >= 5 and var[route_unlocked] == true):\n    > 命中"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "if or parse success")
 	var commands: Array = result.get("commands", [])
@@ -335,7 +335,7 @@ func _test_choice_inline_condition() -> void:
 
 
 func _test_choice_inline_compound_condition() -> void:
-	var dsl: String = "# => ChoiceBlock()\n- 复合条件 [if var[linxia_affection] >= 3 and (var[player_confidence] >= 5 or var[rain_route_unlocked] == 1)]\n    > 条件分支"
+	var dsl: String = "# => ChoiceBlock()\n- 复合条件 [if var[progress_score] >= 3 and (var[secondary_score] >= 5 or var[route_unlocked] == 1)]\n    > 条件分支"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "choice compound parse success")
 	var commands: Array = result.get("commands", [])
@@ -351,27 +351,27 @@ func _test_choice_inline_compound_condition() -> void:
 
 
 func _test_serializer_compound_if() -> void:
-	var dsl: String = "if var[linxia_affection] >= 3 and (var[player_confidence] >= 5 or var[rain_route_unlocked] == true):\n    > 命中"
+	var dsl: String = "if var[progress_score] >= 3 and (var[secondary_score] >= 5 or var[route_unlocked] == true):\n    > 命中"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "serializer if parse success")
 	var serialized: String = _serializer.serialize(result.get("commands", []))
-	_assert_contains(serialized, "if var[linxia_affection] >= 3 and (var[player_confidence] >= 5 or var[rain_route_unlocked] == 1):", "serializer if compound output")
+	_assert_contains(serialized, "if var[progress_score] >= 3 and (var[secondary_score] >= 5 or var[route_unlocked] == 1):", "serializer if compound output")
 
 
 func _test_serializer_compound_choice() -> void:
-	var dsl: String = "# => ChoiceBlock()\n- 复合条件 [if var[linxia_affection] >= 3 and (var[player_confidence] >= 5 or var[rain_route_unlocked] == true)]\n    > 条件分支"
+	var dsl: String = "# => ChoiceBlock()\n- 复合条件 [if var[progress_score] >= 3 and (var[secondary_score] >= 5 or var[route_unlocked] == true)]\n    > 条件分支"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "serializer choice parse success")
 	var serialized: String = _serializer.serialize(result.get("commands", []))
-	_assert_contains(serialized, "[if var[linxia_affection] >= 3 and (var[player_confidence] >= 5 or var[rain_route_unlocked] == 1)]", "serializer choice compound output")
+	_assert_contains(serialized, "[if var[progress_score] >= 3 and (var[secondary_score] >= 5 or var[route_unlocked] == 1)]", "serializer choice compound output")
 
 
 func _test_serializer_dialogue_round_trip() -> void:
-	var dsl: String = "# => TextBlock(speaker=\"LinXia\", expression=\"happy\")\n> 你好"
+	var dsl: String = "# => TextBlock(speaker=\"CharacterA\", expression=\"happy\")\n> 你好"
 	var initial: Dictionary = _parser.parse(dsl)
 	_assert_true(initial.get("success", false), "serializer dialogue initial parse")
 	var serialized: String = _serializer.serialize(initial.get("commands", []))
-	_assert_contains(serialized, "# => TextBlock(speaker=\"LinXia\", expression=\"happy\")", "serializer dialogue textblock output")
+	_assert_contains(serialized, "# => TextBlock(speaker=\"CharacterA\", expression=\"happy\")", "serializer dialogue textblock output")
 	_assert_contains(serialized, "> 你好", "serializer dialogue text output")
 	var round_trip: Dictionary = _parser.parse(serialized)
 	_assert_true(round_trip.get("success", false), "serializer dialogue round trip parse")
@@ -380,13 +380,13 @@ func _test_serializer_dialogue_round_trip() -> void:
 	if commands.is_empty():
 		return
 	var dialogue_cmd: AVGCommand = commands[0]
-	_assert_eq(dialogue_cmd.params.get("speaker", ""), "LinXia", "serializer dialogue speaker")
+	_assert_eq(dialogue_cmd.params.get("speaker", ""), "CharacterA", "serializer dialogue speaker")
 	_assert_eq(dialogue_cmd.params.get("emotion", ""), "happy", "serializer dialogue emotion")
 	_assert_eq(dialogue_cmd.params.get("text", ""), "你好", "serializer dialogue text")
 
 
 func _test_serializer_multiline_dialogue_round_trip() -> void:
-	var dsl: String = "# => TextBlock(speaker=\"LinXia\", expression=\"happy\")\n> 第一行。\n> 第二行。"
+	var dsl: String = "# => TextBlock(speaker=\"CharacterA\", expression=\"happy\")\n> 第一行。\n> 第二行。"
 	var initial: Dictionary = _parser.parse(dsl)
 	_assert_true(initial.get("success", false), "serializer multiline dialogue initial parse")
 	var commands: Array = initial.get("commands", [])
@@ -394,10 +394,10 @@ func _test_serializer_multiline_dialogue_round_trip() -> void:
 	if commands.is_empty():
 		return
 	var initial_cmd: AVGCommand = commands[0]
-	_assert_eq(initial_cmd.params.get("speaker", ""), "LinXia", "serializer multiline dialogue speaker")
+	_assert_eq(initial_cmd.params.get("speaker", ""), "CharacterA", "serializer multiline dialogue speaker")
 	_assert_eq(initial_cmd.params.get("text", ""), "第一行。\n第二行。", "serializer multiline dialogue text")
 	var serialized: String = _serializer.serialize(commands)
-	_assert_contains(serialized, "# => TextBlock(speaker=\"LinXia\", expression=\"happy\")", "serializer multiline textblock output")
+	_assert_contains(serialized, "# => TextBlock(speaker=\"CharacterA\", expression=\"happy\")", "serializer multiline textblock output")
 	_assert_contains(serialized, "> 第一行。\n> 第二行。", "serializer multiline text output")
 	var round_trip: Dictionary = _parser.parse(serialized)
 	_assert_true(round_trip.get("success", false), "serializer multiline dialogue round trip parse")
@@ -406,18 +406,18 @@ func _test_serializer_multiline_dialogue_round_trip() -> void:
 	if round_trip_commands.is_empty():
 		return
 	var dialogue_cmd: AVGCommand = round_trip_commands[0]
-	_assert_eq(dialogue_cmd.params.get("speaker", ""), "LinXia", "serializer multiline dialogue round trip speaker")
+	_assert_eq(dialogue_cmd.params.get("speaker", ""), "CharacterA", "serializer multiline dialogue round trip speaker")
 	_assert_eq(dialogue_cmd.params.get("emotion", ""), "happy", "serializer multiline dialogue round trip emotion")
 	_assert_eq(dialogue_cmd.params.get("text", ""), "第一行。\n第二行。", "serializer multiline dialogue round trip text")
 
 
 func _test_serializer_choice_round_trip() -> void:
-	var dsl: String = "# => ChoiceBlock()\n- 普通选项\n    > 正常\n- 条件选项 [if var[linxia_affection] > 1]\n    > 条件分支"
+	var dsl: String = "# => ChoiceBlock()\n- 普通选项\n    > 正常\n- 条件选项 [if var[progress_score] > 1]\n    > 条件分支"
 	var initial: Dictionary = _parser.parse(dsl)
 	_assert_true(initial.get("success", false), "serializer choice initial parse")
 	var serialized: String = _serializer.serialize(initial.get("commands", []))
 	_assert_contains(serialized, "# => ChoiceBlock()", "serializer choice block output")
-	_assert_contains(serialized, "- 条件选项 [if var[linxia_affection] > 1]", "serializer choice inline condition output")
+	_assert_contains(serialized, "- 条件选项 [if var[progress_score] > 1]", "serializer choice inline condition output")
 	var round_trip: Dictionary = _parser.parse(serialized)
 	_assert_true(round_trip.get("success", false), "serializer choice round trip parse")
 	var commands: Array = round_trip.get("commands", [])
@@ -435,26 +435,26 @@ func _test_serializer_choice_round_trip() -> void:
 
 
 func _test_serializer_variable_to_variable_condition() -> void:
-	var dsl: String = "if var[linxia_choice] > var[sujing_choice]:\n    > 命中"
+	var dsl: String = "if var[character_a_choice] > var[sujing_choice]:\n    > 命中"
 	var result: Dictionary = _parser.parse(dsl)
 	_assert_true(result.get("success", false), "serializer var-to-var parse success")
 	var serialized: String = _serializer.serialize(result.get("commands", []))
-	_assert_contains(serialized, "if var[linxia_choice] > var[sujing_choice]:", "serializer var-to-var output")
+	_assert_contains(serialized, "if var[character_a_choice] > var[sujing_choice]:", "serializer var-to-var output")
 	var round_trip: Dictionary = _parser.parse(serialized)
 	_assert_true(round_trip.get("success", false), "serializer var-to-var round trip parse")
 
 
 func _test_serializer_stage_round_trip() -> void:
-	var dsl: String = "stage.set(\"LinXia\", \"Shopkeeper\", emotions=\"happy,neutral\")\n" + \
+	var dsl: String = "stage.set(\"CharacterA\", \"CharacterB\", emotions=\"happy,neutral\")\n" + \
 		"stage.enter(\"Professor\", emotions=\"serious\")\n" + \
-		"stage.exit(\"Shopkeeper\")\n" + \
+		"stage.exit(\"CharacterB\")\n" + \
 		"stage.clear()"
 	var initial: Dictionary = _parser.parse(dsl)
 	_assert_true(initial.get("success", false), "serializer stage initial parse")
 	var serialized: String = _serializer.serialize(initial.get("commands", []))
-	_assert_contains(serialized, "stage.set(\"LinXia\", \"Shopkeeper\", emotions=\"happy,neutral\")", "serializer stage set output")
+	_assert_contains(serialized, "stage.set(\"CharacterA\", \"CharacterB\", emotions=\"happy,neutral\")", "serializer stage set output")
 	_assert_contains(serialized, "stage.enter(\"Professor\", emotions=\"serious\")", "serializer stage enter output")
-	_assert_contains(serialized, "stage.exit(\"Shopkeeper\")", "serializer stage exit output")
+	_assert_contains(serialized, "stage.exit(\"CharacterB\")", "serializer stage exit output")
 	_assert_contains(serialized, "stage.clear()", "serializer stage clear output")
 	var round_trip: Dictionary = _parser.parse(serialized)
 	_assert_true(round_trip.get("success", false), "serializer stage round trip parse")
@@ -491,9 +491,9 @@ func _test_serializer_variable_lookup() -> void:
 			"has_else": false,
 		})
 	]
-	var serialized: String = _serializer.serialize(commands, 0, {"var_001": "linxia_affection"})
-	_assert_contains(serialized, "var[linxia_affection] += 2", "serializer variable lookup set")
-	_assert_contains(serialized, "if var[linxia_affection] >= 3:", "serializer variable lookup if")
+	var serialized: String = _serializer.serialize(commands, 0, {"var_001": "progress_score"})
+	_assert_contains(serialized, "var[progress_score] += 2", "serializer variable lookup set")
+	_assert_contains(serialized, "if var[progress_score] >= 3:", "serializer variable lookup if")
 
 
 func _test_serializer_string_variable_round_trip() -> void:

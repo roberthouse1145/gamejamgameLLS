@@ -24,7 +24,6 @@ offset_right = 200.0
 offset_bottom = 40.0
 grow_horizontal = 2
 grow_vertical = 2
-text = "Space: 切换下一个时段
-1/2/3: 上午 / 下午 / 晚上"
+text = "Space：切换测试壁纸"
 horizontal_alignment = 1
 vertical_alignment = 1

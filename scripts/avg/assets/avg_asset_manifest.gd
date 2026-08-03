@@ -7,13 +7,12 @@ class_name AVGAssetManifest extends RefCounted
 ## [codeblock]
 ## {
 ##   "backgrounds": {
-##     "bg_park": "Assets/background/bg_park.jpg",
-##     "bg_ending": "Assets/background/bg_ending.jpg"
+##     "background_primary": "Assets/background/background_primary.png"
 ##   },
 ##   "images": { ... },
 ##   "bgm": { ... },
 ##   "sfx": { ... },
-##   "hidden": ["bg_ending", "cg_finale_01"]
+##   "hidden": ["cg_hidden"]
 ## }
 ## [/codeblock]
 ##
@@ -25,7 +24,6 @@ class_name AVGAssetManifest extends RefCounted
 const MANIFEST_RELATIVE_PATH: String = "manifests/asset_aliases.json"
 const IMAGE_ROOT_RELATIVE_PATH: String = "assets/images"
 const AUDIO_ROOT_RELATIVE_PATH: String = "assets/audio"
-const DEFAULT_TEMPLATE_ROOT_PATH: String = "res://templates/tutorial_project/"
 
 static var _manifest_cache: Dictionary = {}
 
@@ -39,10 +37,6 @@ static func load_manifest(project_root_path: String) -> Dictionary:
 		return (_manifest_cache[normalized_root] as Dictionary).duplicate(true)
 
 	var manifest: Dictionary = _load_manifest_file(normalized_root)
-	var fallback_root: String = _get_manifest_fallback_root(normalized_root)
-	if not fallback_root.is_empty() and fallback_root != normalized_root:
-		var fallback_manifest: Dictionary = _load_manifest_file(fallback_root)
-		manifest = _merge_manifest_dicts(fallback_manifest, manifest)
 	_manifest_cache[normalized_root] = manifest.duplicate(true)
 	return manifest
 
@@ -69,7 +63,7 @@ static func build_llm_prompt_block(project_root_path: String, project: Resource 
 	var cg_assets: Array[String] = _scan_visual_asset_names(project_root_path, true)
 
 	lines.append("本次可用素材清单：")
-	lines.append("- 角色位置只允许：left、center、right")
+	lines.append("- 角色位置可用：far_left、left、center、right、far_right")
 	lines.append("- 背景和音频请优先使用 alias，不要写真实路径")
 	lines.append("- 角色立绘优先使用 emotion 语义键；如需指定服装，再额外写 outfit")
 	lines.append("- 非角色图片可用 image.show(...)；全屏事件图可用 cg.show(...)")
@@ -187,44 +181,6 @@ static func _load_manifest_file(project_root_path: String) -> Dictionary:
 	if not parsed is Dictionary:
 		return {}
 	return (parsed as Dictionary).duplicate(true)
-
-
-static func _get_manifest_fallback_root(project_root_path: String) -> String:
-	var normalized_root: String = _normalize_project_root(project_root_path)
-	if normalized_root.is_empty():
-		return ""
-	if normalized_root.begins_with("res://templates/"):
-		return ""
-	if normalized_root.begins_with("user://run/"):
-		return DEFAULT_TEMPLATE_ROOT_PATH
-	if normalized_root.begins_with("user://run/player_project/"):
-		return DEFAULT_TEMPLATE_ROOT_PATH
-	if normalized_root.begins_with("user://run/trunk/"):
-		return DEFAULT_TEMPLATE_ROOT_PATH
-	if normalized_root.begins_with("user://projects/"):
-		return DEFAULT_TEMPLATE_ROOT_PATH
-	return ""
-
-
-static func _merge_manifest_dicts(base_manifest: Dictionary, override_manifest: Dictionary) -> Dictionary:
-	var merged: Dictionary = base_manifest.duplicate(true)
-	for key in override_manifest.keys():
-		var override_value: Variant = override_manifest.get(key)
-		var base_value: Variant = merged.get(key)
-		if override_value is Dictionary and base_value is Dictionary:
-			var merged_bucket: Dictionary = (base_value as Dictionary).duplicate(true)
-			for bucket_key in (override_value as Dictionary).keys():
-				merged_bucket[bucket_key] = override_value[bucket_key]
-			merged[key] = merged_bucket
-		elif key == "hidden" and override_value is Array and base_value is Array:
-			var hidden_values: Array = (base_value as Array).duplicate()
-			for entry in override_value:
-				if not hidden_values.has(entry):
-					hidden_values.append(entry)
-			merged[key] = hidden_values
-		else:
-			merged[key] = override_value
-	return merged
 
 
 static func _collect_character_entries(project: Resource) -> Array[Dictionary]:

@@ -42,7 +42,7 @@ func _assert_scene_jump_clears_characters(project: Resource, use_transition: boo
 	await get_tree().process_frame
 
 	var char_display: Node = _runner.character_display
-	char_display.show_character("LinXia", "center", "", 0.0)
+	char_display.show_character("CharacterA", "center", "", 0.0)
 	await get_tree().process_frame
 
 	var label: String = "transition" if use_transition else "hard_cut"
@@ -60,8 +60,8 @@ func _assert_scene_jump_clears_characters(project: Resource, use_transition: boo
 func _build_test_project() -> Resource:
 	var character := AVGCharacterClass.new()
 	character.character_id = "char_test"
-	character.character_name = "LinXia"
-	character.display_name = "Lin Xia"
+	character.character_name = "CharacterA"
+	character.display_name = "Display A"
 	character.sprites = {
 		"default": _make_test_texture(120, 240, Color(1.0, 0.5, 0.7, 1.0))
 	}

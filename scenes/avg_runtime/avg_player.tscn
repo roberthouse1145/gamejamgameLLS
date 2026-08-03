@@ -1,0 +1,113 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/runtime/avg_player.gd" id="1_player"]
+[ext_resource type="Theme" uid="uid://c7c4qoevl14xp" path="res://resources/themes/pseudo_os_light.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_scene_runner.tscn" id="2_runner"]
+
+[node name="AVGPlayer" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_player")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.965, 0.976, 0.988, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="ContentArea" type="Control" parent="MainLayout"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="IdlePage" type="CenterContainer" parent="MainLayout/ContentArea"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="IdleLabel" type="Label" parent="MainLayout/ContentArea/IdlePage"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.35, 0.42, 0.52, 1)
+theme_override_font_sizes/font_size = 28
+text = "等待剧情开始"
+
+[node name="PlaybackPage" type="Control" parent="MainLayout/ContentArea"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PlaybackBackground" type="ColorRect" parent="MainLayout/ContentArea/PlaybackPage"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.08, 0.11, 1)
+
+[node name="ContentContainer" type="Control" parent="MainLayout/ContentArea/PlaybackPage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="MainLayout/ContentArea/PlaybackPage/ContentContainer"]
+unique_name_in_owner = true
+layout_mode = 0
+stretch = true
+
+[node name="PreviewViewport" type="SubViewport" parent="MainLayout/ContentArea/PlaybackPage/ContentContainer/PreviewContainer"]
+unique_name_in_owner = true
+handle_input_locally = true
+size = Vector2i(2560, 1440)
+render_target_update_mode = 4
+
+[node name="AVGSceneRunner" parent="MainLayout/ContentArea/PlaybackPage/ContentContainer/PreviewContainer/PreviewViewport" instance=ExtResource("2_runner")]
+unique_name_in_owner = true
+
+[node name="TopOverlay" type="MarginContainer" parent="MainLayout/ContentArea/PlaybackPage"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_left = 18.0
+offset_top = 14.0
+offset_right = -18.0
+offset_bottom = 54.0
+grow_horizontal = 2
+
+[node name="TitleLabel" type="Label" parent="MainLayout/ContentArea/PlaybackPage/TopOverlay"]
+unique_name_in_owner = true
+layout_mode = 2
+text = ""
+theme_override_font_sizes/font_size = 18
+theme_override_colors/font_color = Color(0.921569, 0.945098, 1, 0.72)

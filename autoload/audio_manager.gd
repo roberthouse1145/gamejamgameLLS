@@ -7,8 +7,8 @@
 ##
 ## 用法：
 ##   AudioManager.play_sfx_key("ui_click")          # 播放已注册的短音效
-##   AudioManager.play_sfx(preload("res://...wav")) # 直接传 AudioStream
-##   AudioManager.play_bgm(preload("res://...ogg")) # 播放背景音乐
+##   AudioManager.play_sfx(audio_stream)             # 直接传 AudioStream
+##   AudioManager.play_bgm(audio_stream)             # 播放背景音乐
 ##   AudioManager.stop_bgm(1.5)                     # 1.5s 淡出后停止
 ##   AudioManager.sfx_volume_db = -6.0              # 调整 SFX 音量
 
@@ -38,19 +38,7 @@ var bgm_volume_db: float = 0.0:
 ## 在这里集中维护所有音效的路径映射
 ## key: 逻辑名称，value: res:// 路径（延迟加载，首次使用时 load）
 var _sfx_registry: Dictionary = {
-	# UI
-	"ui_click":        "res://Assets/sounds/ui/cursor_click.wav",
-	"ui_hover":        "res://Assets/sounds/ui/hover.ogg",
-	"ui_window_open":  "res://Assets/sounds/ui/window_open.ogg",
-	"ui_window_close": "res://Assets/sounds/ui/window_close.ogg",
-	# 系统
-	"sys_boot":        "res://Assets/sounds/system/boot.ogg",
-	"sys_confirm":     "res://Assets/sounds/system/confirm.ogg",
-	"sys_notify":      "res://Assets/sounds/system/notify.ogg",
-	# 聊天
-	"chat_send":       "res://Assets/sounds/chat/message_send.wav",
-	"chat_receive":    "res://Assets/sounds/chat/message_send.wav",
-	"chat_typing":     "res://Assets/sounds/chat/typing.ogg",
+	"ui_click": "res://Assets/sounds/ui/cursor_click.wav",
 }
 
 ## 已加载的 AudioStream 缓存

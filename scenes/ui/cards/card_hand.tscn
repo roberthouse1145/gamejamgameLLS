@@ -1,7 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://scripts/ui/cards/card_hand.gd" id="1_card_hand"]
-
-[node name="CardHand" type="HBoxContainer"]
-script = ExtResource("1_card_hand")
-theme_override_constants/separation = 8

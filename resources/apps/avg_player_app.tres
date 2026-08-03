@@ -2,8 +2,8 @@
 
 [ext_resource type="Script" uid="uid://8q1gt3lo23pl" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
 [ext_resource type="Script" uid="uid://ci885fg84p1hq" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
-[ext_resource type="Texture2D" uid="uid://dhs0pio1aygi5" path="res://Assets/images/app_icons/sp_icon03.png" id="2_hgdho"]
-[ext_resource type="PackedScene" path="res://scenes/date_events/date_event_player.tscn" id="3_entry_scene"]
+[ext_resource type="Texture2D" uid="uid://dhs0pio1aygi5" path="res://Assets/images/app_icons/avg_player.png" id="2_hgdho"]
+[ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_player.tscn" id="3_entry_scene"]
 
 [sub_resource type="Resource" id="Resource_wc"]
 script = ExtResource("2_constraints")
@@ -15,7 +15,7 @@ default_content_aspect_ratio = 1.77777777777778
 [resource]
 script = ExtResource("1_app_def")
 app_id = "avg_player"
-app_name = "dilidili"
+app_name = "AVG Player"
 icon = ExtResource("2_hgdho")
 entry_scene = ExtResource("3_entry_scene")
 window_constraints = SubResource("Resource_wc")

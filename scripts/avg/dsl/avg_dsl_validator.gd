@@ -4,13 +4,6 @@ const AVGAssetManifestClass = preload("res://scripts/avg/assets/avg_asset_manife
 const AVGCharacterClass = preload("res://scripts/avg/resources/avg_character.gd")
 const AVGVariableClass = preload("res://scripts/avg/resources/avg_variable.gd")
 
-const USER_PROJECTS_PATH: String = "user://projects/"
-const RES_TEMPLATES_PATH: String = "res://templates/"
-const RUNTIME_RUN_ROOT_PATH: String = "user://run/"
-const RUNTIME_PLAYER_PROJECT_PATH: String = RUNTIME_RUN_ROOT_PATH + "player_project/"
-const TRUNK_PATH: String = RUNTIME_RUN_ROOT_PATH + "trunk/"
-const DEFAULT_PROJECT_NAME: String = "tutorial_project"
-
 const DEFAULT_ALLOWED_POSITIONS: Array[String] = [
 	"left",
 	"center",
@@ -514,13 +507,7 @@ func _resource_ref_exists(resource_path: String) -> bool:
 	var trimmed_path: String = _normalize_token(resource_path)
 	if trimmed_path.is_empty():
 		return false
-	if ResourceLoader.exists(trimmed_path) or FileAccess.file_exists(trimmed_path):
-		return true
-
-	var fallback_path: String = _apply_rtp_fallback(trimmed_path)
-	if fallback_path == trimmed_path:
-		return false
-	return ResourceLoader.exists(fallback_path) or FileAccess.file_exists(fallback_path)
+	return ResourceLoader.exists(trimmed_path) or FileAccess.file_exists(trimmed_path)
 
 
 func _resolve_manifest_value(value: String, project_root_path: String) -> String:
@@ -531,33 +518,6 @@ func _resolve_manifest_value(value: String, project_root_path: String) -> String
 		return trimmed_value
 	var normalized_root: String = project_root_path if project_root_path.ends_with("/") else project_root_path + "/"
 	return normalized_root + trimmed_value
-
-
-func _apply_rtp_fallback(resource_path: String) -> String:
-	if not resource_path.begins_with("user://"):
-		return resource_path
-
-	if resource_path.begins_with(RUNTIME_PLAYER_PROJECT_PATH):
-		var relative: String = resource_path.substr(RUNTIME_PLAYER_PROJECT_PATH.length())
-		var template_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/" + relative
-		return template_path
-
-	if resource_path.begins_with(TRUNK_PATH):
-		var trunk_relative: String = resource_path.substr(TRUNK_PATH.length())
-		var trunk_template_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/" + trunk_relative
-		return trunk_template_path
-
-	if resource_path.begins_with(USER_PROJECTS_PATH):
-		var after_projects: String = resource_path.substr(USER_PROJECTS_PATH.length())
-		var slash_pos: int = after_projects.find("/")
-		if slash_pos >= 0:
-			var relative_path: String = after_projects.substr(slash_pos + 1)
-			var template_path: String = RES_TEMPLATES_PATH + DEFAULT_PROJECT_NAME + "/" + relative_path
-			return template_path
-
-	return resource_path
-
-
 func _build_character_map(project: Resource) -> Dictionary:
 	var character_map: Dictionary = {}
 	if project == null or not "characters" in project:

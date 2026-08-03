@@ -1,6 +1,0 @@
-[gd_scene load_steps=2 format=3 uid="uid://page_mark_render_test"]
-
-[ext_resource type="Script" path="res://tests/test_page_mark_render.gd" id="1"]
-
-[node name="TestPageMarkRender" type="Node"]
-script = ExtResource("1")

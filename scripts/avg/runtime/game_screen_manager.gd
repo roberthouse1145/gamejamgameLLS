@@ -6,6 +6,7 @@ class_name GameScreenManager extends RefCounted
 const AVGScreenConfigClass = preload("res://scripts/avg/resources/avg_screen_config.gd")
 const AVGSaveManagerClass = preload("res://scripts/avg/runtime/save_manager.gd")
 const HistoryManagerClass = preload("res://scripts/avg/runtime/history_manager.gd")
+const AVGResourceLoaderClass = preload("res://scripts/avg/assets/avg_resource_loader.gd")
 
 ## 界面操作信号
 signal screen_closed()
@@ -115,7 +116,7 @@ func _build_background(config: Resource) -> void:
 	_screen_root.add_child(bg)
 
 	if not config.background_image.is_empty():
-		var tex: Texture2D = StorageManager.load_texture_from_path(config.background_image, _project)
+		var tex: Texture2D = AVGResourceLoaderClass.load_texture(config.background_image, _project)
 		if tex != null:
 			var bg_img := TextureRect.new()
 			bg_img.texture = tex

@@ -3,6 +3,8 @@ class_name AVGAudioManager extends Node
 ## Supports fade in/out for BGM and volume control.
 ## Validates: Requirement 7.6
 
+const AVGResourceLoaderClass = preload("res://scripts/avg/assets/avg_resource_loader.gd")
+
 ## Emitted when BGM starts playing
 signal bgm_started(audio_path: String)
 ## Emitted when BGM stops
@@ -226,7 +228,7 @@ func set_sfx_volume(volume: float) -> void:
 ## @param audio_path: Path to the audio file
 ## @return: AudioStream or null
 func _load_audio(audio_path: String) -> AudioStream:
-	return StorageManager.load_audio_from_path(audio_path, null, _project_root_path)
+	return AVGResourceLoaderClass.load_audio(audio_path, null, _project_root_path)
 
 
 func _begin_bgm_request() -> int:

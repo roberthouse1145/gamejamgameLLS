@@ -1,40 +1,37 @@
 extends Control
-## 时段壁纸切换测试 —— 用按键模拟 phase_changed
+## 按键切换两张中性测试纹理，人工检查壁纸淡入。
 
-var _wallpaper_mgr: Node = null
-var _simulated_phase: int = 0  # 0=MORNING, 1=AFTERNOON, 2=NIGHT
-const PHASE_NAMES: Array[String] = ["上午 (MORNING)", "下午 (AFTERNOON)", "晚上 (NIGHT)"]
+const WallpaperManagerScript = preload("res://scripts/pseudo_os/wallpaper_manager.gd")
+var _wallpaper_manager: Node = null
+var _show_first_texture: bool = true
+var _first_texture: Texture2D = null
+var _second_texture: Texture2D = null
 
 
 func _ready() -> void:
-	print("[TestWallpaper] 按 Space 切换到下一个时段")
-	print("[TestWallpaper] 按 1/2/3 直接跳到 上午/下午/晚上")
-	print("[TestWallpaper] 当前时段: %s" % PHASE_NAMES[_simulated_phase])
-
-	var WallpaperManagerScript = preload("res://scripts/pseudo_os/wallpaper_manager.gd")
-	_wallpaper_mgr = WallpaperManagerScript.new()
-	_wallpaper_mgr.name = "WallpaperManager"
-	add_child(_wallpaper_mgr)
+	print("[PlaytestWallpaper] 按 Space 切换测试纹理")
+	_first_texture = _make_texture(Color("#17233D"), Color("#4B6FA8"))
+	_second_texture = _make_texture(Color("#2C1847"), Color("#8B5FBF"))
+	_wallpaper_manager = WallpaperManagerScript.new()
+	add_child(_wallpaper_manager)
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not (event is InputEventKey) or not event.pressed or event.echo:
+	if not event is InputEventKey or not event.pressed or event.echo:
 		return
+	if event.keycode == KEY_SPACE:
+		_show_first_texture = not _show_first_texture
+		_wallpaper_manager.set_wallpaper(_first_texture if _show_first_texture else _second_texture)
 
-	match event.keycode:
-		KEY_SPACE:
-			_simulated_phase = (_simulated_phase + 1) % 3
-			print("[TestWallpaper] → %s" % PHASE_NAMES[_simulated_phase])
-			_wallpaper_mgr._crossfade_to(_simulated_phase)
-		KEY_1:
-			_simulated_phase = 0
-			print("[TestWallpaper] → %s" % PHASE_NAMES[0])
-			_wallpaper_mgr._crossfade_to(0)
-		KEY_2:
-			_simulated_phase = 1
-			print("[TestWallpaper] → %s" % PHASE_NAMES[1])
-			_wallpaper_mgr._crossfade_to(1)
-		KEY_3:
-			_simulated_phase = 2
-			print("[TestWallpaper] → %s" % PHASE_NAMES[2])
-			_wallpaper_mgr._crossfade_to(2)
+
+func _make_texture(first_color: Color, second_color: Color) -> Texture2D:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 1.0])
+	gradient.colors = PackedColorArray([first_color, second_color])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.width = 2560
+	texture.height = 1440
+	texture.fill_from = Vector2.ZERO
+	texture.fill_to = Vector2.ONE
+	return texture

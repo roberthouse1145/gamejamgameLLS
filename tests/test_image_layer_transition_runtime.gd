@@ -2,8 +2,8 @@ extends Control
 
 const RunnerScene = preload("res://scenes/avg_runtime/avg_scene_runner.tscn")
 
-const IMAGE_A_PATH: String = "res://Assets/images/app_icons/icon_knowledge_base.png"
-const IMAGE_B_PATH: String = "res://Assets/heroine01_cos01.png"
+const IMAGE_A_PATH: String = "res://Assets/images/ui_icons/ui_icon_info.png"
+const IMAGE_B_PATH: String = "res://Assets/images/ui_icons/ui_icon_warning.png"
 
 var _runner: Control = null
 

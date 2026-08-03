@@ -1,7 +1,0 @@
-@stream "测试直播" host=LinXia viewers=18 day="第1天"
-bg bg_apartment_living
-host LinXia happy casual
-say "直播开始。" speed=40 hold=0.1
-chat "来了来了" delay=0.1
-wait 0.1
-end

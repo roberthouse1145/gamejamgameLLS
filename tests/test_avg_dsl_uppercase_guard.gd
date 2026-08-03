@@ -37,7 +37,7 @@ func _run_test() -> void:
 		fail_count += 1
 
 	# Case 2: SHOW_CHARACTER / CALL_EVENT 同类大写形式也应被拒绝
-	var dsl2 := """SHOW_CHARACTER(character_id="LinXia")
+	var dsl2 := """SHOW_CHARACTER(character_id="CharacterA")
 CALL_EVENT(event_id="ev1")"""
 	var r2 := parser.parse(dsl2) as Dictionary
 	var errs2: Array = r2.get("errors", [])
@@ -81,15 +81,15 @@ CALL_EVENT(event_id="ev1")"""
 		push_error("[FAIL] case4: legacy jump_scene(...) broken")
 		fail_count += 1
 
-	# Case 5: 普通对象方法调用 LinXia.show(...) 不被大写守卫误伤
-	var dsl5 := """LinXia.show(position="center")"""
+	# Case 5: 普通对象方法调用 CharacterA.show(...) 不被大写守卫误伤
+	var dsl5 := """CharacterA.show(position="center")"""
 	var r5 := parser.parse(dsl5) as Dictionary
 	var errs5: Array = r5.get("errors", [])
 	if errs5.is_empty():
-		print("[PASS] case5: LinXia.show(...) not flagged as uppercase command")
+		print("[PASS] case5: CharacterA.show(...) not flagged as uppercase command")
 		pass_count += 1
 	else:
-		push_error("[FAIL] case5: LinXia.show(...) was flagged: %s" % str(errs5))
+		push_error("[FAIL] case5: CharacterA.show(...) was flagged: %s" % str(errs5))
 		fail_count += 1
 
 	print("\n=== %d passed, %d failed ===" % [pass_count, fail_count])

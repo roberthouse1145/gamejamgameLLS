@@ -1,9 +1,0 @@
-[gd_resource type="Resource" script_class="AVGScreenConfig" format=3]
-
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_screen_config.gd" id="1_moyhx"]
-
-[resource]
-script = ExtResource("1_moyhx")
-title_text = "菜单"
-panel_norm_size = Vector2(0.4, 0.7)
-menu_button_texts = PackedStringArray("继续游戏", "存档", "读档", "历史记录", "设置", "回到标题", "退出游戏")

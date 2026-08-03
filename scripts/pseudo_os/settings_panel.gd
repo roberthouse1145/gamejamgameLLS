@@ -62,7 +62,7 @@ func _build_ui() -> void:
 	# --- 关于 ---
 	_add_section_label("ℹ 关于", inner)
 	var about_label := Label.new()
-	about_label.text = "LLM AI 游戏 + 虚拟 AVG 引擎\nVersion 0.1.0"
+	about_label.text = "未命名游戏\nVersion 0.1.0"
 	about_label.add_theme_font_size_override("font_size", VALUE_FONT_SIZE)
 	about_label.add_theme_color_override("font_color", TEXT_DIM)
 	inner.add_child(about_label)

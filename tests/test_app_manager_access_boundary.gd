@@ -23,17 +23,17 @@ func _ready() -> void:
 
 	app_manager.window_manager = _wm
 	if app_manager.has_method("close_app"):
-		app_manager.close_app("sleep", true)
+		app_manager.close_app("avg_player", true)
 
-	var whitelist: Array[String] = ["linkchat"]
+	var whitelist: Array[String] = []
 	app_manager.set_app_whitelist(whitelist)
-	_assert_true("sleep is inaccessible to player", not app_manager.is_app_accessible("sleep"))
+	_assert_true("AVG player is inaccessible under an empty whitelist", not app_manager.is_app_accessible("avg_player"))
 
-	var window: Control = app_manager.launch_app("sleep", true)
-	_assert_true("system launch bypasses player access whitelist", window != null)
+	var window: Control = app_manager.launch_app("avg_player", true)
+	_assert_true("forced launch bypasses runtime access whitelist", window != null)
 
 	if app_manager.has_method("close_app"):
-		app_manager.close_app("sleep", true)
+		app_manager.close_app("avg_player", true)
 	app_manager.clear_app_access_restriction()
 
 

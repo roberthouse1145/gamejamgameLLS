@@ -126,7 +126,7 @@ func _test_character_effect_semantic_intensity_alias() -> void:
 	var context := DummyContext.new()
 	context.character_display = display
 	var command := AVGCommandClass.new("CHARACTER_EFFECT", {
-		"character_id": "LinXia",
+		"character_id": "CharacterA",
 		"effect": "shake",
 		"intensity": "轻",
 		"duration": "0.3",

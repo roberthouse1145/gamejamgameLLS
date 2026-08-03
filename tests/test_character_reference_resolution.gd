@@ -15,8 +15,8 @@ func _ready() -> void:
 	_character_display.set_design_resolution(Vector2(1000, 1000))
 	_character_display.set_character_data({
 		"char_test": {
-			"character_name": "LinXia",
-			"display_name": "Lin Xia",
+			"character_name": "CharacterA",
+			"display_name": "Display A",
 			"sprites": {
 				"default": _make_test_texture(100, 200, Color(1.0, 0.4, 0.6, 1.0)),
 				"smile": _make_test_texture(120, 200, Color(0.4, 0.8, 1.0, 1.0)),
@@ -24,12 +24,12 @@ func _ready() -> void:
 		}
 	})
 
-	_character_display.show_character("LinXia", "center", "", 0.0)
+	_character_display.show_character("CharacterA", "center", "", 0.0)
 	await get_tree().process_frame
 
 	var sprite_by_id: TextureRect = _character_display.get_character_sprite("char_test")
-	var sprite_by_name: TextureRect = _character_display.get_character_sprite("LinXia")
-	var resolved_display_name: String = _character_display.resolve_visible_character_id("Lin Xia")
+	var sprite_by_name: TextureRect = _character_display.get_character_sprite("CharacterA")
+	var resolved_display_name: String = _character_display.resolve_visible_character_id("Display A")
 
 	if sprite_by_id == null or sprite_by_name != sprite_by_id or resolved_display_name != "char_test":
 		push_error("Character reference resolution failed during show")
@@ -40,7 +40,7 @@ func _ready() -> void:
 		return
 
 	var previous_texture: Texture2D = sprite_by_id.texture
-	_character_display.change_expression("Lin Xia", "smile", "instant", 0.0)
+	_character_display.change_expression("Display A", "smile", "instant", 0.0)
 	await get_tree().process_frame
 
 	if sprite_by_id.texture == previous_texture:
@@ -48,7 +48,7 @@ func _ready() -> void:
 		print("[FAIL] change_expression did not resolve display_name")
 		return
 
-	_character_display.hide_character("LinXia", 0.0)
+	_character_display.hide_character("CharacterA", 0.0)
 	await get_tree().process_frame
 
 	if _character_display.is_character_visible("char_test"):

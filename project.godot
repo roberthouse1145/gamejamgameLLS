@@ -14,8 +14,8 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
-config/name="AI GAME MAKE"
-run/main_scene="res://scenes/pseudo_os/desktop.tscn"
+config/name="未命名游戏"
+run/main_scene="res://scenes/pseudo_os/main.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -25,22 +25,11 @@ buses/default_bus_layout=""
 
 [autoload]
 
-StorageManager="*res://autoload/storage_manager.gd"
 NarrativeProjectManager="*res://autoload/narrative_project_manager.gd"
 AppManager="*res://autoload/app_manager.gd"
 PromptManager="*res://autoload/prompt_manager.gd"
-#TimeManager="*res://autoload/time_manager.gd"
-ChatManager="*res://autoload/chat_manager.gd"
-WorkOrderManager="*res://autoload/work_order_manager.gd"
-GameLoopManager="*res://autoload/game_loop_manager.gd"
 KnowledgeBaseManager="*res://autoload/knowledge_base_manager.gd"
-LLMKnowledgeBaseManager="*res://autoload/llm_knowledge_base_manager.gd"
-BrowserManager="*res://scenes/autoload/browser_manager.tscn"
-GameManager="*res://autoload/game_manager.gd"
-DateManager="*res://autoload/date_manager.gd"
-PartTimeJobManager="*res://autoload/part_time_job_manager.gd"
-SbeamManager="*res://autoload/sbeam_manager.gd"
-StoryDirector="*res://autoload/story_director.gd"
+AudioManager="*res://autoload/audio_manager.gd"
 
 [display]
 

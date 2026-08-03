@@ -1,8 +1,0 @@
-[gd_resource type="Resource" script_class="AVGTitleConfig" format=3]
-
-[ext_resource type="Script" path="res://scripts/avg/resources/avg_title_config.gd" id="1_yfvkq"]
-
-[resource]
-script = ExtResource("1_yfvkq")
-enabled = false
-title_text = "Tutorial Project"

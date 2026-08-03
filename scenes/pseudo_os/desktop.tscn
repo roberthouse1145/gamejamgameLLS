@@ -1,10 +1,8 @@
-[gd_scene load_steps=5 format=3 uid="uid://b3lxv6taqbb6a"]
+[gd_scene load_steps=4 format=3 uid="uid://b3lxv6taqbb6a"]
 
 [ext_resource type="Script" uid="uid://djmswiwtuvins" path="res://scripts/pseudo_os/desktop.gd" id="1_desktop"]
 [ext_resource type="PackedScene" path="res://scenes/pseudo_os/taskbar.tscn" id="2_taskbar"]
-[ext_resource type="PackedScene" uid="uid://bnhje7eetrdyn" path="res://scenes/ui/time_status_bar.tscn" id="3_time_status"]
 [ext_resource type="Script" uid="uid://cj7vw10kldnec" path="res://scripts/pseudo_os/wallpaper_manager.gd" id="4_wallpaper"]
-[ext_resource type="PackedScene" path="res://scenes/pseudo_os/day_transition_overlay.tscn" id="5_day_overlay"]
 
 [node name="Desktop" type="Control" unique_id=1384137066]
 layout_mode = 3
@@ -14,6 +12,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_desktop")
+desktop_app_ids = PackedStringArray("avg_player")
 
 [node name="Background" type="ColorRect" parent="." unique_id=792729528]
 unique_name_in_owner = true
@@ -58,20 +57,6 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="TimeStatusBar" parent="WindowContainer" unique_id=1218636686 instance=ExtResource("3_time_status")]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -346.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = 16.0
-grow_horizontal = 0
-grow_vertical = 1
-
 [node name="Taskbar" parent="." unique_id=1220207645 instance=ExtResource("2_taskbar")]
 unique_name_in_owner = true
 layout_mode = 1
-
-[node name="DayTransitionOverlay" parent="." unique_id=1382484453 instance=ExtResource("5_day_overlay")]

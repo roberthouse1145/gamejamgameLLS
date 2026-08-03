@@ -17,6 +17,7 @@ const HistoryManagerClass = preload("res://scripts/avg/runtime/history_manager.g
 const AVGSaveManagerClass = preload("res://scripts/avg/runtime/save_manager.gd")
 const GameScreenManagerClass = preload("res://scripts/avg/runtime/game_screen_manager.gd")
 const AVGScreenConfigClass = preload("res://scripts/avg/resources/avg_screen_config.gd")
+const AVGResourceLoaderClass = preload("res://scripts/avg/assets/avg_resource_loader.gd")
 
 ## 阻塞命令类型集合 — 这些命令会暂停主线等待
 const BLOCKING_COMMANDS: Array[String] = [
@@ -506,11 +507,11 @@ func _get_project_root_path() -> String:
 		var project_root: String = str(current_project.get("project_root_path")).strip_edges()
 		if not project_root.is_empty():
 			return project_root if project_root.ends_with("/") else project_root + "/"
-	return StorageManager.current_project_path
+	return ""
 
 
 func load_texture_from_project(asset_ref: String) -> Texture2D:
-	return StorageManager.load_texture_from_path(asset_ref, current_project, _get_project_root_path())
+	return AVGResourceLoaderClass.load_texture(asset_ref, current_project, _get_project_root_path())
 
 	# 初始化存档管理器
 	# Legacy stray block removed.

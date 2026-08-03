@@ -1,7 +1,0 @@
-[gd_scene format=3 uid="uid://bnhje7eetrdyn"]
-
-[ext_resource type="PackedScene" uid="uid://ctgijeh01rve8" path="res://scenes/pseudo_os/window.tscn" id="1_window"]
-[ext_resource type="Script" uid="uid://v2m2peelhqnl" path="res://scripts/ui/time_status_bar.gd" id="2_script"]
-
-[node name="TimeStatusBar" unique_id=407347210 instance=ExtResource("1_window")]
-script = ExtResource("2_script")

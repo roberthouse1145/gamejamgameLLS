@@ -61,27 +61,6 @@ static func normalize_character_key(raw_key: String) -> String:
 	return result.strip_edges().trim_suffix("_")
 
 
-static func looks_like_template_shell(character: Variant) -> bool:
-	var existing_key: String = ""
-	var raw_name: String = ""
-	var raw_display_name: String = ""
-	if character is Resource:
-		existing_key = normalize_character_key(str(character.character_key if "character_key" in character else ""))
-		raw_name = str(character.character_name if "character_name" in character else "").strip_edges()
-		raw_display_name = str(character.display_name if "display_name" in character else "").strip_edges()
-	elif character is Dictionary:
-		existing_key = normalize_character_key(str(character.get("character_key", "")))
-		raw_name = str(character.get("character_name", "")).strip_edges()
-		raw_display_name = str(character.get("display_name", "")).strip_edges()
-	if not existing_key.is_empty():
-		return false
-	if not _matches_template_shell_name(raw_name):
-		return false
-	if raw_display_name.is_empty():
-		return true
-	return _matches_template_shell_name(raw_display_name)
-
-
 static func resolve_outfit_sprite_path(character: Variant, emotion: String, outfit: String = "") -> String:
 	var resolved_emotion: String = str(emotion).strip_edges()
 	if resolved_emotion.is_empty():
@@ -220,14 +199,3 @@ static func _collect_outfits(character: Variant) -> Array[String]:
 	if not fallback_outfit.is_empty() and not outfits.has(fallback_outfit):
 		outfits.append(fallback_outfit)
 	return outfits
-
-
-static func _matches_template_shell_name(raw_name: String) -> bool:
-	var normalized_name: String = raw_name.strip_edges().to_lower()
-	if normalized_name.is_empty():
-		return false
-	if normalized_name.begins_with("heroine"):
-		return normalized_name.substr("heroine".length()).is_valid_int()
-	if normalized_name.begins_with("hero"):
-		return normalized_name.substr("hero".length()).is_valid_int()
-	return false

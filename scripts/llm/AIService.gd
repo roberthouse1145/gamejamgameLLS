@@ -910,7 +910,7 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 		if response.has("choices") and response["choices"].size() > 0:
 			var msg = response["choices"][0].get("message", {})
 			tc_content = _get_message_content_text(msg)
-		# 工具轮必须始终通知监听方（如 ChatAgent）：即使 assistant 正文为空，也要先写入带 tool_calls 的 assistant，
+		# 工具轮必须始终通知监听方：即使 assistant 正文为空，也要先写入带 tool_calls 的 assistant，
 		# 再追加 tool 消息；否则下一轮请求会出现「tool 前无 tool_calls」而被 API 拒绝。
 		request_completed.emit(original_id, response)
 
@@ -977,7 +977,7 @@ func _on_stream_completed(result: int, response_code: int, _headers: PackedStrin
 	_update_conversation_from_response(request_id, final_response)
 	
 	if tool_calls.size() > 0:
-		# 与非流式一致：工具轮必须触发 request_completed，供 ChatAgent 写入 tool_calls  assistant（正文可为空）。
+		# 与非流式一致：工具轮必须触发 request_completed，供调用方记录 tool_calls assistant（正文可为空）。
 		request_completed.emit(original_id, final_response)
 		# 发出信号（用于监听）
 		var stream_content: String = full_content if full_content != "" else ""
