@@ -9,7 +9,8 @@ const AVGDSLSerializerClass = preload("res://scripts/avg/dsl/avg_dsl_serializer.
 const DSLRepairAgentClass = preload("res://scripts/avg/generation/dsl_repair_agent.gd")
 const ParserClass = preload("res://scripts/avg/dsl/avg_dsl_parser_v2.gd")
 const ValidatorClass = preload("res://scripts/avg/dsl/avg_dsl_validator.gd")
-const AVGProjectClass = preload("res://scripts/avg/resources/avg_project.gd")
+const AVGAssetManifestClass = preload("res://scripts/avg/assets/avg_asset_manifest.gd")
+const AVGGameDataClass = preload("res://scripts/avg/resources/avg_game_data.gd")
 const AVGSceneClass = preload("res://scripts/avg/resources/avg_scene.gd")
 const AVGRootNodeClass = preload("res://scripts/avg/resources/nodes/avg_root_node.gd")
 const AVGVariableClass = preload("res://scripts/avg/resources/avg_variable.gd")
@@ -124,7 +125,7 @@ func _build_prompt(session: Dictionary) -> String:
 		preview_source_key: base_prompt,
 		preview_asset_key: _build_asset_prompt_block(),
 		# 注入剧情设定索引；需要全文时可调用 kb_read。
-		"project_shared_context": AVGScenePromptBuilderClass.build_avg_project_shared_context(),
+		"game_shared_context": AVGScenePromptBuilderClass.build_avg_shared_context(),
 	}
 	if prompt_manager.has_method("has_prompt") and prompt_manager.has_prompt(preview_prompt_key):
 		return str(prompt_manager.resolve_with_vars(preview_prompt_key, ctx)).strip_edges()
@@ -132,13 +133,8 @@ func _build_prompt(session: Dictionary) -> String:
 
 
 func _build_asset_prompt_block() -> String:
-	var narrative_manager: Node = _get_autoload("NarrativeProjectManager")
-	if narrative_manager != null and narrative_manager.has_method("build_asset_prompt"):
-		var narrative_prompt: String = str(narrative_manager.build_asset_prompt()).strip_edges()
-		if not narrative_prompt.is_empty():
-			return narrative_prompt
-	push_warning("[AVGSceneGenerator] NarrativeProjectManager asset prompt unavailable")
-	return "No asset manifest available."
+	var game_data := AVGGameDataClass.load_game_data()
+	return AVGAssetManifestClass.build_llm_prompt_block(game_data)
 
 
 func _request_generation(context: Dictionary) -> bool:
@@ -228,8 +224,7 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 			session_id,
 			sanitized_text,
 			validation,
-			_build_runtime_project(),
-			_get_project_root_path(),
+			_build_runtime_game_data(),
 			_build_asset_prompt_block(),
 		)
 		return
@@ -315,8 +310,7 @@ func _validate_dsl(raw_text: String) -> Dictionary:
 	var commands: Array = parse_result.get("commands", [])
 	var semantic_result: Dictionary = _validator.validate_commands(
 		commands,
-		_build_runtime_project(),
-		_get_project_root_path(),
+		_build_runtime_game_data(),
 		{
 			"min_choice_count": 0,
 			"max_choice_count": 0,
@@ -364,8 +358,8 @@ func _build_retry_prompt(base_prompt: String, result: Dictionary) -> String:
 ## Parse error messages and build correction hints with valid emotion/outfit lists
 func _build_asset_correction_hints(error_lines: Array) -> Array[String]:
 	var hints: Array[String] = []
-	var project: Resource = _build_runtime_project()
-	if project == null or not "characters" in project:
+	var game_data: Resource = _build_runtime_game_data()
+	if game_data == null or not "characters" in game_data:
 		return hints
 
 	# Collect character IDs mentioned in errors
@@ -394,7 +388,7 @@ func _build_asset_correction_hints(error_lines: Array) -> Array[String]:
 			has_sfx_error = true
 
 	# Build hints for mentioned characters
-	for character in project.characters:
+	for character in game_data.characters:
 		if character == null:
 			continue
 		var char_id: String = (character.character_id if "character_id" in character else "").strip_edges()
@@ -479,8 +473,8 @@ func _build_scene_package(session_id: String, commands: Array, session: Dictiona
 	var instrumented_commands: Array = instrumentation.get("commands", [])
 	var choice_labels: Dictionary = instrumentation.get("choice_labels", {})
 
-	var project: Resource = _build_runtime_project()
-	if project == null:
+	var game_data: Resource = _build_runtime_game_data()
+	if game_data == null:
 		return {}
 
 	var root := AVGRootNodeClass.new()
@@ -489,7 +483,7 @@ func _build_scene_package(session_id: String, commands: Array, session: Dictiona
 	root.norm_position = Vector2.ZERO
 	root.norm_size = Vector2.ONE
 	root.position = Vector2.ZERO
-	root.size = Vector2(project.resolution) if project != null and "resolution" in project else Vector2(2560, 1440)
+	root.size = Vector2(game_data.resolution) if "resolution" in game_data else Vector2(2560, 1440)
 	root.command_tabs = [ {
 		"commands": instrumented_commands,
 		"condition_commands": [],
@@ -497,7 +491,7 @@ func _build_scene_package(session_id: String, commands: Array, session: Dictiona
 	}]
 
 	var scene := AVGSceneClass.new()
-	var scene_prefix: String = str(session.get("scene_project_prefix", "avg_scene")).strip_edges()
+	var scene_prefix: String = str(session.get("scene_id_prefix", "avg_scene")).strip_edges()
 	if scene_prefix.is_empty():
 		scene_prefix = "avg_scene"
 	var scene_title: String = str(session.get("scene_window_title", "剧情播放")).strip_edges()
@@ -506,16 +500,15 @@ func _build_scene_package(session_id: String, commands: Array, session: Dictiona
 	scene.scene_id = "%s_%s" % [scene_prefix, session_id]
 	scene.scene_name = scene_title
 	scene.nodes = [root]
-	project.project_name = "%s_%s" % [scene_prefix, session_id]
-	project.scenes = [scene]
-	project.variables = _merge_project_variables(project.variables, [_make_choice_variable()])
-	project.events = []
-	project.shared_nodes = []
+	game_data.scenes = [scene]
+	game_data.variables = _merge_game_variables(game_data.variables, [_make_choice_variable()])
+	game_data.events = []
+	game_data.shared_nodes = []
 
 	return {
 		"session_id": session_id,
 		"title": scene_title,
-		"project": project,
+		"game_data": game_data,
 		"scene": scene,
 		"scene_outline": build_narrative_outline(instrumented_commands),
 		"choice_labels": choice_labels,
@@ -631,26 +624,11 @@ func _instrument_choice_commands(commands: Array) -> Dictionary:
 	}
 
 
-func _build_runtime_project() -> Resource:
-	var narrative_manager: Node = _get_autoload("NarrativeProjectManager")
-	if narrative_manager != null and narrative_manager.has_method("duplicate_current_project"):
-		var narrative_project: Resource = narrative_manager.duplicate_current_project()
-		if narrative_project != null:
-			return narrative_project
-
-	return AVGProjectClass.new()
+func _build_runtime_game_data() -> Resource:
+	return AVGGameDataClass.duplicate_game_data()
 
 
-func _get_project_root_path() -> String:
-	var narrative_manager: Node = _get_autoload("NarrativeProjectManager")
-	if narrative_manager != null:
-		var narrative_path: String = str(narrative_manager.get("current_project_path")).strip_edges()
-		if not narrative_path.is_empty():
-			return narrative_path
-	return ""
-
-
-func _merge_project_variables(existing_variables: Array, additions: Array) -> Array:
+func _merge_game_variables(existing_variables: Array, additions: Array) -> Array:
 	var merged: Array = []
 	var seen_ids: Dictionary = {}
 

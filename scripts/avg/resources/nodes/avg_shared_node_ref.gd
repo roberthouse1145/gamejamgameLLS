@@ -37,15 +37,15 @@ func get_avg_properties() -> Array[Dictionary]:
 
 
 ## 获取解析后的节点（运行时使用）
-func get_resolved_node(project: Resource) -> Resource:
+func get_resolved_node(game_data: Resource) -> Resource:
 	if is_unique and unique_data != null:
 		return unique_data
 	
-	if project == null or shared_node_id.is_empty():
+	if game_data == null or shared_node_id.is_empty():
 		return null
 	
 	# 通过 node_id 从项目的 shared_nodes 中查找
-	for shared_node in project.shared_nodes:
+	for shared_node in game_data.shared_nodes:
 		if shared_node.node_id == shared_node_id:
 			return shared_node
 	
@@ -53,11 +53,11 @@ func get_resolved_node(project: Resource) -> Resource:
 
 
 ## 唯一化：将引用转为独立副本
-func make_unique(project: Resource) -> void:
+func make_unique(game_data: Resource) -> void:
 	if is_unique:
 		return
 	
-	var source_node: Resource = get_resolved_node(project)
+	var source_node: Resource = get_resolved_node(game_data)
 	if source_node == null:
 		return
 	

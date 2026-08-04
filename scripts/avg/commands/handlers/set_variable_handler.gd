@@ -181,14 +181,14 @@ func _get_game_data(key: String, context: RefCounted) -> Variant:
 				return context.click_count
 			return 0
 		"scene_count":
-			if context.scene_runner != null and context.scene_runner.current_project != null:
-				var scenes = context.scene_runner.current_project.scenes
+			if context.scene_runner != null and context.scene_runner.game_data != null:
+				var scenes = context.scene_runner.game_data.scenes
 				return scenes.size() if scenes != null else 0
 			return 0
 		"current_scene_index":
-			if context.scene_runner != null and context.scene_runner.current_project != null:
+			if context.scene_runner != null and context.scene_runner.game_data != null:
 				var current = context.scene_runner.current_scene
-				var scenes = context.scene_runner.current_project.scenes
+				var scenes = context.scene_runner.game_data.scenes
 				if current != null and scenes != null:
 					for i in range(scenes.size()):
 						if scenes[i] == current:

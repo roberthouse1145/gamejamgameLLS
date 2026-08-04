@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://notice"
+title = "浏览器公告"
+hint = "介绍虚拟网页基础设施的中性公告页。"
+content = "::: col fill sep=14
+# 浏览器公告
+
+这里展示由游戏内容提供的虚拟网页。网页可以使用 PageMark 编写，也可以由 LLM 在运行时生成。
+
+## 当前可用能力
+
+- 预制网页与链接跳转
+- 标签页与浏览历史
+- 表单和固定页面操作
+- 运行时生成网页
+
+[返回欢迎页](url:browser://welcome)
+:::"
+searchable = true
+search_keywords = PackedStringArray("公告", "浏览器", "帮助", "notice")
+linked_urls = PackedStringArray("browser://welcome")

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="StreamerCharacter" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/streamer_character.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+character_key = "su_he"
+display_name = "苏禾"
+role = "close_friend"
+persona_prompt = "苏禾，阮云柚的闺蜜，上班族，正常人生的参照系。纯情感支持、减压力主力；长期不见会来敲门。"

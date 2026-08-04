@@ -131,8 +131,7 @@ func attempt_repair(
 	session_id: String,
 	dsl_text: String,
 	validation_result: Dictionary,
-	project: Resource,
-	project_root_path: String,
+	game_data: Resource,
 	asset_manifest: String,
 ) -> void:
 	if not is_available():
@@ -151,8 +150,7 @@ func attempt_repair(
 	_active_repair = {
 		"session_id": session_id,
 		"current_dsl": dsl_text,
-		"project": project,
-		"project_root_path": project_root_path,
+		"game_data": game_data,
 		"patch_count": 0,
 	}
 	_is_busy = true
@@ -386,16 +384,14 @@ func _validate_dsl_full(dsl_text: String) -> Dictionary:
 		return {"ok": false, "summary": first_error, "errors": [first_error]}
 
 	var commands: Array = parse_result.get("commands", [])
-	var project: Resource = _active_repair.get("project", null)
-	var project_root_path: String = str(_active_repair.get("project_root_path", ""))
+	var game_data: Resource = _active_repair.get("game_data", null)
 
-	if project == null:
-		return {"ok": true, "summary": "ok (no project for semantic check)", "commands": commands, "errors": []}
+	if game_data == null:
+		return {"ok": true, "summary": "ok (no game data for semantic check)", "commands": commands, "errors": []}
 
 	var semantic_result: Dictionary = _validator.validate_commands(
 		commands,
-		project,
-		project_root_path,
+		game_data,
 		{"min_choice_count": 0, "max_choice_count": 0},
 	)
 

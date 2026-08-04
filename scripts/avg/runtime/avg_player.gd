@@ -23,7 +23,6 @@ const DESIGN_RESOLUTION: Vector2 = Vector2(2560, 1440)
 
 # -- 状态 --
 var _session_id: String = ""
-var _event_request: Dictionary = {}
 var _scene_package: Dictionary = {}
 var _finished: bool = false
 var _current_page: Page = Page.HOME
@@ -53,35 +52,8 @@ func navigate_to(page: Page) -> void:
 		idle_page.visible = page == Page.HOME
 
 
-func play_event(session_id: String, event_request: Dictionary, _record_history: bool = true) -> void:
-	_session_id = session_id
-	_event_request = event_request.duplicate(true)
-	_scene_package.clear()
-	_finished = false
-	if title_label != null:
-		title_label.text = str(_event_request.get("title", "AVG Scene"))
-
-	navigate_to(Page.PLAYBACK)
-
-	var project: Resource = _event_request.get("project", null)
-	var scene: Resource = _event_request.get("scene", null)
-	if project == null or scene == null or scene_runner == null:
-		_emit_outcome({"success": false, "error": "invalid_event_request"})
-		return
-
-	scene_runner.reset()
-	scene_runner.load_project(project)
-	scene_runner.load_scene(scene)
-	scene_runner.start()
-	set_process(true)
-	_pause_global_bgm()
-	_is_playing_scene = true
-	playback_started.emit(_session_id)
-
-
 func play_scene_package(session_id: String, scene_package: Dictionary, _record_history: bool = true) -> void:
 	_session_id = session_id
-	_event_request.clear()
 	_scene_package = scene_package.duplicate(true)
 	_finished = false
 	print("[AVGPlayer] Playing scene_package (session=%s):\n%s" % [session_id, str(scene_package.get("scene_outline", "(no outline)"))])
@@ -90,14 +62,14 @@ func play_scene_package(session_id: String, scene_package: Dictionary, _record_h
 
 	navigate_to(Page.PLAYBACK)
 
-	var project: Resource = _scene_package.get("project", null)
+	var game_data: Resource = _scene_package.get("game_data", null)
 	var scene: Resource = _scene_package.get("scene", null)
-	if project == null or scene == null or scene_runner == null:
+	if game_data == null or scene == null or scene_runner == null:
 		_emit_outcome({"success": false, "error": "invalid_scene_package"})
 		return
 
 	scene_runner.reset()
-	scene_runner.load_project(project)
+	scene_runner.load_game_data(game_data)
 	scene_runner.load_scene(scene)
 	scene_runner.start()
 	set_process(true)
@@ -119,16 +91,6 @@ func _on_scene_ended(_scene_id: String) -> void:
 		var choice_value: Variant = variable_manager.get_value_by_id(CHOICE_VAR_ID)
 		if choice_value != null:
 			choice_id = int(choice_value)
-
-	if not _event_request.is_empty():
-		var outcomes: Dictionary = _event_request.get("outcomes", {})
-		var selected_outcome: Dictionary = outcomes.get(choice_id, {})
-		var outcome := selected_outcome.duplicate(true)
-		outcome["success"] = true
-		outcome["choice_id"] = choice_id
-		outcome["choice_text"] = str(selected_outcome.get("text", ""))
-		_emit_outcome(outcome)
-		return
 
 	var choice_labels: Dictionary = _scene_package.get("choice_labels", {})
 	var selected_choice_text: String = str(choice_labels.get(choice_id, "")).strip_edges()

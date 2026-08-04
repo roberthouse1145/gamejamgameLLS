@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="AVGCharacter" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_character"]
+
+[resource]
+script = ExtResource("1_character")
+character_id = "ruan_yunyou"
+character_key = "ruan_yunyou"
+character_name = "柚柚"
+display_name = "阮云柚"
+default_outfit = "casual"
+available_outfits = Array[String](["bath", "casual", "casual_damaged", "casual_heavy_damaged", "loungewear", "maid", "nude", "school", "school_damaged", "school_heavy_damaged", "sexy", "swimsuit", "underwear"])
+emotion_slots = {
+"default": "02",
+"embarrassed": "26",
+"neutral": "02",
+"panicked": "19",
+"shocked": "20",
+"smile": "01",
+"strained": "22",
+"worried": "18"
+}
+sprite_path_pattern = "res://Assets/images/characters/ruan_yunyou/{outfit}/expression_{slot}.png"
+profile = "23 岁家里蹲宅女，怕生、嘴硬、内心戏很多，对游戏、动画和声优异常熟悉。"

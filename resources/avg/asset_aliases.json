@@ -1,0 +1,10 @@
+{
+	"backgrounds": {
+		"cafe_day": "res://Assets/images/backgrounds/cafe_day.png",
+		"yunyou_desktop": "res://Assets/images/backgrounds/yunyou_desktop.png"
+	},
+	"images": {},
+	"bgm": {},
+	"sfx": {},
+	"hidden": []
+}

@@ -96,11 +96,11 @@ screen.fade(direction="in", duration=0.4)
 ```text
 # => ChoiceBlock()
 - 选项一
-    var[path_a] = 1
-    # => TextBlock()
-    > 选项一的结果。
+	var[path_a] = 1
+	# => TextBlock()
+	> 选项一的结果。
 - 选项二 [if var[route_open] == 1]
-    scene.jump("scene_secondary")
+	scene.jump("scene_secondary")
 ```
 
 - 变量写法：`var[meaningful_key] = 0`、`var[meaningful_key] += 1`

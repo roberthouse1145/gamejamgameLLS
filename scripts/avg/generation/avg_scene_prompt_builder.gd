@@ -34,7 +34,7 @@ func build_prompt_from_session(session: Dictionary) -> String:
 	return "\n\n".join(sections).strip_edges()
 
 
-static func build_avg_project_shared_context() -> String:
+static func build_avg_shared_context() -> String:
 	var kb_index: String = AVGKnowledgeToolsClass.build_index_context().strip_edges()
 	if kb_index.is_empty():
 		return "当前没有预设剧情文档。只使用本次场景需求和调用方显式提供的设定。"

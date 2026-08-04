@@ -26,7 +26,7 @@ var _selected_index: int = -1
 var _waiting_for_selection: bool = false
 ## Dialog settings reference
 var _dialog_settings: Resource = null
-## Project resolution for scaling
+## AVG design resolution for scaling
 var _project_resolution: Vector2 = Vector2(2560, 1440)
 ## Variable manager for condition evaluation
 var _variable_manager: RefCounted = null
@@ -52,7 +52,7 @@ func set_dialog_settings(settings: Resource) -> void:
 	_dialog_settings = settings
 
 
-## Set project resolution
+## Set AVG design resolution
 func set_project_resolution(resolution: Vector2) -> void:
 	_project_resolution = resolution
 

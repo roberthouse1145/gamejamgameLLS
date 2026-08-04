@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="AVGCharacter" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/avg/resources/avg_character.gd" id="1_character"]
+
+[resource]
+script = ExtResource("1_character")
+character_id = "lu_yuanyuan"
+character_key = "lu_yuanyuan"
+character_name = "鸢鸢"
+display_name = "陆鸢鸢"
+default_outfit = "casual"
+available_outfits = Array[String](["bath", "casual", "casual_damaged", "casual_heavy_damaged", "loungewear", "maid", "nude", "school", "school_damaged", "school_heavy_damaged", "sexy", "swimsuit", "underwear"])
+emotion_slots = {
+"default": "02",
+"neutral": "02",
+"playful": "10",
+"possessive": "31",
+"serious": "04",
+"shocked": "19",
+"smile": "01",
+"sweet_smile": "05",
+"worried": "18"
+}
+sprite_path_pattern = "res://Assets/images/characters/lu_yuanyuan/{outfit}/expression_{slot}.png"
+profile = "阮云柚的青梅，王牌虚拟主播与临时经纪人。关心是真的，控制也是真的。"
+display_offset = Vector2(0, 0.04)

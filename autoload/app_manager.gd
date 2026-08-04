@@ -47,6 +47,8 @@ func _register_all_apps() -> void:
 	# App definition resource paths
 	var app_paths: Array[String] = [
 		"res://resources/apps/avg_player_app.tres",
+		"res://resources/apps/browser_app.tres",
+		"res://resources/apps/linkchat_app.tres",
 	]
 	
 	for path in app_paths:

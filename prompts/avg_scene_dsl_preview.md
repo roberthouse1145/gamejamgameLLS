@@ -18,7 +18,7 @@
 
 ## 已有剧情设定
 
-{{project_shared_context}}
+{{game_shared_context}}
 
 ## 本次场景需求
 

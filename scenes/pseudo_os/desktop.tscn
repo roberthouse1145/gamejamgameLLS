@@ -12,7 +12,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_desktop")
-desktop_app_ids = PackedStringArray("avg_player")
+desktop_app_ids = PackedStringArray("linkchat", "browser")
 
 [node name="Background" type="ColorRect" parent="." unique_id=792729528]
 unique_name_in_owner = true

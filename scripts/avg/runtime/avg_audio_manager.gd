@@ -27,10 +27,6 @@ var _target_bgm_volume: float = 1.0
 var _bgm_tween: Tween = null
 ## Monotonic request id used to invalidate stale BGM operations
 var _bgm_request_id: int = 0
-## Project root used for alias resolution
-var _project_root_path: String = ""
-
-
 func _ready() -> void:
 	# Create audio players if they don't exist
 	if bgm_player == null:
@@ -48,7 +44,7 @@ func _ready() -> void:
 		voice_player.name = "VoicePlayer"
 		add_child(voice_player)
 
-	# Align AVG runtime playback with the project's shared bus layout.
+	# 使用游戏本体的共享音频总线。
 	bgm_player.bus = "BGM"
 	sfx_player.bus = "SFX"
 	voice_player.bus = "SFX"
@@ -204,10 +200,6 @@ func get_current_bgm() -> String:
 	return _current_bgm_path
 
 
-func set_project_root_path(project_root_path: String) -> void:
-	_project_root_path = project_root_path
-
-
 ## Set BGM volume (with optional fade)
 ## @param volume: Target volume (0.0 to 1.0)
 ## @param fade_duration: Duration of fade (0 for instant)
@@ -228,7 +220,7 @@ func set_sfx_volume(volume: float) -> void:
 ## @param audio_path: Path to the audio file
 ## @return: AudioStream or null
 func _load_audio(audio_path: String) -> AudioStream:
-	return AVGResourceLoaderClass.load_audio(audio_path, null, _project_root_path)
+	return AVGResourceLoaderClass.load_audio(audio_path)
 
 
 func _begin_bgm_request() -> int:

@@ -11,7 +11,7 @@ class_name AVGTitleConfig extends Resource
 @export var background_image: String = ""  ## 背景图路径（相对于项目资源目录）
 
 ## ---- 标题文字 ----
-@export var title_text: String = ""  ## 标题文字（空则使用 project_name）
+@export var title_text: String = ""  ## 标题文字（空则使用游戏名称）
 @export var title_norm_position: Vector2 = Vector2(0.5, 0.25)  ## 归一化位置（锚点=中心）
 @export var title_font_size: int = 72
 @export var title_color: Color = Color.WHITE
@@ -64,13 +64,13 @@ static func get_avg_properties() -> Array[Dictionary]:
 
 
 ## 解析初始场景索引：用 first_scene_id 在项目场景列表中查找
-func resolve_first_scene_index(project: Resource) -> int:
-	if project == null or not "scenes" in project:
+func resolve_first_scene_index(game_data: Resource) -> int:
+	if game_data == null or not "scenes" in game_data:
 		return 0
 	if first_scene_id.is_empty():
 		return 0
-	for i in range(project.scenes.size()):
-		var scene = project.scenes[i]
+	for i in range(game_data.scenes.size()):
+		var scene = game_data.scenes[i]
 		if scene != null and "scene_id" in scene and scene.scene_id == first_scene_id:
 			return i
 	return 0

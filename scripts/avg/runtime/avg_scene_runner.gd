@@ -148,9 +148,9 @@ var _game_ui_buttons: Dictionary = {}
 # State
 # =============================================================================
 
-## 当前场景和项目
+## 当前场景和游戏数据
 var current_scene: Resource = null
-var current_project: Resource = null
+var game_data: Resource = null
 
 ## 主线命令队列（从所有自动tab DFS收集）
 var _main_queue: Array = []  # Array[AVGCommand]
@@ -442,18 +442,16 @@ func _connect_signals() -> void:
 # Scene Loading
 # =============================================================================
 
-## 加载项目
-func load_project(project: Resource) -> void:
-	if project == null:
-		push_error("AVGSceneRunner: Cannot load null project")
+## 加载游戏本体的 AVG 数据
+func load_game_data(data: Resource) -> void:
+	if data == null:
+		push_error("AVGSceneRunner: Cannot load null game data")
 		return
-	current_project = project
-	if audio_manager != null and audio_manager.has_method("set_project_root_path"):
-		audio_manager.set_project_root_path(_get_project_root_path())
+	game_data = data
 
-	# 更新项目分辨率，设置容器大小和缩放
-	if "resolution" in project:
-		_project_resolution = Vector2(project.resolution)
+	# 更新设计分辨率，设置容器大小和缩放
+	if "resolution" in data:
+		_project_resolution = Vector2(data.resolution)
 	if design_container:
 		design_container.size = _project_resolution
 	if _nodes_layer:
@@ -472,55 +470,38 @@ func load_project(project: Resource) -> void:
 	if character_display != null and character_display.has_method("set_design_resolution"):
 		character_display.set_design_resolution(_project_resolution)
 
-	if project.variables != null and project.variables.size() > 0:
-		_variable_manager.initialize(project.variables)
+	if data.variables != null and data.variables.size() > 0:
+		_variable_manager.initialize(data.variables)
 	_setup_character_data()
 
 	# Pass dialog settings to dialog_box and choice_display
-	if "dialog_settings" in project and project.dialog_settings != null:
+	if "dialog_settings" in data and data.dialog_settings != null:
 		if dialog_box != null and dialog_box.has_method("set_dialog_settings"):
-			dialog_box.set_dialog_settings(project.dialog_settings)
+			dialog_box.set_dialog_settings(data.dialog_settings)
 		if choice_display != null and choice_display.has_method("set_dialog_settings"):
-			choice_display.set_dialog_settings(project.dialog_settings)
+			choice_display.set_dialog_settings(data.dialog_settings)
 		if character_display != null and character_display.has_method("set_dialog_settings"):
-			character_display.set_dialog_settings(project.dialog_settings)
+			character_display.set_dialog_settings(data.dialog_settings)
 
 	# Pass variable manager to dialog_box for {var_name} substitution
 	if dialog_box != null and dialog_box.has_method("set_variable_manager"):
 		dialog_box.set_variable_manager(_variable_manager)
 
-	# 初始化 game_ui_config（如果项目没有保存过）
-	if not "game_ui_config" in project or project.game_ui_config == null:
+	# 初始化 game_ui_config
+	if not "game_ui_config" in data or data.game_ui_config == null:
 		var AVGGameUIConfigClass = load("res://scripts/avg/resources/avg_game_ui_config.gd")
 		if AVGGameUIConfigClass:
-			project.game_ui_config = AVGGameUIConfigClass.new()
-			if project.game_ui_config.has_method("init_defaults"):
-				project.game_ui_config.init_defaults()
+			data.game_ui_config = AVGGameUIConfigClass.new()
+			if data.game_ui_config.has_method("init_defaults"):
+				data.game_ui_config.init_defaults()
 	if _save_manager != null:
-		_save_manager.set_project_name(project.project_name)
+		_save_manager.set_save_namespace(data.game_name)
 	if _screen_manager != null and ui_container != null:
-		_screen_manager.setup(ui_container, _project_resolution, project, _save_manager, _history_manager)
+		_screen_manager.setup(ui_container, _project_resolution, data, _save_manager, _history_manager)
 
 
-func _get_project_root_path() -> String:
-	if current_project != null and "project_root_path" in current_project:
-		var project_root: String = str(current_project.get("project_root_path")).strip_edges()
-		if not project_root.is_empty():
-			return project_root if project_root.ends_with("/") else project_root + "/"
-	return ""
-
-
-func load_texture_from_project(asset_ref: String) -> Texture2D:
-	return AVGResourceLoaderClass.load_texture(asset_ref, current_project, _get_project_root_path())
-
-	# 初始化存档管理器
-	# Legacy stray block removed.
-	# if _save_manager != null:
-	# 	_save_manager.set_project_name(project.project_name)
-
-	# 初始化子界面管理器
-	# if _screen_manager != null and ui_container != null:
-	# 	_screen_manager.setup(ui_container, _project_resolution, project, _save_manager, _history_manager)
+func load_game_texture(asset_ref: String) -> Texture2D:
+	return AVGResourceLoaderClass.load_texture(asset_ref)
 
 
 ## 加载场景 — 遍历节点树，收集命令
@@ -568,7 +549,7 @@ func _collect_event_nodes_dfs(node: Resource) -> void:
 
 	# SharedNodeRef — 解析为实际节点后递归
 	if node is AVGSharedNodeRef:
-		var resolved: Resource = node.get_resolved_node(current_project)
+		var resolved: Resource = node.get_resolved_node(game_data)
 		if resolved != null:
 			_collect_event_nodes_dfs(resolved)
 		return
@@ -779,13 +760,13 @@ func _resolve_game_data(key: String) -> Variant:
 				return _command_context.click_count
 			return 0
 		"scene_count":
-			if current_project != null and "scenes" in current_project:
-				return current_project.scenes.size()
+			if game_data != null and "scenes" in game_data:
+				return game_data.scenes.size()
 			return 0
 		"current_scene_index":
-			if current_project != null and current_scene != null and "scenes" in current_project:
-				for i in range(current_project.scenes.size()):
-					if current_project.scenes[i] == current_scene:
+			if game_data != null and current_scene != null and "scenes" in game_data:
+				for i in range(game_data.scenes.size()):
+					if game_data.scenes[i] == current_scene:
 						return i
 			return 0
 		_:
@@ -959,7 +940,7 @@ func _render_node_recursive(avg_node: Resource, parent_control: Control) -> void
 
 	# SharedNodeRef — 用 ref 自身的位置/尺寸作为容器，渲染解析后的节点树
 	if avg_node is AVGSharedNodeRef:
-		var resolved: Resource = avg_node.get_resolved_node(current_project)
+		var resolved: Resource = avg_node.get_resolved_node(game_data)
 		if resolved != null:
 			# 创建一个容器 Control，使用 ref 的位置/尺寸
 			var ref_container := Control.new()
@@ -1103,20 +1084,21 @@ func _on_clickable_node_input(event: InputEvent, node_id: String) -> void:
 		handle_node_click(node_id)
 
 
-## 从项目加载角色数据。
+## 从游戏数据加载角色。
 ## 保留原始 sprite 引用（alias / 路径 / Texture2D），由 CharacterDisplay 按需解析并缓存，
-## 避免 load_project 时同步预载整套角色贴图。
+## 避免载入游戏数据时同步预载整套角色贴图。
 func _setup_character_data() -> void:
-	if current_project == null or character_display == null:
+	if game_data == null or character_display == null:
 		return
 	var char_data: Dictionary = {}
-	for character in current_project.characters:
+	for character in game_data.characters:
 		if character == null:
 			continue
 		var char_id: String = character.character_id if "character_id" in character else ""
 		if char_id.is_empty():
 			continue
 		char_data[char_id] = {
+			"character_key": character.character_key if "character_key" in character else "",
 			"character_name": character.character_name if "character_name" in character else "",
 			"display_name": character.display_name if "display_name" in character else "",
 			"sprites": character.sprites if "sprites" in character else {},
@@ -1126,13 +1108,14 @@ func _setup_character_data() -> void:
 			"sprite_prefix": character.sprite_prefix if "sprite_prefix" in character else "",
 			"sprite_base_dir": character.sprite_base_dir if "sprite_base_dir" in character else "",
 			"sprite_extension": character.sprite_extension if "sprite_extension" in character else "png",
+			"sprite_path_pattern": character.sprite_path_pattern if "sprite_path_pattern" in character else "",
 			"display_offset": character.display_offset if "display_offset" in character else Vector2.ZERO,
 			"display_scale": character.display_scale if "display_scale" in character else 1.0,
 		}
 	if character_display.has_method("set_character_data"):
 		character_display.set_character_data(char_data)
 	if character_display.has_method("set_texture_loader"):
-		character_display.set_texture_loader(Callable(self, "load_texture_from_project"))
+		character_display.set_texture_loader(Callable(self, "load_game_texture"))
 	if dialog_box != null and dialog_box.has_method("set_character_data"):
 		dialog_box.set_character_data(char_data)
 
@@ -1693,13 +1676,13 @@ func node_remove(node_id: String, fade_duration: float) -> void:
 
 ## SPAWN_NODE — 生成公共节点实例
 func node_spawn(shared_node_id: String, instance_id: String, norm_x: float, norm_y: float, parent_node_id: String) -> void:
-	if current_project == null:
-		push_warning("AVGSceneRunner: node_spawn — no project loaded")
+	if game_data == null:
+		push_warning("AVGSceneRunner: node_spawn — no game data loaded")
 		return
 	# 查找公共节点模板
 	var template: Resource = null
-	if "shared_nodes" in current_project:
-		for sn in current_project.shared_nodes:
+	if "shared_nodes" in game_data:
+		for sn in game_data.shared_nodes:
 			if sn != null and "node_id" in sn and sn.node_id == shared_node_id:
 				template = sn
 				break
@@ -1861,13 +1844,13 @@ func _evaluate_legacy_condition(condition: String) -> bool:
 
 ## 将当前执行状态压栈，切换到事件命令队列
 func _push_event_call(event_id: String) -> void:
-	if current_project == null:
-		push_warning("AVGSceneRunner: No project loaded for CALL_EVENT")
+	if game_data == null:
+		push_warning("AVGSceneRunner: No game data loaded for CALL_EVENT")
 		return
 
 	# 查找事件
 	var event: Resource = null
-	for e in current_project.events:
+	for e in game_data.events:
 		if e == null:
 			continue
 		var eid: String = e.event_id if "event_id" in e else ""
@@ -1935,10 +1918,10 @@ func jump_to_label(label_name: String) -> bool:
 
 ## 跳转到场景
 func _on_scene_jump_requested(scene_id: String) -> void:
-	if current_project == null:
-		push_warning("AVGSceneRunner: No project loaded for scene jump")
+	if game_data == null:
+		push_warning("AVGSceneRunner: No game data loaded for scene jump")
 		return
-	for scene in current_project.scenes:
+	for scene in game_data.scenes:
 		if scene == null:
 			continue
 		var sid: String = scene.scene_id if "scene_id" in scene else ""
@@ -2439,7 +2422,7 @@ func show_image(image_id: String, image_path: String, norm_pos: Vector2, norm_si
 		push_warning("AVGSceneRunner: Image id is required")
 		return
 
-	var texture: Texture2D = load_texture_from_project(image_path)
+	var texture: Texture2D = load_game_texture(image_path)
 	if texture == null:
 		push_warning("AVGSceneRunner: Could not load image '%s'" % image_path)
 		return
@@ -2720,7 +2703,7 @@ func show_notification(text: String, duration: float, pos: String, font_size: in
 
 ## 显示标题界面
 func show_title_screen() -> void:
-	if current_project == null:
+	if game_data == null:
 		return
 	_showing_title = true
 	_hide_game_layers()
@@ -2738,8 +2721,8 @@ func hide_title_screen() -> void:
 
 ## 获取标题配置（从 title_config 或回退默认值）
 func _get_title_config() -> Resource:
-	if current_project != null and current_project.title_config != null:
-		return current_project.title_config
+	if game_data != null and game_data.title_config != null:
+		return game_data.title_config
 	return null
 
 
@@ -2766,7 +2749,7 @@ func _build_title_screen() -> void:
 	# ---- 背景图 ----
 	var bg_path: String = config.background_image if config != null else ""
 	if not bg_path.is_empty():
-		var tex: Texture2D = load_texture_from_project(bg_path)
+		var tex: Texture2D = load_game_texture(bg_path)
 		if tex != null:
 			var bg_img := TextureRect.new()
 			bg_img.texture = tex
@@ -2780,8 +2763,8 @@ func _build_title_screen() -> void:
 	var title_text: String = ""
 	if config != null and not config.title_text.is_empty():
 		title_text = config.title_text
-	elif current_project != null:
-		title_text = current_project.project_name
+	elif game_data != null:
+		title_text = game_data.game_name
 	var title_font_size: int = config.title_font_size if config != null else 72
 	var title_color: Color = config.title_color if config != null else Color.WHITE
 	var title_norm_pos: Vector2 = config.title_norm_position if config != null else Vector2(0.5, 0.25)
@@ -2872,7 +2855,7 @@ func _on_title_start_pressed() -> void:
 	var first_index: int = 0
 	var config: Resource = _get_title_config()
 	if config != null and config.has_method("resolve_first_scene_index"):
-		first_index = config.resolve_first_scene_index(current_project)
+		first_index = config.resolve_first_scene_index(game_data)
 	hide_title_screen()
 	title_start_requested.emit(first_index)
 
@@ -2941,11 +2924,11 @@ func _setup_game_ui_buttons() -> void:
 	_game_ui_container = null
 	_game_ui_buttons.clear()
 
-	if current_project == null:
+	if game_data == null:
 		return
-	if not "game_ui_config" in current_project or current_project.game_ui_config == null:
+	if not "game_ui_config" in game_data or game_data.game_ui_config == null:
 		return
-	var config: Resource = current_project.game_ui_config
+	var config: Resource = game_data.game_ui_config
 	var buttons: Array = config.buttons if "buttons" in config else []
 	if buttons.is_empty():
 		return
@@ -3072,8 +3055,8 @@ func _on_load_requested(slot_index: int) -> void:
 func _on_return_to_title() -> void:
 	stop()
 	reset()
-	if current_project != null:
-		load_project(current_project)
+	if game_data != null:
+		load_game_data(game_data)
 	show_title_screen()
 
 
@@ -3166,13 +3149,13 @@ func _build_save_data() -> Dictionary:
 ## 从存档数据恢复游戏状态
 func _restore_save_data(data: Dictionary) -> void:
 	var scene_id: String = data.get("scene_id", "")
-	if scene_id.is_empty() or current_project == null:
-		push_warning("[AVGSceneRunner] Cannot restore: missing scene_id or project")
+	if scene_id.is_empty() or game_data == null:
+		push_warning("[AVGSceneRunner] Cannot restore: missing scene_id or game data")
 		return
 
 	# 查找场景
 	var target_scene: Resource = null
-	for scene in current_project.scenes:
+	for scene in game_data.scenes:
 		if scene == null:
 			continue
 		var sid: String = scene.scene_id if "scene_id" in scene else ""

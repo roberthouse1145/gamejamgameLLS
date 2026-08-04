@@ -90,12 +90,12 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 
 # 项目定位与基础设施边界
 
-当前仓库是下一款游戏的技术基础，游戏类型、世界观、角色关系、核心循环和正式内容尚未确定。
+当前仓库就是新游戏本体，游戏类型、世界观、角色关系、核心循环和正式内容尚未确定。
 
 当前明确保留的能力：
 
 - 桌面壳、窗口管理、应用注册与启动等通用桌面基础设施。
-- AVG 项目数据、剧情 DSL、解析、校验、动态生成、播放与资源索引等通用 AVG 基础设施。
+- 游戏本体的 AVG 数据、剧情 DSL、解析、校验、动态生成、播放与资源索引等通用 AVG 基础设施。
 - 被上述能力实际依赖的存储、LLM 调用、提示词装配和只读知识检索能力。
 
 默认不作为新游戏前提的内容：
@@ -109,6 +109,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - 不根据旧内容推断新游戏题材；需要题材、角色或核心循环时，以用户的新需求为准。
 - 新功能优先复用通用基础设施，但不要为了保留旧实现而让新游戏继承旧规则。
 - 基础设施与具体游戏内容保持边界：通用层不硬编码角色名、关系、比赛、项目目标或玩法数值。
+- 本体只维护一份 AVG 游戏数据；不要引入多项目切换、项目模板、`narrative_projects/` 或同类目录结构。
 - 示例和测试使用中性最小数据，只验证稳定技术契约，不把示例设定写成产品规则。
 - 调试工具和内部编辑入口默认不出现在正式玩家桌面；只有用户明确要求时才接入玩家流程。
 
@@ -125,7 +126,8 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 1. 编写代码后查看输出检查语法错误。gdscript非python
 2. 测试必须以“场景 + 脚本”成对存在，禁止单脚本运行
    - 每个 `test_xxx.gd` 都必须有对应的 `test_xxx.tscn`
-   - 自动测试放在 `tests/automated/<domain>/`，现有 `tests/` 根目录和 `tests/<domain>/` 中的 `test_*.gd/.tscn` 仍按自动测试处理
+   - 当前不维护通用基础设施全量回归测试；只有具体功能存在稳定契约时才新增对应测试
+   - 自动测试放在 `tests/automated/<domain>/`
    - 人工打开、交互、目视检查的入口放在 `tests/playtest/<domain>/`，文件名使用 `playtest_`
    - 真实 LLM/API、长流程实验、配置诊断入口放在 `tests/lab/<domain>/`
    - 不再新增 `scripts/tests/` 或 `scenes/tests/` 分离式测试入口；测试脚本和测试场景保持同名同目录
@@ -148,6 +150,7 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - 避免在玩家界面提到内部机制、预生成、初始化、资源注入、后台任务、测试场景、技术调试名词；只有当这些词是玩家实际看到并操作的游戏对象时才使用。
 - 说明模式、入口、按钮、状态差异时，用玩家体验维度表达：剧情节奏、可用行动、角色互动、创作自由度、解锁范围、风险和限制。
 - 内部工具默认不出现在正式玩家入口；只有用户明确要求时才设计其玩家侧文案和交互。
+- 禁止使用 emoji 充当图标、按钮标识、状态提示或其他 UI 元素，除非用户明确要求使用 emoji。
 - 写完文案后删掉所有无法回答“玩家为什么需要知道”的句子。
 - 不为了让 UI 看起来更“完整”添加说明。信息量以玩家完成当前选择所需为准。
 
@@ -215,13 +218,3 @@ res://
 
 ## 关于回复  
 - 用户主要使用中文，默认用中文回复。  
-- 用户通过 `#askQuestions` 填写的内容，必须视为新的用户消息。  
-- 一个 Assistant 响应周期从收到用户消息或 `#askQuestions` 填写结果开始，到调用 `#askQuestions` 为止。  
-- 每个 Assistant 响应周期内最多调用一次 `#askQuestions`。  
-- `#askQuestions` 必须是该响应周期的最后一个动作。  
-- 调用 `#askQuestions` 后，不得继续输出任何正文。  
-- 不要在任务中途、代码中途、分析中途、解释中途、子任务之间调用 `#askQuestions`。  
-- 先完成当前用户消息中所有能完成的任务，再调用 `#askQuestions`。  
-- 如果缺少必要信息，无法继续时，才可以提前调用 `#askQuestions` 澄清。  
-- 除非用户明确要求停止，否则完成任务后必须在末尾调用一次 `#askQuestions`。  
-- 如果用户在 `#askQuestions` 中提出新需求，立即继续执行该新需求，并在完成后再次于末尾调用 `#askQuestions`。

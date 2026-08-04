@@ -1,32 +1,18 @@
 extends Node
-## 当前 AVG 叙事项目的轻量知识库。运行时只读，编辑器中可持久化。
+## 游戏本体的轻量剧情知识库。运行时只读，编辑器中可持久化。
 
 signal data_loaded()
 signal data_saved()
 signal document_changed(doc_id: String)
 
-const KNOWLEDGE_BASE_FILE: String = "knowledge_base.json"
+const KNOWLEDGE_BASE_FILE: String = "res://resources/avg/knowledge_base.json"
 const VALID_CATEGORIES: Array[String] = ["world", "characters", "story", "notes"]
 
 var documents: Array[Dictionary] = []
-var _narrative_project_manager: Node = null
 var _id_counter: int = 0
 
 
 func _ready() -> void:
-	call_deferred("_initialize")
-
-
-func _initialize() -> void:
-	_narrative_project_manager = get_node_or_null("/root/NarrativeProjectManager")
-	if _narrative_project_manager == null:
-		return
-	if _narrative_project_manager.has_signal("current_project_changed"):
-		_narrative_project_manager.current_project_changed.connect(_on_project_changed)
-	load_data()
-
-
-func _on_project_changed(_project: Resource) -> void:
 	load_data()
 
 
@@ -98,11 +84,10 @@ func generate_doc_id(category: String) -> String:
 
 func load_data() -> void:
 	documents.clear()
-	var file_path := _get_file_path()
-	if file_path.is_empty() or not FileAccess.file_exists(file_path):
+	if not FileAccess.file_exists(KNOWLEDGE_BASE_FILE):
 		data_loaded.emit()
 		return
-	var file := FileAccess.open(file_path, FileAccess.READ)
+	var file := FileAccess.open(KNOWLEDGE_BASE_FILE, FileAccess.READ)
 	if file == null:
 		data_loaded.emit()
 		return
@@ -116,32 +101,15 @@ func load_data() -> void:
 
 
 func save_data() -> Error:
-	if _narrative_project_manager == null:
-		return ERR_UNCONFIGURED
-	var runtime_read_only := false
-	if _narrative_project_manager.has_method("is_runtime_read_only"):
-		runtime_read_only = bool(_narrative_project_manager.is_runtime_read_only())
-	if runtime_read_only:
+	if not OS.has_feature("editor"):
 		return ERR_CANT_CREATE
-	var file_path := _get_file_path()
-	if file_path.is_empty():
-		return ERR_UNCONFIGURED
-	var file := FileAccess.open(file_path, FileAccess.WRITE)
+	var file := FileAccess.open(KNOWLEDGE_BASE_FILE, FileAccess.WRITE)
 	if file == null:
 		return FileAccess.get_open_error()
 	file.store_string(JSON.stringify({"documents": documents}, "  "))
 	file.close()
 	data_saved.emit()
 	return OK
-
-
-func _get_file_path() -> String:
-	if _narrative_project_manager == null:
-		return ""
-	var project_path := str(_narrative_project_manager.get("current_project_path")).strip_edges()
-	if project_path.is_empty():
-		return ""
-	return project_path.path_join(KNOWLEDGE_BASE_FILE)
 
 
 func _normalize_document(raw_doc: Dictionary) -> Dictionary:

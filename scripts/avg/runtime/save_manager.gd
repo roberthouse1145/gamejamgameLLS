@@ -1,6 +1,6 @@
 class_name AVGSaveManager extends RefCounted
 ## 存档/读档管理器
-## 将游戏状态保存到 user://saves/<project_name>/ 目录。
+## 将游戏状态保存到游戏本体固定的存档命名空间。
 ## 每个存档槽保存为一个 JSON 文件。
 
 const SAVE_DIR_BASE: String = "user://saves/"
@@ -19,19 +19,17 @@ const SAVE_DIR_BASE: String = "user://saves/"
 ##   "background_path": String,
 ## }
 
-## 项目名称（用于存档目录）
-var _project_name: String = ""
+var _save_namespace: String = ""
 
 
-## 设置项目名称
-func set_project_name(p_name: String) -> void:
-	_project_name = p_name.to_snake_case().replace(" ", "_")
+func set_save_namespace(p_namespace: String) -> void:
+	_save_namespace = p_namespace.to_snake_case().replace(" ", "_")
 	_ensure_save_dir()
 
 
 ## 获取存档目录路径
 func _get_save_dir() -> String:
-	return SAVE_DIR_BASE + _project_name + "/"
+	return SAVE_DIR_BASE + _save_namespace + "/"
 
 
 ## 确保存档目录存在
@@ -43,8 +41,8 @@ func _ensure_save_dir() -> void:
 
 ## 保存游戏到指定槽位
 func save_game(slot_index: int, game_state: Dictionary) -> Error:
-	if _project_name.is_empty():
-		push_error("AVGSaveManager: project name not set")
+	if _save_namespace.is_empty():
+		push_error("AVGSaveManager: save namespace not set")
 		return ERR_UNCONFIGURED
 
 	_ensure_save_dir()

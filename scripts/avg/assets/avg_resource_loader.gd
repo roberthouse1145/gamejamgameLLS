@@ -1,11 +1,11 @@
 class_name AVGResourceLoader extends RefCounted
-## 解析 AVG 项目资产别名，并从 res:// 或 user:// 加载运行时资源。
+## 通过游戏本体的固定素材清单加载 AVG 资源。
 
 const AVGAssetManifestClass = preload("res://scripts/avg/assets/avg_asset_manifest.gd")
 
 
-static func load_texture(asset_ref: String, project: Resource = null, project_root_override: String = "") -> Texture2D:
-	var resolved_path := _resolve_path(asset_ref, project, project_root_override, false)
+static func load_texture(asset_ref: String) -> Texture2D:
+	var resolved_path := AVGAssetManifestClass.resolve_texture_path(asset_ref)
 	if resolved_path.is_empty():
 		return null
 	if resolved_path.begins_with("res://"):
@@ -18,8 +18,8 @@ static func load_texture(asset_ref: String, project: Resource = null, project_ro
 	return ImageTexture.create_from_image(image)
 
 
-static func load_audio(asset_ref: String, project: Resource = null, project_root_override: String = "") -> AudioStream:
-	var resolved_path := _resolve_path(asset_ref, project, project_root_override, true)
+static func load_audio(asset_ref: String) -> AudioStream:
+	var resolved_path := AVGAssetManifestClass.resolve_audio_path(asset_ref)
 	if resolved_path.is_empty():
 		return null
 	if resolved_path.begins_with("res://"):
@@ -39,29 +39,3 @@ static func load_audio(asset_ref: String, project: Resource = null, project_root
 			stream.data = data
 			return stream
 	return null
-
-
-static func _resolve_path(asset_ref: String, project: Resource, project_root_override: String, audio: bool) -> String:
-	var normalized_ref := asset_ref.strip_edges()
-	if normalized_ref.is_empty():
-		return ""
-	var project_root := _resolve_project_root(project, project_root_override)
-	var resolved := ""
-	if audio:
-		resolved = AVGAssetManifestClass.resolve_audio_path(normalized_ref, project_root)
-	else:
-		resolved = AVGAssetManifestClass.resolve_texture_path(normalized_ref, project_root)
-	if resolved.begins_with("res://") or resolved.begins_with("user://"):
-		return resolved
-	if project_root.is_empty():
-		return ""
-	return project_root.path_join(resolved)
-
-
-static func _resolve_project_root(project: Resource, project_root_override: String) -> String:
-	var root := project_root_override.strip_edges()
-	if root.is_empty() and project != null and "project_root_path" in project:
-		root = str(project.get("project_root_path")).strip_edges()
-	if root.is_empty():
-		return ""
-	return root if root.ends_with("/") else root + "/"

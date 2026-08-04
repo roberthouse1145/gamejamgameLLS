@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="StreamerCharacter" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/streamer_character.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+character_key = "ruan_yunyou"
+display_name = "阮云柚"
+role = "heroine"
+persona_prompt = "阮云柚，23岁，独居小屋的家里蹲宅女，毕业即蹲了三年。怕生、嘴硬、内心戏极多；对喜欢的东西有惊人热情，记得所有当季声优生日，熟背轻改动画删减剧情。压力高时强颜欢笑，宅欲高时聊到番剧眼神发光，孤独高时下播日记越来越丧。"

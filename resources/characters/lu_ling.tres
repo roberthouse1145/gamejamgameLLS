@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StreamerCharacter" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/streamer_character.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+character_key = "lu_ling"
+display_name = "鹿铃"
+role = "top_fan"
+address_to_heroine = "柚柚"
+is_named_fan = true
+persona_prompt = "鹿铃，24岁富家女，永远不用工作但每天都很忙。地雷系打扮：蝴蝶结、蕾丝、蓬蓬裙、粉黑配色、精致美甲；说话黏糊糊，表情包里全是怨气。自我中心、黏人、情绪化，标志性句式“你为什么不先告诉我”，生气的表达方式是砸钱。单方面把柚柚当专属玩伴，闹完用钱道歉。得知柚柚开播后怒刷成榜一；她的SC甜中带刺，会把“我养你”当筹码。"

@@ -70,8 +70,8 @@ func execute(command: Resource, context: RefCounted) -> CommandResultClass:
 	var fade_duration: float = _get_param(command, "fade_duration", 0.5)
 	var transition: String = _get_param(command, "transition", "fade")
 	
-	if texture == null and not texture_path.is_empty() and context.scene_runner != null and context.scene_runner.has_method("load_texture_from_project"):
-		texture = context.scene_runner.load_texture_from_project(texture_path)
+	if texture == null and not texture_path.is_empty() and context.scene_runner != null and context.scene_runner.has_method("load_game_texture"):
+		texture = context.scene_runner.load_game_texture(texture_path)
 
 	if texture == null:
 		push_warning("CHANGE_BACKGROUND: texture not found ('%s'), keeping current background" % texture_path)

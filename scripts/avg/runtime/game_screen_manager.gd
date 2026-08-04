@@ -20,10 +20,10 @@ signal quit_requested()
 var _screen_root: Control = null
 ## 父容器（由外部传入）
 var _parent: Control = null
-## 项目分辨率
+## AVG 设计分辨率
 var _project_resolution: Vector2 = Vector2(2560, 1440)
-## 项目资源
-var _project: Resource = null
+## 游戏本体 AVG 数据
+var _game_data: Resource = null
 ## 存档管理器
 var _save_manager: RefCounted = null  # AVGSaveManager
 ## 历史记录管理器
@@ -33,10 +33,10 @@ var _current_screen_type: int = -1
 
 
 ## 初始化
-func setup(parent: Control, resolution: Vector2, project: Resource, save_mgr: RefCounted, history_mgr: RefCounted) -> void:
+func setup(parent: Control, resolution: Vector2, game_data: Resource, save_mgr: RefCounted, history_mgr: RefCounted) -> void:
 	_parent = parent
 	_project_resolution = resolution
-	_project = project
+	_game_data = game_data
 	_save_manager = save_mgr
 	_history_manager = history_mgr
 
@@ -89,12 +89,12 @@ func show_screen(screen_type: int) -> void:
 
 ## 获取配置
 func _get_config(screen_type: int) -> Resource:
-	if _project == null:
+	if _game_data == null:
 		return null
-	if not "screen_configs" in _project:
+	if not "screen_configs" in _game_data:
 		return null
 	var key: String = _type_to_key(screen_type)
-	return _project.screen_configs.get(key, null)
+	return _game_data.screen_configs.get(key, null)
 
 
 func _type_to_key(t: int) -> String:
@@ -116,7 +116,7 @@ func _build_background(config: Resource) -> void:
 	_screen_root.add_child(bg)
 
 	if not config.background_image.is_empty():
-		var tex: Texture2D = AVGResourceLoaderClass.load_texture(config.background_image, _project)
+		var tex: Texture2D = AVGResourceLoaderClass.load_texture(config.background_image)
 		if tex != null:
 			var bg_img := TextureRect.new()
 			bg_img.texture = tex

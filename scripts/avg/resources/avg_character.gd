@@ -13,6 +13,8 @@ class_name AVGCharacter extends Resource
 @export var sprite_prefix: String = ""
 @export var sprite_base_dir: String = ""
 @export var sprite_extension: String = "png"
+## 可选路径模板。支持 {outfit}、{slot}、{character_key}；设置后优先于 prefix 规则。
+@export var sprite_path_pattern: String = ""
 @export var profile: String = ""
 ## 显示补偿：归一化偏移量（相对于设计分辨率）
 ## 例如 (0, -0.1) 向上偏移 10% 设计高度，用于裁掉腿部只显示上半身
@@ -32,6 +34,7 @@ static func get_avg_properties() -> Array[Dictionary]:
 		{"name": "sprite_prefix", "type": TYPE_STRING, "editable": true, "category": "资源"},
 		{"name": "sprite_base_dir", "type": TYPE_STRING, "editable": true, "category": "资源"},
 		{"name": "sprite_extension", "type": TYPE_STRING, "editable": true, "category": "资源"},
+		{"name": "sprite_path_pattern", "type": TYPE_STRING, "editable": true, "category": "资源"},
 		{"name": "profile", "type": TYPE_STRING, "editable": true, "category": "基本", "multiline": true},
 		{"name": "display_offset", "type": TYPE_VECTOR2, "editable": true, "category": "显示补偿", "hint": "归一化偏移 (0~1)"},
 		{"name": "display_scale", "type": TYPE_FLOAT, "editable": true, "category": "显示补偿", "hint": "缩放系数 (1.0=原始)"},
@@ -70,6 +73,13 @@ static func resolve_outfit_sprite_path(character: Variant, emotion: String, outf
 	var slot: String = _resolve_emotion_slot(character, resolved_emotion)
 	if resolved_outfit.is_empty() or slot.is_empty():
 		return ""
+
+	var path_pattern: String = _resolve_sprite_path_pattern(character)
+	if not path_pattern.is_empty():
+		return path_pattern \
+			.replace("{outfit}", resolved_outfit) \
+			.replace("{slot}", slot) \
+			.replace("{character_key}", _resolve_character_key(character))
 
 	var prefix: String = _resolve_sprite_prefix(character)
 	var base_dir: String = _resolve_sprite_base_dir(character)
@@ -176,6 +186,22 @@ static func _resolve_sprite_extension(character: Variant) -> String:
 	if extension.is_empty():
 		return "png"
 	return extension.trim_prefix(".")
+
+
+static func _resolve_sprite_path_pattern(character: Variant) -> String:
+	if character is Resource:
+		return str(character.sprite_path_pattern if "sprite_path_pattern" in character else "").strip_edges()
+	if character is Dictionary:
+		return str(character.get("sprite_path_pattern", "")).strip_edges()
+	return ""
+
+
+static func _resolve_character_key(character: Variant) -> String:
+	if character is Resource:
+		return str(character.character_key if "character_key" in character else "").strip_edges()
+	if character is Dictionary:
+		return str(character.get("character_key", "")).strip_edges()
+	return ""
 
 
 static func _collect_outfits(character: Variant) -> Array[String]:

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="WebPageResource" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://welcome"
+title = "欢迎使用浏览器"
+hint = "虚拟浏览器的中性起始页面。"
+content = "::: col fill sep=16
+# 欢迎使用浏览器
+
+你可以打开预制网页，也可以输入关键词生成一张新的虚拟网页。
+
+::: form action=surf sep=12
+input field=keyword placeholder=输入关键词 required
+[搜索](action:surf bg_color=#4A7CFF color=#FFFFFF)
+:::
+
+[查看公告](url:browser://notice)
+:::"
+searchable = false
+linked_urls = PackedStringArray("browser://notice")
