@@ -123,8 +123,8 @@ func _get_description_text(card: LiveStreamCardResource) -> String:
 		var behavior := card as BehaviorCardResource
 		return "%s\n\n情绪接口：%s → %s\n四轴：噱头 %+.0f　质量 %+.0f　效果 %+.0f　风险 %+.0f\n压力：%+.0f" % [
 			behavior.description,
-			_get_mood_name(behavior.mood_in),
-			_get_mood_name(behavior.mood_out),
+			_get_mood_names(behavior.mood_inputs),
+			_get_mood_names(behavior.mood_outputs),
 			behavior.axes.hook,
 			behavior.axes.quality,
 			behavior.axes.impact,
@@ -155,6 +155,15 @@ func _get_mood_name(mood: StringName) -> String:
 		BehaviorCardResource.MOOD_GLOOM:
 			return "丧气"
 	return "未知"
+
+
+func _get_mood_names(moods: Array[StringName]) -> String:
+	if moods.is_empty():
+		return "平齐"
+	var names: PackedStringArray = []
+	for mood: StringName in moods:
+		names.append(_get_mood_name(mood))
+	return " / ".join(names)
 
 
 func _update_filter_styles() -> void:

@@ -36,6 +36,7 @@ func _ready() -> void:
 	assert(manager.select_behavior_card(&"talk_daily_greeting"))
 	assert(manager.select_behavior_card(&"talk_goodnight"))
 	assert(manager.can_advance(1), "opening followed by closing should be a valid two-slot program")
+	assert(card_library.is_card_unlocked(&"game_stuck_rage"), "the vertical slice should expose a hot-to-gloom transition at Lv1")
 	await _test_puzzle_edges(card_library)
 	await _instantiate_obs_live_app()
 	assert(manager.advance_step())
@@ -85,8 +86,13 @@ func _test_puzzle_edges(card_library: Node) -> void:
 	opening_view.configure(card_library.get_card(&"talk_daily_greeting"))
 	await get_tree().process_frame
 	var opening_edges: CardMoodEdges = opening_view.get_node("MoodEdges") as CardMoodEdges
-	assert(not opening_edges.has_input_notch(), "opening card must have a flat left edge")
-	assert(opening_edges.has_output_tab(), "opening card must have a right output tab")
+	assert(not opening_edges.has_input_notches(), "opening card must have a flat left edge")
+	assert(opening_edges.has_output_tabs(), "opening card must have right output tabs")
+	assert(opening_edges.get_output_lanes() == [0, 2], "an opening card may expose multiple output connectors")
+	assert(opening_view.find_child("Background", true, false) == null, "card must not contain a second card frame")
+	assert(opening_view.find_child("IconArea", true, false) == null, "icon must not be wrapped in another panel")
+	var main_icon: TextureRect = opening_view.find_child("MainIcon", true, false) as TextureRect
+	assert(main_icon != null and main_icon.get_parent() is VBoxContainer, "icon should live directly in card content")
 	opening_view.queue_free()
 
 	var closing_view: LiveStreamCardView = CARD_SCENE.instantiate()
@@ -94,6 +100,27 @@ func _test_puzzle_edges(card_library: Node) -> void:
 	closing_view.configure(card_library.get_card(&"talk_goodnight"))
 	await get_tree().process_frame
 	var closing_edges: CardMoodEdges = closing_view.get_node("MoodEdges") as CardMoodEdges
-	assert(closing_edges.has_input_notch(), "closing card must have a left input notch")
-	assert(not closing_edges.has_output_tab(), "closing card must have a flat right edge")
+	assert(closing_edges.has_input_notches(), "closing card must have left input notches")
+	assert(not closing_edges.has_output_tabs(), "closing card must have a flat right edge")
+	assert(closing_edges.get_input_lanes() == [2, 3], "a closing card may accept multiple input moods")
 	closing_view.queue_free()
+
+	var transition_card: BehaviorCardResource = card_library.get_card(&"game_stuck_rage") as BehaviorCardResource
+	var probe: LiveStreamCardView = CARD_SCENE.instantiate()
+	add_child(probe)
+	await get_tree().process_frame
+	var probe_edges: CardMoodEdges = probe.get_node("MoodEdges") as CardMoodEdges
+	var lane_positions: Array[float] = [
+		probe_edges.get_lane_y(BehaviorCardResource.MOOD_HOT),
+		probe_edges.get_lane_y(BehaviorCardResource.MOOD_CALM),
+		probe_edges.get_lane_y(BehaviorCardResource.MOOD_WARM),
+		probe_edges.get_lane_y(BehaviorCardResource.MOOD_GLOOM),
+	]
+	assert(lane_positions[0] < lane_positions[1])
+	assert(lane_positions[1] < lane_positions[2])
+	assert(lane_positions[2] < lane_positions[3], "four moods must occupy four distinct vertical lanes")
+	probe.configure(transition_card)
+	await get_tree().process_frame
+	assert(probe_edges.get_input_lanes() == [0, 1], "the card must draw both authored left-side notches")
+	assert(probe_edges.get_output_lanes() == [0, 3], "the card must draw both authored right-side tabs")
+	probe.queue_free()

@@ -1,48 +1,9 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/apps/obs_live/components/live_stream_card.gd" id="1_script"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/card_frame.png" id="2_frame"]
-[ext_resource type="Script" path="res://scripts/apps/obs_live/components/card_mood_edges.gd" id="3_edges"]
+[ext_resource type="Script" path="res://scripts/apps/obs_live/components/card_mood_edges.gd" id="2_edges"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_button"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_icon_area"]
-bg_color = Color(0.973, 0.984, 1, 0.9)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.784, 0.835, 0.898, 0.9)
-corner_radius_top_left = 24
-corner_radius_top_right = 24
-corner_radius_bottom_right = 24
-corner_radius_bottom_left = 24
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hover"]
-draw_center = false
-border_width_left = 4
-border_width_top = 4
-border_width_right = 4
-border_width_bottom = 4
-border_color = Color(0.463, 0.663, 0.941, 0.9)
-corner_radius_top_left = 43
-corner_radius_top_right = 43
-corner_radius_bottom_right = 43
-corner_radius_bottom_left = 43
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_selected"]
-draw_center = false
-border_width_left = 6
-border_width_top = 6
-border_width_right = 6
-border_width_bottom = 6
-border_color = Color(0.898, 0.282, 0.427, 1)
-corner_radius_top_left = 43
-corner_radius_top_right = 43
-corner_radius_bottom_right = 43
-corner_radius_bottom_left = 43
-shadow_color = Color(0.898, 0.282, 0.427, 0.18)
-shadow_size = 8
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stat"]
 bg_color = Color(1, 1, 1, 0.82)
@@ -60,20 +21,6 @@ content_margin_top = 8.0
 content_margin_right = 13.0
 content_margin_bottom = 8.0
 
-[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_locked"]
-bg_color = Color(0.949, 0.969, 0.992, 0.84)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.62, 0.671, 0.749, 0.9)
-corner_radius_top_left = 35
-corner_radius_top_right = 35
-corner_radius_bottom_right = 35
-corner_radius_bottom_left = 35
-
 [node name="LiveStreamCard" type="Button"]
 custom_minimum_size = Vector2(440, 600)
 offset_right = 440.0
@@ -83,7 +30,7 @@ theme_override_styles/normal = SubResource("StyleBoxEmpty_button")
 theme_override_styles/hover = SubResource("StyleBoxEmpty_button")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_button")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_button")
-theme_override_styles/focus = SubResource("StyleBoxFlat_hover")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_button")
 script = ExtResource("1_script")
 
 [node name="MoodEdges" type="Control" parent="."]
@@ -95,35 +42,18 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-script = ExtResource("3_edges")
-
-[node name="Background" type="NinePatchRect" parent="."]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 66.0
-offset_top = 18.0
-offset_right = -66.0
-offset_bottom = -18.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-texture = ExtResource("2_frame")
-patch_margin_left = 58
-patch_margin_top = 58
-patch_margin_right = 58
-patch_margin_bottom = 58
+script = ExtResource("2_edges")
 
 [node name="ContentMargin" type="MarginContainer" parent="."]
+unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 69.0
-offset_top = 34.0
-offset_right = -69.0
-offset_bottom = -34.0
+offset_left = 62.0
+offset_top = 30.0
+offset_right = -62.0
+offset_bottom = -30.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
@@ -131,11 +61,11 @@ mouse_filter = 2
 [node name="Content" type="VBoxContainer" parent="ContentMargin"]
 layout_mode = 2
 mouse_filter = 2
-theme_override_constants/separation = 14
+theme_override_constants/separation = 12
 
 [node name="TitleLabel" type="Label" parent="ContentMargin/Content"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 48)
+custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
@@ -162,22 +92,9 @@ theme_override_font_sizes/font_size = 20
 text = "杂谈系 · Tier 1 · 行为卡"
 horizontal_alignment = 1
 
-[node name="IconArea" type="PanelContainer" parent="ContentMargin/Content"]
-custom_minimum_size = Vector2(0, 214)
-layout_mode = 2
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_icon_area")
-
-[node name="IconMargin" type="MarginContainer" parent="ContentMargin/Content/IconArea"]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/margin_left = 18
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_right = 18
-theme_override_constants/margin_bottom = 18
-
-[node name="MainIcon" type="TextureRect" parent="ContentMargin/Content/IconArea/IconMargin"]
+[node name="MainIcon" type="TextureRect" parent="ContentMargin/Content"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 190)
 layout_mode = 2
 mouse_filter = 2
 expand_mode = 1
@@ -185,7 +102,7 @@ stretch_mode = 5
 
 [node name="DescriptionLabel" type="Label" parent="ContentMargin/Content"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 120)
+custom_minimum_size = Vector2(0, 140)
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
@@ -270,58 +187,25 @@ theme_override_font_sizes/font_size = 26
 text = "0%"
 vertical_alignment = 1
 
-[node name="HoverOutline" type="Panel" parent="."]
+[node name="LockedLabel" type="Label" parent="."]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -8.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -110.0
+offset_top = -32.0
+offset_right = 110.0
+offset_bottom = 32.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_hover")
-
-[node name="SelectedOutline" type="Panel" parent="."]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 8.0
-offset_top = 8.0
-offset_right = -8.0
-offset_bottom = -8.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_selected")
-
-[node name="LockedOverlay" type="PanelContainer" parent="."]
-unique_name_in_owner = true
-visible = false
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 16.0
-offset_top = 16.0
-offset_right = -16.0
-offset_bottom = -16.0
-grow_horizontal = 2
-grow_vertical = 2
-mouse_filter = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_locked")
-
-[node name="LockedLabel" type="Label" parent="LockedOverlay"]
-layout_mode = 2
 mouse_filter = 2
 theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 0.9)
+theme_override_constants/outline_size = 5
 theme_override_font_sizes/font_size = 28
 text = "尚未解锁"
 horizontal_alignment = 1

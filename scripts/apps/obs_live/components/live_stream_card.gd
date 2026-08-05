@@ -33,9 +33,8 @@ const RISK_ICON: Texture2D = preload("res://Assets/images/live_stream/cards/icon
 @onready var right_stat: HBoxContainer = %RightStat
 @onready var right_stat_icon: TextureRect = %RightStatIcon
 @onready var right_stat_value: Label = %RightStatValue
-@onready var hover_outline: Panel = %HoverOutline
-@onready var selected_outline: Panel = %SelectedOutline
-@onready var locked_overlay: PanelContainer = %LockedOverlay
+@onready var content_margin: MarginContainer = %ContentMargin
+@onready var locked_label: Label = %LockedLabel
 @onready var mood_edges: CardMoodEdges = %MoodEdges
 
 var _hovered: bool = false
@@ -55,13 +54,14 @@ func configure(resource: LiveStreamCardResource, is_selected: bool = false, is_l
 
 func _render_card() -> void:
 	if card_resource == null:
+		var empty_moods: Array[StringName] = []
 		title_label.text = ""
 		family_label.text = ""
 		main_icon.texture = null
 		description_label.text = ""
 		left_stat.get_parent().visible = false
 		right_stat.get_parent().visible = false
-		mood_edges.configure(&"open", &"open", false)
+		mood_edges.configure(empty_moods, empty_moods, false)
 		disabled = true
 		_refresh_interaction_state()
 		return
@@ -79,9 +79,10 @@ func _render_card() -> void:
 	if card_resource is BehaviorCardResource:
 		var behavior := card_resource as BehaviorCardResource
 		risk_value = behavior.axes.risk
-		mood_edges.configure(behavior.mood_in, behavior.mood_out, true)
+		mood_edges.configure(behavior.mood_inputs, behavior.mood_outputs, true)
 	else:
-		mood_edges.configure(&"open", &"open", false)
+		var empty_moods: Array[StringName] = []
+		mood_edges.configure(empty_moods, empty_moods, false)
 	_render_stat(right_stat, right_stat_icon, right_stat_value, RISK_ICON, "%+.0f" % risk_value)
 	disabled = locked
 	tooltip_text = "%s\n演出预算 %d · 压力 %+.0f" % [card_resource.description, card_resource.budget_cost, card_resource.stress_cost]
@@ -114,12 +115,12 @@ func _get_effect_summary(card: LiveStreamCardResource) -> String:
 
 
 func _refresh_interaction_state() -> void:
-	if hover_outline == null or selected_outline == null:
+	if mood_edges == null or content_margin == null or locked_label == null:
 		return
-	locked_overlay.visible = locked and card_resource != null
 	disabled = card_resource == null or locked
-	hover_outline.visible = _hovered and not selected and not disabled
-	selected_outline.visible = selected and not disabled
+	locked_label.visible = locked and card_resource != null
+	content_margin.modulate = Color(1.0, 1.0, 1.0, 0.34) if locked else Color.WHITE
+	mood_edges.set_interaction_state(selected and not disabled, _hovered and not disabled, locked)
 
 
 func _on_mouse_entered() -> void:

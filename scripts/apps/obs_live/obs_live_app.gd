@@ -185,31 +185,29 @@ func _build_script_step() -> void:
 		"节目单 · 演出预算 %d / %d" % [_manager.get_budget_used(), _manager.get_budget_limit()],
 		"第一张使用左端平齐的开场卡；右端平齐的收尾卡只能放在最后。"
 	)
-	var slot_row := HFlowContainer.new()
-	slot_row.add_theme_constant_override("separation", 20)
+	var slot_row := HBoxContainer.new()
+	slot_row.custom_minimum_size.y = 600
+	slot_row.add_theme_constant_override("separation", -68)
 	step_content.add_child(slot_row)
 	for slot_index: int in range(selected_slots.size()):
 		var card_id: String = str(selected_slots[slot_index]) if slot_index < selected_slots.size() else ""
 		var card: LiveStreamCardResource = _card_library_manager.get_card(StringName(card_id))
-		var slot_box := VBoxContainer.new()
-		slot_box.custom_minimum_size.x = 440
-		slot_box.add_theme_constant_override("separation", 8)
-		var slot_title: String = "%02d　%s" % [slot_index + 1, "开场位" if slot_index == 0 else "节目位"]
-		slot_box.add_child(_make_label(slot_title, 24, COLOR_TEXT_SECONDARY))
 		if card != null:
 			var selected_view: LiveStreamCardView = CARD_SCENE.instantiate()
 			selected_view.configure(card, true)
-			selected_view.tooltip_text = "点击移出节目单"
+			selected_view.tooltip_text = "%02d　%s · 点击移出节目单" % [
+				slot_index + 1,
+				"开场位" if slot_index == 0 else "节目位",
+			]
 			selected_view.pressed.connect(_on_behavior_slot_clear.bind(slot_index))
-			slot_box.add_child(selected_view)
+			slot_row.add_child(selected_view)
 		else:
 			var empty_slot := Button.new()
-			empty_slot.custom_minimum_size = Vector2(440, 300)
+			empty_slot.custom_minimum_size = Vector2(440, 600)
 			empty_slot.disabled = true
-			empty_slot.text = "等待安排"
+			empty_slot.text = "%02d\n等待安排" % (slot_index + 1)
 			_style_slot_button(empty_slot, false)
-			slot_box.add_child(empty_slot)
-		slot_row.add_child(slot_box)
+			slot_row.add_child(empty_slot)
 
 	var material_instance_id := StringName(str(draft.get("material_instance_id", "")))
 	var compatible_cards: Array[BehaviorCardResource] = _card_library_manager.get_compatible_behavior_cards(material_instance_id, false)

@@ -380,11 +380,11 @@ func _get_structure_error() -> String:
 		var card: BehaviorCardResource = CATALOG.get_card(StringName(str(slots[index]))) as BehaviorCardResource
 		if card == null:
 			continue
-		if index == 0 and card.mood_in != BehaviorCardResource.MOOD_OPEN:
+		if index == 0 and not card.is_opening_card():
 			return "第一张必须是左端平齐的开场卡"
-		if index > 0 and card.mood_in == BehaviorCardResource.MOOD_OPEN:
+		if index > 0 and card.is_opening_card():
 			return "开场卡只能放在第一格"
-		if index < slots.size() - 1 and card.mood_out == BehaviorCardResource.MOOD_OPEN:
+		if index < slots.size() - 1 and card.is_closing_card():
 			return "右端平齐的收尾卡只能放在最后一格"
 	return ""
 

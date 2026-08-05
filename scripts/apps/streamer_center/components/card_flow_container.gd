@@ -2,7 +2,7 @@
 class_name StreamerCardFlowContainer extends Container
 ## 卡牌库的响应式流式排布：按可用宽度自动计算列数，并保持稳定的行优先顺序。
 
-@export var card_size: Vector2 = Vector2(410, 600):
+@export var card_size: Vector2 = Vector2(440, 600):
 	set(value):
 		card_size = Vector2(maxf(value.x, 1.0), maxf(value.y, 1.0))
 		update_minimum_size()

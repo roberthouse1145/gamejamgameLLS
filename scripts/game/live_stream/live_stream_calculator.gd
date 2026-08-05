@@ -18,7 +18,7 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 	var axes: Dictionary = {"hook": 0.0, "quality": 0.0, "impact": 0.0, "risk": 0.0}
 	var fan_bias: Dictionary = {"r": 0.0, "m": 0.0, "w": 0.0, "c": 0.0, "b": 0.0}
 	var stress_delta: float = 0.0
-	var previous_mood: StringName = &""
+	var previous_outputs: Array[StringName] = []
 	var conflict_rescue_available: bool = _get_skill_level(plan, &"talk") >= 3
 	var seamless_transition: bool = _has_effect(plan.modifier_card_ids, catalog, &"seam_penalty_half")
 	var global_modifiers: Array[ModifierCardResource] = []
@@ -35,10 +35,10 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 			continue
 		var seam_multiplier: float = 1.0
 		var seam_risk_bonus: float = 0.0
-		if previous_mood != &"" and previous_mood != BehaviorCardResource.MOOD_OPEN and card.mood_in != BehaviorCardResource.MOOD_OPEN:
-			if previous_mood == card.mood_in:
+		if not previous_outputs.is_empty() and not card.mood_inputs.is_empty():
+			if _has_matching_mood(previous_outputs, card.mood_inputs):
 				seam_multiplier = balance.perfect_seam_multiplier
-			elif _is_conflict(previous_mood, card.mood_in):
+			elif _all_pairs_conflict(previous_outputs, card.mood_inputs):
 				if conflict_rescue_available:
 					conflict_rescue_available = false
 				elif seamless_transition:
@@ -59,10 +59,12 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 		axes["risk"] = float(axes["risk"]) + seam_risk_bonus * 10.0
 		stress_delta += card.stress_cost
 		_accumulate_fan_bias(fan_bias, card.fan_bias)
-		if result.mood_flow.is_empty():
-			result.mood_flow.append(card.mood_in)
-		result.mood_flow.append(card.mood_out)
-		previous_mood = card.mood_out
+		result.mood_flow.append({
+			"card_id": String(card.content_id),
+			"inputs": card.mood_inputs.map(func(mood: StringName) -> String: return String(mood)),
+			"outputs": card.mood_outputs.map(func(mood: StringName) -> String: return String(mood)),
+		})
+		previous_outputs.assign(card.mood_outputs)
 
 	for axis_key: StringName in StreamAxisValues.KEYS:
 		axes[String(axis_key)] = float(axes[String(axis_key)]) + material.axes.get_value(axis_key)
@@ -120,6 +122,23 @@ func _is_conflict(left: StringName, right: StringName) -> bool:
 	)
 
 
+func _has_matching_mood(left: Array[StringName], right: Array[StringName]) -> bool:
+	for mood: StringName in left:
+		if mood in right:
+			return true
+	return false
+
+
+func _all_pairs_conflict(left: Array[StringName], right: Array[StringName]) -> bool:
+	if left.is_empty() or right.is_empty():
+		return false
+	for left_mood: StringName in left:
+		for right_mood: StringName in right:
+			if not _is_conflict(left_mood, right_mood):
+				return false
+	return true
+
+
 func _get_material_axis_multiplier(card: BehaviorCardResource, material: LiveStreamMaterialResource, axis_key: StringName) -> float:
 	var result: float = 1.0
 	for boost: StreamTagEffect in card.material_boosts:
@@ -136,7 +155,7 @@ func _get_card_modifier_multiplier(card: BehaviorCardResource, modifiers: Array[
 	for modifier: ModifierCardResource in modifiers:
 		if modifier.target_family != &"" and modifier.target_family != card.family:
 			continue
-		if modifier.target_mood != &"" and modifier.target_mood not in [card.mood_in, card.mood_out]:
+		if modifier.target_mood != &"" and not card.has_mood(modifier.target_mood):
 			continue
 		if modifier.target_family == &"" and modifier.target_mood == &"":
 			continue

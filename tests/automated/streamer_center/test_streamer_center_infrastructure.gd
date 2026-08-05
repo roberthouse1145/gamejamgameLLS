@@ -34,9 +34,9 @@ func _ready() -> void:
 	assert(skill_tree.unlock_skill(&"game_lv2"))
 	assert(GameState.get_skill_level(&"game") == 2)
 	assert(skill_tree.get_skill_points() == 1)
-	assert(not card_library.is_card_unlocked(&"game_stuck_rage"), "Tier 2 also requires streamer Lv4")
+	assert(not card_library.is_card_unlocked(&"talk_recovery"), "Tier 2 also requires streamer Lv4")
 	GameState.streamer_level = 4
-	assert(card_library.is_card_unlocked(&"game_stuck_rage"), "tier and skill gates should both be satisfied")
+	assert(card_library.is_card_unlocked(&"talk_recovery"), "tier and skill gates should both be satisfied")
 	GameState.streamer_level = 1
 	GameState.streamer_exp = 50
 	var points_before_level: int = GameState.growth_points

@@ -12,7 +12,7 @@ class_name StreamSettlementResult extends Resource
 @export var streamer_exp_gain: int = 0
 @export var resulting_fan_vector: Dictionary = {}
 @export var material_use: Dictionary = {}
-@export var mood_flow: Array[StringName] = []
+@export var mood_flow: Array[Dictionary] = []
 
 
 func to_dict() -> Dictionary:
@@ -28,5 +28,5 @@ func to_dict() -> Dictionary:
 		"streamer_exp_gain": streamer_exp_gain,
 		"resulting_fan_vector": resulting_fan_vector.duplicate(true),
 		"material_use": material_use.duplicate(true),
-		"mood_flow": mood_flow.map(func(value: StringName) -> String: return String(value)),
+		"mood_flow": mood_flow.duplicate(true),
 	}

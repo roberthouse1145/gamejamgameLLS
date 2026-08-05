@@ -17,11 +17,11 @@ func _test_card_flow_layout() -> void:
 	var flow := CARD_FLOW_SCENE.instantiate() as Container
 	assert(flow != null, "card flow scene should instantiate")
 	add_child(flow)
-	flow.size = Vector2(900, 100)
+	flow.size = Vector2(930, 100)
 	for index: int in range(4):
 		var card := Control.new()
 		card.name = "Card%d" % index
-		card.custom_minimum_size = Vector2(410, 600)
+		card.custom_minimum_size = Vector2(440, 600)
 		flow.add_child(card)
 	flow.queue_sort()
 	await get_tree().process_frame
