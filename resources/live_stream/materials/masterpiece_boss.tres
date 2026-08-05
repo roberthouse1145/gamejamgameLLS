@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="LiveStreamMaterialResource" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/material_resource.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_family_values.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="3"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="4"]
+
+[sub_resource type="Resource" id="Affinity"]
+script = ExtResource("2")
+game = 1.4
+talk = 1.0
+song = 0.8
+act = 0.9
+tech = 1.1
+
+[sub_resource type="Resource" id="Axes"]
+script = ExtResource("3")
+quality = 2.0
+
+[resource]
+script = ExtResource("1")
+content_id = &"material_masterpiece_boss"
+display_name = "神作终章存档"
+description = "口碑极高的长篇 RPG，正好推进到最终 BOSS。"
+icon = ExtResource("4")
+tags = Array[StringName]([&"game", &"masterpiece", &"story_rich", &"boss_fight", &"high_difficulty"])
+material_type = &"continuous"
+initial_depth = 3.0
+max_progress = 3
+freshness_decay = 0.2
+base_popularity = 170.0
+affinity = SubResource("Affinity")
+axes = SubResource("Axes")

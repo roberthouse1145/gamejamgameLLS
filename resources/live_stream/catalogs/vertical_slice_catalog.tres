@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="LiveStreamCatalog" load_steps=33 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/live_stream_catalog.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/game/serious_game_opening.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/game/hardcore_guide.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/game/stuck_rage.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/game/clear_reflection.tres" id="5"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/talk/daily_greeting.tres" id="6"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/talk/passionate_rant.tres" id="7"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/talk/recovery.tres" id="8"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/talk/goodnight.tres" id="9"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/song/warmup_humming.tres" id="10"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/song/acapella.tres" id="11"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/song/asmr_whisper.tres" id="12"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/song/encore.tres" id="13"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/act/sultry_greeting.tres" id="14"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/act/cute_appeal.tres" id="15"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/act/plead.tres" id="16"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/act/instant_voice.tres" id="17"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/tech/screen_share.tres" id="18"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/tech/comedy_effects.tres" id="19"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/tech/fake_disconnect.tres" id="20"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/behavior/tech/next_preview.tres" id="21"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/modifiers/polite_business.tres" id="22"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/modifiers/toxic_commentator.tres" id="23"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/modifiers/motherly_tone.tres" id="24"]
+[ext_resource type="Resource" path="res://resources/live_stream/cards/modifiers/seamless_transition.tres" id="25"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/trash_hunter.tres" id="26"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/cozy_game.tres" id="27"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/masterpiece_boss.tres" id="28"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/season_anime_notes.tres" id="29"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/midnight_setlist.tres" id="30"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/forum_hot_meme.tres" id="31"]
+[ext_resource type="Resource" path="res://resources/live_stream/personas/default_persona.tres" id="32"]
+
+[resource]
+script = ExtResource("1")
+allowed_tags = Array[StringName]([&"game", &"hardcore", &"rage_bait", &"story_rich", &"talk", &"rant", &"music", &"voice_acting", &"act", &"confession", &"tech", &"trash_game", &"boss_fight", &"high_difficulty", &"casual", &"masterpiece", &"moe", &"otaku_culture", &"hot_topic", &"gossip", &"persona"])
+behavior_cards = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8"), ExtResource("9"), ExtResource("10"), ExtResource("11"), ExtResource("12"), ExtResource("13"), ExtResource("14"), ExtResource("15"), ExtResource("16"), ExtResource("17"), ExtResource("18"), ExtResource("19"), ExtResource("20"), ExtResource("21")])
+modifier_cards = Array[Resource]([ExtResource("22"), ExtResource("23"), ExtResource("24"), ExtResource("25")])
+materials = Array[Resource]([ExtResource("26"), ExtResource("27"), ExtResource("28"), ExtResource("29"), ExtResource("30"), ExtResource("31")])
+personas = Array[Resource]([ExtResource("32")])

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3]
+
+[ext_resource type="Script" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "prologue_name_review_fallback"
+channel_id = "鸢鸢"
+mode = 0
+local_script = "lu_yuanyuan: 这个艺名？
+lu_yuanyuan: 嗯，还挺像你的。
+lu_yuanyuan: 软软糯糯的，也记得住。
+player: 我想了很久的。
+lu_yuanyuan: 看得出来~
+lu_yuanyuan: 半小时后，楼下咖啡厅见。
+player: 今天？
+lu_yuanyuan: 就今天。
+lu_yuanyuan: 我把工作交接给你。
+lu_yuanyuan: 芭菲我请。
+player: 马上来。
+lu_yuanyuan: 别迟到。
+END done"

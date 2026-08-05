@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="LiveStreamMaterialResource" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/material_resource.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_family_values.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="3"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="4"]
+
+[sub_resource type="Resource" id="Affinity"]
+script = ExtResource("2")
+game = 0.8
+talk = 1.4
+song = 1.1
+act = 1.2
+tech = 0.9
+
+[sub_resource type="Resource" id="Axes"]
+script = ExtResource("3")
+quality = 1.0
+impact = 1.0
+
+[resource]
+script = ExtResource("1")
+content_id = &"material_season_anime_notes"
+display_name = "本季新番笔记"
+description = "角色、声优和改编差异都记得密密麻麻。"
+icon = ExtResource("4")
+tags = Array[StringName]([&"story_rich", &"voice_acting", &"moe", &"otaku_culture"])
+material_type = &"continuous"
+initial_depth = 3.0
+max_progress = 3
+freshness_decay = 0.2
+base_popularity = 110.0
+affinity = SubResource("Affinity")
+axes = SubResource("Axes")

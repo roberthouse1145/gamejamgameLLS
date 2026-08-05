@@ -63,6 +63,16 @@ player: ……在。
 
 `player` 是保留标识，代表玩家一侧已经由剧本写定的消息。聊天 UI 将 `player` 显示在右侧；其他发言者显示在左侧。它不代表自由输入入口。
 
+### 3.1.1 附件 / 链接卡片消息
+
+```text
+lu_yuanyuan: [card:file|星茫网络-入职通知书.pdf|browser://offer-letter|星茫网络 · 入职通知书]
+lu_yuanyuan: [card:link|新人电子签约与入驻登记表|browser://signup]
+lu_yuanyuan: [card:image|证件照|res://Assets/images/characters/ruan_yunyou/profile/resume_portrait.png|入职资料附件]
+```
+
+消息正文整条写成 `[card:type|title|url]` 或 `[card:type|title|url|subtitle]` 时，气泡内会渲染一张可点击卡片。`file` 显示文件图标，`link` 显示浏览器图标，点击后由虚拟浏览器打开 `url`。`image` 会从 `res://` 路径加载图片缩略图，点击后由独立图片查看器显示原始分辨率图片。字段内不允许出现 `|` 与 `]`。
+
 ### 3.2 标签与跳转
 
 ```text

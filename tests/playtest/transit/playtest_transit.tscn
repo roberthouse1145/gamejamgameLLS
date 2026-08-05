@@ -1,0 +1,151 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://tests/playtest/transit/playtest_transit.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/pseudo_os/desktop.tscn" id="2_desktop"]
+[ext_resource type="Theme" path="res://resources/themes/pseudo_os_light.tres" id="3_theme"]
+
+[sub_resource type="StyleBoxFlat" id="Style_controls"]
+content_margin_left = 30.0
+content_margin_top = 24.0
+content_margin_right = 30.0
+content_margin_bottom = 24.0
+bg_color = Color(0.97, 0.98, 0.995, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.64, 0.73, 0.86, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+shadow_color = Color(0.08, 0.13, 0.22, 0.22)
+shadow_size = 14
+
+[sub_resource type="StyleBoxFlat" id="Style_button"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.9, 0.94, 0.99, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.58, 0.7, 0.88, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="Style_button_hover"]
+content_margin_left = 24.0
+content_margin_top = 16.0
+content_margin_right = 24.0
+content_margin_bottom = 16.0
+bg_color = Color(0.78, 0.87, 0.98, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.34, 0.56, 0.86, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[node name="PlaytestTransit" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("3_theme")
+script = ExtResource("1_script")
+
+[node name="Desktop" parent="." instance=ExtResource("2_desktop")]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="TestControls" type="PanelContainer" parent="."]
+z_index = 300
+layout_mode = 0
+offset_left = 40.0
+offset_top = 40.0
+offset_right = 1530.0
+offset_bottom = 306.0
+theme_override_styles/panel = SubResource("Style_controls")
+
+[node name="Layout" type="VBoxContainer" parent="TestControls"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="Title" type="Label" parent="TestControls/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "真实 Transit 动画验收"
+
+[node name="StateLabel" type="Label" parent="TestControls/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.31, 0.39, 0.52, 1)
+theme_override_font_sizes/font_size = 23
+text = "即将依次播放全部 Transit 动画"
+
+[node name="Buttons" type="HBoxContainer" parent="TestControls/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="PlayAllButton" type="Button" parent="TestControls/Layout/Buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("Style_button")
+theme_override_styles/hover = SubResource("Style_button_hover")
+text = "播放全部"
+
+[node name="CommuteButton" type="Button" parent="TestControls/Layout/Buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("Style_button")
+theme_override_styles/hover = SubResource("Style_button_hover")
+text = "通勤"
+
+[node name="SleepButton" type="Button" parent="TestControls/Layout/Buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("Style_button")
+theme_override_styles/hover = SubResource("Style_button_hover")
+text = "睡觉"
+
+[node name="WorkButton" type="Button" parent="TestControls/Layout/Buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("Style_button")
+theme_override_styles/hover = SubResource("Style_button_hover")
+text = "打工"
+
+[node name="GameButton" type="Button" parent="TestControls/Layout/Buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("Style_button")
+theme_override_styles/hover = SubResource("Style_button_hover")
+text = "打游戏"
+
+[node name="ShoppingButton" type="Button" parent="TestControls/Layout/Buttons"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("Style_button")
+theme_override_styles/hover = SubResource("Style_button_hover")
+text = "逛街"
+
+[connection signal="pressed" from="TestControls/Layout/Buttons/PlayAllButton" to="." method="_on_play_all_pressed"]
+[connection signal="pressed" from="TestControls/Layout/Buttons/CommuteButton" to="." method="_on_commute_pressed"]
+[connection signal="pressed" from="TestControls/Layout/Buttons/SleepButton" to="." method="_on_sleep_pressed"]
+[connection signal="pressed" from="TestControls/Layout/Buttons/WorkButton" to="." method="_on_work_pressed"]
+[connection signal="pressed" from="TestControls/Layout/Buttons/GameButton" to="." method="_on_game_pressed"]
+[connection signal="pressed" from="TestControls/Layout/Buttons/ShoppingButton" to="." method="_on_shopping_pressed"]

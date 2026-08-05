@@ -81,9 +81,6 @@ func _update_display() -> void:
 
 	if name_label:
 		name_label.text = app_name
-		name_label.add_theme_font_size_override("font_size", 18)
-		name_label.add_theme_constant_override("line_spacing", 0)
-		name_label.add_theme_color_override("font_color", Color.WHITE)
 
 
 ## Handle GUI input events
@@ -151,10 +148,10 @@ func _update_visual_state() -> void:
 		# Create a StyleBoxFlat for the background
 		var new_style := StyleBoxFlat.new()
 		new_style.bg_color = Color.TRANSPARENT
-		new_style.corner_radius_top_left = 10
-		new_style.corner_radius_top_right = 10
-		new_style.corner_radius_bottom_left = 10
-		new_style.corner_radius_bottom_right = 10
+		new_style.corner_radius_top_left = 20
+		new_style.corner_radius_top_right = 20
+		new_style.corner_radius_bottom_left = 20
+		new_style.corner_radius_bottom_right = 20
 		bg.add_theme_stylebox_override("panel", new_style)
 	
 	# Get the stylebox

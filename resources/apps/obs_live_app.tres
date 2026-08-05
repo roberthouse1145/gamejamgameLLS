@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
+[ext_resource type="Texture2D" path="res://Assets/images/app_icons/obs_live_v2.png" id="3_icon"]
+[ext_resource type="PackedScene" path="res://scenes/apps/obs_live/obs_live_app.tscn" id="4_scene"]
+
+[sub_resource type="Resource" id="Resource_constraints"]
+script = ExtResource("2_constraints")
+min_size = Vector2(1500, 960)
+default_size = Vector2(2160, 1440)
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "obs_live"
+app_name = "V-Stream 直播姬"
+icon = ExtResource("3_icon")
+entry_scene = ExtResource("4_scene")
+window_constraints = SubResource("Resource_constraints")

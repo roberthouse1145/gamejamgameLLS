@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 character_key = "lu_ling"
+chat_display_name = "鹿铃"
 display_name = "鹿铃"
 role = "top_fan"
 address_to_heroine = "柚柚"

@@ -51,10 +51,9 @@ func _apply_theme() -> void:
 		var bg: ColorRect = $Background
 		bg.color = BrowserThemeClass.COLOR_BG
 
-	# status_label font_color — Theme Label 已定义，无需 override
-	# status_label font_size=20 与 Theme Label font_size=22 不同，保留
+	# 状态栏比正文略小，但在 4K 桌面中仍需保持可读。
 	if status_label:
-		status_label.add_theme_font_size_override("font_size", 20)
+		status_label.add_theme_font_size_override("font_size", 24)
 
 
 func _make_flat_btn_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
@@ -64,23 +63,23 @@ func _make_flat_btn_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat
 	s.corner_radius_top_right = radius
 	s.corner_radius_bottom_left = radius
 	s.corner_radius_bottom_right = radius
-	s.border_width_left = 1
-	s.border_width_top = 1
-	s.border_width_right = 1
-	s.border_width_bottom = 1
+	s.border_width_left = 2
+	s.border_width_top = 2
+	s.border_width_right = 2
+	s.border_width_bottom = 2
 	s.border_color = border
-	s.content_margin_left = 8
-	s.content_margin_right = 8
-	s.content_margin_top = 4
-	s.content_margin_bottom = 4
+	s.content_margin_left = 18
+	s.content_margin_right = 18
+	s.content_margin_top = 10
+	s.content_margin_bottom = 10
 	return s
 
 
 ## 为所有动态创建的内容按钮统一设置字体颜色（防止 Godot 默认白色 hover/pressed/focus）
 func _style_content_button(btn: Button) -> void:
 	var T := BrowserThemeClass
-	var ns := _make_flat_btn_style(T.COLOR_ACCENT, T.COLOR_ACCENT, 6)
-	var hs := _make_flat_btn_style(Color("#3560D4"), Color("#3560D4"), 6)
+	var ns := _make_flat_btn_style(T.COLOR_ACCENT, T.COLOR_ACCENT, 14)
+	var hs := _make_flat_btn_style(Color("#497FC8"), Color("#497FC8"), 14)
 	btn.add_theme_stylebox_override("normal", ns)
 	btn.add_theme_stylebox_override("hover", hs)
 	btn.add_theme_stylebox_override("pressed", hs)
@@ -90,7 +89,7 @@ func _style_content_button(btn: Button) -> void:
 	btn.add_theme_color_override("font_pressed_color", Color.WHITE)
 	btn.add_theme_color_override("font_focus_color", Color.WHITE)
 	btn.add_theme_color_override("font_hover_pressed_color", Color.WHITE)
-	btn.add_theme_font_size_override("font_size", 22)
+	btn.add_theme_font_size_override("font_size", 30)
 
 
 func _make_content_panel_style(bg: Color, border: Color, radius: int) -> StyleBoxFlat:
@@ -100,11 +99,14 @@ func _make_content_panel_style(bg: Color, border: Color, radius: int) -> StyleBo
 	style.corner_radius_top_right = radius
 	style.corner_radius_bottom_left = radius
 	style.corner_radius_bottom_right = radius
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
+	style.border_width_left = 2
+	style.border_width_top = 2
+	style.border_width_right = 2
+	style.border_width_bottom = 2
 	style.border_color = border
+	style.shadow_color = Color(0.1, 0.17, 0.28, 0.12)
+	style.shadow_size = 7
+	style.shadow_offset = Vector2(0, 3)
 	return style
 
 
@@ -275,16 +277,16 @@ func _create_tab_widget(tab) -> void:
 
 	# 外层 PanelContainer 作为统一的标签背景
 	var holder := PanelContainer.new()
-	holder.custom_minimum_size = Vector2(180, 0)
+	holder.custom_minimum_size = Vector2(270, 58)
 	var holder_style := StyleBoxFlat.new()
 	holder_style.bg_color = T.COLOR_SURFACE
-	holder_style.corner_radius_top_left = 6
-	holder_style.corner_radius_top_right = 6
+	holder_style.corner_radius_top_left = 15
+	holder_style.corner_radius_top_right = 15
 	holder_style.corner_radius_bottom_left = 0
 	holder_style.corner_radius_bottom_right = 0
-	holder_style.border_width_left = 1
-	holder_style.border_width_top = 1
-	holder_style.border_width_right = 1
+	holder_style.border_width_left = 2
+	holder_style.border_width_top = 2
+	holder_style.border_width_right = 2
 	holder_style.border_width_bottom = 0
 	holder_style.border_color = T.COLOR_BORDER
 	holder.add_theme_stylebox_override("panel", holder_style)
@@ -295,6 +297,10 @@ func _create_tab_widget(tab) -> void:
 
 	var tab_btn := Button.new()
 	tab_btn.text = tab.title
+	tab_btn.icon = _load_tab_icon(str(tab.icon_path))
+	tab_btn.expand_icon = true
+	tab_btn.add_theme_constant_override("icon_max_width", 34)
+	tab_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	tab_btn.clip_text = true
 	tab_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_btn.pressed.connect(_on_tab_button_pressed.bind(tab.tab_id))
@@ -308,11 +314,11 @@ func _create_tab_widget(tab) -> void:
 	tab_btn.add_theme_color_override("font_pressed_color", T.COLOR_TEXT)
 	tab_btn.add_theme_color_override("font_focus_color", T.COLOR_TEXT)
 	tab_btn.add_theme_color_override("font_hover_pressed_color", T.COLOR_TEXT)
-	tab_btn.add_theme_font_size_override("font_size", 22)
+	tab_btn.add_theme_font_size_override("font_size", 28)
 
 	var close_btn := Button.new()
 	close_btn.text = "×"
-	close_btn.custom_minimum_size = Vector2(36, 0)
+	close_btn.custom_minimum_size = Vector2(48, 0)
 	close_btn.pressed.connect(_on_tab_close_pressed.bind(tab.tab_id))
 	close_btn.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 	close_btn.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
@@ -323,7 +329,7 @@ func _create_tab_widget(tab) -> void:
 	close_btn.add_theme_color_override("font_pressed_color", Color("#FF5F57"))
 	close_btn.add_theme_color_override("font_focus_color", T.COLOR_TEXT_MUTED)
 	close_btn.add_theme_color_override("font_hover_pressed_color", Color("#FF5F57"))
-	close_btn.add_theme_font_size_override("font_size", 22)
+	close_btn.add_theme_font_size_override("font_size", 30)
 
 	row.add_child(tab_btn)
 	row.add_child(close_btn)
@@ -353,13 +359,13 @@ func _update_tab_focus_style() -> void:
 		if holder == null:
 			continue
 		var style := StyleBoxFlat.new()
-		style.corner_radius_top_left = 6
-		style.corner_radius_top_right = 6
+		style.corner_radius_top_left = 15
+		style.corner_radius_top_right = 15
 		style.corner_radius_bottom_left = 0
 		style.corner_radius_bottom_right = 0
-		style.border_width_left = 1
-		style.border_width_top = 1
-		style.border_width_right = 1
+		style.border_width_left = 2
+		style.border_width_top = 2
+		style.border_width_right = 2
 		style.border_width_bottom = 0
 		style.border_color = T.COLOR_BORDER
 		if tab_id == _current_tab_id:
@@ -396,16 +402,16 @@ func _render_loading(_tab, text: String) -> void:
 	wrapper.add_child(top_spacer)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(640, 0)
+	panel.custom_minimum_size = Vector2(900, 0)
 	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 18))
 	wrapper.add_child(panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 28)
-	margin.add_theme_constant_override("margin_top", 24)
-	margin.add_theme_constant_override("margin_right", 28)
-	margin.add_theme_constant_override("margin_bottom", 24)
+	margin.add_theme_constant_override("margin_left", 42)
+	margin.add_theme_constant_override("margin_top", 36)
+	margin.add_theme_constant_override("margin_right", 42)
+	margin.add_theme_constant_override("margin_bottom", 36)
 	panel.add_child(margin)
 
 	var body := VBoxContainer.new()
@@ -415,14 +421,14 @@ func _render_loading(_tab, text: String) -> void:
 	var title := Label.new()
 	title.text = "正在加载网页"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 30)
+	title.add_theme_font_size_override("font_size", 42)
 	title.add_theme_color_override("font_color", T.COLOR_TEXT)
 	body.add_child(title)
 
 	_loading_dots_label = Label.new()
 	_loading_dots_label.text = text
 	_loading_dots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_loading_dots_label.add_theme_font_size_override("font_size", 18)
+	_loading_dots_label.add_theme_font_size_override("font_size", 27)
 	_loading_dots_label.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
 	body.add_child(_loading_dots_label)
 
@@ -430,7 +436,7 @@ func _render_loading(_tab, text: String) -> void:
 		var keyword := Label.new()
 		keyword.text = "关键词：%s" % str(_tab.keyword).strip_edges()
 		keyword.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		keyword.add_theme_font_size_override("font_size", 16)
+		keyword.add_theme_font_size_override("font_size", 24)
 		keyword.add_theme_color_override("font_color", T.COLOR_TEXT_MUTED)
 		body.add_child(keyword)
 
@@ -443,9 +449,9 @@ func _render_loading(_tab, text: String) -> void:
 	body.add_child(_loading_progress)
 
 	_loading_phase_label = Label.new()
-	_loading_phase_label.text = "正在挑选一个看起来真实的网站"
+	_loading_phase_label.text = "正在连接站点"
 	_loading_phase_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_loading_phase_label.add_theme_font_size_override("font_size", 15)
+	_loading_phase_label.add_theme_font_size_override("font_size", 23)
 	_loading_phase_label.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
 	body.add_child(_loading_phase_label)
 
@@ -495,10 +501,10 @@ func _start_loading_animation() -> void:
 
 func _advance_loading_phase() -> void:
 	var phases: PackedStringArray = [
-		"正在挑选一个看起来真实的网站",
-		"正在翻找相关内容",
-		"正在排版页面",
-		"马上就好"
+		"正在连接站点",
+		"正在获取页面",
+		"正在加载内容",
+		"即将完成"
 	]
 	if _loading_phase_label != null and is_instance_valid(_loading_phase_label):
 		_loading_phase_label.text = phases[_loading_phase_index % phases.size()]
@@ -521,27 +527,27 @@ func _render_error(text: String) -> void:
 	_clear_content_root()
 	var T := BrowserThemeClass
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(560, 0)
+	panel.custom_minimum_size = Vector2(840, 0)
 	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	panel.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 14))
 	content_root.add_child(panel)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_bottom", 18)
+	margin.add_theme_constant_override("margin_left", 36)
+	margin.add_theme_constant_override("margin_top", 30)
+	margin.add_theme_constant_override("margin_right", 36)
+	margin.add_theme_constant_override("margin_bottom", 30)
 	panel.add_child(margin)
 
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 12)
+	body.add_theme_constant_override("separation", 18)
 	margin.add_child(body)
 
 	var label := Label.new()
 	label.text = "加载失败：%s" % text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.add_theme_color_override("font_color", BrowserThemeClass.COLOR_ERROR)
-	label.add_theme_font_size_override("font_size", 20)
+	label.add_theme_font_size_override("font_size", 30)
 	body.add_child(label)
 
 	var home_btn := Button.new()
@@ -562,26 +568,26 @@ func _build_home_quick_card(title_text: String, desc_text: String, url: String) 
 	panel.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 12))
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 16)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_right", 16)
-	margin.add_theme_constant_override("margin_bottom", 14)
+	margin.add_theme_constant_override("margin_left", 27)
+	margin.add_theme_constant_override("margin_top", 21)
+	margin.add_theme_constant_override("margin_right", 27)
+	margin.add_theme_constant_override("margin_bottom", 21)
 	panel.add_child(margin)
 
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 6)
+	body.add_theme_constant_override("separation", 9)
 	margin.add_child(body)
 
 	var title := Label.new()
 	title.text = title_text
-	title.add_theme_font_size_override("font_size", 20)
+	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", T.COLOR_TEXT)
 	body.add_child(title)
 
 	var desc := Label.new()
 	desc.text = desc_text
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.add_theme_font_size_override("font_size", 14)
+	desc.add_theme_font_size_override("font_size", 22)
 	desc.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
 	body.add_child(desc)
 
@@ -613,7 +619,7 @@ func _render_home_page() -> void:
 	var T := BrowserThemeClass
 	var wrapper := VBoxContainer.new()
 	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wrapper.add_theme_constant_override("separation", 18)
+	wrapper.add_theme_constant_override("separation", 24)
 	content_root.add_child(wrapper)
 
 	var hero := PanelContainer.new()
@@ -622,10 +628,10 @@ func _render_home_page() -> void:
 	wrapper.add_child(hero)
 
 	var hero_margin := MarginContainer.new()
-	hero_margin.add_theme_constant_override("margin_left", 32)
-	hero_margin.add_theme_constant_override("margin_top", 30)
-	hero_margin.add_theme_constant_override("margin_right", 32)
-	hero_margin.add_theme_constant_override("margin_bottom", 30)
+	hero_margin.add_theme_constant_override("margin_left", 48)
+	hero_margin.add_theme_constant_override("margin_top", 42)
+	hero_margin.add_theme_constant_override("margin_right", 48)
+	hero_margin.add_theme_constant_override("margin_bottom", 42)
 	hero.add_child(hero_margin)
 
 	var hero_body := VBoxContainer.new()
@@ -635,25 +641,25 @@ func _render_home_page() -> void:
 	var title := Label.new()
 	title.text = "PixelNet"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 42)
+	title.add_theme_font_size_override("font_size", 54)
 	title.add_theme_color_override("font_color", T.COLOR_ACCENT)
 	hero_body.add_child(title)
 
 	var subtitle := Label.new()
-	subtitle.text = "浏览虚拟网页、搜索内容和查看历史记录。"
+	subtitle.text = "搜索网页、访问站点和查看浏览记录。"
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 18)
+	subtitle.add_theme_font_size_override("font_size", 27)
 	subtitle.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
 	hero_body.add_child(subtitle)
 
 	var quick_grid := GridContainer.new()
 	quick_grid.columns = 2
 	quick_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	quick_grid.add_theme_constant_override("h_separation", 12)
-	quick_grid.add_theme_constant_override("v_separation", 12)
+	quick_grid.add_theme_constant_override("h_separation", 24)
+	quick_grid.add_theme_constant_override("v_separation", 24)
 	wrapper.add_child(quick_grid)
 	quick_grid.add_child(_build_home_quick_card("欢迎页", "打开搜索入口和浏览器说明", "browser://welcome"))
-	quick_grid.add_child(_build_home_quick_card("公告", "查看当前虚拟网页能力", "browser://notice"))
+	quick_grid.add_child(_build_home_quick_card("服务公告", "查看浏览服务的最新消息", "browser://notice"))
 	quick_grid.add_child(_build_home_history_card())
 
 
@@ -773,6 +779,14 @@ func _update_tab_title(tab) -> void:
 	var button: Button = widget.get("button")
 	if button:
 		button.text = tab.title
+		button.icon = _load_tab_icon(str(tab.icon_path))
+
+
+func _load_tab_icon(icon_path: String) -> Texture2D:
+	var resolved_path: String = icon_path.strip_edges()
+	if resolved_path.is_empty() or not ResourceLoader.exists(resolved_path):
+		resolved_path = "res://Assets/images/app_icons/sp_icon_browser.png"
+	return ResourceLoader.load(resolved_path) as Texture2D
 
 
 func _find_tab_by_id(tab_id: String):
@@ -877,6 +891,7 @@ func _on_page_generated(request_id: String, url: String, content: Dictionary) ->
 	tab.display_url = url
 	tab.page_content = content.duplicate(true)
 	tab.title = str(content.get("title", url))
+	tab.icon_path = str(content.get("icon_path", tab.icon_path))
 	if tab.title.strip_edges().is_empty():
 		tab.title = url
 	_update_tab_title(tab)
@@ -901,7 +916,7 @@ func _on_url_open_requested(url: String, design_prompt: String, page_context: St
 
 
 func _on_surf_started(_request_id: String, _keyword: String) -> void:
-	_set_status("正在生成网页...")
+	_set_status("正在搜索网页...")
 
 
 func _on_surf_completed(request_id: String, _keyword: String, url: String, _page_summary: String, page: Dictionary) -> void:
@@ -915,6 +930,7 @@ func _on_surf_completed(request_id: String, _keyword: String, url: String, _page
 	tab.state = BrowserTabDataClass.TabState.READY
 	tab.display_url = url
 	tab.page_content = page.duplicate(true)
+	tab.icon_path = str(page.get("icon_path", tab.icon_path))
 	var page_title: String = str(page.get("title", "")).strip_edges()
 	if page_title.is_empty():
 		page_title = url
@@ -1034,8 +1050,9 @@ func _submit_story_event(action_data: Dictionary) -> void:
 			story_director.set_variable(str(key), variables[key])
 
 	_set_status(str(action_data.get("success_status", "已提交")))
-
-
+	var success_url: String = str(action_data.get("success_url", "")).strip_edges()
+	if not success_url.is_empty():
+		_open_page(success_url)
 func _parse_story_value(raw_value: Variant) -> Variant:
 	if raw_value is String:
 		var text: String = str(raw_value).strip_edges()

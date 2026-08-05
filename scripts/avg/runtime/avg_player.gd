@@ -9,7 +9,8 @@ signal playback_started(session_id: String)
 enum Page { HOME, PLAYBACK }
 
 const CHOICE_VAR_ID: String = "var_001"
-const DESIGN_RESOLUTION: Vector2 = Vector2(2560, 1440)
+const DESIGN_RESOLUTION: Vector2 = Vector2(3840, 2160)
+const AVGSceneGeneratorClass = preload("res://scripts/avg/generation/avg_scene_generator.gd")
 
 # -- 普通 AVG 播放区节点 --
 @onready var scene_runner: Control = %AVGSceneRunner
@@ -40,7 +41,7 @@ func _ready() -> void:
 		preview_container.anchor_right = 0.0
 		preview_container.anchor_bottom = 0.0
 	call_deferred("_on_content_resized")
-	call_deferred("navigate_to", Page.HOME)
+	navigate_to(Page.HOME)
 	set_process(false)
 
 
@@ -50,6 +51,48 @@ func navigate_to(page: Page) -> void:
 		playback_page.visible = page == Page.PLAYBACK
 	if idle_page != null:
 		idle_page.visible = page == Page.HOME
+
+
+## 直接解析并播放 AVG DSL 文本。
+func play_dsl(session_id: String, dsl_text: String, title: String = "AVG Scene") -> bool:
+	var compiler: Node = AVGSceneGeneratorClass.new()
+	var result: Dictionary = compiler.compile_dsl(session_id, dsl_text, {
+		"scene_id_prefix": "dsl",
+		"scene_window_title": title,
+	})
+	compiler.free()
+
+	if not bool(result.get("success", false)):
+		_session_id = session_id
+		_scene_package = {}
+		_finished = false
+		var outcome: Dictionary = {
+			"success": false,
+			"error": "dsl_compile_failed",
+			"summary": str(result.get("summary", "dsl_compile_failed")),
+			"errors": result.get("errors", []),
+		}
+		_emit_outcome.call_deferred(outcome)
+		return false
+
+	play_scene_package(session_id, result.get("package", {}))
+	return true
+
+
+## 直接读取并播放 AVG DSL 文件。
+func play_dsl_file(session_id: String, dsl_path: String, title: String = "AVG Scene") -> bool:
+	var normalized_path: String = dsl_path.strip_edges()
+	if normalized_path.is_empty() or not FileAccess.file_exists(normalized_path):
+		_session_id = session_id
+		_scene_package = {}
+		_finished = false
+		_emit_outcome.call_deferred({
+			"success": false,
+			"error": "dsl_file_not_found",
+			"path": normalized_path,
+		})
+		return false
+	return play_dsl(session_id, FileAccess.get_file_as_string(normalized_path), title)
 
 
 func play_scene_package(session_id: String, scene_package: Dictionary, _record_history: bool = true) -> void:

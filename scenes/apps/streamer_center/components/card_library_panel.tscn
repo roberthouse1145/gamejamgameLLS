@@ -1,0 +1,239 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/streamer_center/components/card_library_panel.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/card_flow_container.tscn" id="2_card_flow"]
+
+[node name="CardLibraryPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="PageMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 52
+theme_override_constants/margin_top = 42
+theme_override_constants/margin_right = 52
+theme_override_constants/margin_bottom = 52
+
+[node name="Page" type="VBoxContainer" parent="PageMargin"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="HeadingRow" type="HBoxContainer" parent="PageMargin/Page"]
+layout_mode = 2
+
+[node name="Heading" type="VBoxContainer" parent="PageMargin/Page/HeadingRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="PageMargin/Page/HeadingRow/Heading"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "卡牌库"
+
+[node name="Subtitle" type="Label" parent="PageMargin/Page/HeadingRow/Heading"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 24
+text = "查看行为卡、修饰卡及其解锁条件。素材在开播向导中单独管理。"
+
+[node name="OwnedCountPanel" type="PanelContainer" parent="PageMargin/Page/HeadingRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"PillPanel"
+
+[node name="OwnedCount" type="Label" parent="PageMargin/Page/HeadingRow/OwnedCountPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 24
+text = "已解锁 0 / 0"
+
+[node name="Filters" type="HBoxContainer" parent="PageMargin/Page"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="FilterAll" type="Button" parent="PageMargin/Page/Filters"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 64)
+layout_mode = 2
+theme_type_variation = &"FilterButtonSelected"
+text = "全部"
+
+[node name="FilterPersona" type="Button" parent="PageMargin/Page/Filters"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 64)
+layout_mode = 2
+theme_type_variation = &"FilterButton"
+text = "行为卡"
+
+[node name="FilterMaterial" type="Button" parent="PageMargin/Page/Filters"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 64)
+layout_mode = 2
+theme_type_variation = &"FilterButton"
+text = "修饰卡"
+
+[node name="FilterEvent" type="Button" parent="PageMargin/Page/Filters"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 64)
+layout_mode = 2
+theme_type_variation = &"FilterButton"
+text = "未解锁"
+
+[node name="Body" type="HBoxContainer" parent="PageMargin/Page"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 28
+
+[node name="LibraryPanel" type="PanelContainer" parent="PageMargin/Page/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="LibraryMargin" type="MarginContainer" parent="PageMargin/Page/Body/LibraryPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 26
+
+[node name="LibraryStack" type="Control" parent="PageMargin/Page/Body/LibraryPanel/LibraryMargin"]
+layout_mode = 2
+
+[node name="CardScroll" type="ScrollContainer" parent="PageMargin/Page/Body/LibraryPanel/LibraryMargin/LibraryStack"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="CardFlow" parent="PageMargin/Page/Body/LibraryPanel/LibraryMargin/LibraryStack/CardScroll" instance=ExtResource("2_card_flow")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="EmptyLabel" type="Label" parent="PageMargin/Page/Body/LibraryPanel/LibraryMargin/LibraryStack"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 28
+text = "这个分类暂时没有卡牌"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DetailPanel" type="PanelContainer" parent="PageMargin/Page/Body"]
+custom_minimum_size = Vector2(470, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_type_variation = &"HeroPanel"
+
+[node name="DetailMargin" type="MarginContainer" parent="PageMargin/Page/Body/DetailPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 34
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 34
+theme_override_constants/margin_bottom = 32
+
+[node name="Detail" type="VBoxContainer" parent="PageMargin/Page/Body/DetailPanel/DetailMargin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="DetailIcon" type="TextureRect" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 230)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DetailName" type="Label" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "卡牌名称"
+autowrap_mode = 2
+
+[node name="DetailCategory" type="Label" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 23
+text = "事件卡"
+
+[node name="DetailDescription" type="Label" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+theme_override_font_sizes/font_size = 24
+text = "卡牌描述"
+autowrap_mode = 2
+
+[node name="Stats" type="HBoxContainer" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail"]
+layout_mode = 2
+
+[node name="DetailLeftStat" type="HBoxContainer" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail/Stats"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DetailLeftIcon" type="TextureRect" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail/Stats/DetailLeftStat"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DetailLeftValue" type="Label" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail/Stats/DetailLeftStat"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "0"
+
+[node name="StatSpacer" type="Control" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail/Stats"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DetailRightStat" type="HBoxContainer" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail/Stats"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="DetailRightIcon" type="TextureRect" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail/Stats/DetailRightStat"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(42, 42)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DetailRightValue" type="Label" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail/Stats/DetailRightStat"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "0%"
+
+[node name="UnlockSource" type="Label" parent="PageMargin/Page/Body/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 22
+text = "已加入直播姬可用牌库"
+autowrap_mode = 2

@@ -4,7 +4,7 @@ class_name AVGGameData extends Resource
 const DATA_PATH: String = "res://resources/avg/game_data.tres"
 
 @export var game_name: String = "未命名游戏"
-@export var resolution: Vector2i = Vector2i(2560, 1440)
+@export var resolution: Vector2i = Vector2i(3840, 2160)
 @export var dialog_settings: Resource  # AVGDialogSettings
 @export var scenes: Array = []  # Array of AVGScene
 @export var characters: Array = []  # Array of AVGCharacter

@@ -10,6 +10,8 @@ const ROLE_CLOSE_FRIEND: String = "close_friend"
 
 ## 稳定标识，GameState 关系字典的 key
 @export var character_key: String = ""
+## 私聊软件中的显示名；它可以是真名、昵称或游戏 ID，不等同于公开艺名。
+@export var chat_display_name: String = ""
 @export var display_name: String = ""
 ## 功能位，取值见 ROLE_* 常量
 @export var role: String = ROLE_HEROINE
@@ -21,6 +23,8 @@ const ROLE_CLOSE_FRIEND: String = "close_friend"
 @export_multiline var persona_prompt: String = ""
 ## AVG 演出显示引用（立绘/表情/服装），可为空
 @export var avg_character: AVGCharacter = null
+## 桌面应用使用的独立头像资产，不从完整立绘运行时裁切。
+@export var avatar: Texture2D = null
 
 @export var initial_favor: int = 0
 @export var initial_trust: int = 0

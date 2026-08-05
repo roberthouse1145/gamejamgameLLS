@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="WebPageResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://resume"
+title = "阮云柚_个人简历.pdf"
+icon_path = "res://Assets/images/browser_ui/site_icon_xingmang.png"
+hint = "星茫网络候选人中心归档的阮云柚个人简历。"
+content = "::: col fill sep=16
+::: row fill bg=#E9EEF4 border=#CDD7E2 pad=16
+[返回录用通知书](url:browser://offer-letter color=#42566E)
+::: col fill sep=2
+## 阮云柚_个人简历.pdf
+[1 / 1 · 候选人中心归档文件](color:#718096)
+:::
+:::
+::: card bg=#596575 corner_radius=6 pad=28 sep=12
+![阮云柚个人简历](image:src=res://Assets/images/documents/ruan_yunyou_resume_preview.png width=1800)
+:::
+::: row fill bg=#F7F9FC border=#D8E1EB pad=16
+[文件类型：PDF 文档](color:#687A90)
+[归档编号：XM-2026-0814-0126](color:#687A90)
+:::
+:::"
+searchable = false
+linked_urls = PackedStringArray("browser://offer-letter")

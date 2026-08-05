@@ -1,0 +1,227 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/streamer_center/components/skill_tree_panel.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/skill_tree_viewport.tscn" id="2_viewport"]
+[ext_resource type="Shader" path="res://shaders/ui/skill_tree_grid.gdshader" id="3_grid_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grid"]
+resource_local_to_scene = true
+shader = ExtResource("3_grid_shader")
+shader_parameter/grid_color = Color(0.47, 0.58, 0.72, 0.24)
+shader_parameter/grid_count = Vector2(24, 14)
+shader_parameter/line_width = 0.032
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_detail_sidebar"]
+bg_color = Color(0.925, 0.953, 0.988, 1)
+border_width_left = 2
+border_color = Color(0.718, 0.8, 0.902, 1)
+corner_radius_top_left = 28
+corner_radius_bottom_left = 28
+shadow_color = Color(0.18, 0.263, 0.38, 0.14)
+shadow_size = 14
+shadow_offset = Vector2(-6, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_close"]
+bg_color = Color(0.98, 0.99, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.655, 0.753, 0.878, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_close_hover"]
+bg_color = Color(0.855, 0.914, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.369, 0.569, 0.851, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[node name="SkillTreePanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="PageMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 52
+theme_override_constants/margin_top = 42
+theme_override_constants/margin_right = 52
+theme_override_constants/margin_bottom = 52
+
+[node name="Page" type="VBoxContainer" parent="PageMargin"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="HeadingRow" type="HBoxContainer" parent="PageMargin/Page"]
+layout_mode = 2
+
+[node name="Heading" type="VBoxContainer" parent="PageMargin/Page/HeadingRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="PageMargin/Page/HeadingRow/Heading"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "成长路线"
+
+[node name="Subtitle" type="Label" parent="PageMargin/Page/HeadingRow/Heading"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 24
+text = "成长节点会解锁新的直播卡牌与演出能力。"
+
+[node name="PointsPanel" type="PanelContainer" parent="PageMargin/Page/HeadingRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_type_variation = &"PillPanel"
+
+[node name="PointsLabel" type="Label" parent="PageMargin/Page/HeadingRow/PointsPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 24
+text = "0 成长点"
+
+[node name="TreePanel" type="PanelContainer" parent="PageMargin/Page"]
+clip_contents = true
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="TreeLayer" type="Control" parent="PageMargin/Page/TreePanel"]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 2
+
+[node name="GridBackdrop" type="ColorRect" parent="PageMargin/Page/TreePanel/TreeLayer"]
+unique_name_in_owner = true
+material = SubResource("ShaderMaterial_grid")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="TreeViewport" parent="PageMargin/Page/TreePanel/TreeLayer" instance=ExtResource("2_viewport")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="DetailSidebar" type="PanelContainer" parent="PageMargin/Page/TreePanel/TreeLayer"]
+unique_name_in_owner = true
+visible = false
+z_index = 5
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 1
+anchor_left = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -560.0
+grow_horizontal = 0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_detail_sidebar")
+
+[node name="DetailMargin" type="MarginContainer" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar"]
+layout_mode = 2
+theme_override_constants/margin_left = 40
+theme_override_constants/margin_top = 34
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 36
+
+[node name="DetailColumn" type="VBoxContainer" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="SidebarHeader" type="HBoxContainer" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+layout_mode = 2
+
+[node name="SidebarTitle" type="Label" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn/SidebarHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.286, 0.38, 0.55, 1)
+theme_override_font_sizes/font_size = 22
+text = "技能详情"
+
+[node name="SidebarCloseButton" type="Button" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn/SidebarHeader"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(108, 56)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.38, 0.55, 1)
+theme_override_colors/font_hover_color = Color(0.204, 0.314, 0.482, 1)
+theme_override_font_sizes/font_size = 22
+theme_override_styles/normal = SubResource("StyleBoxFlat_close")
+theme_override_styles/hover = SubResource("StyleBoxFlat_close_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_close_hover")
+mouse_default_cursor_shape = 2
+text = "关闭"
+
+[node name="DetailIcon" type="TextureRect" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(140, 140)
+layout_mode = 2
+size_flags_horizontal = 0
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DetailName" type="Label" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.118, 0.129, 0.192, 1)
+theme_override_font_sizes/font_size = 36
+autowrap_mode = 2
+
+[node name="DetailDescription" type="Label" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+theme_override_font_sizes/font_size = 24
+autowrap_mode = 2
+
+[node name="RewardLabel" type="Label" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.294, 0.42, 0.714, 1)
+theme_override_font_sizes/font_size = 24
+autowrap_mode = 2
+
+[node name="DetailSpacer" type="Control" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="StatusLabel" type="Label" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.38, 0.55, 1)
+theme_override_font_sizes/font_size = 23
+autowrap_mode = 2
+
+[node name="UnlockButton" type="Button" parent="PageMargin/Page/TreePanel/TreeLayer/DetailSidebar/DetailMargin/DetailColumn"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 76)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "解锁"

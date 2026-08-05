@@ -3,11 +3,11 @@
 [ext_resource type="Script" path="res://scripts/pseudo_os/desktop_icon.gd" id="1_desktop_icon"]
 
 [node name="DesktopIcon" type="Control"]
-custom_minimum_size = Vector2(144, 168)
+custom_minimum_size = Vector2(288, 336)
 layout_mode = 3
 anchors_preset = 0
-offset_right = 144.0
-offset_bottom = 168.0
+offset_right = 288.0
+offset_bottom = 336.0
 script = ExtResource("1_desktop_icon")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
@@ -18,7 +18,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 alignment = 1
-theme_override_constants/separation = 8
+theme_override_constants/separation = 16
 
 [node name="IconContainer" type="CenterContainer" parent="VBoxContainer"]
 layout_mode = 2
@@ -26,18 +26,25 @@ size_flags_vertical = 0
 
 [node name="IconTexture" type="TextureRect" parent="VBoxContainer/IconContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(76, 76)
+custom_minimum_size = Vector2(152, 152)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 5
 
 [node name="NameLabel" type="Label" parent="VBoxContainer"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 52)
+custom_minimum_size = Vector2(0, 104)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0.015, 0.027, 0.055, 0.82)
+theme_override_constants/shadow_offset_x = 0
+theme_override_constants/shadow_offset_y = 4
+theme_override_constants/shadow_outline_size = 3
+theme_override_constants/line_spacing = 0
 text = "Application"
+theme_override_font_sizes/font_size = 36
 horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2

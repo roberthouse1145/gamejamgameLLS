@@ -53,6 +53,8 @@ var _resize_start_mouse: Vector2
 @onready var maximize_button: Button = %MaximizeButton
 @onready var close_button: Button = %CloseButton
 @onready var content_container: Control = %ContentContainer
+@onready var chrome_accent: ColorRect = %ChromeAccent
+@onready var chrome_border: Panel = %ChromeBorder
 @onready var resize_handles: Control = %ResizeHandles
 
 
@@ -442,7 +444,7 @@ func _apply_default_theme() -> void:
 	var text_sec     := Color("#6B7086")
 	var close_hover  := Color("#FF5F57")
 	var min_hover    := Color("#F5A623")
-	var btn_radius: int = 6
+	var btn_radius: int = 15
 	var empty := StyleBoxEmpty.new()
 	var hover_neutral := _make_btn_circle(Color("#E2E4EA"), btn_radius)
 
@@ -450,36 +452,57 @@ func _apply_default_theme() -> void:
 	var bg_panel: Panel = get_node_or_null("Background")
 	if bg_panel:
 		var s := StyleBoxFlat.new()
-		s.bg_color = Color("#FFFFFF")
-		s.corner_radius_top_left     = 8
-		s.corner_radius_top_right    = 8
-		s.corner_radius_bottom_left  = 8
-		s.corner_radius_bottom_right = 8
-		s.border_width_left   = 1
-		s.border_width_top    = 1
-		s.border_width_right  = 1
-		s.border_width_bottom = 1
-		s.border_color  = Color("#E2E4EA")
-		s.shadow_color  = Color(0.1, 0.11, 0.15, 0.12)
-		s.shadow_size   = 16
-		s.shadow_offset = Vector2(0, 4)
+		s.bg_color = Color("#F7FAFF")
+		s.corner_radius_top_left     = 24
+		s.corner_radius_top_right    = 24
+		s.corner_radius_bottom_left  = 0
+		s.corner_radius_bottom_right = 0
+		s.border_width_left   = 3
+		s.border_width_top    = 3
+		s.border_width_right  = 3
+		s.border_width_bottom = 3
+		s.border_color  = Color("#B8C7DB")
+		s.shadow_color  = Color(0.05, 0.09, 0.16, 0.3)
+		s.shadow_size   = 36
+		s.shadow_offset = Vector2(0, 10)
 		bg_panel.add_theme_stylebox_override("panel", s)
 
 	# Title bar — 顶部圆角，底部边框，与 Background 不同，必须 override
 	if title_bar:
 		var s := StyleBoxFlat.new()
-		s.bg_color = Color("#FFFFFF")
-		s.corner_radius_top_left     = 8
-		s.corner_radius_top_right    = 8
+		s.bg_color = Color("#F8FAFE")
+		s.corner_radius_top_left     = 24
+		s.corner_radius_top_right    = 24
 		s.corner_radius_bottom_left  = 0
 		s.corner_radius_bottom_right = 0
-		s.border_width_bottom = 1
-		s.border_color = Color("#EFF0F4")
+		s.border_width_bottom = 2
+		s.border_color = Color("#D3DDEA")
+		s.shadow_color = Color(0.08, 0.13, 0.22, 0.12)
+		s.shadow_size = 7
+		s.shadow_offset = Vector2(0, 3)
 		title_bar.add_theme_stylebox_override("panel", s)
 
-	# Title label — font_color 由 Theme Label 提供；font_size=16 与 Theme(22) 不同，保留
+	if chrome_border:
+		var border_style := StyleBoxFlat.new()
+		border_style.draw_center = false
+		border_style.corner_radius_top_left = 24
+		border_style.corner_radius_top_right = 24
+		border_style.corner_radius_bottom_left = 0
+		border_style.corner_radius_bottom_right = 0
+		border_style.border_width_left = 2
+		border_style.border_width_top = 2
+		border_style.border_width_right = 2
+		border_style.border_width_bottom = 2
+		border_style.border_color = Color("#AEBFD5")
+		chrome_border.add_theme_stylebox_override("panel", border_style)
+
+	if chrome_accent:
+		chrome_accent.color = Color("#8CB7F3")
+
+	# 4K 窗口标题字号
 	if title_label:
-		title_label.add_theme_font_size_override("font_size", 16)
+		title_label.add_theme_color_override("font_color", Color("#34435C"))
+		title_label.add_theme_font_size_override("font_size", 26)
 
 	# Minimize button — 专属黄色 hover，必须 override
 	if minimize_button:
@@ -497,7 +520,7 @@ func _apply_default_theme() -> void:
 		minimize_button.add_theme_color_override("font_hover_color", Color.WHITE)
 		minimize_button.add_theme_color_override("font_disabled_color", Color(text_sec, 0.38))
 		minimize_button.add_theme_color_override("icon_disabled_color", Color(1, 1, 1, 0.38))
-		minimize_button.add_theme_font_size_override("font_size", 16)
+		minimize_button.add_theme_font_size_override("font_size", 24)
 
 	# Maximize button — 专属中性灰 hover，必须 override
 	if maximize_button:
@@ -514,7 +537,7 @@ func _apply_default_theme() -> void:
 		maximize_button.add_theme_color_override("font_hover_color", Color("#1A1D27"))
 		maximize_button.add_theme_color_override("font_disabled_color", Color(text_sec, 0.38))
 		maximize_button.add_theme_color_override("icon_disabled_color", Color(1, 1, 1, 0.38))
-		maximize_button.add_theme_font_size_override("font_size", 16)
+		maximize_button.add_theme_font_size_override("font_size", 24)
 
 	# Close button — 专属红色 hover，必须 override
 	if close_button:
@@ -532,7 +555,7 @@ func _apply_default_theme() -> void:
 		close_button.add_theme_color_override("font_hover_color", Color.WHITE)
 		close_button.add_theme_color_override("font_disabled_color", Color(text_sec, 0.38))
 		close_button.add_theme_color_override("icon_disabled_color", Color(1, 1, 1, 0.38))
-		close_button.add_theme_font_size_override("font_size", 18)
+		close_button.add_theme_font_size_override("font_size", 27)
 
 
 func _make_btn_circle(bg_color: Color, r: int) -> StyleBoxFlat:

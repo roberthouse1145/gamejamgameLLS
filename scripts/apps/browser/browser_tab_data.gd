@@ -10,6 +10,7 @@ enum TabState {
 
 var tab_id: String = ""
 var title: String = "新标签页"
+var icon_path: String = "res://Assets/images/app_icons/sp_icon_browser.png"
 var display_url: String = ""
 var keyword: String = ""
 var state: TabState = TabState.IDLE

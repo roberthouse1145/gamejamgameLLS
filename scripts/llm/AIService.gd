@@ -900,6 +900,8 @@ func _on_request_completed(result: int, response_code: int, _headers: PackedStri
 	var response = _normalize_response_reasoning(json.data)
 	var original_id = _original_request_ids.get(request_id, request_id)
 
+	_log_llm_response(response, original_id)
+
 	_log_cache_stats(response, request_id, original_id)
 	_update_conversation_from_response(request_id, response)
 	
@@ -969,6 +971,7 @@ func _on_stream_completed(result: int, response_code: int, _headers: PackedStrin
 		final_response.choices[0].message["tool_calls"] = tool_calls
 
 	final_response = _normalize_response_reasoning(final_response)
+	_log_llm_response(final_response, original_id)
 	var final_message: Dictionary = final_response.choices[0].get("message", {})
 	var normalized_content: Variant = final_message.get("content", "")
 	full_content = str(normalized_content) if normalized_content != null else ""
@@ -1079,6 +1082,23 @@ func _get_message_content_text(message: Dictionary) -> String:
 	if refusal_value is String:
 		return refusal_value
 	return ""
+
+
+## 打印最终结果与 thinking（reasoning_content），便于迭代 prompt。
+func _log_llm_response(response: Dictionary, request_label: String) -> void:
+	if not response.has("choices") or response["choices"].size() == 0:
+		return
+	var message: Dictionary = response["choices"][0].get("message", {})
+	var content: String = _get_message_content_text(message)
+	var reasoning: String = AIService.extract_reasoning_content(response)
+	if content.is_empty() and reasoning.is_empty():
+		return
+	print("[LLM:%s] model=%s" % [request_label, str(response.get("model", ""))])
+	if not reasoning.is_empty():
+		print("[LLM] ---- thinking ----")
+		print(reasoning)
+	print("[LLM] ---- result ----")
+	print(content if not content.is_empty() else "<empty>")
 
 
 func _normalize_response_reasoning(response: Dictionary) -> Dictionary:
@@ -1641,7 +1661,8 @@ static func extract_content(response: Dictionary) -> String:
 ##
 ## 不同 provider 的 reasoning_effort 词表不一样：
 ##   - OpenAI o-series：low / medium / high
-##   - DeepSeek 思考模型：仅 high / max（low、medium 会被 reject）
+##   - DeepSeek v4 思考模型：low / high / max
+##     （官方映射：low→low，high→high，xhigh→high（v4-flash）/max（v4-pro），max→max）
 ##
 ## 为了让上层配置（cfg / options）不必关心 provider 差异，在这里做一次兼容映射。
 ## 对未知 provider 默认按 OpenAI 兼容处理（直通），避免错误改写合法值。
@@ -1654,12 +1675,11 @@ static func _normalize_reasoning_effort(effort: String, base_url: String) -> Str
 	var is_deepseek: bool = url_lower.contains("deepseek")
 
 	if is_deepseek:
-		# DeepSeek 仅有 high / max 两档
 		match normalized:
-			"low", "medium", "high":
+			"low", "high", "max":
+				return normalized
+			"medium", "xhigh":
 				return "high"
-			"xhigh", "max":
-				return "max"
 			_:
 				# 未知值：按 high 兜底（比 reject 更友好）
 				return "high"

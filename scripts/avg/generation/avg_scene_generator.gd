@@ -74,6 +74,44 @@ func generate_for_session(session_id: String, session: Dictionary) -> bool:
 	return _request_generation(context)
 
 
+## 将已有 AVG DSL 编译为播放器可直接使用的场景包，不触发 LLM。
+func compile_dsl(session_id: String, dsl_text: String, session: Dictionary = {}) -> Dictionary:
+	var normalized_session_id: String = session_id.strip_edges()
+	if normalized_session_id.is_empty():
+		return {
+			"success": false,
+			"summary": "empty_session_id",
+			"errors": ["session_id is required"],
+		}
+
+	var validation: Dictionary = _validate_dsl(dsl_text)
+	if not bool(validation.get("ok", false)):
+		return {
+			"success": false,
+			"summary": str(validation.get("summary", "dsl_validation_failed")),
+			"errors": validation.get("errors", []),
+		}
+
+	var package: Dictionary = _build_scene_package(
+		normalized_session_id,
+		validation.get("commands", []),
+		session
+	)
+	if package.is_empty():
+		return {
+			"success": false,
+			"summary": "scene_package_failed",
+			"errors": ["failed to build AVG scene package"],
+		}
+
+	return {
+		"success": true,
+		"summary": str(validation.get("summary", "ok")),
+		"errors": [],
+		"package": package,
+	}
+
+
 func _setup_ai_services() -> void:
 	_writer_service = AIService.new()
 	_writer_service.name = "AVGSceneGeneratorWriter"
@@ -483,7 +521,7 @@ func _build_scene_package(session_id: String, commands: Array, session: Dictiona
 	root.norm_position = Vector2.ZERO
 	root.norm_size = Vector2.ONE
 	root.position = Vector2.ZERO
-	root.size = Vector2(game_data.resolution) if "resolution" in game_data else Vector2(2560, 1440)
+	root.size = Vector2(game_data.resolution) if "resolution" in game_data else Vector2(3840, 2160)
 	root.command_tabs = [ {
 		"commands": instrumented_commands,
 		"condition_commands": [],

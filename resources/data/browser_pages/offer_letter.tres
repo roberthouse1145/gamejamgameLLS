@@ -1,0 +1,113 @@
+[gd_resource type="Resource" script_class="WebPageResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://offer-letter"
+title = "星茫网络 - 录用及入职通知书"
+icon_path = "res://Assets/images/browser_ui/site_icon_xingmang.png"
+hint = "星茫网络人力资源中心发出的正式录用及入职通知书。"
+content = "::: pdf filename=\"星茫网络_录用及入职通知书_XM-HR-20260804-126.pdf\" pages=\"1 / 1\" pad=64
+::: document width=1480 pad=104 sep=30
+::: row fill sep=24
+![星茫网络](image:src=res://Assets/images/browser_ui/site_icon_xingmang.png width=92 height=92)
+::: col fill sep=2
+## [星茫网络文化科技有限公司](color:#173A5E)
+#### [XINGMANG NETWORK CULTURE & TECHNOLOGY CO., LTD.](color:#697B8E)
+:::
+::: col sep=3
+[文件编号：XM-HR-20260804-126](color:#526579)
+[签发日期：2026 年 08 月 04 日](color:#526579)
+[文件等级：候选人文件](color:#526579)
+:::
+:::
+::: card fill height=5 bg=#9B2634 border=#9B2634 corner_radius=0 pad=0 :::
+
+# [center]录用及入职通知书[/center]
+[center]OFFER AND ONBOARDING NOTICE[/center]
+
+## 阮云柚 女士：
+
+感谢您参加星茫网络虚拟演艺人员岗位的甄选。经用人部门面试、资料复核及招聘委员会综合评议，现正式通知您：您已通过本岗位录用审核。
+
+我司拟邀请您加入艺人运营中心，参与新人实习期培养与虚拟内容演艺工作。请您核对下列录用信息，并于规定期限内完成后续入驻登记。
+
+::: table cols=4
+::: cell bg=#EEF3F7 pad=20
+#### [录用岗位](color:#526579)
+:::
+::: cell pad=20
+虚拟演艺人员
+:::
+::: cell bg=#EEF3F7 pad=20
+#### [所属部门](color:#526579)
+:::
+::: cell pad=20
+艺人运营中心
+:::
+::: cell bg=#EEF3F7 pad=20
+#### [合作阶段](color:#526579)
+:::
+::: cell pad=20
+新人实习期
+:::
+::: cell bg=#EEF3F7 pad=20
+#### [拟定周期](color:#526579)
+:::
+::: cell pad=20
+90 个自然日
+:::
+::: cell bg=#EEF3F7 pad=20
+#### [报到方式](color:#526579)
+:::
+::: cell pad=20
+线上入驻登记
+:::
+::: cell bg=#EEF3F7 pad=20
+#### [确认期限](color:#526579)
+:::
+::: cell pad=20
+2026 年 08 月 07 日 18:00 前
+:::
+:::
+
+## 一、办理事项
+
+1. 请核对本通知书所列姓名、岗位、部门与合作阶段。
+2. 对接经纪人确认后，将另行发送电子签约及新人入驻登记入口。
+3. 请在登记页面完整阅读电子协议，确认个人资料及内容方向后提交。
+4. 登记完成后，人力资源中心将建立入驻档案，后续安排由经纪团队通知。
+
+## 二、文件说明
+
+本通知书用于确认录用意向与拟入职安排，不替代双方后续签署的电子协议。具体合作内容、双方权利义务、结算方式及保密要求，以完成签署的入驻文件为准。逾期未确认且未提前说明的，视为放弃本次录用。
+
+::: table cols=2
+::: cell bg=#F5F7FA pad=22
+::: col sep=5
+#### [随附候选人档案](color:#526579)
+您提交的个人简历已完成归档，可通过附件复核。
+:::
+:::
+::: cell bg=#F5F7FA pad=22
+::: col sep=5
+#### [附件 01](color:#526579)
+[阮云柚_个人简历.pdf](url:browser://resume color=#245E91 size=29)
+:::
+:::
+:::
+
+请妥善保存本通知书。如对录用信息存在疑问，请通过对接经纪人或候选人服务专线核实。
+
+[right]星茫网络文化科技有限公司[/right]
+[right]人力资源中心[/right]
+[right]2026 年 08 月 04 日[/right]
+
+---
+[center][候选人服务专线：400-826-0714　hr@xingmang.cn](color:#758596)[/center]
+[center][本文件由星茫网络候选人系统签发，验证编号：XM-HR-20260804-126](color:#8A98A7)[/center]
+:::
+:::"
+searchable = false
+linked_urls = PackedStringArray("browser://resume")

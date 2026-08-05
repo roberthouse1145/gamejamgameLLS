@@ -496,10 +496,15 @@ func _build_premade_page_payload(page: Resource) -> Dictionary:
 		return {}
 	var scene_path: String = str(page.scene_path).strip_edges()
 	if not scene_path.is_empty() and ResourceLoader.exists(scene_path):
-		return {"scene_path": scene_path, "title": str(page.title)}
+		return {
+			"scene_path": scene_path,
+			"title": str(page.title),
+			"icon_path": str(page.icon_path),
+		}
 	var content: Dictionary = _parse_page_content(str(page.content))
 	if not content.is_empty():
 		content["title"] = str(page.title)
+		content["icon_path"] = str(page.icon_path)
 	return content
 
 

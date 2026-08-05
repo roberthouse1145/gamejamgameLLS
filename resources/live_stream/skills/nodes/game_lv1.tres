@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StreamerSkill" load_steps=3 format=3]
+[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="2"]
+[resource]
+script = ExtResource("1")
+skill_id = &"game_lv1"
+family = &"game"
+level = 1
+display_name = "游戏力 Lv.1"
+description = "能够完成基础游戏实况。"
+icon = ExtResource("2")
+tree_position = Vector2i(0, 0)
+point_cost = 0

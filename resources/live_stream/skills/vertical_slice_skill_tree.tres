@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="StreamerSkillTree" load_steps=17 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill_tree.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/game_lv1.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/game_lv2.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/game_lv3.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/talk_lv1.tres" id="5"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/talk_lv2.tres" id="6"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/talk_lv3.tres" id="7"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/song_lv1.tres" id="8"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/song_lv2.tres" id="9"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/song_lv3.tres" id="10"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/act_lv1.tres" id="11"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/act_lv2.tres" id="12"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/act_lv3.tres" id="13"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/tech_lv1.tres" id="14"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/tech_lv2.tres" id="15"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/nodes/tech_lv3.tres" id="16"]
+
+[resource]
+script = ExtResource("1")
+starting_skill_points = 2
+authored_max_level = 3
+skills = Array[Resource]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8"), ExtResource("9"), ExtResource("10"), ExtResource("11"), ExtResource("12"), ExtResource("13"), ExtResource("14"), ExtResource("15"), ExtResource("16")])

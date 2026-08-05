@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="未命名游戏"
-run/main_scene="res://scenes/pseudo_os/main.tscn"
+run/main_scene="res://scenes/game/main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
@@ -30,18 +30,24 @@ PromptManager="*res://autoload/prompt_manager.gd"
 KnowledgeBaseManager="*res://autoload/knowledge_base_manager.gd"
 AudioManager="*res://autoload/audio_manager.gd"
 GameState="*res://autoload/game_state.gd"
+StoryDirector="*res://autoload/story_director.gd"
+BrowserManager="*res://autoload/browser_manager.gd"
 MCPScreenshot="*res://addons/godot_mcp/mcp_screenshot_service.gd"
 MCPInputService="*res://addons/godot_mcp/mcp_input_service.gd"
 MCPGameInspector="*res://addons/godot_mcp/mcp_game_inspector_service.gd"
-StoryDirector="*res://autoload/story_director.gd"
-BrowserManager="*res://autoload/browser_manager.gd"
+TransitManager="*res://autoload/transit_manager.gd"
+LiveStreamManager="*res://scenes/autoload/live_stream_manager.tscn"
+CardLibraryManager="*res://scenes/autoload/card_library_manager.tscn"
+SkillTreeManager="*res://scenes/autoload/skill_tree_manager.tscn"
+StreamHistoryManager="*res://scenes/autoload/stream_history_manager.tscn"
+MaterialInventoryManager="*res://scenes/autoload/material_inventory_manager.tscn"
 
 [display]
 
-window/size/viewport_width=2560
-window/size/viewport_height=1440
-window/size/window_width_override=2560
-window/size/window_height_override=1440
+window/size/viewport_width=3840.0
+window/size/viewport_height=2160.0
+window/size/window_width_override=1920.0
+window/size/window_height_override=1080.0
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 display/window/dpi/allow_hidpi=true
@@ -49,6 +55,10 @@ display/window/dpi/allow_hidpi=true
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+
+[gui]
+
+theme/custom_font="res://Assets/fonts/AlibabaHealthFont2.0CN-85B.ttf"
 
 [rendering]
 

@@ -7,6 +7,9 @@ extends Resource
 ## 网页标题
 @export var title: String = ""
 
+## 浏览器标签页显示的站点图标。
+@export_file var icon_path: String = ""
+
 ## 网页摘要（搜索结果展示 + AI 生成参考）
 @export_multiline var hint: String = ""
 

@@ -23,4 +23,5 @@ emotion_slots = {
 }
 sprite_path_pattern = "res://Assets/images/characters/lu_yuanyuan/{outfit}/expression_{slot}.png"
 profile = "阮云柚的青梅，王牌虚拟主播与临时经纪人。关心是真的，控制也是真的。"
-display_offset = Vector2(0, 0.04)
+display_offset = Vector2(0, 0.3)
+display_scale = 1.45

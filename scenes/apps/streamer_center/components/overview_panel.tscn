@@ -1,0 +1,459 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/streamer_center/components/overview_panel.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/streamer_ability_radar.tscn" id="2_radar"]
+[ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="3_avatar"]
+[ext_resource type="Resource" path="res://resources/characters/ruan_yunyou.tres" id="4_channel_character"]
+
+[node name="OverviewPanel" type="ScrollContainer"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+script = ExtResource("1_script")
+channel_character = ExtResource("4_channel_character")
+
+[node name="PageMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 52
+theme_override_constants/margin_top = 38
+theme_override_constants/margin_right = 52
+theme_override_constants/margin_bottom = 52
+
+[node name="Content" type="VBoxContainer" parent="PageMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 24
+
+[node name="PageTitle" type="Label" parent="PageMargin/Content"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "频道总览"
+
+[node name="PageSubtitle" type="Label" parent="PageMargin/Content"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 24
+text = "查看频道表现、主播能力与观众构成。"
+
+[node name="ChannelPanel" type="PanelContainer" parent="PageMargin/Content"]
+custom_minimum_size = Vector2(0, 190)
+layout_mode = 2
+
+[node name="ChannelMargin" type="MarginContainer" parent="PageMargin/Content/ChannelPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="ChannelRow" type="HBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin"]
+layout_mode = 2
+theme_override_constants/separation = 26
+
+[node name="ChannelAvatar" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow" instance=ExtResource("3_avatar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(112, 112)
+layout_mode = 2
+size_flags_vertical = 4
+fallback_text = "V"
+corner_radius = 0.5
+outline_width = 0.025
+outline_color = Color(0.125, 0.157, 0.227, 1)
+
+[node name="ChannelIdentity" type="VBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow"]
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 7
+
+[node name="ChannelName" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "未设置艺名"
+
+[node name="ChannelMeta" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelIdentity"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 22
+text = "频道运营第 1 天"
+
+[node name="ChannelBadge" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelIdentity"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 22
+text = "新人主播"
+
+[node name="ChannelDivider" type="ColorRect" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow"]
+custom_minimum_size = Vector2(2, 0)
+layout_mode = 2
+color = Color(0.82, 0.867, 0.925, 1)
+
+[node name="ChannelMetrics" type="HBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 18
+
+[node name="FollowerMetric" type="VBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="FollowerValue" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/FollowerMetric"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 36
+text = "0"
+horizontal_alignment = 1
+
+[node name="FollowerLabel" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/FollowerMetric"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 21
+text = "关注者"
+horizontal_alignment = 1
+
+[node name="StreamMetric" type="VBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="StreamCountValue" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/StreamMetric"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 36
+text = "0"
+horizontal_alignment = 1
+
+[node name="StreamLabel" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/StreamMetric"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 21
+text = "已完成直播"
+horizontal_alignment = 1
+
+[node name="CardMetric" type="VBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="CardCountValue" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/CardMetric"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 36
+text = "0 / 0"
+horizontal_alignment = 1
+
+[node name="CardMetricLabel" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/CardMetric"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 21
+text = "已解锁卡牌"
+horizontal_alignment = 1
+
+[node name="SkillMetric" type="VBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 8
+
+[node name="SkillCountValue" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/SkillMetric"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 36
+text = "0 / 0"
+horizontal_alignment = 1
+
+[node name="SkillMetricLabel" type="Label" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics/SkillMetric"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 21
+text = "已掌握成长"
+horizontal_alignment = 1
+
+[node name="DashboardRow" type="HBoxContainer" parent="PageMargin/Content"]
+custom_minimum_size = Vector2(0, 680)
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="AbilityPanel" type="PanelContainer" parent="PageMargin/Content/DashboardRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="AbilityMargin" type="MarginContainer" parent="PageMargin/Content/DashboardRow/AbilityPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 30
+
+[node name="AbilityContent" type="VBoxContainer" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="AbilityTitle" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "主播能力"
+
+[node name="AbilitySubtitle" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 22
+text = "五系技能 · 最高 Lv.5"
+
+[node name="AbilityBody" type="HBoxContainer" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 20
+
+[node name="AbilityRadar" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody" instance=ExtResource("2_radar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(580, 500)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="AbilityData" type="VBoxContainer" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 16
+
+[node name="AbilityValuesTitle" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 26
+text = "能力值"
+
+[node name="AbilityValues" type="GridContainer" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData"]
+layout_mode = 2
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 16
+columns = 2
+
+[node name="GamingLabel" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "游戏力"
+
+[node name="GamingValue" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+text = "Lv.1 / 5"
+horizontal_alignment = 2
+
+[node name="TalkLabel" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "杂谈力"
+
+[node name="TalkValue" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+text = "Lv.1 / 5"
+horizontal_alignment = 2
+
+[node name="SingingLabel" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "歌唱力"
+
+[node name="SingingValue" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+text = "Lv.1 / 5"
+horizontal_alignment = 2
+
+[node name="VarietyLabel" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "演出力"
+
+[node name="VarietyValue" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+text = "Lv.1 / 5"
+horizontal_alignment = 2
+
+[node name="VoiceLabel" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "杂项力"
+
+[node name="VoiceValue" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData/AbilityValues"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+text = "Lv.1 / 5"
+horizontal_alignment = 2
+
+[node name="AbilityDivider" type="ColorRect" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.82, 0.867, 0.925, 1)
+
+[node name="AbilityHint" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent/AbilityBody/AbilityData"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+theme_override_font_sizes/font_size = 22
+text = "当前优势：游戏力"
+autowrap_mode = 2
+
+[node name="SideColumn" type="VBoxContainer" parent="PageMargin/Content/DashboardRow"]
+custom_minimum_size = Vector2(570, 0)
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="AudiencePanel" type="PanelContainer" parent="PageMargin/Content/DashboardRow/SideColumn"]
+custom_minimum_size = Vector2(0, 320)
+layout_mode = 2
+
+[node name="AudienceMargin" type="MarginContainer" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 26
+
+[node name="AudienceContent" type="VBoxContainer" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="AudienceTitle" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "观众构成"
+
+[node name="FanBar" type="HBoxContainer" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent"]
+custom_minimum_size = Vector2(0, 44)
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="FanR" type="ColorRect" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent/FanBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.565, 0.635, 0.729, 1)
+
+[node name="FanM" type="ColorRect" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent/FanBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.373, 0.643, 0.933, 1)
+
+[node name="FanW" type="ColorRect" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent/FanBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.929, 0.451, 0.624, 1)
+
+[node name="FanC" type="ColorRect" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent/FanBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.31, 0.765, 0.647, 1)
+
+[node name="FanB" type="ColorRect" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent/FanBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+color = Color(0.251, 0.278, 0.337, 1)
+
+[node name="FanBreakdown" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 20
+text = "路人 100%　男粉 0%　女粉 0%　核心粉 0%　黑粉 0%"
+autowrap_mode = 2
+
+[node name="FanHint" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/AudiencePanel/AudienceMargin/AudienceContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+theme_override_font_sizes/font_size = 21
+text = "大多数观众仍在观望。"
+autowrap_mode = 2
+
+[node name="GrowthPanel" type="PanelContainer" parent="PageMargin/Content/DashboardRow/SideColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="GrowthMargin" type="MarginContainer" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 26
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 26
+
+[node name="GrowthContent" type="VBoxContainer" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="GrowthTitle" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "成长摘要"
+
+[node name="CardRow" type="HBoxContainer" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent"]
+layout_mode = 2
+
+[node name="CardLabel" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/CardRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "卡牌库"
+
+[node name="CardProgress" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/CardRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+text = "已解锁 0 / 0 张"
+horizontal_alignment = 2
+
+[node name="SkillRow" type="HBoxContainer" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent"]
+layout_mode = 2
+
+[node name="SkillLabel" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/SkillRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "成长路线"
+
+[node name="SkillProgress" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/SkillRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+text = "已掌握 0 / 0 项"
+horizontal_alignment = 2
+
+[node name="HistoryRow" type="HBoxContainer" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent"]
+layout_mode = 2
+
+[node name="HistoryLabel" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/HistoryRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "直播记录"
+
+[node name="HistoryProgress" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/HistoryRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+text = "暂无直播记录"
+horizontal_alignment = 2

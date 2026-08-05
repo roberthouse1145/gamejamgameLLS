@@ -1,0 +1,204 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/streamer_center/components/stream_history_panel.gd" id="1_script"]
+
+[node name="StreamHistoryPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="PageMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 52
+theme_override_constants/margin_top = 42
+theme_override_constants/margin_right = 52
+theme_override_constants/margin_bottom = 52
+
+[node name="Page" type="VBoxContainer" parent="PageMargin"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="Title" type="Label" parent="PageMargin/Page"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "直播记录"
+
+[node name="Subtitle" type="Label" parent="PageMargin/Page"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 24
+text = "回看每场节目单、结算结果与观众变化。"
+
+[node name="ContentStack" type="Control" parent="PageMargin/Page"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="EmptyState" type="PanelContainer" parent="PageMargin/Page/ContentStack"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"HeroPanel"
+
+[node name="EmptyContent" type="VBoxContainer" parent="PageMargin/Page/ContentStack/EmptyState"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="EmptyTitle" type="Label" parent="PageMargin/Page/ContentStack/EmptyState/EmptyContent"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 34
+text = "还没有完成过直播"
+horizontal_alignment = 1
+
+[node name="EmptyDescription" type="Label" parent="PageMargin/Page/ContentStack/EmptyState/EmptyContent"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 25
+text = "完成直播后，本场节目单、收益与观众变化会保存在这里。"
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="HistoryBody" type="HBoxContainer" parent="PageMargin/Page/ContentStack"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 28
+
+[node name="ListPanel" type="PanelContainer" parent="PageMargin/Page/ContentStack/HistoryBody"]
+custom_minimum_size = Vector2(520, 0)
+layout_mode = 2
+
+[node name="ListMargin" type="MarginContainer" parent="PageMargin/Page/ContentStack/HistoryBody/ListPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="ListScroll" type="ScrollContainer" parent="PageMargin/Page/ContentStack/HistoryBody/ListPanel/ListMargin"]
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="RecordList" type="VBoxContainer" parent="PageMargin/Page/ContentStack/HistoryBody/ListPanel/ListMargin/ListScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 12
+
+[node name="DetailPanel" type="PanelContainer" parent="PageMargin/Page/ContentStack/HistoryBody"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"HeroPanel"
+
+[node name="DetailMargin" type="MarginContainer" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 38
+theme_override_constants/margin_top = 34
+theme_override_constants/margin_right = 38
+theme_override_constants/margin_bottom = 34
+
+[node name="Detail" type="VBoxContainer" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="DetailTitle" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 38
+text = "直播标题"
+autowrap_mode = 2
+
+[node name="DetailMeta" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 24
+text = "第 1 天 · 上午"
+
+[node name="DetailSetup" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+text = "形象：　素材："
+
+[node name="DetailCards" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+text = "节目单："
+autowrap_mode = 2
+
+[node name="Divider" type="ColorRect" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+color = Color(0.761, 0.827, 0.91, 1)
+
+[node name="Metrics" type="GridContainer" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+layout_mode = 2
+theme_override_constants/h_separation = 22
+theme_override_constants/v_separation = 12
+columns = 4
+
+[node name="HeatLabel" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+layout_mode = 2
+text = "热度"
+[node name="RevenueLabel" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+layout_mode = 2
+text = "收益"
+[node name="FansLabel" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+layout_mode = 2
+text = "粉丝"
+[node name="StressLabel" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+layout_mode = 2
+text = "压力"
+[node name="HeatValue" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "0"
+[node name="RevenueValue" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "¥0"
+[node name="FansValue" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "+0"
+[node name="StressValue" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail/Metrics"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "+0"
+
+[node name="SummaryTitle" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "本场回顾"
+
+[node name="DetailSummary" type="Label" parent="PageMargin/Page/ContentStack/HistoryBody/DetailPanel/DetailMargin/Detail"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+text = "这场直播没有留下额外备注。"
+autowrap_mode = 2

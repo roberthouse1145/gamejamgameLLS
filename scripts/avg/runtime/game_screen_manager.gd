@@ -21,7 +21,7 @@ var _screen_root: Control = null
 ## 父容器（由外部传入）
 var _parent: Control = null
 ## AVG 设计分辨率
-var _project_resolution: Vector2 = Vector2(2560, 1440)
+var _project_resolution: Vector2 = Vector2(3840, 2160)
 ## 游戏本体 AVG 数据
 var _game_data: Resource = null
 ## 存档管理器

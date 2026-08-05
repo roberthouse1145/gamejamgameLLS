@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/streamer_center/components/skill_tree_viewport.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/skill_tree_canvas.tscn" id="2_canvas"]
+
+[node name="SkillTreeViewport" type="Control"]
+clip_contents = true
+mouse_filter = 0
+script = ExtResource("1_script")
+
+[node name="SkillCanvas" parent="." instance=ExtResource("2_canvas")]
+layout_mode = 0

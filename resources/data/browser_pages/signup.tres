@@ -1,0 +1,123 @@
+[gd_resource type="Resource" script_class="WebPageResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://signup"
+title = "星茫网络 - 新人电子签约与入驻登记表"
+icon_path = "res://Assets/images/browser_ui/site_icon_xingmang.png"
+hint = "星茫网络虚拟演艺人员候选人登记。"
+content = "::: col fill sep=0 bg=#F3F5F7
+::: section bg=#102A43 pad=16 max_width=2100
+::: row fill sep=28
+[候选人服务中心](color:#DCE8F4)
+::: col fill :::
+[帮助中心](color:#B8CADD)
+[服务热线 400-826-0714](color:#B8CADD)
+:::
+:::
+::: section bg=#FFFFFF pad=30 max_width=2100
+::: row fill sep=24
+![星茫网络](image:src=res://Assets/images/browser_ui/site_icon_xingmang.png width=72 height=72)
+::: col fill sep=1
+## [星茫网络](color:#173A5E)
+#### [XINGMANG NETWORK](color:#74859A)
+:::
+[录用通知](url:browser://offer-letter color=#4E6074 size=26)
+[候选人简历](url:browser://resume color=#4E6074 size=26)
+[入驻登记](url:browser://signup color=#173A5E size=26)
+:::
+:::
+::: section bg=#E8EFF6 pad=54 max_width=2100
+::: col fill sep=10
+#### [候选人中心 / 入驻办理](color:#60758C)
+# 新人电子签约与入驻登记
+请核对录用信息并填写内容方向问卷。提交结果将用于实习期账号定位、首播策划与基础培训安排。
+:::
+:::
+::: section bg=#F3F5F7 pad=52 max_width=2100
+::: row fill sep=30
+::: card width=360 bg=#FFFFFF border=#D4DCE6 corner_radius=4 pad=28 shadow=false border_width=1 sep=18
+## 办理进度
+---
+[01　录用通知](color:#52667C)
+[02　资料确认](color:#52667C)
+[03　协议阅读](color:#52667C)
+[04　签约提交](color:#173A5E)
+---
+#### [候选人编号](color:#7B8998)
+XM-2026-0814-0126
+#### [确认期限](color:#7B8998)
+2026 年 08 月 07 日 18:00
+:::
+::: card fill bg=#FFFFFF border=#D4DCE6 corner_radius=4 pad=42 shadow=false border_width=1 sep=24
+## 候选人及录用信息
+[请确认以下资料与录用通知书一致。资料存在错误时，请暂停提交并联系人力资源专员。](color:#687A90)
+
+::: table cols=4
+::: cell bg=#F3F6F9 pad=18
+#### [候选人](color:#65768A)
+:::
+::: cell pad=18
+阮云柚
+:::
+::: cell bg=#F3F6F9 pad=18
+#### [拟聘岗位](color:#65768A)
+:::
+::: cell pad=18
+虚拟演艺人员
+:::
+::: cell bg=#F3F6F9 pad=18
+#### [合作阶段](color:#65768A)
+:::
+::: cell pad=18
+新人实习期
+:::
+::: cell bg=#F3F6F9 pad=18
+#### [实习周期](color:#65768A)
+:::
+::: cell pad=18
+90 个自然日
+:::
+:::
+
+[查看候选人归档简历：阮云柚_个人简历.pdf](url:browser://resume color=#2F6699 size=27)
+
+---
+::: form action=submit_story_form sep=20
+## 公开资料
+[公开艺名将显示在直播页面、粉丝互动及公司公开资料中，提交后由经纪团队统一维护。](color:#687A90)
+input field=vtuber_name placeholder=请输入公开艺名 required max_length=16 label=公开艺名 required_message=请输入公开艺名 max_length_message=公开艺名最长16个字符
+
+---
+## 内容方向问卷
+#### 最容易让你聊到忘记时间的是？
+select field=content_focus options=\"games:电子游戏|anime:动画与声优|music:唱歌与声音内容|variety:网络热点与整活\" placeholder=请选择一项 required label=内容兴趣 required_message=请选择最熟悉的内容方向
+[用于首播选题与内容组分配。](color:#7C899A)
+#### 第一次开播时，你更接近哪种状态？
+select field=on_camera_style options=\"calm:安静陪伴，熟悉后才会多说|reactive:反应直接，情绪很容易写在脸上|analytical:先想清楚，再认真讲给观众听\" placeholder=请选择一项 required label=镜头表现 required_message=请选择更接近你的镜头状态
+[运营团队将据此安排开场形式。](color:#7C899A)
+#### 准备一场直播时，你通常会？
+select field=preparation_style options=\"research:提前查资料并列出要点|improvise:记住大方向，现场随机应变|technical:先把设备、画面和软件折腾明白\" placeholder=请选择一项 required label=准备习惯 required_message=请选择你的准备习惯
+[用于确定入职培训的优先顺序。](color:#7C899A)
+
+---
+## 协议确认
+[《虚拟演艺人员电子入驻协议》（XM-TALENT-2026.07）](url:browser://contract color=#5E6D7D size=22)
+checkbox field=agree text=\"我已阅读并同意协议全部条款，确认提交电子签约\" required required_message=请先勾选协议确认
+[确认签约并提交](action:submit_story_form story_key=signed story_value=true story_form_fields=vtuber_name,content_focus,on_camera_style,preparation_style success_url=browser://signup-success success_status=签约成功 bg_color=#245782 color=#FFFFFF)
+:::
+:::
+:::
+:::
+::: section bg=#102A43 pad=34 max_width=2100
+::: col fill sep=6
+[center][星茫网络文化科技有限公司　人力资源中心](color:#DCE7F1)[/center]
+[center][候选人服务专线 400-826-0714　hr@xingmang.cn](color:#AFC1D3)[/center]
+[center][Copyright © 2026 XINGMANG NETWORK　京ICP备20260826号-1](color:#879CB0)[/center]
+:::
+:::
+:::"
+searchable = false
+linked_urls = PackedStringArray("browser://offer-letter", "browser://resume", "browser://contract", "browser://signup-success")

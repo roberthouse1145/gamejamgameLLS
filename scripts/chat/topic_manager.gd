@@ -5,10 +5,15 @@ class_name TopicManager extends Node
 const ChatRunnerScene = preload("res://scenes/chat/chat_runner.tscn")
 const AIServiceClass = preload("res://scripts/llm/AIService.gd")
 const AIConfigManagerClass = preload("res://scripts/llm/ai_config_manager.gd")
+const GENERATION_IDLE: String = "idle"
+const GENERATION_RUNNING: String = "running"
+const GENERATION_WAITING_EXTERNAL: String = "waiting_external"
+const GENERATION_READY: String = "ready"
+const GENERATION_FAILED: String = "failed"
 
 signal topic_generation_requested(topic: ChatTopic, resolved_prompt: String)
 signal topic_activated(topic: ChatTopic)
-signal topic_message_emitted(topic: ChatTopic, speaker_id: String, text: String, is_player: bool)
+signal topic_message_emitted(topic: ChatTopic, speaker_id: String, text: String, is_player: bool, card: Dictionary)
 signal topic_choices_presented(topic: ChatTopic, choices: Array)
 signal topic_completed(topic: ChatTopic, result: Dictionary)
 signal topic_cancelled(topic: ChatTopic, reason: String)
@@ -25,7 +30,14 @@ var _runners: Dictionary = {}
 var _generation_prompts: Dictionary = {}
 var _llm_service: AIService = null
 var _llm_available: bool = false
-var _request_channels: Dictionary = {}
+## request_id -> {channel_id, activation_id}。LLM 返回绑定到具体 Topic 激活任务，而不是频道。
+var _request_entries: Dictionary = {}
+var _active_entries: Dictionary = {}
+var _activation_counter: int = 0
+## channel_id -> Array[entry]。生成可并行，ChatRunner 播放严格按激活顺序进行。
+var _pending_topics: Dictionary = {}
+## 完成/取消信号派发期间也视为占用，避免回调中的新 Topic 抢到队列前面。
+var _closing_channels: Dictionary = {}
 
 
 func _ready() -> void:
@@ -51,16 +63,45 @@ func activate_topic(
 	if topic_id.is_empty() or channel_id.is_empty():
 		push_warning("TopicManager: topic_id and channel_id are required")
 		return false
-	if active_topics.has(channel_id):
-		push_warning("TopicManager: Channel '%s' already has an active topic" % channel_id)
-		return false
+	var entry: Dictionary = _make_topic_entry(topic, runtime_context, allowed_speakers)
+	if active_topics.has(channel_id) or _closing_channels.has(channel_id):
+		_queue_topic(channel_id, entry)
+		if topic.mode == ChatTopic.Mode.LLM:
+			_begin_llm_generation(entry)
+		return true
+	return _activate_topic_entry(entry)
 
-	var variable_paths: Array[String] = _collect_leaf_paths(runtime_context)
-	active_topics[channel_id] = topic
-	_sessions[channel_id] = {
+
+func _make_topic_entry(
+	topic: ChatTopic,
+	runtime_context: Dictionary,
+	allowed_speakers: Array[String]
+) -> Dictionary:
+	_activation_counter += 1
+	return {
+		"activation_id": _activation_counter,
+		"topic": topic,
 		"context": runtime_context.duplicate(true),
 		"speakers": allowed_speakers.duplicate(),
-		"variable_paths": variable_paths,
+		"variable_paths": _collect_leaf_paths(runtime_context),
+		"generation_state": GENERATION_IDLE,
+		"generation_prompt": "",
+		"generated_script": "",
+		"generation_error": "",
+	}
+
+
+func _activate_topic_entry(entry: Dictionary) -> bool:
+	var topic: ChatTopic = entry.get("topic") as ChatTopic
+	if topic == null:
+		return false
+	var channel_id: String = topic.channel_id.strip_edges()
+	active_topics[channel_id] = topic
+	_active_entries[channel_id] = entry
+	_sessions[channel_id] = {
+		"context": _dictionary_value(entry.get("context", {})),
+		"speakers": _string_array(entry.get("speakers", [])),
+		"variable_paths": _string_array(entry.get("variable_paths", [])),
 	}
 
 	if topic.mode == ChatTopic.Mode.LOCAL:
@@ -72,25 +113,66 @@ func activate_topic(
 	if topic.prompt.strip_edges().is_empty():
 		_cancel_topic(topic, "LLM topic has no prompt")
 		return false
-	var resolved_prompt: String = _build_generation_prompt(topic)
-	_generation_prompts[channel_id] = resolved_prompt
-	topic_generation_requested.emit(topic, resolved_prompt)
-	if auto_request_llm and not _request_llm_generation(channel_id, resolved_prompt):
-		push_warning("TopicManager: chat_default AI is unavailable; waiting for submit_generated_script()")
-	return true
+	var generation_state: String = str(entry.get("generation_state", GENERATION_IDLE))
+	match generation_state:
+		GENERATION_READY:
+			return _start_runner(topic, str(entry.get("generated_script", "")))
+		GENERATION_FAILED:
+			_cancel_topic(topic, str(entry.get("generation_error", "LLM generation failed")))
+			return false
+		GENERATION_RUNNING, GENERATION_WAITING_EXTERNAL:
+			_generation_prompts[channel_id] = str(entry.get("generation_prompt", ""))
+			return true
+		_:
+			return _begin_llm_generation(entry)
+
+
+func _queue_topic(
+	channel_id: String,
+	entry: Dictionary
+) -> void:
+	var pending: Array = _pending_topics.get(channel_id, [])
+	pending.append(entry)
+	_pending_topics[channel_id] = pending
+
+
+func _start_next_queued_topic(channel_id: String) -> void:
+	var pending: Array = _pending_topics.get(channel_id, [])
+	if pending.is_empty():
+		_pending_topics.erase(channel_id)
+		return
+	var entry: Dictionary = pending.pop_front()
+	if pending.is_empty():
+		_pending_topics.erase(channel_id)
+	else:
+		_pending_topics[channel_id] = pending
+	var topic: ChatTopic = entry.get("topic") as ChatTopic
+	if topic == null:
+		_start_next_queued_topic(channel_id)
+		return
+	_activate_topic_entry(entry)
 
 
 ## LLM 调用方收到 topic_generation_requested 后，将模型返回的完整 DSL 交回这里。
 func submit_generated_script(channel_id: String, generated_script: String) -> bool:
 	var topic: ChatTopic = get_active_topic(channel_id)
 	if topic == null or topic.mode != ChatTopic.Mode.LLM:
+		print("[TopicManager] submit_generated_script rejected: channel=%s topic=%s mode_ok=%s" % [channel_id, str(topic != null), str(topic != null and topic.mode == ChatTopic.Mode.LLM)])
 		return false
 	if _runners.has(channel_id):
+		print("[TopicManager] submit_generated_script rejected: channel=%s already has a runner" % channel_id)
 		return false
-	if generated_script.strip_edges().is_empty():
-		_cancel_topic(topic, "LLM returned an empty Chat DSL")
+	var entry: Dictionary = _active_entries.get(channel_id, {})
+	return _store_generated_script(entry, generated_script)
+
+
+## 将模型返回值绑定到具体 ChatTopic。排队中的 LLM Topic 应使用此入口，避免同频道误投。
+func submit_generated_topic_script(topic: ChatTopic, generated_script: String) -> bool:
+	var entry: Dictionary = _find_entry_for_topic(topic)
+	if entry.is_empty():
+		print("[TopicManager] submit_generated_topic_script rejected: topic is not active or queued")
 		return false
-	return _start_runner(topic, generated_script)
+	return _store_generated_script(entry, generated_script)
 
 
 ## UI 播放完当前消息后调用，执行到下一条消息、选项或 END。
@@ -139,7 +221,11 @@ func reset_runtime_state(clear_history: bool = false) -> void:
 	_runners.clear()
 	_sessions.clear()
 	_generation_prompts.clear()
-	_request_channels.clear()
+	_request_entries.clear()
+	_active_entries.clear()
+	_activation_counter = 0
+	_pending_topics.clear()
+	_closing_channels.clear()
 	active_topics.clear()
 	if clear_history:
 		topic_history.clear()
@@ -160,16 +246,18 @@ func _start_runner(topic: ChatTopic, source: String) -> bool:
 	runner.completed.connect(_on_runner_completed.bind(topic))
 	runner.failed.connect(_on_runner_failed.bind(topic))
 	topic_activated.emit(topic)
-	return runner.start(
+	var started: bool = runner.start(
 		source,
 		_dictionary_value(session.get("context", {})),
 		_string_array(session.get("speakers", [])),
 		_string_array(session.get("variable_paths", []))
 	)
+	print("[TopicManager] runner start: channel=%s topic=%s started=%s" % [channel_id, topic.topic_id, str(started)])
+	return started
 
 
-func _on_message_emitted(speaker_id: String, text: String, is_player: bool, topic: ChatTopic) -> void:
-	topic_message_emitted.emit(topic, speaker_id, text, is_player)
+func _on_message_emitted(speaker_id: String, text: String, is_player: bool, card: Dictionary, topic: ChatTopic) -> void:
+	topic_message_emitted.emit(topic, speaker_id, text, is_player, card)
 
 
 func _on_choices_presented(choices: Array, topic: ChatTopic) -> void:
@@ -184,49 +272,127 @@ func _on_runner_completed(result: Dictionary, topic: ChatTopic) -> void:
 		"result": result.duplicate(true),
 		"completed_at": Time.get_unix_time_from_system(),
 	})
+	_closing_channels[channel_id] = true
 	_cleanup_channel(channel_id)
 	topic_completed.emit(topic, result)
+	_closing_channels.erase(channel_id)
+	_start_next_queued_topic(channel_id)
 
 
 func _on_runner_failed(errors: Array, topic: ChatTopic) -> void:
+	print("[TopicManager] runner failed: topic=%s channel=%s errors=%s" % [topic.topic_id, topic.channel_id, str(errors)])
 	_cancel_topic(topic, "\n".join(_string_array(errors)))
 
 
-func _request_llm_generation(channel_id: String, resolved_prompt: String) -> bool:
+func _begin_llm_generation(entry: Dictionary) -> bool:
+	var topic: ChatTopic = entry.get("topic") as ChatTopic
+	if topic == null:
+		return false
+	if topic.prompt.strip_edges().is_empty():
+		return _store_generation_failure(entry, "LLM topic has no prompt")
+	var generation_state: String = str(entry.get("generation_state", GENERATION_IDLE))
+	if generation_state != GENERATION_IDLE:
+		return generation_state != GENERATION_FAILED
+
+	var resolved_prompt: String = _build_generation_prompt(
+		topic,
+		_dictionary_value(entry.get("context", {})),
+		_string_array(entry.get("speakers", [])),
+		_string_array(entry.get("variable_paths", []))
+	)
+	if resolved_prompt.strip_edges().is_empty():
+		return _store_generation_failure(entry, "LLM generation prompt is empty")
+
+	entry["generation_prompt"] = resolved_prompt
+	entry["generation_state"] = GENERATION_RUNNING
+	_generation_prompts[topic.channel_id] = resolved_prompt
+	topic_generation_requested.emit(topic, resolved_prompt)
+	if str(entry.get("generation_state", GENERATION_IDLE)) == GENERATION_READY:
+		return true
+	if auto_request_llm and _request_llm_generation(entry, resolved_prompt):
+		return true
+	entry["generation_state"] = GENERATION_WAITING_EXTERNAL
+	return true
+
+
+func _request_llm_generation(entry: Dictionary, resolved_prompt: String) -> bool:
+	var topic: ChatTopic = entry.get("topic") as ChatTopic
+	if topic == null:
+		return false
 	if not _llm_available or _llm_service == null or resolved_prompt.strip_edges().is_empty():
+		print("[TopicManager] LLM generation skipped: available=%s prompt_len=%d" % [str(_llm_available), resolved_prompt.length()])
 		return false
 	var request_id: String = _llm_service.chat_simple(resolved_prompt)
 	if request_id.is_empty():
+		print("[TopicManager] LLM generation failed to create request for channel '%s'" % topic.channel_id)
 		return false
-	_request_channels[request_id] = channel_id
+	_request_entries[request_id] = {
+		"channel_id": topic.channel_id,
+		"activation_id": int(entry.get("activation_id", 0)),
+	}
+	print("[TopicManager] LLM request sent: request_id=%s channel=%s prompt_len=%d" % [request_id, topic.channel_id, resolved_prompt.length()])
 	return true
 
 
 func _on_llm_request_completed(request_id: String, response: Dictionary) -> void:
-	if not _request_channels.has(request_id):
+	if not _request_entries.has(request_id):
+		print("[TopicManager] LLM response ignored: request_id=%s not tracked (active=%s)" % [request_id, str(_request_entries.keys())])
 		return
-	var channel_id: String = str(_request_channels[request_id])
-	_request_channels.erase(request_id)
+	var request_entry: Dictionary = _dictionary_value(_request_entries[request_id])
+	_request_entries.erase(request_id)
+	var channel_id: String = str(request_entry.get("channel_id", ""))
+	var entry: Dictionary = _find_entry(channel_id, int(request_entry.get("activation_id", 0)))
+	if entry.is_empty():
+		return
 	var generated_script: String = AIServiceClass.extract_content(response).strip_edges()
-	if generated_script.is_empty():
-		var topic: ChatTopic = get_active_topic(channel_id)
-		if topic != null:
-			_cancel_topic(topic, "LLM returned an empty Chat DSL")
-		return
-	submit_generated_script(channel_id, generated_script)
+	print("[TopicManager] LLM response received: request_id=%s channel=%s script_len=%d" % [request_id, channel_id, generated_script.length()])
+	_store_generated_script(entry, generated_script)
 
 
 func _on_llm_request_failed(request_id: String, error: String, _error_code: int) -> void:
-	if not _request_channels.has(request_id):
+	if not _request_entries.has(request_id):
 		return
-	var channel_id: String = str(_request_channels[request_id])
-	_request_channels.erase(request_id)
-	var topic: ChatTopic = get_active_topic(channel_id)
-	if topic != null:
-		_cancel_topic(topic, error)
+	var request_entry: Dictionary = _dictionary_value(_request_entries[request_id])
+	_request_entries.erase(request_id)
+	var entry: Dictionary = _find_entry(
+		str(request_entry.get("channel_id", "")),
+		int(request_entry.get("activation_id", 0))
+	)
+	if not entry.is_empty():
+		_store_generation_failure(entry, error)
+
+
+func _store_generated_script(entry: Dictionary, generated_script: String) -> bool:
+	var topic: ChatTopic = entry.get("topic") as ChatTopic
+	if topic == null or topic.mode != ChatTopic.Mode.LLM:
+		return false
+	if _is_entry_active(entry) and _runners.has(topic.channel_id):
+		return false
+	if generated_script.strip_edges().is_empty():
+		return _store_generation_failure(entry, "LLM returned an empty Chat DSL")
+	entry["generated_script"] = generated_script.strip_edges()
+	entry["generation_state"] = GENERATION_READY
+	_erase_requests_for_activation(int(entry.get("activation_id", 0)))
+	if not _is_entry_active(entry):
+		return true
+	var started: bool = _start_runner(topic, str(entry.get("generated_script", "")))
+	print("[TopicManager] generated DSL ready: channel=%s runner_started=%s" % [topic.channel_id, str(started)])
+	return started
+
+
+func _store_generation_failure(entry: Dictionary, error: String) -> bool:
+	entry["generation_state"] = GENERATION_FAILED
+	entry["generation_error"] = error
+	_erase_requests_for_activation(int(entry.get("activation_id", 0)))
+	if _is_entry_active(entry):
+		var topic: ChatTopic = entry.get("topic") as ChatTopic
+		if topic != null:
+			_cancel_topic(topic, error)
+	return false
 
 
 func _cancel_topic(topic: ChatTopic, reason: String) -> void:
+	print("[TopicManager] topic cancelled: topic=%s channel=%s reason=%s" % [topic.topic_id, topic.channel_id, reason])
 	var channel_id: String = topic.channel_id
 	topic_history.append({
 		"topic_id": topic.topic_id,
@@ -235,30 +401,83 @@ func _cancel_topic(topic: ChatTopic, reason: String) -> void:
 		"cancel_reason": reason,
 		"completed_at": Time.get_unix_time_from_system(),
 	})
+	_closing_channels[channel_id] = true
 	_cleanup_channel(channel_id)
 	topic_cancelled.emit(topic, reason)
+	_closing_channels.erase(channel_id)
+	_start_next_queued_topic(channel_id)
 
 
 func _cleanup_channel(channel_id: String) -> void:
+	var active_entry: Dictionary = _active_entries.get(channel_id, {})
+	_erase_requests_for_activation(int(active_entry.get("activation_id", 0)))
 	var runner: ChatRunner = _runners.get(channel_id) as ChatRunner
 	if runner != null:
 		runner.queue_free()
 	_runners.erase(channel_id)
 	_sessions.erase(channel_id)
 	_generation_prompts.erase(channel_id)
+	_active_entries.erase(channel_id)
 	active_topics.erase(channel_id)
-	for request_id: Variant in _request_channels.keys():
-		if str(_request_channels[request_id]) == channel_id:
-			_request_channels.erase(request_id)
 
 
-func _build_generation_prompt(topic: ChatTopic) -> String:
-	var session: Dictionary = _sessions.get(topic.channel_id, {})
-	var context: Dictionary = _dictionary_value(session.get("context", {}))
-	var speakers: Array[String] = _string_array(session.get("speakers", []))
+func _find_entry(channel_id: String, activation_id: int) -> Dictionary:
+	var active_entry: Dictionary = _active_entries.get(channel_id, {})
+	if int(active_entry.get("activation_id", 0)) == activation_id:
+		return active_entry
+	var pending: Array = _pending_topics.get(channel_id, [])
+	for value: Variant in pending:
+		if not value is Dictionary:
+			continue
+		var entry: Dictionary = value
+		if int(entry.get("activation_id", 0)) == activation_id:
+			return entry
+	return {}
+
+
+func _find_entry_for_topic(topic: ChatTopic) -> Dictionary:
+	if topic == null:
+		return {}
+	var channel_id: String = topic.channel_id.strip_edges()
+	var active_entry: Dictionary = _active_entries.get(channel_id, {})
+	if active_entry.get("topic") == topic:
+		return active_entry
+	var pending: Array = _pending_topics.get(channel_id, [])
+	for value: Variant in pending:
+		if not value is Dictionary:
+			continue
+		var entry: Dictionary = value
+		if entry.get("topic") == topic:
+			return entry
+	return {}
+
+
+func _is_entry_active(entry: Dictionary) -> bool:
+	var topic: ChatTopic = entry.get("topic") as ChatTopic
+	if topic == null:
+		return false
+	var active_entry: Dictionary = _active_entries.get(topic.channel_id, {})
+	return int(active_entry.get("activation_id", 0)) == int(entry.get("activation_id", -1))
+
+
+func _erase_requests_for_activation(activation_id: int) -> void:
+	if activation_id <= 0:
+		return
+	for request_id: Variant in _request_entries.keys():
+		var request_entry: Dictionary = _dictionary_value(_request_entries[request_id])
+		if int(request_entry.get("activation_id", 0)) == activation_id:
+			_request_entries.erase(request_id)
+
+
+func _build_generation_prompt(
+	topic: ChatTopic,
+	context: Dictionary,
+	allowed_speakers: Array[String],
+	paths: Array[String]
+) -> String:
+	var speakers: Array[String] = allowed_speakers.duplicate()
 	if "player" not in speakers:
 		speakers.append("player")
-	var paths: Array[String] = _string_array(session.get("variable_paths", []))
 	var base_vars: Dictionary = {
 		"topic_id": topic.topic_id,
 		"channel_id": topic.channel_id,

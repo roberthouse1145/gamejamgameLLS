@@ -8,6 +8,11 @@ extends RefCounted
 ##   ::: card [attrs]     ... :::
 ##   ::: grid cols=N      ... :::
 ##   ::: form [attrs]     ... :::
+##   ::: pdf [attrs]      ... :::
+##   ::: document [attrs] ... :::
+##   ::: table cols=N     ... :::
+##   ::: cell [attrs]     ... :::
+##   ::: section [attrs]  ... :::
 ##
 ## Line-level markdown:
 ##   # ## ### ####        headings -> label
@@ -20,13 +25,17 @@ extends RefCounted
 ##   blank line           paragraph break
 ##
 ## Inline markdown:
-##   **b**  *i*  ~~s~~    -> BBCode
+##   **emphasis**         -> plain text（网站统一使用常规字重）
+##   *i*  ~~s~~           -> BBCode
 ##   [txt](color:#xx)     -> [color=#xx]txt[/color]
 ##   [txt](url:..)        -> [url=..]txt[/url]
 
 
-const FENCE_TAGS: Array = ["row", "col", "card", "grid", "form"]
-const HEADING_SIZES: Dictionary = {1: 40, 2: 28, 3: 22, 4: 20}
+const FENCE_TAGS: Array = [
+	"row", "col", "card", "grid", "form",
+	"pdf", "document", "table", "cell", "section",
+]
+const HEADING_SIZES: Dictionary = {1: 54, 2: 42, 3: 34, 4: 30}
 
 
 static func parse(source: String) -> Dictionary:
@@ -387,7 +396,10 @@ static func _make_container_node(tag: String, attrs: Dictionary, children: Array
 			if children.size() == 1:
 				card_node["child"] = children[0]
 			elif children.size() > 1:
-				card_node["child"] = {"type": "vbox", "children": children}
+				var card_body: Dictionary = {"type": "vbox", "children": children}
+				if attrs.has("sep"):
+					card_body["separation"] = int(str(attrs["sep"]))
+				card_node["child"] = card_body
 			else:
 				card_node["child"] = {}
 			if attrs.has("pad"):
@@ -416,6 +428,47 @@ static func _make_container_node(tag: String, attrs: Dictionary, children: Array
 				form_node["separation"] = 12
 			form_node["fill"] = true
 			return form_node
+		"pdf":
+			var pdf_node: Dictionary = {"type": "pdf_viewer", "children": children}
+			for key: Variant in attrs.keys():
+				pdf_node[str(key)] = attrs[key]
+			return pdf_node
+		"document":
+			var document_node: Dictionary = {"type": "pdf_document"}
+			if children.size() == 1:
+				document_node["child"] = children[0]
+			else:
+				document_node["child"] = {"type": "vbox", "children": children, "separation": int(str(attrs.get("sep", 22)))}
+			for key: Variant in attrs.keys():
+				document_node[str(key)] = attrs[key]
+			return document_node
+		"table":
+			var table_node: Dictionary = {
+				"type": "table",
+				"children": children,
+				"columns": int(str(attrs.get("cols", 2))),
+			}
+			if attrs.has("width"):
+				table_node["width"] = int(str(attrs["width"]))
+			return table_node
+		"cell":
+			var cell_node: Dictionary = {"type": "table_cell"}
+			if children.size() == 1:
+				cell_node["child"] = children[0]
+			else:
+				cell_node["child"] = {"type": "vbox", "children": children, "separation": int(str(attrs.get("sep", 6)))}
+			for key: Variant in attrs.keys():
+				cell_node[str(key)] = attrs[key]
+			return cell_node
+		"section":
+			var section_node: Dictionary = {"type": "web_section"}
+			if children.size() == 1:
+				section_node["child"] = children[0]
+			else:
+				section_node["child"] = {"type": "vbox", "children": children, "separation": int(str(attrs.get("sep", 18)))}
+			for key: Variant in attrs.keys():
+				section_node[str(key)] = attrs[key]
+			return section_node
 	return {"type": "vbox", "children": children}
 
 
@@ -453,6 +506,10 @@ static func _apply_card_attrs(node: Dictionary, attrs: Dictionary) -> void:
 		node["corner_radius"] = int(str(attrs["corner_radius"]))
 	if attrs.has("align"):
 		node["alignment"] = str(attrs["align"])
+	if attrs.has("shadow"):
+		node["shadow"] = str(attrs["shadow"])
+	if attrs.has("border_width"):
+		node["border_width"] = int(str(attrs["border_width"]))
 
 
 # ── 缓冲区 flush ───────────────────────────────────────
@@ -464,7 +521,7 @@ static func _flush_paragraph(children: Array, buf: Array) -> void:
 	children.append({
 		"type": "rich_text",
 		"bbcode": bbcode,
-		"font_size": 20,
+		"font_size": 30,
 	})
 
 
@@ -481,7 +538,7 @@ static func _flush_list(children: Array, buf: Array, kind: String) -> void:
 	children.append({
 		"type": "rich_text",
 		"bbcode": "\n".join(PackedStringArray(lines)),
-		"font_size": 20,
+		"font_size": 30,
 	})
 
 
@@ -491,7 +548,7 @@ static func _make_quote_node(text: String) -> Dictionary:
 		"child": {
 			"type": "rich_text",
 			"bbcode": _apply_inline(text),
-			"font_size": 18,
+			"font_size": 27,
 		},
 	}
 
@@ -532,7 +589,7 @@ static func _replace_action_links(text: String) -> String:
 static func _replace_bold(text: String) -> String:
 	var regex := RegEx.new()
 	regex.compile("\\*\\*([^\\*]+)\\*\\*")
-	return regex.sub(text, "[b]$1[/b]", true)
+	return regex.sub(text, "$1", true)
 
 
 static func _replace_italic(text: String) -> String:

@@ -79,7 +79,7 @@ var _texture_loader: Callable = Callable()
 var _dialog_settings: Resource = null
 
 ## Design resolution provided by avg_scene_runner
-var _design_resolution: Vector2 = Vector2(2560, 1440)
+var _design_resolution: Vector2 = Vector2(3840, 2160)
 
 
 func _ready() -> void:

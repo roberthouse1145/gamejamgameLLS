@@ -1,0 +1,328 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/obs_live/components/live_stream_card.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/card_frame.png" id="2_frame"]
+[ext_resource type="Script" path="res://scripts/apps/obs_live/components/card_mood_edges.gd" id="3_edges"]
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_button"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_icon_area"]
+bg_color = Color(0.973, 0.984, 1, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.784, 0.835, 0.898, 0.9)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_hover"]
+draw_center = false
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.463, 0.663, 0.941, 0.9)
+corner_radius_top_left = 43
+corner_radius_top_right = 43
+corner_radius_bottom_right = 43
+corner_radius_bottom_left = 43
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_selected"]
+draw_center = false
+border_width_left = 6
+border_width_top = 6
+border_width_right = 6
+border_width_bottom = 6
+border_color = Color(0.898, 0.282, 0.427, 1)
+corner_radius_top_left = 43
+corner_radius_top_right = 43
+corner_radius_bottom_right = 43
+corner_radius_bottom_left = 43
+shadow_color = Color(0.898, 0.282, 0.427, 0.18)
+shadow_size = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stat"]
+bg_color = Color(1, 1, 1, 0.82)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.804, 0.855, 0.918, 0.9)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+content_margin_left = 13.0
+content_margin_top = 8.0
+content_margin_right = 13.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_locked"]
+bg_color = Color(0.949, 0.969, 0.992, 0.84)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.62, 0.671, 0.749, 0.9)
+corner_radius_top_left = 35
+corner_radius_top_right = 35
+corner_radius_bottom_right = 35
+corner_radius_bottom_left = 35
+
+[node name="LiveStreamCard" type="Button"]
+custom_minimum_size = Vector2(440, 600)
+offset_right = 440.0
+offset_bottom = 600.0
+mouse_default_cursor_shape = 2
+theme_override_styles/normal = SubResource("StyleBoxEmpty_button")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_button")
+theme_override_styles/pressed = SubResource("StyleBoxEmpty_button")
+theme_override_styles/disabled = SubResource("StyleBoxEmpty_button")
+theme_override_styles/focus = SubResource("StyleBoxFlat_hover")
+script = ExtResource("1_script")
+
+[node name="MoodEdges" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_edges")
+
+[node name="Background" type="NinePatchRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 66.0
+offset_top = 18.0
+offset_right = -66.0
+offset_bottom = -18.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_frame")
+patch_margin_left = 58
+patch_margin_top = 58
+patch_margin_right = 58
+patch_margin_bottom = 58
+
+[node name="ContentMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 69.0
+offset_top = 34.0
+offset_right = -69.0
+offset_bottom = -34.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Content" type="VBoxContainer" parent="ContentMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="TitleLabel" type="Label" parent="ContentMargin/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 48)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 0.9)
+theme_override_constants/outline_size = 3
+theme_override_font_sizes/font_size = 30
+text = "卡牌名称"
+horizontal_alignment = 1
+vertical_alignment = 1
+text_overrun_behavior = 3
+
+[node name="TitleDivider" type="ColorRect" parent="ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.78, 0.835, 0.91, 0.85)
+
+[node name="FamilyLabel" type="Label" parent="ContentMargin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
+theme_override_font_sizes/font_size = 20
+text = "杂谈系 · Tier 1 · 行为卡"
+horizontal_alignment = 1
+
+[node name="IconArea" type="PanelContainer" parent="ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 214)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_icon_area")
+
+[node name="IconMargin" type="MarginContainer" parent="ContentMargin/Content/IconArea"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 18
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 18
+
+[node name="MainIcon" type="TextureRect" parent="ContentMargin/Content/IconArea/IconMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="DescriptionLabel" type="Label" parent="ContentMargin/Content"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 120)
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+theme_override_colors/font_outline_color = Color(1, 1, 1, 0.8)
+theme_override_constants/line_spacing = 5
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 23
+text = "卡牌描述"
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="FooterDivider" type="ColorRect" parent="ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+color = Color(0.78, 0.835, 0.91, 0.85)
+
+[node name="Stats" type="HBoxContainer" parent="ContentMargin/Content"]
+custom_minimum_size = Vector2(0, 54)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="LeftStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stat")
+
+[node name="LeftStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/LeftStatPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 9
+
+[node name="LeftStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 34)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="LeftStatValue" type="Label" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
+theme_override_font_sizes/font_size = 26
+text = "0"
+vertical_alignment = 1
+
+[node name="StatSpacer" type="Control" parent="ContentMargin/Content/Stats"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="RightStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stat")
+
+[node name="RightStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/RightStatPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 9
+
+[node name="RightStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(34, 34)
+layout_mode = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RightStatValue" type="Label" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
+theme_override_font_sizes/font_size = 26
+text = "0%"
+vertical_alignment = 1
+
+[node name="HoverOutline" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_hover")
+
+[node name="SelectedOutline" type="Panel" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_selected")
+
+[node name="LockedOverlay" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = -16.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_locked")
+
+[node name="LockedLabel" type="Label" parent="LockedOverlay"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
+theme_override_font_sizes/font_size = 28
+text = "尚未解锁"
+horizontal_alignment = 1
+vertical_alignment = 1

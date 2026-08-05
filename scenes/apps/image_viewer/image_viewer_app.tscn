@@ -1,0 +1,129 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/image_viewer/image_viewer_app.gd" id="1_script"]
+
+[node name="ImageViewerApp" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.941176, 0.956863, 0.976471, 1)
+
+[node name="Layout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="Toolbar" type="PanelContainer" parent="Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 96)
+layout_mode = 2
+
+[node name="Margin" type="MarginContainer" parent="Layout/Toolbar"]
+layout_mode = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 15
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 15
+
+[node name="Row" type="HBoxContainer" parent="Layout/Toolbar/Margin"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="ImageTitle" type="Label" parent="Layout/Toolbar/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "图片查看器"
+theme_override_colors/font_color = Color(0.12549, 0.156863, 0.227451, 1)
+theme_override_font_sizes/font_size = 32
+vertical_alignment = 1
+
+[node name="FitButton" type="Button" parent="Layout/Toolbar/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "适应窗口"
+
+[node name="ActualSizeButton" type="Button" parent="Layout/Toolbar/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "100%"
+
+[node name="ZoomOutButton" type="Button" parent="Layout/Toolbar/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "缩小"
+
+[node name="ZoomInButton" type="Button" parent="Layout/Toolbar/Margin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "放大"
+
+[node name="CanvasMargin" type="MarginContainer" parent="Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="CanvasPanel" type="PanelContainer" parent="Layout/CanvasMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ImageScroll" type="ScrollContainer" parent="Layout/CanvasMargin/CanvasPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+horizontal_scroll_mode = 1
+vertical_scroll_mode = 1
+
+[node name="ImageCenter" type="CenterContainer" parent="Layout/CanvasMargin/CanvasPanel/ImageScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+
+[node name="ImageTexture" type="TextureRect" parent="Layout/CanvasMargin/CanvasPanel/ImageScroll/ImageCenter"]
+unique_name_in_owner = true
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EmptyLabel" type="Label" parent="Layout/CanvasMargin/CanvasPanel/ImageScroll/ImageCenter"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "从 LinkChat 打开一张图片"
+theme_override_colors/font_color = Color(0.65098, 0.698039, 0.784314, 1)
+theme_override_font_sizes/font_size = 30
+
+[node name="StatusMargin" type="MarginContainer" parent="Layout"]
+custom_minimum_size = Vector2(0, 60)
+layout_mode = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 12
+
+[node name="ImageStatus" type="Label" parent="Layout/StatusMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "未载入图片"
+theme_override_colors/font_color = Color(0.407843, 0.45098, 0.541176, 1)
+theme_override_font_sizes/font_size = 23
+vertical_alignment = 1

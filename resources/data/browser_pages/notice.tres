@@ -5,21 +5,28 @@
 [resource]
 script = ExtResource("1_script")
 url = "browser://notice"
-title = "浏览器公告"
-hint = "介绍虚拟网页基础设施的中性公告页。"
-content = "::: col fill sep=14
-# 浏览器公告
-
-这里展示由游戏内容提供的虚拟网页。网页可以使用 PageMark 编写，也可以由 LLM 在运行时生成。
-
-## 当前可用能力
-
-- 预制网页与链接跳转
-- 标签页与浏览历史
-- 表单和固定页面操作
-- 运行时生成网页
-
-[返回欢迎页](url:browser://welcome)
+title = "PixelNet - 服务公告"
+icon_path = "res://Assets/images/browser_ui/site_icon_pixelnet.png"
+hint = "PixelNet 浏览服务公告。"
+content = "::: col fill sep=24
+::: row fill bg=#16304F pad=24
+::: col fill sep=4
+## [PixelNet](color:#FFFFFF)
+#### [SERVICE CENTER](color:#AFC3DC)
+:::
+[返回首页](url:browser://welcome color=#D7E6F7)
+:::
+::: card fill bg=#FFFFFF border=#D5DFEC corner_radius=16 pad=30 sep=14
+#### [服务公告 · 2026 年 08 月 04 日](color:#708198)
+# 浏览服务运行正常
+PixelNet 当前各项网页访问与历史记录服务均运行正常。为保护账户安全，请勿在来源不明的页面中提交个人身份信息或支付凭据。
+---
+## 安全浏览提示
+- 提交表单前，请确认地址栏中的站点名称与页面用途一致
+- 涉及合同、支付或身份信息时，请完整阅读页面条款
+- 如页面长时间无响应，可关闭标签页后重新访问
+:::
+[返回 PixelNet 首页](url:browser://welcome color=#3F73C8)
 :::"
 searchable = true
 search_keywords = PackedStringArray("公告", "浏览器", "帮助", "notice")

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="StreamerSkill" load_steps=5 format=3]
+[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_tech.svg" id="3"]
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+effect_id = &"technical_accident_half"
+value = 0.5
+display_text = "技术事故概率减半"
+[resource]
+script = ExtResource("1")
+skill_id = &"tech_lv2"
+family = &"tech"
+level = 2
+display_name = "设备调校"
+description = "常见设备问题不再轻易毁掉直播。"
+icon = ExtResource("3")
+tree_position = Vector2i(1, 4)
+point_cost = 1
+required_skill_ids = Array[StringName]([&"tech_lv1"])
+rule_effects = Array[Resource]([SubResource("Effect")])

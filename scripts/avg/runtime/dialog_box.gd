@@ -48,7 +48,7 @@ var _dialog_settings: Resource = null  # AVGDialogSettings
 ## 变量管理器引用（用于 {var_name} 替换）
 var _variable_manager: RefCounted = null
 ## 项目分辨率
-var _project_resolution: Vector2 = Vector2(2560, 1440)
+var _project_resolution: Vector2 = Vector2(3840, 2160)
 ## 语音播放中
 var _voice_playing: bool = false
 ## 上次使用的位置参数（用于 resize 时重新布局）

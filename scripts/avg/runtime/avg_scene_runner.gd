@@ -192,7 +192,7 @@ var _save_manager: RefCounted = null  # AVGSaveManager
 var _screen_manager: RefCounted = null  # GameScreenManager
 
 ## 项目分辨率（设计分辨率）
-var _project_resolution: Vector2 = Vector2(2560, 1440)
+var _project_resolution: Vector2 = Vector2(3840, 2160)
 
 
 # =============================================================================

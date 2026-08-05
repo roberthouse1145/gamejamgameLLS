@@ -33,8 +33,8 @@ func _create_default_wallpaper() -> Texture2D:
 	gradient.colors = PackedColorArray([Color("#17233D"), Color("#4B6FA8")])
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
-	texture.width = 2560
-	texture.height = 1440
+	texture.width = 3840
+	texture.height = 2160
 	texture.fill_from = Vector2.ZERO
 	texture.fill_to = Vector2.ONE
 	return texture

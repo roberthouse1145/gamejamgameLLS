@@ -10,10 +10,10 @@ const T_TEXT_DIM: Color = Color("#6B7086")
 const T_ACCENT: Color = Color("#4A7CFF")
 const T_TOP_EDGE: Color = Color("#B8C4D8")
 
-const TASKBAR_HEIGHT: float = 76.0
-const START_BUTTON_MIN_WIDTH: float = 72.0
-const CLOCK_FONT_SIZE: int = 24
-const CLOCK_MIN_WIDTH: float = 240.0
+const TASKBAR_HEIGHT: float = 114.0
+const START_BUTTON_MIN_WIDTH: float = 108.0
+const CLOCK_FONT_SIZE: int = 36
+const CLOCK_MIN_WIDTH: float = 360.0
 
 signal window_button_clicked(window: Control)
 signal start_button_clicked
@@ -23,8 +23,8 @@ signal start_button_clicked
 var _window_buttons: Dictionary = {}
 var _last_displayed_minute: int = -1
 
-@export var button_min_width: float = 160.0
-@export var button_max_width: float = 240.0
+@export var button_min_width: float = 240.0
+@export var button_max_width: float = 360.0
 
 
 func _ready() -> void:
@@ -60,17 +60,17 @@ func _apply_theme() -> void:
 
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = T_SURFACE_ALT
-	panel_style.border_width_top = 2
+	panel_style.border_width_top = 3
 	panel_style.border_color = T_TOP_EDGE
 	panel_style.shadow_color = Color(0.44, 0.49, 0.58, 0.16)
-	panel_style.shadow_size = 10
-	panel_style.content_margin_left = 12
-	panel_style.content_margin_right = 12
+	panel_style.shadow_size = 15
+	panel_style.content_margin_left = 18
+	panel_style.content_margin_right = 18
 	add_theme_stylebox_override("panel", panel_style)
 
 	var root := get_node_or_null("HBoxContainer") as HBoxContainer
 	if root != null:
-		root.add_theme_constant_override("separation", 10)
+		root.add_theme_constant_override("separation", 15)
 
 	var start_btn := get_node_or_null("HBoxContainer/StartButton") as Button
 	if start_btn != null:
@@ -78,14 +78,14 @@ func _apply_theme() -> void:
 		start_btn.flat = false
 		var normal := StyleBoxFlat.new()
 		normal.bg_color = Color.TRANSPARENT
-		normal.corner_radius_top_left = 10
-		normal.corner_radius_top_right = 10
-		normal.corner_radius_bottom_left = 10
-		normal.corner_radius_bottom_right = 10
-		normal.content_margin_left = 14
-		normal.content_margin_right = 14
-		normal.content_margin_top = 8
-		normal.content_margin_bottom = 8
+		normal.corner_radius_top_left = 15
+		normal.corner_radius_top_right = 15
+		normal.corner_radius_bottom_left = 15
+		normal.corner_radius_bottom_right = 15
+		normal.content_margin_left = 21
+		normal.content_margin_right = 21
+		normal.content_margin_top = 12
+		normal.content_margin_bottom = 12
 		var hover := normal.duplicate() as StyleBoxFlat
 		hover.bg_color = Color("#DFE6F1")
 		start_btn.add_theme_stylebox_override("normal", normal)
@@ -97,7 +97,7 @@ func _apply_theme() -> void:
 		start_btn.add_theme_color_override("font_pressed_color", T_ACCENT)
 		start_btn.add_theme_color_override("font_focus_color", T_TEXT)
 		start_btn.add_theme_color_override("font_hover_pressed_color", T_ACCENT)
-		start_btn.add_theme_font_size_override("font_size", 26)
+		start_btn.add_theme_font_size_override("font_size", 39)
 		# 用代码绘制的汉堡图标替换 ☰ 文字
 		start_btn.text = ""
 		start_btn.icon = WindowIconRendererClass.create_hamburger_icon(T_TEXT)
@@ -109,27 +109,27 @@ func _apply_theme() -> void:
 		phase_label.add_theme_font_size_override("font_size", CLOCK_FONT_SIZE)
 		phase_label.custom_minimum_size.x = CLOCK_MIN_WIDTH
 
-	button_container.add_theme_constant_override("separation", 8)
+	button_container.add_theme_constant_override("separation", 12)
 
 
 func _style_window_button(button: Button) -> void:
 	var normal_style := StyleBoxFlat.new()
 	normal_style.bg_color = Color.TRANSPARENT
-	normal_style.corner_radius_top_left = 6
-	normal_style.corner_radius_top_right = 6
-	normal_style.corner_radius_bottom_left = 6
-	normal_style.corner_radius_bottom_right = 6
-	normal_style.content_margin_left = 12
-	normal_style.content_margin_right = 12
-	normal_style.content_margin_top = 8
-	normal_style.content_margin_bottom = 8
+	normal_style.corner_radius_top_left = 9
+	normal_style.corner_radius_top_right = 9
+	normal_style.corner_radius_bottom_left = 9
+	normal_style.corner_radius_bottom_right = 9
+	normal_style.content_margin_left = 18
+	normal_style.content_margin_right = 18
+	normal_style.content_margin_top = 12
+	normal_style.content_margin_bottom = 12
 
 	var hover_style := normal_style.duplicate() as StyleBoxFlat
 	hover_style.bg_color = Color("#DFE6F1")
 
 	var pressed_style := normal_style.duplicate() as StyleBoxFlat
 	pressed_style.bg_color = T_SURFACE
-	pressed_style.border_width_bottom = 2
+	pressed_style.border_width_bottom = 3
 	pressed_style.border_color = T_ACCENT
 
 	button.add_theme_stylebox_override("normal", normal_style)
@@ -141,7 +141,7 @@ func _style_window_button(button: Button) -> void:
 	button.add_theme_color_override("font_pressed_color", T_TEXT)
 	button.add_theme_color_override("font_focus_color", T_TEXT)
 	button.add_theme_color_override("font_hover_pressed_color", T_TEXT)
-	button.add_theme_font_size_override("font_size", 24)
+	button.add_theme_font_size_override("font_size", 36)
 	button.toggle_mode = true
 
 

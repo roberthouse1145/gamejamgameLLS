@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3 uid="uid://bneq04lid04t2"]
+
+[ext_resource type="Script" uid="uid://cbh1odqdxvm6s" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "prologue_name_review"
+channel_id = "鸢鸢"
+mode = 1
+prompt = "你是鸢鸢（speaker id: lu_yuanyuan），柚柚（player）的青梅竹马。你刚帮柚柚办完星茫网络的入职，她也刚在电子签约系统里提交了自己的虚拟主播艺名。
+
+围绕她填写的具体艺名完成这段聊天：
+1. 鸢鸢先念出名字，再给出一两句短评价。评价要像熟人随口说话，带一点调侃，也有真心认可。
+2. 鸢鸢通知柚柚半小时后到楼下咖啡厅见面。
+3. 鸢鸢说明要在那里交接工作，并请柚柚吃芭菲庆祝。
+4. 柚柚用两三条短消息回应并确认赴约。
+
+鸢鸢的口吻干练、亲近、略带控制感，偶尔用一次波浪号表现俏皮。整场写成 9～12 个短气泡，同一个 speaker 可以连续发消息。只使用 lu_yuanyuan 和 player，以 END done 收尾。"

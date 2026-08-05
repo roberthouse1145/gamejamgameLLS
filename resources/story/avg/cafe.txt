@@ -1,0 +1,70 @@
+screen.fade(direction="in", duration=0.5)
+bg.show("cafe_day", fade_duration=0.6)
+stage.set("lu_yuanyuan", emotions="sweet_smile", outfits="casual")
+# => TextBlock()
+> （时隔三个月，我居然为了工作走出了家门。今天的太阳简直刺眼得可怕。）
+# => TextBlock()
+> 柚柚挖了一口芭菲，含糊地开口。
+# => TextBlock(speaker="柚柚")
+> 所以，我具体要干嘛？每天打打游戏聊聊天就行了吧？
+# => TextBlock(speaker="lu_yuanyuan", expression="sweet_smile")
+> 嗯，是呀。
+# => TextBlock(speaker="lu_yuanyuan", expression="sweet_smile")
+> 另外，重新自我介绍一下——
+> 接下来的 90 天实习期，我是你的临时经纪人哦。
+# => TextBlock(speaker="柚柚")
+> 噗——咳咳！你？经纪人？
+# => TextBlock(speaker="lu_yuanyuan", expression="playful")
+> 对呀。毕竟柚柚的简历实在太“精彩”了。
+# => TextBlock(speaker="lu_yuanyuan", expression="playful")
+> 公司里根本没有经纪人敢接手你。
+> 我只好勉为其难，亲自带你了。
+# => TextBlock(speaker="柚柚")
+> ……突然有种不祥的预感。那个，我能辞职吗？
+# => TextBlock(speaker="lu_yuanyuan", expression="smile")
+> 辞职？可是柚柚刚才在系统里，已经点击"同意条款"了呀。
+# => TextBlock(speaker="柚柚")
+> 啊？那不是走个形式吗？
+camera.zoom(1.2, duration=0.5, focus="lu_yuanyuan")
+# => TextBlock(speaker="lu_yuanyuan", expression="serious")
+> “协议第七条：乙方实习期为 90 天。”
+# => TextBlock(speaker="lu_yuanyuan", expression="serious")
+> “每 15 天进行一次绩效考核，
+> 首期指标为全网粉丝数达到 1 万。”
+# => TextBlock(speaker="lu_yuanyuan", expression="serious")
+> “任意一期考核未达标，或乙方单方面解约，
+> 均视为重大违约。”
+# => TextBlock(speaker="lu_yuanyuan", expression="serious")
+> “乙方需赔偿资源占用费及违约金，
+> 共计三百万元整。”
+# => TextBlock(speaker="柚柚")
+> ……哈？！
+# => TextBlock(speaker="柚柚")
+> 三、三百万？！鸢鸢，你别开玩笑了！
+# => TextBlock(speaker="柚柚")
+> 我哪来的三百万！半个月一万粉……
+> 我一个废柴怎么可能……
+camera.reset(duration=0.4)
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 我没开玩笑哦。电子合同已经生效了。
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 柚柚，我实在看不下去你一个人，
+> 在那间发霉的小屋里烂掉。
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 既然你自己站不起来，
+> 我就稍微推你一把。
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 去拼命直播吧。去讨好观众，
+> 去想尽办法活下来。
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 如果真的失败了，也没关系……
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 那三百万，就当是我买下你的钱。
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 到时候，柚柚就永远、永远地留在我身边。
+# => TextBlock(speaker="lu_yuanyuan", expression="possessive")
+> 做我的宠物就好了。
+camera.shake()
+# => TextBlock()
+> （谁来救救我，这家伙是个疯子啊！！）
+screen.fade(direction="out", duration=0.5)

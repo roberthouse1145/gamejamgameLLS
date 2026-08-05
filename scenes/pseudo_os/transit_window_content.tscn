@@ -1,0 +1,190 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/transit_window_content.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://Assets/images/transit/transit_road_sticker.png" id="2_road"]
+[ext_resource type="Texture2D" path="res://Assets/images/transit/transit_bus_sticker.png" id="3_bus"]
+[ext_resource type="PackedScene" path="res://scenes/ui/schedule_activity_animation.tscn" id="4_schedule"]
+
+[sub_resource type="StyleBoxFlat" id="Style_root"]
+bg_color = Color(0.964, 0.976, 0.995, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_illustration"]
+bg_color = Color(0.918, 0.954, 0.997, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.776, 0.856, 0.956, 1)
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+
+[sub_resource type="StyleBoxFlat" id="Style_progress_bg"]
+bg_color = Color(0.855, 0.89, 0.94, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="StyleBoxFlat" id="Style_progress_fill"]
+bg_color = Color(0.37, 0.61, 0.91, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+
+[sub_resource type="Animation" id="Animation_reset"]
+resource_name = "RESET"
+length = 0.0
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Margin/Layout/IllustrationCard/Illustration/BusSticker:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {"times": PackedFloat32Array(0), "transitions": PackedFloat32Array(1), "update": 0, "values": [Vector2(520, 124)]}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Margin/Layout/IllustrationCard/Illustration/BusSticker:rotation")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {"times": PackedFloat32Array(0), "transitions": PackedFloat32Array(1), "update": 0, "values": [0.0]}
+
+[sub_resource type="Animation" id="Animation_drive"]
+resource_name = "drive"
+length = 1.8
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Margin/Layout/IllustrationCard/Illustration/BusSticker:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {"times": PackedFloat32Array(0, 0.45, 0.9, 1.35, 1.8), "transitions": PackedFloat32Array(1, 1, 1, 1, 1), "update": 0, "values": [Vector2(520, 124), Vector2(536, 108), Vector2(552, 124), Vector2(536, 116), Vector2(520, 124)]}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Margin/Layout/IllustrationCard/Illustration/BusSticker:rotation")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {"times": PackedFloat32Array(0, 0.45, 0.9, 1.35, 1.8), "transitions": PackedFloat32Array(1, 1, 1, 1, 1), "update": 0, "values": [-0.012, 0.008, -0.008, 0.006, -0.012]}
+
+[sub_resource type="AnimationLibrary" id="Animation_library"]
+_data = {&"RESET": SubResource("Animation_reset"), &"drive": SubResource("Animation_drive")}
+
+[node name="TransitWindowContent" type="PanelContainer"]
+custom_minimum_size = Vector2(1200, 706)
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("Style_root")
+script = ExtResource("1_script")
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 42
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 42
+theme_override_constants/margin_bottom = 32
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="HeaderRow" type="HBoxContainer" parent="Margin/Layout"]
+custom_minimum_size = Vector2(0, 68)
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="TransitTitle" type="Label" parent="Margin/Layout/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.102, 0.149, 0.231, 1)
+theme_override_font_sizes/font_size = 40
+text = "正在前往下一幕"
+
+[node name="StatusLabel" type="Label" parent="Margin/Layout/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.122, 0.478, 0.424, 1)
+theme_override_font_sizes/font_size = 25
+text = "正在前往"
+
+[node name="IllustrationCard" type="PanelContainer" parent="Margin/Layout"]
+custom_minimum_size = Vector2(0, 500)
+layout_mode = 2
+size_flags_vertical = 3
+clip_contents = true
+theme_override_styles/panel = SubResource("Style_illustration")
+
+[node name="Illustration" type="Control" parent="Margin/Layout/IllustrationCard"]
+custom_minimum_size = Vector2(0, 500)
+layout_mode = 2
+
+[node name="RoadSticker" type="TextureRect" parent="Margin/Layout/IllustrationCard/Illustration"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 44.0
+offset_top = 26.0
+offset_right = -44.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("2_road")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="BusSticker" type="TextureRect" parent="Margin/Layout/IllustrationCard/Illustration"]
+unique_name_in_owner = true
+offset_left = 520.0
+offset_top = 124.0
+offset_right = 980.0
+offset_bottom = 484.0
+pivot_offset = Vector2(230, 180)
+mouse_filter = 2
+texture = ExtResource("3_bus")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ScheduleAnimation" parent="Margin/Layout/IllustrationCard/Illustration" instance=ExtResource("4_schedule")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -480.0
+offset_top = -280.0
+offset_right = 480.0
+offset_bottom = 280.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(480, 280)
+scale = Vector2(1.22, 1.22)
+
+[node name="TransitProgress" type="ProgressBar" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/background = SubResource("Style_progress_bg")
+theme_override_styles/fill = SubResource("Style_progress_fill")
+show_percentage = false
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+unique_name_in_owner = true
+libraries = {&"": SubResource("Animation_library")}

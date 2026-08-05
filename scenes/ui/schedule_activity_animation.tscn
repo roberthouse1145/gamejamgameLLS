@@ -1,0 +1,194 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/schedule_activity_animation.gd" id="1_script"]
+
+[sub_resource type="Animation" id="Animation_reset"]
+resource_name = "RESET"
+length = 0.0
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("StickerPivot:position")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {"times": PackedFloat32Array(0), "transitions": PackedFloat32Array(1), "update": 0, "values": [Vector2(0, 52)]}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("StickerPivot:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {"times": PackedFloat32Array(0), "transitions": PackedFloat32Array(1), "update": 0, "values": [Vector2(0.6, 0.6)]}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("StickerPivot:rotation")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {"times": PackedFloat32Array(0), "transitions": PackedFloat32Array(1), "update": 0, "values": [0.0]}
+
+[sub_resource type="Animation" id="Animation_sleep"]
+resource_name = "sleep"
+length = 3.2
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("StickerPivot:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {"times": PackedFloat32Array(0, 1.6, 3.2), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [Vector2(6, 30), Vector2(6, 27), Vector2(6, 30)]}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("StickerPivot:scale")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {"times": PackedFloat32Array(0, 1.6, 3.2), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [Vector2(0.52, 0.52), Vector2(0.525, 0.535), Vector2(0.52, 0.52)]}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("StickerPivot:rotation")
+tracks/2/interp = 2
+tracks/2/loop_wrap = true
+tracks/2/keys = {"times": PackedFloat32Array(0, 1.6, 3.2), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [0.003, -0.003, 0.003]}
+
+[sub_resource type="Animation" id="Animation_work"]
+resource_name = "work"
+length = 1.6
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("StickerPivot:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {"times": PackedFloat32Array(0, 0.8, 1.6), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [Vector2(-3, 14), Vector2(3, 7), Vector2(-3, 14)]}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("StickerPivot:scale")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {"times": PackedFloat32Array(0, 0.8, 1.6), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [Vector2(0.6, 0.6), Vector2(0.6, 0.61), Vector2(0.6, 0.6)]}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("StickerPivot:rotation")
+tracks/2/interp = 2
+tracks/2/loop_wrap = true
+tracks/2/keys = {"times": PackedFloat32Array(0, 0.8, 1.6), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [-0.008, 0.006, -0.008]}
+
+[sub_resource type="Animation" id="Animation_game"]
+resource_name = "game"
+length = 0.96
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("StickerPivot:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {"times": PackedFloat32Array(0, 0.48, 0.96), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [Vector2(0, 20), Vector2(0, 8), Vector2(0, 20)]}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("StickerPivot:scale")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {"times": PackedFloat32Array(0, 0.48, 0.96), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [Vector2(0.58, 0.58), Vector2(0.6, 0.6), Vector2(0.58, 0.58)]}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("StickerPivot:rotation")
+tracks/2/interp = 2
+tracks/2/loop_wrap = true
+tracks/2/keys = {"times": PackedFloat32Array(0, 0.48, 0.96), "transitions": PackedFloat32Array(1, 1, 1), "update": 0, "values": [-0.006, 0.006, -0.006]}
+
+[sub_resource type="Animation" id="Animation_shopping"]
+resource_name = "shopping"
+length = 1.2
+loop_mode = 1
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("StickerPivot:position")
+tracks/0/interp = 2
+tracks/0/loop_wrap = true
+tracks/0/keys = {"times": PackedFloat32Array(0, 0.3, 0.6, 0.9, 1.2), "transitions": PackedFloat32Array(1, 1, 1, 1, 1), "update": 0, "values": [Vector2(-6, 16), Vector2(0, 8), Vector2(6, 16), Vector2(0, 8), Vector2(-6, 16)]}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("StickerPivot:scale")
+tracks/1/interp = 2
+tracks/1/loop_wrap = true
+tracks/1/keys = {"times": PackedFloat32Array(0, 0.3, 0.6, 0.9, 1.2), "transitions": PackedFloat32Array(1, 1, 1, 1, 1), "update": 0, "values": [Vector2(0.59, 0.6), Vector2(0.6, 0.59), Vector2(0.59, 0.6), Vector2(0.6, 0.59), Vector2(0.59, 0.6)]}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("StickerPivot:rotation")
+tracks/2/interp = 2
+tracks/2/loop_wrap = true
+tracks/2/keys = {"times": PackedFloat32Array(0, 0.3, 0.6, 0.9, 1.2), "transitions": PackedFloat32Array(1, 1, 1, 1, 1), "update": 0, "values": [-0.014, 0.01, 0.014, -0.01, -0.014]}
+
+[sub_resource type="AnimationLibrary" id="Animation_library"]
+_data = {&"RESET": SubResource("Animation_reset"), &"game": SubResource("Animation_game"), &"shopping": SubResource("Animation_shopping"), &"sleep": SubResource("Animation_sleep"), &"work": SubResource("Animation_work")}
+
+[node name="ScheduleActivityAnimation" type="Control"]
+custom_minimum_size = Vector2(960, 560)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 960.0
+offset_bottom = 560.0
+mouse_filter = 2
+clip_contents = true
+script = ExtResource("1_script")
+
+[node name="ScenePivot" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(480, 280)
+scale = Vector2(1, 1)
+mouse_filter = 2
+
+[node name="SceneSticker" type="TextureRect" parent="ScenePivot"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="StickerPivot" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+pivot_offset = Vector2(480, 280)
+mouse_filter = 2
+
+[node name="Sticker" type="TextureRect" parent="StickerPivot"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+unique_name_in_owner = true
+libraries = {&"": SubResource("Animation_library")}

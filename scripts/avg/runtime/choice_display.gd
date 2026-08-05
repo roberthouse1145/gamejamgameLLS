@@ -27,7 +27,7 @@ var _waiting_for_selection: bool = false
 ## Dialog settings reference
 var _dialog_settings: Resource = null
 ## AVG design resolution for scaling
-var _project_resolution: Vector2 = Vector2(2560, 1440)
+var _project_resolution: Vector2 = Vector2(3840, 2160)
 ## Variable manager for condition evaluation
 var _variable_manager: RefCounted = null
 ## Scene runner for condition evaluation

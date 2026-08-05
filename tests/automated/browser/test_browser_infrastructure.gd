@@ -21,6 +21,14 @@ func _test_page_mark_parser() -> void:
 	_check(not _dictionary_value(parsed.get("tree", {})).is_empty(), "PageMark builds a render tree")
 	_check(_array_value(parsed.get("warnings", [])).is_empty(), "valid PageMark has no structural warnings")
 
+	var pdf_parsed: Dictionary = PageMarkParserClass.parse(
+		"::: pdf filename=notice.pdf\n::: document width=1200\n::: table cols=2\n::: cell\n项目\n:::\n::: cell\n内容\n:::\n:::\n:::\n:::"
+	)
+	var pdf_tree: Dictionary = _dictionary_value(pdf_parsed.get("tree", {}))
+	_check(pdf_tree.get("type") == "pdf_viewer", "PageMark supports a PDF viewer root")
+	var pdf_children: Array = _array_value(pdf_tree.get("children", []))
+	_check(not pdf_children.is_empty() and _dictionary_value(pdf_children[0]).get("type") == "pdf_document", "PageMark preserves PDF document pages")
+
 
 func _test_browser_manager() -> void:
 	var manager: Node = get_node_or_null("/root/BrowserManager")
@@ -37,6 +45,18 @@ func _test_browser_manager() -> void:
 	manager.open_page("browser://welcome")
 	await get_tree().process_frame
 	_check(not _opened_page.is_empty(), "premade page opens without an LLM request")
+	_check(not str(_opened_page.get("icon_path", "")).is_empty(), "premade page exposes its site icon")
+
+	_opened_page.clear()
+	manager.open_page("browser://offer-letter")
+	await get_tree().process_frame
+	_check(_opened_page.get("type") == "pdf_viewer", "offer letter opens through the PDF viewer DSL")
+
+	_opened_page.clear()
+	manager.open_page("browser://signup")
+	await get_tree().process_frame
+	var signup_children: Array = _array_value(_opened_page.get("children", []))
+	_check(not signup_children.is_empty() and _dictionary_value(signup_children[0]).get("type") == "web_section", "signup page uses full-width website sections")
 
 	manager.search("公告")
 	await get_tree().process_frame

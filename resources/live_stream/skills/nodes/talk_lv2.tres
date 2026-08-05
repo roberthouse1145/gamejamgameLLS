@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="StreamerSkill" load_steps=5 format=3]
+[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="3"]
+[sub_resource type="Resource" id="Effect"]
+script = ExtResource("2")
+effect_id = &"read_chat_impact_bonus"
+value = 0.2
+display_text = "读弹幕类效果提升"
+[resource]
+script = ExtResource("1")
+skill_id = &"talk_lv2"
+family = &"talk"
+level = 2
+display_name = "接梗自如"
+description = "更容易接住弹幕抛来的话头。"
+icon = ExtResource("3")
+tree_position = Vector2i(1, 1)
+point_cost = 1
+required_skill_ids = Array[StringName]([&"talk_lv1"])
+unlocked_card_ids = Array[StringName]([&"modifier_toxic_commentator"])
+rule_effects = Array[Resource]([SubResource("Effect")])

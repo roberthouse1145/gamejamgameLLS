@@ -50,8 +50,8 @@ var _quit_confirm_window: Control = null
 # Desktop settings
 @export var background_color: Color = Color(0.1, 0.3, 0.5)
 @export var background_texture: Texture2D = null
-@export var icon_spacing: Vector2 = Vector2(156, 184)
-@export var icon_margin: Vector2 = Vector2(28, 28)
+@export var icon_spacing: Vector2 = Vector2(312, 368)
+@export var icon_margin: Vector2 = Vector2(56, 56)
 @export var desktop_app_ids: PackedStringArray = PackedStringArray()
 
 const GROUP_NAME: String = "desktop"
@@ -246,16 +246,16 @@ func _setup_notification_layer() -> void:
 	_notification_stack.anchor_top = 1.0
 	_notification_stack.anchor_right = 1.0
 	_notification_stack.anchor_bottom = 1.0
-	# 2560x1440: 右下角更靠内，底部避开 taskbar 与时钟区域
-	_notification_stack.offset_left = -496.0
-	_notification_stack.offset_top = -340.0
-	_notification_stack.offset_right = -28.0
-	_notification_stack.offset_bottom = -106.0
+	# 3840x2160: 右下角更靠内，底部避开 taskbar 与时钟区域
+	_notification_stack.offset_left = -960.0
+	_notification_stack.offset_top = -720.0
+	_notification_stack.offset_right = -60.0
+	_notification_stack.offset_bottom = -180.0
 	_notification_stack.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_notification_stack.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_notification_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_notification_stack.alignment = BoxContainer.ALIGNMENT_END
-	_notification_stack.add_theme_constant_override("separation", 12)
+	_notification_stack.add_theme_constant_override("separation", 24)
 	_notification_stack.z_index = 100
 	add_child(_notification_stack)
 
@@ -652,85 +652,93 @@ func show_system_notification(title: String, body: String, icon_token: String = 
 	_remove_notification(notification_id)
 
 	var toast := PanelContainer.new()
-	toast.custom_minimum_size = Vector2(0, 0)
+	toast.custom_minimum_size = Vector2(0, 190)
 	toast.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	toast.mouse_filter = Control.MOUSE_FILTER_STOP
 	toast.modulate.a = 0.0
 
 	var panel_style := StyleBoxFlat.new()
 	panel_style.bg_color = Color("#F7FAFF")
-	panel_style.corner_radius_top_left = 12
-	panel_style.corner_radius_top_right = 12
-	panel_style.corner_radius_bottom_left = 12
-	panel_style.corner_radius_bottom_right = 12
-	panel_style.border_width_left = 1
-	panel_style.border_width_top = 1
-	panel_style.border_width_right = 1
-	panel_style.border_width_bottom = 1
+	panel_style.corner_radius_top_left = 24
+	panel_style.corner_radius_top_right = 24
+	panel_style.corner_radius_bottom_left = 24
+	panel_style.corner_radius_bottom_right = 24
+	panel_style.border_width_left = 2
+	panel_style.border_width_top = 2
+	panel_style.border_width_right = 2
+	panel_style.border_width_bottom = 2
 	panel_style.border_color = Color("#D6DFEE")
-	panel_style.shadow_size = 8
+	panel_style.shadow_size = 16
 	panel_style.shadow_color = Color(0, 0, 0, 0.14)
-	panel_style.shadow_offset = Vector2(0, 2)
+	panel_style.shadow_offset = Vector2(0, 6)
 	toast.add_theme_stylebox_override("panel", panel_style)
 
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 18)
-	margin.add_theme_constant_override("margin_top", 14)
-	margin.add_theme_constant_override("margin_right", 18)
-	margin.add_theme_constant_override("margin_bottom", 14)
+	margin.add_theme_constant_override("margin_left", 32)
+	margin.add_theme_constant_override("margin_top", 28)
+	margin.add_theme_constant_override("margin_right", 32)
+	margin.add_theme_constant_override("margin_bottom", 28)
 	toast.add_child(margin)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 14)
+	hbox.add_theme_constant_override("separation", 26)
 	margin.add_child(hbox)
 
-	# 左侧图标（Win11 风格圆底图标）
+	# 左侧图标：优先从 AppManager 读取应用注册图标。
 	var icon_panel := PanelContainer.new()
-	icon_panel.custom_minimum_size = Vector2(44, 44)
+	icon_panel.custom_minimum_size = Vector2(108, 108)
 	icon_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var icon_style := StyleBoxFlat.new()
 	icon_style.bg_color = Color("#E7EEFC")
-	icon_style.corner_radius_top_left = 22
-	icon_style.corner_radius_top_right = 22
-	icon_style.corner_radius_bottom_left = 22
-	icon_style.corner_radius_bottom_right = 22
+	icon_style.corner_radius_top_left = 27
+	icon_style.corner_radius_top_right = 27
+	icon_style.corner_radius_bottom_left = 27
+	icon_style.corner_radius_bottom_right = 27
 	icon_panel.add_theme_stylebox_override("panel", icon_style)
-	var icon_texture := UIIconLibraryClass.get_icon(icon_token)
+	var icon_texture: Texture2D = null
+	var is_app_icon := false
+	if _app_manager != null and _app_manager.has_method("get_app_definition"):
+		var app_definition: Resource = _app_manager.get_app_definition(icon_token)
+		if app_definition != null and "icon" in app_definition:
+			var registered_icon: Variant = app_definition.get("icon")
+			if registered_icon is Texture2D:
+				icon_texture = registered_icon as Texture2D
+				is_app_icon = true
+	if icon_texture == null:
+		icon_texture = UIIconLibraryClass.get_icon(icon_token)
 	if icon_texture != null:
+		var icon_margin := MarginContainer.new()
+		icon_margin.add_theme_constant_override("margin_left", 12)
+		icon_margin.add_theme_constant_override("margin_top", 12)
+		icon_margin.add_theme_constant_override("margin_right", 12)
+		icon_margin.add_theme_constant_override("margin_bottom", 12)
+		icon_panel.add_child(icon_margin)
 		var icon_rect := TextureRect.new()
 		icon_rect.texture = icon_texture
-		icon_rect.custom_minimum_size = Vector2(22, 22)
+		icon_rect.custom_minimum_size = Vector2(84, 84)
 		icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		icon_rect.modulate = _get_notification_icon_color(icon_token)
-		icon_rect.anchors_preset = Control.PRESET_CENTER
-		icon_panel.add_child(icon_rect)
-	else:
-		var icon_label := Label.new()
-		icon_label.text = icon_token
-		icon_label.add_theme_font_size_override("font_size", 20)
-		icon_label.add_theme_color_override("font_color", Color("#4569C7"))
-		icon_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		icon_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		icon_panel.add_child(icon_label)
-	hbox.add_child(icon_panel)
+		if not is_app_icon:
+			icon_rect.modulate = _get_notification_icon_color(icon_token)
+		icon_margin.add_child(icon_rect)
+		hbox.add_child(icon_panel)
 
 	# 右侧文字
 	var text_vbox := VBoxContainer.new()
 	text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text_vbox.add_theme_constant_override("separation", 4)
+	text_vbox.add_theme_constant_override("separation", 10)
 	hbox.add_child(text_vbox)
 
 	var title_label := Label.new()
 	title_label.text = title
-	title_label.add_theme_font_size_override("font_size", 15)
+	title_label.add_theme_font_size_override("font_size", 34)
 	title_label.add_theme_color_override("font_color", Color("#1E2738"))
 	text_vbox.add_child(title_label)
 
 	var body_label := Label.new()
 	body_label.text = body
 	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body_label.add_theme_font_size_override("font_size", 14)
+	body_label.add_theme_font_size_override("font_size", 29)
 	body_label.add_theme_color_override("font_color", Color("#56627A"))
 	text_vbox.add_child(body_label)
 
@@ -757,9 +765,9 @@ func show_system_notification(title: String, body: String, icon_token: String = 
 
 func _get_notification_icon_color(icon_token: String) -> Color:
 	match icon_token.strip_edges().to_lower():
-		"warning", "⚠":
+		"warning":
 			return Color("#C47A00")
-		"power", "⏻":
+		"power":
 			return Color("#D64545")
 		_:
 			return Color("#4569C7")

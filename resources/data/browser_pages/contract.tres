@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="WebPageResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://contract"
+title = "虚拟演艺人员电子入驻协议 - XM-TALENT-2026.07"
+icon_path = "res://Assets/images/browser_ui/site_icon_xingmang.png"
+hint = "星茫网络虚拟演艺人员电子入驻协议全文。"
+content = "::: col fill sep=22
+::: row fill bg=#142D4C pad=24
+::: col fill sep=3
+## [星茫网络](color:#FFFFFF)
+#### [XINGMANG NETWORK · LEGAL CENTER](color:#ABC2DD)
+:::
+[返回入驻登记](url:browser://signup color=#D5E4F5)
+:::
+::: card fill bg=#FFFFFF border=#D3DEEA corner_radius=12 pad=34 sep=15
+[协议编号：XM-TALENT-2026.07](color:#77869A)
+# 虚拟演艺人员电子入驻协议
+[甲方：星茫网络文化科技有限公司](color:#50647C)
+[乙方：阮云柚](color:#50647C)
+---
+### 第一条 · 合作内容
+甲方为乙方提供虚拟形象使用、账号运营、直播技术及内容经纪服务；乙方以甲方确认的虚拟演艺身份开展直播、录播及相关宣传活动。
+
+### 第二条 · 实习期限
+实习期为九十日，自乙方在线确认本协议之日起计算。实习期届满后，甲方可依据运营数据、履约情况及项目需要决定是否续约。
+
+### 第三条 · 排期与内容管理
+乙方应配合甲方制定的直播排期、内容方向及宣传安排。甲方可根据平台规则、商业合作或运营需要调整直播时间、账号定位与节目内容。
+
+### 第四条 · 账号与内容权益
+合作期间形成的账号、虚拟形象衍生内容、直播录像、切片及宣传素材，由甲方统一管理。乙方未经书面许可不得以相同或近似身份在其他平台开展同类活动。
+
+### 第五条 · 收益结算
+直播及衍生收益在扣除平台服务费、制作成本、推广费用及依法应缴税费后，按照甲方当期结算规则进行分配。结算规则如有调整，以候选人中心或经纪团队通知为准。
+
+### 第六条 · 阶段评估
+乙方每十五日接受一次阶段评估。首期目标为全网关注人数达到一万人；后续指标由甲方结合账号表现另行通知。评估结果可作为资源分配、排期调整及合作终止的依据。
+
+### 第七条 · 保密与行为规范
+乙方应对未公开的运营计划、技术资料、商务信息及合作人员身份承担保密义务，并遵守平台规则及甲方发布的内容规范。
+
+### 第八条 · 提前终止与费用
+乙方未完成任一阶段指标、拒绝合理排期、擅自停播，或在协议期内单方面提出终止合作的，均视为乙方重大违约。乙方应一次性承担已经投入的形象制作、推广、技术、人员及机会成本，并向甲方支付资源占用费及违约金，合计人民币叁佰万元整。
+
+### 第九条 · 通知与争议处理
+甲方通过候选人中心、绑定账号或电子邮件发送的通知均视为有效送达。因本协议发生争议，双方同意提交甲方所在地有管辖权的人民法院处理。
+
+### 第十条 · 生效
+乙方在入驻登记页勾选同意并点击确认提交后，本协议立即生效，与纸质签署文件具有同等效力。
+:::
+::: card fill bg=#F7F9FC border=#D8E1EB corner_radius=12 pad=24 sep=8
+[当前协议版本](color:#7C899A)
+XM-TALENT-2026.07 · 发布日期 2026 年 07 月 28 日
+:::
+[center]星茫网络法务与合规中心[/center]
+:::"
+searchable = false
+linked_urls = PackedStringArray("browser://signup")

@@ -8,6 +8,9 @@ signal attribute_threshold_crossed(attr_name: String, threshold: int, crossed_up
 signal attribute_changed(attr_name: String, value: int)
 signal money_changed(value: int)
 signal fans_changed(value: int)
+signal streamer_progress_changed(level: int, exp: int, growth_points: int)
+signal skill_levels_changed(family: StringName, level: int)
+signal material_inventory_changed()
 
 const ATTR_STRESS: String = "stress"
 const ATTR_OTAKU_DESIRE: String = "otaku_desire"
@@ -27,6 +30,15 @@ const TIME_SLOT_NIGHT: int = 2
 
 const FAN_VECTOR_KEYS: Array[String] = ["r", "m", "w", "c", "b"]
 
+const SKILL_FAMILIES: Array[StringName] = [&"game", &"talk", &"song", &"act", &"tech"]
+const DEFAULT_SKILL_LEVELS: Dictionary = {
+	"game": 1,
+	"talk": 1,
+	"song": 1,
+	"act": 1,
+	"tech": 1,
+}
+
 ## 属性（0~100）：压力 / 宅欲 / 孤独
 var stress: int = 0
 var otaku_desire: int = 0
@@ -41,8 +53,21 @@ var time_slot: int = TIME_SLOT_MORNING
 ## LLM 身份：开局玩家输入的 Vtuber 网名（真名只出现在聊天/合同语境）
 var streamer_name: String = ""
 
-## 成长（骨架，数值细化阶段填充）：技能等级、人设熟练度/固化度、主播等级
-var skills: Dictionary = {}
+## 主播成长：直播产生 EXP，升级授予公共成长点，玩家再投资五条技能分支。
+var streamer_level: int = 1
+var streamer_exp: int = 0
+var growth_points: int = 2
+var skill_levels: Dictionary = DEFAULT_SKILL_LEVELS.duplicate(true)
+
+## 素材运行态：instance_id -> definition_id/depth/progress/freshness/use_count。
+var material_instances: Dictionary = {}
+var material_serial: int = 0
+## 人设运行态：persona_id -> proficiency/fixation。
+var persona_progress: Dictionary = {}
+## 已提交直播的事务 ID，保证结算幂等。
+var completed_stream_sessions: Array[String] = []
+## 直播记录保存为可序列化快照；运行时由 StreamHistoryManager 转为 Resource。
+var stream_history: Array[Dictionary] = []
 
 ## 关系：character_key -> {"favor": int, "trust": int, "dependence": int}
 var relationships: Dictionary = {}
@@ -104,6 +129,42 @@ func set_fans(value: int) -> void:
 	fans_changed.emit(fans)
 
 
+func get_skill_level(family: StringName) -> int:
+	if family not in SKILL_FAMILIES:
+		push_error("GameState: unknown skill family '%s'" % String(family))
+		return 1
+	return clampi(int(skill_levels.get(String(family), 1)), 1, 5)
+
+
+func set_skill_level(family: StringName, value: int) -> void:
+	if family not in SKILL_FAMILIES:
+		push_error("GameState: unknown skill family '%s'" % String(family))
+		return
+	var normalized_value: int = clampi(value, 1, 5)
+	if get_skill_level(family) == normalized_value:
+		return
+	skill_levels[String(family)] = normalized_value
+	skill_levels_changed.emit(family, normalized_value)
+
+
+func set_growth_points(value: int) -> void:
+	growth_points = maxi(value, 0)
+	streamer_progress_changed.emit(streamer_level, streamer_exp, growth_points)
+
+
+func add_streamer_exp(amount: int, balance: LiveStreamBalance) -> int:
+	if amount <= 0 or balance == null:
+		return 0
+	var old_level: int = streamer_level
+	streamer_exp += amount
+	streamer_level = balance.get_level_for_exp(streamer_exp)
+	var gained_levels: int = maxi(streamer_level - old_level, 0)
+	if gained_levels > 0:
+		growth_points += gained_levels
+	streamer_progress_changed.emit(streamer_level, streamer_exp, growth_points)
+	return gained_levels
+
+
 ## 用角色资源初值建档；已存在则不覆盖
 func init_relationship(character: StreamerCharacter) -> void:
 	if character == null or character.character_key.is_empty():
@@ -158,7 +219,15 @@ func to_dict() -> Dictionary:
 		"day": day,
 		"time_slot": time_slot,
 		"streamer_name": streamer_name,
-		"skills": skills.duplicate(true),
+		"streamer_level": streamer_level,
+		"streamer_exp": streamer_exp,
+		"growth_points": growth_points,
+		"skill_levels": skill_levels.duplicate(true),
+		"material_instances": material_instances.duplicate(true),
+		"material_serial": material_serial,
+		"persona_progress": persona_progress.duplicate(true),
+		"completed_stream_sessions": completed_stream_sessions.duplicate(),
+		"stream_history": stream_history.duplicate(true),
 		"relationships": relationships.duplicate(true),
 		"fan_vector": fan_vector.duplicate(true),
 		"flame_value": flame_value,
@@ -175,7 +244,28 @@ func from_dict(data: Dictionary) -> void:
 	day = int(data.get("day", 1))
 	time_slot = int(data.get("time_slot", TIME_SLOT_MORNING))
 	streamer_name = str(data.get("streamer_name", ""))
-	skills = data.get("skills", {}).duplicate(true)
+	streamer_level = clampi(int(data.get("streamer_level", 1)), 1, 10)
+	streamer_exp = maxi(int(data.get("streamer_exp", 0)), 0)
+	growth_points = maxi(int(data.get("growth_points", 2)), 0)
+	skill_levels = DEFAULT_SKILL_LEVELS.duplicate(true)
+	var loaded_levels: Variant = data.get("skill_levels", {})
+	if loaded_levels is Dictionary:
+		for family: StringName in SKILL_FAMILIES:
+			skill_levels[String(family)] = clampi(int((loaded_levels as Dictionary).get(String(family), 1)), 1, 5)
+	material_instances = data.get("material_instances", {}).duplicate(true)
+	material_serial = maxi(int(data.get("material_serial", 0)), 0)
+	persona_progress = data.get("persona_progress", {}).duplicate(true)
+	completed_stream_sessions.clear()
+	for session_id: Variant in data.get("completed_stream_sessions", []):
+		var normalized_session_id: String = str(session_id)
+		if not normalized_session_id.is_empty() and normalized_session_id not in completed_stream_sessions:
+			completed_stream_sessions.append(normalized_session_id)
+	stream_history.clear()
+	var loaded_history: Variant = data.get("stream_history", [])
+	if loaded_history is Array:
+		for entry: Variant in loaded_history:
+			if entry is Dictionary:
+				stream_history.append((entry as Dictionary).duplicate(true))
 	relationships = data.get("relationships", {}).duplicate(true)
 	var loaded_vector: Variant = data.get("fan_vector", {})
 	if loaded_vector is Dictionary and not loaded_vector.is_empty():

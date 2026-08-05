@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/linkchat/document_file_icon.png" id="3_icon"]
+[ext_resource type="PackedScene" path="res://scenes/apps/image_viewer/image_viewer_app.tscn" id="4_scene"]
+
+[sub_resource type="Resource" id="Resource_constraints"]
+script = ExtResource("2_constraints")
+min_size = Vector2(1200, 820)
+default_size = Vector2(2100, 1400)
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "image_viewer"
+app_name = "图片查看器"
+icon = ExtResource("3_icon")
+entry_scene = ExtResource("4_scene")
+show_on_desktop = false
+window_constraints = SubResource("Resource_constraints")

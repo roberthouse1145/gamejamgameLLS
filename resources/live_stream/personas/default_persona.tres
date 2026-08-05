@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StreamPersonaResource" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/persona_resource.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+content_id = &"persona_default"
+display_name = "阮云柚"
+description = "暂不叠加额外人设，以她本来的性格完成直播。"
+icon = ExtResource("2")
+tags = Array[StringName]([&"persona"])
+base_performance_multiplier = 1.0
+initial_proficiency = 0.0
+initial_fixation = 0.0

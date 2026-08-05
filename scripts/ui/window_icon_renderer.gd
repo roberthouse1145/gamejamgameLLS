@@ -3,7 +3,7 @@ extends RefCounted
 ## 代码绘制窗口控制按钮图标（Win11 风格细线）
 ## 不依赖外部素材，纯代码生成 ImageTexture
 
-const ICON_SIZE: int = 32
+const ICON_SIZE: int = 48
 const COLOR_DEFAULT: Color = Color("#6B7086")
 
 

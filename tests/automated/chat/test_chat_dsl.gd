@@ -18,6 +18,7 @@ func _ready() -> void:
 	_test_elif_flow()
 	_test_jump()
 	_test_llm_flow()
+	_test_same_channel_queue()
 
 	if _failures == 0:
 		print("[PASS] chat dsl")
@@ -162,6 +163,39 @@ func _test_llm_flow() -> void:
 	manager.queue_free()
 
 
+func _test_same_channel_queue() -> void:
+	_reset_events()
+	var manager: TopicManager = _create_manager()
+	var first_topic: ChatTopic = ChatTopicClass.new()
+	first_topic.topic_id = "queue_first"
+	first_topic.channel_id = "shared_channel"
+	first_topic.mode = ChatTopic.Mode.LOCAL
+	first_topic.local_script = "friend: 第一段还没有结束。\nEND first"
+
+	var second_topic: ChatTopic = ChatTopicClass.new()
+	second_topic.topic_id = "queue_second"
+	second_topic.channel_id = "shared_channel"
+	second_topic.mode = ChatTopic.Mode.LLM
+	second_topic.prompt = "生成第二段聊天。"
+
+	_check(manager.activate_topic(first_topic, {}, ["friend"]), "first same-channel topic activates")
+	_check(manager.activate_topic(second_topic, {}, ["friend"]), "second same-channel topic is accepted into the queue")
+	_check(manager.get_active_topic("shared_channel") == first_topic, "queued topic does not replace the active topic")
+	_check(not _generation_prompt.is_empty(), "queued LLM topic requests generation while the first topic is playing")
+	_check(
+		manager.submit_generated_topic_script(second_topic, "friend: 第二段开始。\nEND second"),
+		"queued LLM result is cached against its topic"
+	)
+	_check(_messages.size() == 1, "generated queued topic does not display before the first END")
+
+	manager.advance_topic("shared_channel")
+	_check(manager.get_active_topic("shared_channel") == second_topic, "queued topic activates after the previous END")
+	_check(_messages.size() == 2 and _messages[1].get("text") == "第二段开始。", "cached queued topic starts immediately after the first END")
+	manager.advance_topic("shared_channel")
+	_check(not manager.has_active_topic("shared_channel"), "same-channel queue drains after completion")
+	manager.queue_free()
+
+
 func _create_manager() -> TopicManager:
 	var manager: TopicManager = TopicManagerScene.instantiate() as TopicManager
 	manager.auto_request_llm = false
@@ -180,7 +214,7 @@ func _reset_events() -> void:
 	_generation_prompt = ""
 
 
-func _on_message(_topic: ChatTopic, speaker_id: String, text: String, is_player: bool) -> void:
+func _on_message(_topic: ChatTopic, speaker_id: String, text: String, is_player: bool, _card: Dictionary) -> void:
 	_messages.append({"speaker": speaker_id, "text": text, "is_player": is_player})
 
 

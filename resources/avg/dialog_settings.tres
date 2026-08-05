@@ -1,52 +1,53 @@
-[gd_resource type="Resource" script_class="AVGDialogSettings" load_steps=6 format=3 uid="uid://ghnc61mb5ya2"]
+[gd_resource type="Resource" script_class="AVGDialogSettings" load_steps=9 format=3 uid="uid://ghnc61mb5ya2"]
 
 [ext_resource type="Script" uid="uid://b8kv7tdcr4mj2" path="res://scripts/avg/resources/avg_dialog_settings.gd" id="1_dialog_settings"]
 [ext_resource type="Script" uid="uid://drneohd4r71y1" path="res://scripts/avg/resources/avg_style_box.gd" id="2_style_box"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/window01.png" id="3_window"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/name01.png" id="4_name"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/cursor01.png" id="5_cursor"]
 
 [sub_resource type="Resource" id="Style_dialog"]
 script = ExtResource("2_style_box")
-bg_color = Color(0.035, 0.05, 0.08, 0.9)
-corner_radius = 12
-border_width = 1
-border_color = Color(0.75, 0.82, 0.95, 0.28)
-content_margins = Vector4i(48, 42, 48, 36)
+texture = ExtResource("3_window")
+texture_margins = Vector4i(180, 160, 187, 141)
+content_margins = Vector4i(150, 112, 150, 88)
 
 [sub_resource type="Resource" id="Style_name"]
 script = ExtResource("2_style_box")
-bg_color = Color(0.12, 0.2, 0.34, 0.96)
-corner_radius = 8
-border_width = 1
-border_color = Color(0.75, 0.82, 0.95, 0.35)
-content_margins = Vector4i(24, 10, 24, 10)
+texture = ExtResource("4_name")
+texture_margins = Vector4i(50, 40, 41, 40)
+content_margins = Vector4i(46, 16, 46, 16)
 
 [sub_resource type="Resource" id="Style_choice"]
 script = ExtResource("2_style_box")
-bg_color = Color(0.08, 0.12, 0.2, 0.94)
-corner_radius = 10
-border_width = 1
-border_color = Color(0.75, 0.82, 0.95, 0.3)
-content_margins = Vector4i(32, 18, 32, 18)
+texture = ExtResource("3_window")
+texture_margins = Vector4i(32, 32, 32, 32)
+content_margins = Vector4i(88, 60, 88, 48)
 
 [resource]
 script = ExtResource("1_dialog_settings")
 default_text_speed = 32.0
-box_norm_size = Vector2(0.84, 0.32)
+box_norm_size = Vector2(0.84, 0.36)
 box_margin = 28
 box_style = SubResource("Style_dialog")
-text_padding = Vector4i(48, 42, 48, 36)
-text_font_size = 36
-text_outline_size = 6
-text_outline_color = Color(0, 0, 0, 0.75)
+text_padding = Vector4i(160, 112, 160, 68)
+text_font_size = 76
+text_color = Color(0.098, 0.125, 0.22, 1)
+text_outline_size = 0
+text_outline_color = Color(0, 0, 0, 0)
+cursor_texture = ExtResource("5_cursor")
+cursor_norm_size = Vector2(0.15, 0.15)
+cursor_norm_offset = Vector2(0.8, 0.65)
 name_box_style = SubResource("Style_name")
-name_norm_offset = Vector2(0.04, 0.035)
-name_norm_size = Vector2(0.22, 0.055)
-name_padding = Vector4i(20, 8, 20, 8)
-name_font_size = 32
-name_outline_size = 4
-name_outline_color = Color(0, 0, 0, 0.7)
+name_norm_offset = Vector2(0.074, 0.075)
+name_norm_size = Vector2(0.24, 0.06)
+name_padding = Vector4i(30, 10, 30, 10)
+name_font_size = 52
+name_outline_size = 6
+name_outline_color = Color(0, 0, 0, 0.85)
 choice_style = SubResource("Style_choice")
-choice_min_norm_size = Vector2(0.24, 0.06)
-choice_font_size = 32
-choice_font_color = Color(0.94, 0.96, 1, 1)
+choice_min_norm_size = Vector2(0.22, 0.058)
+choice_font_size = 48
+choice_font_color = Color(0.235, 0.218, 0.19, 1)
 choice_spacing = 12
 default_expression_duration = 0.18

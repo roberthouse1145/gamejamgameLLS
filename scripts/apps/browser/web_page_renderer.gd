@@ -5,8 +5,10 @@ const FIELD_ERROR_TEXT_COLOR := "#B42318"
 
 ## LLM 生成 PageMark 时对 width 无上限，偶发输出超宽排版导致浏览器内容溢出窗口。
 ## 这里对单节点 width 做兜底 clamp；真正的横向溢出由 ContentScroll 的 AUTO 横滚条处理。
-const MAX_NODE_WIDTH: int = 680
-const MAX_IMAGE_WIDTH: int = 560
+const MAX_NODE_WIDTH: int = 1020
+const MAX_IMAGE_WIDTH: int = 1900
+const MAX_PDF_PAGE_WIDTH: int = 1680
+const MAX_WEB_CONTENT_WIDTH: int = 2200
 
 
 static func _clamp_width(raw_value: int) -> int:
@@ -99,6 +101,16 @@ static func _build_node(node_data: Variant, on_action: Callable, page_state: Dic
 			return _apply_content_flags(_build_checkbox(data, page_state), data)
 		"select":
 			return _apply_content_flags(_build_select(data, page_state), data)
+		"pdf_viewer":
+			return _apply_container_flags(_build_pdf_viewer(data, on_action, page_state))
+		"pdf_document":
+			return _build_pdf_document(data, on_action, page_state)
+		"table":
+			return _apply_content_flags(_build_table(data, on_action, page_state), data)
+		"table_cell":
+			return _apply_content_flags(_build_table_cell(data, on_action, page_state), data)
+		"web_section":
+			return _apply_content_flags(_build_web_section(data, on_action, page_state), data)
 		"scroll":
 			return _apply_container_flags(_build_scroll(data, on_action, page_state))
 		_:
@@ -137,11 +149,11 @@ static func _apply_size_attrs(ctrl: Control, data: Dictionary) -> void:
 		ctrl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	elif has_fill:
 		ctrl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		ctrl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		ctrl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	elif has_width and not has_height:
 		ctrl.custom_minimum_size.x = _clamp_width(int(data["width"]))
 		ctrl.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		ctrl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		ctrl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	elif has_height and not has_width:
 		ctrl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	else:
@@ -214,8 +226,18 @@ static func _wrap_with_bg(inner: Control, data: Dictionary) -> PanelContainer:
 	style.bg_color = _parse_color(data.get("bg_color", "#ffffff"), Color("#ffffff"))
 	panel.add_theme_stylebox_override("panel", style)
 	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	inner.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panel.add_child(inner)
+	inner.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var padding: int = int(data.get("padding", 0))
+	if padding > 0:
+		var margin := MarginContainer.new()
+		margin.add_theme_constant_override("margin_left", padding)
+		margin.add_theme_constant_override("margin_top", padding)
+		margin.add_theme_constant_override("margin_right", padding)
+		margin.add_theme_constant_override("margin_bottom", padding)
+		panel.add_child(margin)
+		margin.add_child(inner)
+	else:
+		panel.add_child(inner)
 	return panel
 
 
@@ -239,7 +261,7 @@ static func _build_box(data: Dictionary, is_vbox: bool, on_action: Callable, pag
 		box = VBoxContainer.new()
 	else:
 		box = HBoxContainer.new()
-	box.add_theme_constant_override("separation", int(data.get("separation", 8)))
+	box.add_theme_constant_override("separation", int(data.get("separation", 14)))
 
 	if data.has("alignment"):
 		match str(data["alignment"]):
@@ -259,8 +281,8 @@ static func _build_box(data: Dictionary, is_vbox: bool, on_action: Callable, pag
 static func _build_grid_node(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
 	var grid := GridContainer.new()
 	grid.columns = max(1, int(data.get("columns", 2)))
-	grid.add_theme_constant_override("h_separation", int(data.get("separation", 12)))
-	grid.add_theme_constant_override("v_separation", int(data.get("separation", 12)))
+	grid.add_theme_constant_override("h_separation", int(data.get("separation", 18)))
+	grid.add_theme_constant_override("v_separation", int(data.get("separation", 18)))
 
 	var children: Array = data.get("children", [])
 	for item in children:
@@ -269,13 +291,169 @@ static func _build_grid_node(data: Dictionary, on_action: Callable, page_state: 
 
 	if _as_bool(data.get("fill", false)):
 		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		grid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		grid.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	else:
 		grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
 	if data.has("width"):
 		grid.custom_minimum_size.x = _clamp_width(int(data["width"]))
 	return grid
+
+
+static func _build_pdf_viewer(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
+	var viewer := VBoxContainer.new()
+	viewer.add_theme_constant_override("separation", 0)
+	viewer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var toolbar := PanelContainer.new()
+	var toolbar_style := StyleBoxFlat.new()
+	toolbar_style.bg_color = _parse_color(data.get("toolbar_bg", "#323A46"), Color("#323A46"))
+	toolbar_style.content_margin_left = 28
+	toolbar_style.content_margin_right = 28
+	toolbar_style.content_margin_top = 17
+	toolbar_style.content_margin_bottom = 17
+	toolbar.add_theme_stylebox_override("panel", toolbar_style)
+	viewer.add_child(toolbar)
+
+	var toolbar_row := HBoxContainer.new()
+	toolbar_row.add_theme_constant_override("separation", 24)
+	toolbar.add_child(toolbar_row)
+
+	var file_name := Label.new()
+	file_name.text = str(data.get("filename", "document.pdf"))
+	file_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	file_name.clip_text = true
+	file_name.add_theme_font_size_override("font_size", 25)
+	file_name.add_theme_color_override("font_color", Color("#F6F8FB"))
+	file_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	toolbar_row.add_child(file_name)
+
+	var page_counter := Label.new()
+	page_counter.text = str(data.get("pages", "1 / 1"))
+	page_counter.add_theme_font_size_override("font_size", 23)
+	page_counter.add_theme_color_override("font_color", Color("#D6DCE5"))
+	toolbar_row.add_child(page_counter)
+
+	var canvas := PanelContainer.new()
+	var canvas_style := StyleBoxFlat.new()
+	canvas_style.bg_color = _parse_color(data.get("canvas_bg", "#596473"), Color("#596473"))
+	var canvas_padding: int = int(str(data.get("pad", 52)))
+	canvas_style.content_margin_left = canvas_padding
+	canvas_style.content_margin_right = canvas_padding
+	canvas_style.content_margin_top = canvas_padding
+	canvas_style.content_margin_bottom = canvas_padding
+	canvas.add_theme_stylebox_override("panel", canvas_style)
+	canvas.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	viewer.add_child(canvas)
+
+	var pages := VBoxContainer.new()
+	pages.alignment = BoxContainer.ALIGNMENT_BEGIN
+	pages.add_theme_constant_override("separation", int(str(data.get("page_gap", 42))))
+	pages.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	canvas.add_child(pages)
+
+	var children: Array = data.get("children", [])
+	for item: Variant in children:
+		var page: Control = _build_node(item, on_action, page_state)
+		page.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		pages.add_child(page)
+
+	return viewer
+
+
+static func _build_pdf_document(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
+	var paper := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = _parse_color(data.get("bg", "#FFFFFF"), Color("#FFFFFF"))
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = _parse_color(data.get("border", "#D7DCE3"), Color("#D7DCE3"))
+	style.shadow_color = Color(0.04, 0.07, 0.12, 0.34)
+	style.shadow_size = 18
+	style.shadow_offset = Vector2(0, 8)
+	var padding: int = int(str(data.get("pad", 88)))
+	style.content_margin_left = padding
+	style.content_margin_right = padding
+	style.content_margin_top = padding
+	style.content_margin_bottom = padding
+	paper.add_theme_stylebox_override("panel", style)
+	paper.custom_minimum_size.x = clampi(int(str(data.get("width", 1380))), 720, MAX_PDF_PAGE_WIDTH)
+	if data.has("height"):
+		paper.custom_minimum_size.y = int(str(data["height"]))
+	paper.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	paper.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+
+	var child: Control = _build_node(data.get("child", {}), on_action, page_state)
+	child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	paper.add_child(child)
+	return paper
+
+
+static func _build_table(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
+	var table := GridContainer.new()
+	table.columns = maxi(1, int(str(data.get("columns", 2))))
+	table.add_theme_constant_override("h_separation", 0)
+	table.add_theme_constant_override("v_separation", 0)
+	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if data.has("width"):
+		table.custom_minimum_size.x = min(int(str(data["width"])), MAX_PDF_PAGE_WIDTH)
+	for item: Variant in data.get("children", []):
+		var cell: Control = _build_node(item, on_action, page_state)
+		cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		table.add_child(cell)
+	return table
+
+
+static func _build_table_cell(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
+	var cell := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = _parse_color(data.get("bg", "#FFFFFF"), Color("#FFFFFF"))
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.border_color = _parse_color(data.get("border", "#C9D1DC"), Color("#C9D1DC"))
+	var padding: int = int(str(data.get("pad", 18)))
+	style.content_margin_left = padding
+	style.content_margin_right = padding
+	style.content_margin_top = padding
+	style.content_margin_bottom = padding
+	cell.add_theme_stylebox_override("panel", style)
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var child: Control = _build_node(data.get("child", {}), on_action, page_state)
+	child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.add_child(child)
+	return cell
+
+
+static func _build_web_section(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
+	var section := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = _parse_color(data.get("bg", "#FFFFFF"), Color("#FFFFFF"))
+	var padding: int = int(str(data.get("pad", 0)))
+	style.content_margin_left = padding
+	style.content_margin_right = padding
+	style.content_margin_top = int(str(data.get("pad_y", padding)))
+	style.content_margin_bottom = int(str(data.get("pad_y", padding)))
+	section.add_theme_stylebox_override("panel", style)
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	var center_row := HBoxContainer.new()
+	center_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	center_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	section.add_child(center_row)
+
+	var child: Control = _build_node(data.get("child", {}), on_action, page_state)
+	var max_width: int = mini(int(str(data.get("max_width", 0))), MAX_WEB_CONTENT_WIDTH)
+	if max_width > 0:
+		child.custom_minimum_size.x = max_width
+		child.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	else:
+		child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	center_row.add_child(child)
+	return section
 
 
 static func _build_image(data: Dictionary) -> Control:
@@ -291,12 +469,9 @@ static func _build_image(data: Dictionary) -> Control:
 		if tex != null:
 			var tex_rect := TextureRect.new()
 			tex_rect.texture = tex
-			tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+			tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			if width > 0:
-				tex_rect.custom_minimum_size.x = width
-			if height > 0:
-				tex_rect.custom_minimum_size.y = height
+			tex_rect.custom_minimum_size = _resolve_image_size(tex, width, height)
 			return tex_rect
 
 	# Placeholder: gray panel with alt text
@@ -325,6 +500,24 @@ static func _build_image(data: Dictionary) -> Control:
 	return panel
 
 
+static func _resolve_image_size(texture: Texture2D, requested_width: int, requested_height: int) -> Vector2:
+	var texture_size: Vector2 = texture.get_size()
+	if texture_size.x <= 0.0 or texture_size.y <= 0.0:
+		return Vector2(maxi(requested_width, 1), maxi(requested_height, 1))
+
+	var display_width: float = float(requested_width)
+	var display_height: float = float(requested_height)
+	if requested_width > 0 and requested_height <= 0:
+		display_height = display_width * texture_size.y / texture_size.x
+	elif requested_height > 0 and requested_width <= 0:
+		display_width = display_height * texture_size.x / texture_size.y
+	elif requested_width <= 0 and requested_height <= 0:
+		display_width = minf(texture_size.x, float(MAX_IMAGE_WIDTH))
+		display_height = display_width * texture_size.y / texture_size.x
+
+	return Vector2(maxf(display_width, 1.0), maxf(display_height, 1.0))
+
+
 static func _build_quote(data: Dictionary, on_action: Callable, page_state: Dictionary) -> Control:
 	# Left-bar style PanelContainer wrapping the child.
 	var panel := PanelContainer.new()
@@ -351,7 +544,7 @@ static func _build_label(data: Dictionary) -> Control:
 		label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	else:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.add_theme_font_size_override("font_size", int(data.get("font_size", 22)))
+	label.add_theme_font_size_override("font_size", int(data.get("font_size", 30)))
 	label.add_theme_color_override("font_color", _parse_color(data.get("color", "#1A1D27"), Color("#1A1D27")))
 
 	if data.has("align"):
@@ -370,7 +563,7 @@ static func _build_rich_text(data: Dictionary, on_action: Callable) -> Control:
 	rich.fit_content = true
 	rich.scroll_active = false
 	rich.text = str(data.get("bbcode", ""))
-	var font_size: int = int(data.get("font_size", 22))
+	var font_size: int = int(data.get("font_size", 30))
 	# Sync all variant font sizes so [b] [i] don't shrink relative to normal text
 	rich.add_theme_font_size_override("normal_font_size", font_size)
 	rich.add_theme_font_size_override("bold_font_size", font_size)
@@ -407,22 +600,27 @@ static func _build_panel_container(data: Dictionary, on_action: Callable, page_s
 static func _apply_panel_style(panel: Control, data: Dictionary) -> void:
 	var style := StyleBoxFlat.new()
 	style.bg_color = _parse_color(data.get("bg_color", "#ffffff"), Color("#ffffff"))
-	var radius: int = int(data.get("corner_radius", 8))
+	var radius: int = int(data.get("corner_radius", 15))
 	style.corner_radius_top_left = radius
 	style.corner_radius_top_right = radius
 	style.corner_radius_bottom_left = radius
 	style.corner_radius_bottom_right = radius
-	style.border_width_left = 1
-	style.border_width_top = 1
-	style.border_width_right = 1
-	style.border_width_bottom = 1
+	var border_width: int = int(str(data.get("border_width", 2)))
+	style.border_width_left = border_width
+	style.border_width_top = border_width
+	style.border_width_right = border_width
+	style.border_width_bottom = border_width
 	style.border_color = _parse_color(data.get("border_color", "#E2E4EA"), Color("#E2E4EA"))
+	if _as_bool(data.get("shadow", true)):
+		style.shadow_color = Color(0.1, 0.17, 0.28, 0.09)
+		style.shadow_size = 5
+		style.shadow_offset = Vector2(0, 2)
 	panel.add_theme_stylebox_override("panel", style)
 
 
 static func _build_panel_margin(data: Dictionary, on_action: Callable, page_state: Dictionary) -> MarginContainer:
 	var margin := MarginContainer.new()
-	var padding: int = int(data.get("padding", 12))
+	var padding: int = int(data.get("padding", 20))
 	margin.add_theme_constant_override("margin_left", padding)
 	margin.add_theme_constant_override("margin_top", padding)
 	margin.add_theme_constant_override("margin_right", padding)
@@ -469,7 +667,7 @@ static func _apply_panel_container_size_attrs(ctrl: Control, data: Dictionary) -
 
 	if has_fill:
 		ctrl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		ctrl.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		ctrl.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		return
 
 	if has_width:
@@ -501,7 +699,7 @@ static func _build_button(data: Dictionary, on_action: Callable, page_state: Dic
 	var button := Button.new()
 	button.text = str(data.get("text", "Open"))
 	button.clip_text = true
-	button.add_theme_font_size_override("font_size", int(data.get("font_size", 18)))
+	button.add_theme_font_size_override("font_size", int(data.get("font_size", 27)))
 	var btn_color: Color = _parse_color(data.get("color", "#333333"), Color("#333333"))
 	button.add_theme_color_override("font_color", btn_color)
 	button.add_theme_color_override("font_hover_color", btn_color)
@@ -514,7 +712,7 @@ static func _build_button(data: Dictionary, on_action: Callable, page_state: Dic
 		var hover_bg: Color = bg.darkened(0.12)
 		var pressed_bg: Color = bg.darkened(0.2)
 		var disabled_bg: Color = Color("#E2E4EA")
-		var radius: int = 6
+		var radius: int = 14
 		button.add_theme_stylebox_override("normal", _make_btn_style(bg, radius))
 		button.add_theme_stylebox_override("hover", _make_btn_style(hover_bg, radius))
 		button.add_theme_stylebox_override("pressed", _make_btn_style(pressed_bg, radius))
@@ -543,10 +741,10 @@ static func _make_btn_style(bg: Color, radius: int) -> StyleBoxFlat:
 	style.corner_radius_top_right = radius
 	style.corner_radius_bottom_left = radius
 	style.corner_radius_bottom_right = radius
-	style.content_margin_left = 14
-	style.content_margin_right = 14
-	style.content_margin_top = 6
-	style.content_margin_bottom = 6
+	style.content_margin_left = 24
+	style.content_margin_right = 24
+	style.content_margin_top = 12
+	style.content_margin_bottom = 12
 	return style
 
 
@@ -561,7 +759,7 @@ static func _build_link(data: Dictionary, on_action: Callable) -> Control:
 		rich.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var link_text: String = str(data.get("text", ""))
 	var link_color: String = str(data.get("color", "#4A90D9"))
-	var link_font_size: int = int(data.get("font_size", 20))
+	var link_font_size: int = int(data.get("font_size", 28))
 	rich.add_theme_font_size_override("normal_font_size", link_font_size)
 	rich.add_theme_font_size_override("bold_font_size", link_font_size)
 	rich.add_theme_font_size_override("italic_font_size", link_font_size)
@@ -581,8 +779,8 @@ static func _build_input(data: Dictionary, page_state: Dictionary) -> Control:
 	line_edit.placeholder_text = str(data.get("placeholder", ""))
 	line_edit.text = str(data.get("value", ""))
 	line_edit.editable = not _as_bool(data.get("disabled", false))
-	line_edit.custom_minimum_size.y = 42
-	line_edit.add_theme_font_size_override("font_size", int(data.get("font_size", 20)))
+	line_edit.custom_minimum_size.y = 60
+	line_edit.add_theme_font_size_override("font_size", int(data.get("font_size", 28)))
 	line_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if data.has("secret"):
 		line_edit.secret = _as_bool(data.get("secret", false))
@@ -599,8 +797,8 @@ static func _build_text_area(data: Dictionary, page_state: Dictionary) -> Contro
 	var text_edit := TextEdit.new()
 	text_edit.text = str(data.get("text", data.get("value", "")))
 	text_edit.editable = not _as_bool(data.get("disabled", false))
-	text_edit.custom_minimum_size.y = int(data.get("height", 120))
-	text_edit.add_theme_font_size_override("font_size", int(data.get("font_size", 20)))
+	text_edit.custom_minimum_size.y = int(data.get("height", 180))
+	text_edit.add_theme_font_size_override("font_size", int(data.get("font_size", 28)))
 	text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	text_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	return _wrap_field_control(text_edit, data, page_state, "textarea")
@@ -611,7 +809,7 @@ static func _build_checkbox(data: Dictionary, page_state: Dictionary) -> Control
 	checkbox.text = str(data.get("text", data.get("label", "")))
 	checkbox.button_pressed = _as_bool(data.get("checked", false))
 	checkbox.disabled = _as_bool(data.get("disabled", false))
-	checkbox.add_theme_font_size_override("font_size", int(data.get("font_size", 18)))
+	checkbox.add_theme_font_size_override("font_size", int(data.get("font_size", 27)))
 	return _wrap_field_control(checkbox, data, page_state, "checkbox")
 
 
@@ -619,7 +817,7 @@ static func _build_select(data: Dictionary, page_state: Dictionary) -> Control:
 	var select := OptionButton.new()
 	select.disabled = _as_bool(data.get("disabled", false))
 	select.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	select.add_theme_font_size_override("font_size", int(data.get("font_size", 18)))
+	select.add_theme_font_size_override("font_size", int(data.get("font_size", 27)))
 	var option_values := PackedStringArray()
 
 	var options: Array = _parse_select_options(data.get("options", []))
@@ -663,7 +861,7 @@ static func _wrap_field_control(control: Control, data: Dictionary, page_state: 
 	var error_label := Label.new()
 	error_label.visible = false
 	error_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	error_label.add_theme_font_size_override("font_size", 14)
+	error_label.add_theme_font_size_override("font_size", 21)
 	error_label.add_theme_color_override("font_color", Color(FIELD_ERROR_TEXT_COLOR))
 	error_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	wrapper.add_child(error_label)

@@ -4,6 +4,10 @@
 
 {{avg_dsl_dialogue_purity}}
 
+{{avg_scene_writing_standards}}
+
+{{avg_project_protagonist}}
+
 {{scene_cot_requirement}}
 
 ---

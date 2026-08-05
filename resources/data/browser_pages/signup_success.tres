@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="WebPageResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/browser/web_page_resource.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+url = "browser://signup-success"
+title = "签约成功 - 星茫网络"
+icon_path = "res://Assets/images/browser_ui/site_icon_xingmang.png"
+hint = "电子签约提交结果。"
+content = "::: col fill sep=24
+::: row fill bg=#142D4C pad=24
+::: col fill sep=3
+## [星茫网络](color:#FFFFFF)
+#### [XINGMANG NETWORK · CANDIDATE CENTER](color:#ABC2DD)
+:::
+:::
+::: card fill bg=#EEF7F1 border=#B9D8C4 corner_radius=18 pad=34 sep=14
+#### [提交成功](color:#4F7A5D)
+# 电子协议已生效
+您的候选人登记与电子签约已完成，入驻档案已经生成。
+:::
+::: grid cols=2 fill sep=18
+::: card fill bg=#FFFFFF border=#D3DEEA corner_radius=14 pad=24 sep=8
+#### [档案编号](color:#7C899A)
+## XM-ONBOARD-20260804-0126
+[状态：等待经纪人确认](color:#50647C)
+:::
+::: card fill bg=#FFFFFF border=#D3DEEA corner_radius=14 pad=24 sep=8
+#### [下一步](color:#7C899A)
+## 留意 LinkChat 消息
+[经纪人将发送首次工作安排与入驻资料](color:#50647C)
+:::
+:::
+::: card fill bg=#FFFFFF border=#D3DEEA corner_radius=16 pad=28 sep=12
+## 入驻提醒
+- 请妥善保存档案编号
+- 后续工作安排以经纪人通知为准
+- 如需变更公开资料，请联系星茫网络人力资源中心
+:::
+[星茫网络欢迎您的加入。](color:#708198)
+:::"
+searchable = false

@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BehaviorCardResource" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="3"]
+
+[sub_resource type="Resource" id="Axes"]
+script = ExtResource("2")
+quality = 1.0
+
+[resource]
+script = ExtResource("1")
+content_id = &"talk_goodnight"
+display_name = "温柔晚安"
+description = "留下一句会被记住的晚安。"
+icon = ExtResource("3")
+tags = Array[StringName]([&"talk"])
+family = &"talk"
+tier = 1
+budget_cost = 2
+stress_cost = -2.0
+mood_in = &"warm"
+mood_out = &"open"
+axes = SubResource("Axes")

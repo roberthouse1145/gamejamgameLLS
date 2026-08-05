@@ -11,17 +11,17 @@ class_name ChatMessageBubble extends MarginContainer
 const LCTheme := preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
 const MessageCardClass := preload("res://scripts/apps/linkchat/components/message_card.gd")
 const UIIconLibraryClass := preload("res://scripts/ui/ui_icon_library.gd")
+const RoundedAvatarScene := preload("res://scenes/ui/rounded_avatar.tscn")
 
 enum BubbleType {NPC, PLAYER, SYSTEM}
 
 ## 气泡最大宽度占父容器的比例
-const MAX_WIDTH_RATIO: float = 0.82
-const AVATAR_SIZE: float = 56.0
-const AVATAR_FONT_SIZE: int = 20
-const NAME_FONT_SIZE: int = 18
-const TIME_FONT_SIZE: int = 16
-const CONTENT_FONT_SIZE: int = 22
-const SYSTEM_FONT_SIZE: int = 18
+const MAX_WIDTH_RATIO: float = 0.78
+const AVATAR_SIZE: float = 144.0
+const NAME_FONT_SIZE: int = 27
+const TIME_FONT_SIZE: int = 24
+const CONTENT_FONT_SIZE: int = 33
+const SYSTEM_FONT_SIZE: int = 27
 
 static var _image_regex: RegEx
 
@@ -32,6 +32,9 @@ var _bubble_panel: PanelContainer = null
 var _content_label: Label = null
 var _layout_watch_target: Control = null
 var _is_adjusting_width: bool = false
+var _width_preconfigured: bool = false
+var _bubble_tail: Node2D = null
+var _tail_is_player: bool = false
 
 
 static func _get_image_regex() -> RegEx:
@@ -42,7 +45,7 @@ static func _get_image_regex() -> RegEx:
 
 
 ## 从消息字典创建气泡
-static func create(msg: Dictionary) -> ChatMessageBubble:
+static func create(msg: Dictionary, container_width: float = 0.0) -> ChatMessageBubble:
 	var bubble := ChatMessageBubble.new()
 	var sender_id: String = msg.get("sender_id", "")
 
@@ -52,6 +55,9 @@ static func create(msg: Dictionary) -> ChatMessageBubble:
 		bubble._build_player(msg)
 	else:
 		bubble._build_npc(msg)
+	if container_width > 0.0:
+		bubble._apply_bubble_width(container_width)
+		bubble._width_preconfigured = true
 
 	return bubble
 
@@ -61,14 +67,14 @@ func _build_npc(msg: Dictionary) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
-	add_theme_constant_override("margin_left", 10)
-	add_theme_constant_override("margin_right", 84)
-	add_theme_constant_override("margin_top", 2)
-	add_theme_constant_override("margin_bottom", 2)
+	add_theme_constant_override("margin_left", 30)
+	add_theme_constant_override("margin_right", 156)
+	add_theme_constant_override("margin_top", 12)
+	add_theme_constant_override("margin_bottom", 12)
 
 	var hbox := HBoxContainer.new()
 	hbox.alignment = BoxContainer.ALIGNMENT_BEGIN
-	hbox.add_theme_constant_override("separation", 10)
+	hbox.add_theme_constant_override("separation", 24)
 	add_child(hbox)
 
 	var avatar := _create_avatar(
@@ -81,31 +87,17 @@ func _build_npc(msg: Dictionary) -> void:
 	var vbox := VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	vbox.add_theme_constant_override("separation", 2)
+	vbox.add_theme_constant_override("separation", 9)
 	hbox.add_child(vbox)
 
-	# 名字 + 时间
-	var header := HBoxContainer.new()
-	header.add_theme_constant_override("separation", 8)
-	vbox.add_child(header)
-
-	var name_label := Label.new()
-	name_label.text = msg.get("sender_name", "")
-	name_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SENDER_NPC)
-	name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
-	header.add_child(name_label)
-
-	var time_label := Label.new()
-	time_label.text = _resolve_time_text(msg)
-	time_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_TIME)
-	time_label.add_theme_font_size_override("font_size", TIME_FONT_SIZE)
-	header.add_child(time_label)
+	vbox.add_child(_create_name_tag(str(msg.get("sender_name", "")), _resolve_time_text(msg), false))
 
 	# 气泡 — SHRINK_BEGIN 让短消息不撑满
 	_bubble_panel = PanelContainer.new()
 	_bubble_panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	_bubble_panel.add_theme_stylebox_override("panel", LCTheme.get_npc_bubble_style())
 	vbox.add_child(_bubble_panel)
+	_attach_bubble_tail(false)
 
 	_build_content(_bubble_panel, msg)
 
@@ -115,39 +107,44 @@ func _build_player(msg: Dictionary) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
-	add_theme_constant_override("margin_left", 84)
-	add_theme_constant_override("margin_right", 10)
-	add_theme_constant_override("margin_top", 2)
-	add_theme_constant_override("margin_bottom", 2)
-
-	var vbox := VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 2)
-	add_child(vbox)
-
-	var time_label := Label.new()
-	time_label.text = _resolve_time_text(msg)
-	time_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_TIME)
-	time_label.add_theme_font_size_override("font_size", TIME_FONT_SIZE)
-	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	vbox.add_child(time_label)
+	add_theme_constant_override("margin_left", 156)
+	add_theme_constant_override("margin_right", 30)
+	add_theme_constant_override("margin_top", 12)
+	add_theme_constant_override("margin_bottom", 12)
 
 	var align := HBoxContainer.new()
 	align.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_child(align)
+	align.add_theme_constant_override("separation", 24)
+	add_child(align)
 
 	# 左侧弹性空间，把气泡推到右边
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	align.add_child(spacer)
 
+	var content_vbox := VBoxContainer.new()
+	content_vbox.size_flags_horizontal = Control.SIZE_SHRINK_END
+	content_vbox.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	content_vbox.add_theme_constant_override("separation", 9)
+	content_vbox.add_child(_create_name_tag(str(msg.get("sender_name", "")), _resolve_time_text(msg), true))
+	align.add_child(content_vbox)
+
 	# 气泡 — SHRINK_END 让短消息不撑满，靠右
 	_bubble_panel = PanelContainer.new()
 	_bubble_panel.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_bubble_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	_bubble_panel.add_theme_stylebox_override("panel", LCTheme.get_player_bubble_style())
-	align.add_child(_bubble_panel)
+	content_vbox.add_child(_bubble_panel)
+	_attach_bubble_tail(true)
 
 	_build_content(_bubble_panel, msg)
+
+	var avatar := _create_avatar(
+		str(msg.get("sender_name", "?")),
+		_resolve_avatar_texture(msg)
+	)
+	avatar.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	align.add_child(avatar)
 
 
 func _build_system(msg: Dictionary) -> void:
@@ -155,10 +152,10 @@ func _build_system(msg: Dictionary) -> void:
 	size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 
-	add_theme_constant_override("margin_left", 64)
-	add_theme_constant_override("margin_right", 64)
-	add_theme_constant_override("margin_top", 4)
-	add_theme_constant_override("margin_bottom", 4)
+	add_theme_constant_override("margin_left", 96)
+	add_theme_constant_override("margin_right", 96)
+	add_theme_constant_override("margin_top", 6)
+	add_theme_constant_override("margin_bottom", 6)
 
 	var label := Label.new()
 	label.text = msg.get("content", "")
@@ -177,6 +174,9 @@ func _ready() -> void:
 		_animate_entry()
 		return
 	_bind_layout_watchers()
+	if _width_preconfigured:
+		_animate_entry()
+		return
 	# 等一帧让布局引擎分配尺寸
 	await get_tree().process_frame
 	_adjust_bubble_width()
@@ -184,14 +184,12 @@ func _ready() -> void:
 
 
 func _animate_entry() -> void:
-	# 进场动画：透明度淡入 + 竖向轻微展开（scale 不影响布局尺寸，不会抢占空间）
+	# 只做透明度淡入，避免消息出现时产生纵向缩放造成的视觉颤动。
 	modulate.a = 0.0
-	pivot_offset = Vector2(size.x * 0.5, 0.0)
-	scale = Vector2(1.0, 0.82)
+	scale = Vector2.ONE
 
 	var tween := create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(self, "modulate:a", 1.0, 0.25)
-	tween.parallel().tween_property(self, "scale:y", 1.0, 0.22)
+	tween.tween_property(self, "modulate:a", 1.0, 0.18)
 
 
 func _adjust_bubble_width() -> void:
@@ -207,6 +205,14 @@ func _adjust_bubble_width() -> void:
 	if container_width <= 0:
 		container_width = get_viewport_rect().size.x * 0.6
 
+	_apply_bubble_width(container_width)
+	_is_adjusting_width = false
+
+
+func _apply_bubble_width(container_width: float) -> void:
+	if _content_label == null or _bubble_panel == null or container_width <= 0.0:
+		return
+
 	# 气泡内 padding（从 StyleBoxFlat 读取）
 	var padding: float = 24.0 # 默认 12+12
 	var style: StyleBox = _bubble_panel.get_theme_stylebox("panel")
@@ -214,7 +220,7 @@ func _adjust_bubble_width() -> void:
 		padding = style.content_margin_left + style.content_margin_right
 
 	# 头像 + 间距占用的固定宽度
-	var fixed_width: float = AVATAR_SIZE + 24.0 # avatar + spacing + outer margin
+	var fixed_width: float = AVATAR_SIZE + 36.0 # avatar + spacing + outer margin
 
 	# 最大内容宽度
 	var max_content_w: float = container_width * MAX_WIDTH_RATIO - fixed_width - padding
@@ -244,9 +250,6 @@ func _adjust_bubble_width() -> void:
 		_content_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 		_bubble_panel.custom_minimum_size.x = 0.0
 
-	_is_adjusting_width = false
-
-
 func _bind_layout_watchers() -> void:
 	if not resized.is_connected(_on_layout_resized):
 		resized.connect(_on_layout_resized)
@@ -262,6 +265,70 @@ func _bind_layout_watchers() -> void:
 
 func _on_layout_resized() -> void:
 	call_deferred("_adjust_bubble_width")
+	call_deferred("_position_bubble_tail")
+
+
+func _create_name_tag(display_name: String, time_text: String, is_player: bool) -> PanelContainer:
+	var tag := PanelContainer.new()
+	tag.size_flags_horizontal = Control.SIZE_SHRINK_END if is_player else Control.SIZE_SHRINK_BEGIN
+	tag.add_theme_stylebox_override("panel", LCTheme.get_name_tag_style(is_player))
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	tag.add_child(row)
+
+	var name_label := Label.new()
+	name_label.text = display_name
+	name_label.add_theme_color_override(
+		"font_color",
+		LCTheme.COLOR_TEXT_SENDER_PLAYER if is_player else LCTheme.COLOR_TEXT_SENDER_NPC
+	)
+	name_label.add_theme_font_size_override("font_size", NAME_FONT_SIZE)
+	row.add_child(name_label)
+
+	if not time_text.is_empty():
+		var time_label := Label.new()
+		time_label.text = time_text
+		time_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_TIME)
+		time_label.add_theme_font_size_override("font_size", TIME_FONT_SIZE)
+		row.add_child(time_label)
+
+	return tag
+
+
+func _attach_bubble_tail(is_player: bool) -> void:
+	_tail_is_player = is_player
+	_bubble_tail = Node2D.new()
+	_bubble_tail.show_behind_parent = true
+	_bubble_panel.add_child(_bubble_tail)
+
+	var direction: float = 1.0 if is_player else -1.0
+	var border := Polygon2D.new()
+	border.polygon = PackedVector2Array([
+		Vector2(20.0 * direction, 0.0),
+		Vector2(-5.0 * direction, -11.0),
+		Vector2(-5.0 * direction, 14.0),
+	])
+	border.color = LCTheme.COLOR_BUBBLE_PLAYER_BORDER if is_player else LCTheme.COLOR_BUBBLE_NPC_BORDER
+	_bubble_tail.add_child(border)
+
+	var fill := Polygon2D.new()
+	fill.polygon = PackedVector2Array([
+		Vector2(15.0 * direction, 0.0),
+		Vector2(-5.0 * direction, -7.0),
+		Vector2(-5.0 * direction, 10.0),
+	])
+	fill.color = LCTheme.COLOR_BUBBLE_PLAYER if is_player else LCTheme.COLOR_BUBBLE_NPC
+	_bubble_tail.add_child(fill)
+
+	_bubble_panel.resized.connect(_position_bubble_tail)
+	call_deferred("_position_bubble_tail")
+
+
+func _position_bubble_tail() -> void:
+	if _bubble_tail == null or _bubble_panel == null:
+		return
+	_bubble_tail.position = Vector2(_bubble_panel.size.x if _tail_is_player else 0.0, 30.0)
 
 
 ## 构建气泡内容（支持文本+图片占位混排）
@@ -279,7 +346,7 @@ func _build_content(parent: Control, msg: Dictionary) -> void:
 
 	# 混合内容
 	var vbox := VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
+	vbox.add_theme_constant_override("separation", 9)
 	parent.add_child(vbox)
 
 	for seg in segments:
@@ -334,8 +401,8 @@ func _create_text_label(text: String) -> Label:
 
 func _create_image_placeholder(description: String) -> PanelContainer:
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(320, 180)
-	var bg_color := Color("#E8E8EC") if _type == BubbleType.NPC else Color("#D5EED0")
+	panel.custom_minimum_size = Vector2(480, 270)
+	var bg_color := Color("#E8E8EC") if _type == BubbleType.NPC else Color("#DCEAFF")
 	panel.add_theme_stylebox_override("panel", LCTheme.rounded_flat(bg_color, LCTheme.RADIUS_SM))
 
 	var inner := VBoxContainer.new()
@@ -346,7 +413,7 @@ func _create_image_placeholder(description: String) -> PanelContainer:
 
 	var icon_rect := TextureRect.new()
 	icon_rect.texture = UIIconLibraryClass.get_icon("image")
-	icon_rect.custom_minimum_size = Vector2(36, 36)
+	icon_rect.custom_minimum_size = Vector2(54, 54)
 	icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon_rect.modulate = LCTheme.COLOR_TEXT_MUTED
@@ -355,7 +422,7 @@ func _create_image_placeholder(description: String) -> PanelContainer:
 	var desc_label := Label.new()
 	desc_label.text = description
 	desc_label.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_MUTED)
-	desc_label.add_theme_font_size_override("font_size", 15)
+	desc_label.add_theme_font_size_override("font_size", 23)
 	desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(desc_label)
@@ -363,53 +430,16 @@ func _create_image_placeholder(description: String) -> PanelContainer:
 	return panel
 
 
-func _create_avatar(display_name: String, texture: Texture2D = null) -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
-
-	var hue := float(display_name.hash() & 0xFFFF) / 65535.0
-	# Brighter pastel colors for Anime style
-	var avatar_color := Color.from_hsv(hue, 0.55, 0.95)
-	panel.add_theme_stylebox_override("panel", LCTheme.get_avatar_style(avatar_color))
-
-	if texture != null:
-		var tex_rect := TextureRect.new()
-		tex_rect.texture = texture
-		tex_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-		tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
-		tex_rect.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tex_rect.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		panel.add_child(tex_rect)
-	else:
-		var initial := Label.new()
-		initial.text = display_name.substr(0, 1) if not display_name.is_empty() else "?"
-		initial.add_theme_color_override("font_color", Color.WHITE)
-		initial.add_theme_font_size_override("font_size", AVATAR_FONT_SIZE)
-		initial.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		initial.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		initial.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		initial.size_flags_vertical = Control.SIZE_EXPAND_FILL
-		panel.add_child(initial)
-
-	return panel
+func _create_avatar(display_name: String, texture: Texture2D = null) -> RoundedAvatar:
+	var avatar := RoundedAvatarScene.instantiate() as RoundedAvatar
+	avatar.custom_minimum_size = Vector2(AVATAR_SIZE, AVATAR_SIZE)
+	avatar.set_avatar(texture, display_name)
+	return avatar
 
 
 static func _resolve_avatar_texture(msg: Dictionary) -> Texture2D:
-	var sender_id := str(msg.get("sender_id", "")).strip_edges()
-	if sender_id.is_empty() or sender_id == "player" or sender_id == "system":
-		return null
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
-		return null
-	var chat_manager := tree.root.get_node_or_null("ChatManager")
-	if chat_manager == null or not chat_manager.has_method("get_npc"):
-		return null
-	var npc = chat_manager.call("get_npc", sender_id)
-	if npc == null:
-		return null
-	var avatar = npc.get("avatar")
-	return avatar as Texture2D if avatar != null else null
+	var avatar: Variant = msg.get("avatar")
+	return avatar as Texture2D if avatar is Texture2D else null
 
 
 static func _resolve_time_text(msg: Dictionary) -> String:

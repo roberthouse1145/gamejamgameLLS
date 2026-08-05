@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3]
+
+[ext_resource type="Script" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "prologue_offer"
+channel_id = "鸢鸢"
+mode = 0
+local_script = "lu_yuanyuan: 柚柚！醒了没？快看文件！
+lu_yuanyuan: [card:file|星茫网络-入职通知书.pdf|browser://offer-letter|星茫网络 · 入职通知书]
+lu_yuanyuan: 面试过了哦~ 恭喜你结束三年家里蹲，今天就可以正式入职啦 (≧▽≦)
+player: ？？？
+player: 不是，等一下。今天？！
+player: 而且上周把你公司内推邮箱发我，难道不是开玩笑的吗？我那个连摇奶茶都没人要的废柴简历，你们大厂HR是瞎了吗？！
+lu_yuanyuan: 哎呀，HR 怎么敢卡你的简历呢。
+lu_yuanyuan: 毕竟这家 MCN 公司的 CEO，是我爸爸呀~
+lu_yuanyuan: 我帮你一键搞定了。你赶紧把这个电子入职系统填了，把艺名写上，点个确认就行~
+player: ……万恶的资本主义。
+player: 伯父知道你拿他公司给无业游民做慈善吗？算了，能在家里躺着赚钱就行。
+lu_yuanyuan: [card:link|星茫网络 · 新人电子签约与入驻登记表|browser://signup|点击打开登记表]
+END done"

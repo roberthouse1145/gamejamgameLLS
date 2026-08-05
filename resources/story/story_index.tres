@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StoryChapterIndex" format=3 uid="uid://d38iwslwtvlbs"]
+
+[ext_resource type="Resource" uid="uid://3u6754xkfu6n" path="res://resources/story/generated/prologue.tres" id="1_6elj6"]
+[ext_resource type="Script" uid="uid://dr7q2aqetm7fd" path="res://scripts/story/resources/story_chapter_index.gd" id="2_cljxc"]
+
+[resource]
+script = ExtResource("2_cljxc")
+chapters = Array[Resource]([ExtResource("1_6elj6")])
+chapter_sources = {
+"prologue": "res://resources/story/chapters/prologue.txt"
+}
+compiled_paths = {
+"prologue": "res://resources/story/generated/prologue.tres"
+}

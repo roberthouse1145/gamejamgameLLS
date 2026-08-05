@@ -4,7 +4,7 @@ class_name ChatRunner extends Node
 const ChatDslParserClass = preload("res://scripts/chat/chat_dsl_parser.gd")
 const MAX_STEPS_WITHOUT_OUTPUT: int = 1000
 
-signal message_emitted(speaker_id: String, text: String, is_player: bool)
+signal message_emitted(speaker_id: String, text: String, is_player: bool, card: Dictionary)
 signal choices_presented(choices: Array)
 signal completed(result: Dictionary)
 signal failed(errors: Array)
@@ -121,7 +121,9 @@ func _run_until_pause() -> void:
 				_instruction_index += 1
 				_paused_on_message = true
 				var speaker_id: String = str(instruction.get("speaker", ""))
-				message_emitted.emit(speaker_id, str(instruction.get("text", "")), speaker_id == ChatDslParserClass.PLAYER_SPEAKER)
+				var card_value: Variant = instruction.get("card", {})
+				var card: Dictionary = card_value if card_value is Dictionary else {}
+				message_emitted.emit(speaker_id, str(instruction.get("text", "")), speaker_id == ChatDslParserClass.PLAYER_SPEAKER, card)
 			"choice":
 				_present_choice(instruction)
 			"end":

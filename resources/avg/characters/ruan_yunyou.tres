@@ -22,3 +22,5 @@ emotion_slots = {
 }
 sprite_path_pattern = "res://Assets/images/characters/ruan_yunyou/{outfit}/expression_{slot}.png"
 profile = "23 岁家里蹲宅女，怕生、嘴硬、内心戏很多，对游戏、动画和声优异常熟悉。"
+display_offset = Vector2(0, 0.3)
+display_scale = 1.45

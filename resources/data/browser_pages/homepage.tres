@@ -5,19 +5,29 @@
 [resource]
 script = ExtResource("1_script")
 url = "browser://welcome"
-title = "欢迎使用浏览器"
-hint = "虚拟浏览器的中性起始页面。"
-content = "::: col fill sep=16
-# 欢迎使用浏览器
-
-你可以打开预制网页，也可以输入关键词生成一张新的虚拟网页。
-
-::: form action=surf sep=12
-input field=keyword placeholder=输入关键词 required
-[搜索](action:surf bg_color=#4A7CFF color=#FFFFFF)
+title = "PixelNet - 主页"
+icon_path = "res://Assets/images/browser_ui/site_icon_pixelnet.png"
+hint = "PixelNet 浏览服务主页。"
+content = "::: col fill sep=24
+::: card fill bg=#FFFFFF border=#D5DFEC corner_radius=18 pad=36 sep=16
+# [PixelNet](color:#3F73C8)
+[连接你想抵达的每一个页面](color:#68738A)
+::: form action=surf sep=14
+input field=keyword placeholder=搜索网站或输入关键词 required
+[搜索](action:surf bg_color=#3F73C8 color=#FFFFFF)
 :::
-
-[查看公告](url:browser://notice)
+:::
+::: grid cols=2 fill sep=18
+::: card fill bg=#FFFFFF border=#D5DFEC corner_radius=14 pad=24 sep=8
+## 最近访问
+[查看本次会话中打开过的页面](url:browser://history color=#3F73C8)
+:::
+::: card fill bg=#FFFFFF border=#D5DFEC corner_radius=14 pad=24 sep=8
+## 服务公告
+[查看 PixelNet 服务与安全通知](url:browser://notice color=#3F73C8)
+:::
+:::
+#### [连接状态正常 · 安全浏览已启用](color:#708198)
 :::"
 searchable = false
 linked_urls = PackedStringArray("browser://notice")

@@ -20,6 +20,7 @@ script = ExtResource("5_5uyu1")
 [resource]
 script = ExtResource("1_script")
 game_name = "家里蹲主播"
+resolution = Vector2i(3840, 2160)
 dialog_settings = ExtResource("3_dialog_settings")
 characters = [ExtResource("7_yuanyuan"), ExtResource("8_yunyou")]
 title_config = SubResource("Resource_jehwh")

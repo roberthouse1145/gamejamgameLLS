@@ -198,10 +198,20 @@ static func parse(
 				errors.append(_line_error(line_number, "speaker '%s' is not available in this channel" % speaker_id))
 			if message_text.is_empty():
 				errors.append(_line_error(line_number, "message text cannot be empty"))
+			var card: Dictionary = {}
+			var card_error: String = ""
+			var parsed_content: Dictionary = _parse_card_message(message_text)
+			if bool(parsed_content.get("is_card", false)):
+				card = parsed_content.get("card", {})
+				message_text = str(parsed_content.get("text", message_text))
+				card_error = str(parsed_content.get("error", ""))
+			if not card_error.is_empty():
+				errors.append(_line_error(line_number, card_error))
 			instructions.append({
 				"op": "message",
 				"speaker": speaker_id,
 				"text": message_text,
+				"card": card,
 				"line": line_number,
 			})
 			continue
@@ -276,6 +286,24 @@ static func _validate_condition(expression: String, line_number: int, allowed_pa
 		if path not in allowed_paths:
 			errors.append(_line_error(line_number, "unknown variable path '%s'" % path))
 	return errors
+
+
+static func _parse_card_message(message_text: String) -> Dictionary:
+	## 附件/链接卡片语法：[card:type|title|url] 或 [card:type|title|url|subtitle]
+	if not message_text.begins_with("[card:") or not message_text.ends_with("]"):
+		return {"is_card": false}
+	var inner: String = message_text.trim_prefix("[card:").trim_suffix("]")
+	var parts: PackedStringArray = inner.split("|")
+	if parts.size() < 3:
+		return {"is_card": true, "card": {}, "text": message_text, "error": "invalid card syntax, expected [card:type|title|url]"}
+	var card: Dictionary = {
+		"type": parts[0].strip_edges(),
+		"title": parts[1].strip_edges(),
+		"url": parts[2].strip_edges(),
+	}
+	if parts.size() >= 4:
+		card["subtitle"] = parts[3].strip_edges()
+	return {"is_card": true, "card": card, "text": str(card["title"])}
 
 
 static func _is_valid_id(value: String) -> bool:

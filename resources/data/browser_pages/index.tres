@@ -1,9 +1,14 @@
-[gd_resource type="Resource" script_class="WebPageIndex" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="WebPageIndex" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/apps/browser/web_page_index.gd" id="1_index"]
 [ext_resource type="Resource" path="res://resources/data/browser_pages/homepage.tres" id="2_home"]
 [ext_resource type="Resource" path="res://resources/data/browser_pages/notice.tres" id="3_notice"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/offer_letter.tres" id="4_offer"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/signup.tres" id="5_signup"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/signup_success.tres" id="6_success"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/contract.tres" id="7_contract"]
+[ext_resource type="Resource" path="res://resources/data/browser_pages/resume.tres" id="8_resume"]
 
 [resource]
 script = ExtResource("1_index")
-pages = Array[Resource]([ExtResource("2_home"), ExtResource("3_notice")])
+pages = Array[Resource]([ExtResource("2_home"), ExtResource("3_notice"), ExtResource("4_offer"), ExtResource("5_signup"), ExtResource("6_success"), ExtResource("7_contract"), ExtResource("8_resume")])

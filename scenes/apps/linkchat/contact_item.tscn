@@ -1,0 +1,97 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/linkchat/components/contact_item.gd" id="1_contact"]
+[ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="2_avatar"]
+
+[node name="ContactItem" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 198)
+mouse_filter = 0
+script = ExtResource("1_contact")
+
+[node name="Background" type="Panel" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 12.0
+offset_top = 6.0
+offset_right = -12.0
+offset_bottom = -6.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="SelectionRail" type="Panel" parent="Background"]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 6
+anchor_left = 0.0
+anchor_top = 0.5
+anchor_right = 0.0
+anchor_bottom = 0.5
+offset_left = 12.0
+offset_top = -54.0
+offset_right = 21.0
+offset_bottom = 54.0
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ContentMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 42
+theme_override_constants/margin_top = 27
+theme_override_constants/margin_right = 42
+theme_override_constants/margin_bottom = 27
+
+[node name="Row" type="HBoxContainer" parent="ContentMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 27
+
+[node name="Avatar" parent="ContentMargin/Row" instance=ExtResource("2_avatar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(144, 144)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+
+[node name="Info" type="VBoxContainer" parent="ContentMargin/Row"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 8
+alignment = 1
+
+[node name="NameLabel" type="Label" parent="ContentMargin/Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.122, 0.122, 0.122, 1)
+theme_override_font_sizes/font_size = 36
+text_overrun_behavior = 3
+
+[node name="PreviewLabel" type="Label" parent="ContentMargin/Row/Info"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.522, 0.522, 0.522, 1)
+theme_override_font_sizes/font_size = 29
+text = "新会话"
+clip_text = true
+text_overrun_behavior = 3
+max_lines_visible = 1
+
+[node name="TimeLabel" type="Label" parent="ContentMargin/Row"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.69, 0.69, 0.69, 1)
+theme_override_font_sizes/font_size = 24
+horizontal_alignment = 2
+vertical_alignment = 0

@@ -1,0 +1,124 @@
+chapter: prologue
+name: 序章 - 离谱的内推
+desc: 柚柚被鸢鸢内推进星茫网络，签下电子合同后在咖啡厅被告知 90 天对赌条款，回家开始直播教学
+
+=== s1_offer_chat ===
+# Scene 1：开机，鸢鸢发来入职通知书与签约链接
+
+[launch_app]
+app_id: linkchat
+
+[notify]
+title: 鸢鸢
+body: 柚柚！醒了没？快看文件！
+icon: linkchat
+
+[activate_topic]
+topic_path: res://resources/story/topics/prologue_offer.tres
+
+wait: topic_completed
+  topic_id: prologue_offer
+-> s2_sign_contract
+
+=== s2_sign_contract ===
+# Scene 2：玩家点击聊天里的卡片，在浏览器填写签约登记表并确认签约
+
+wait: variable_equals
+  key: signed
+  value: true
+-> s3_fill_reply
+
+=== s3_fill_reply ===
+# 签约完成：LinkChat 置前，玩家发送"我已经填好了哦"
+
+[focus_app]
+app_id: linkchat
+
+[activate_topic]
+topic_path: res://resources/story/topics/prologue_fill_reply.tres
+
+wait: topic_completed
+  topic_id: prologue_fill_reply
+-> s4_check_llm
+
+=== s4_check_llm ===
+# 判断聊天 LLM 是否可用，决定鸢鸢评价艺名的方式
+
+[check_llm_available]
+key: llm_available
+
+wait: immediate
+next_conditions:
+  llm_available == true -> s5_name_review_llm
+  default -> s5_name_review_fallback
+
+=== s5_name_review_llm ===
+# 鸢鸢（LLM）评价玩家填写的艺名，并约咖啡厅见面
+
+[activate_topic]
+topic_path: res://resources/story/topics/prologue_name_review.tres
+allowed_speakers: lu_yuanyuan,player
+
+wait: topic_completed
+  topic_id: prologue_name_review
+-> s6_cafe_transit
+
+=== s5_name_review_fallback ===
+# LLM 不可用时的预写版本
+
+[activate_topic]
+topic_path: res://resources/story/topics/prologue_name_review_fallback.tres
+
+wait: topic_completed
+  topic_id: prologue_name_review_fallback
+-> s6_cafe_transit
+
+=== s6_cafe_transit ===
+# 离开线上聊天，前往与鸢鸢约好的咖啡厅
+
+[play_transit]
+id: prologue_to_cafe
+window_title: 行程
+title: 前往楼下咖啡厅
+duration: 3.6
+
+wait: transit_finished
+  transit_id: prologue_to_cafe
+-> s6_cafe_avg
+
+=== s6_cafe_avg ===
+# Scene 3：切 AVG 咖啡厅演出，图穷匕见
+
+[play_avg]
+dsl_path: res://resources/story/avg/cafe.txt
+title: 楼下咖啡厅
+session_id: prologue_cafe
+
+wait: avg_finished
+  session_id: prologue_cafe
+-> s7_back_to_os
+
+=== s7_back_to_os ===
+# Scene 4：切回桌面，直播软件出现在桌面上
+
+[close_app]
+app_id: avg_player
+
+[install_app]
+path: res://resources/apps/obs_live_app.tres
+
+[focus_app]
+app_id: linkchat
+
+[activate_topic]
+topic_path: res://resources/story/topics/prologue_obs_intro.tres
+
+wait: topic_completed
+  topic_id: prologue_obs_intro
+-> s8_wait_obs
+
+=== s8_wait_obs ===
+# 等待玩家双击 OBS 直播姬，序章结束
+
+wait: app_launched
+  app_id: obs_live

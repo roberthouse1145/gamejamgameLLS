@@ -1,0 +1,171 @@
+[gd_resource type="Resource" script_class="StoryChapter" format=3 uid="uid://3u6754xkfu6n"]
+
+[ext_resource type="Script" uid="uid://bslxxk0hea2u3" path="res://scripts/story/resources/story_chapter.gd" id="1_m33lm"]
+[ext_resource type="Script" uid="uid://cvqafi3nepw6t" path="res://scripts/story/resources/story_step.gd" id="2_nei2n"]
+
+[sub_resource type="Resource" id="Resource_m33lm"]
+script = ExtResource("2_nei2n")
+step_id = "s1_offer_chat"
+description = "Scene 1：开机，鸢鸢发来入职通知书与签约链接"
+actions = Array[Dictionary]([{
+"app_id": "linkchat",
+"type": "launch_app"
+}, {
+"body": "柚柚！醒了没？快看文件！",
+"icon": "linkchat",
+"title": "鸢鸢",
+"type": "notify"
+}, {
+"topic_path": "res://resources/story/topics/prologue_offer.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "prologue_offer",
+"type": "topic_completed"
+}
+next = "s2_sign_contract"
+
+[sub_resource type="Resource" id="Resource_nei2n"]
+script = ExtResource("2_nei2n")
+step_id = "s2_sign_contract"
+description = "Scene 2：玩家点击聊天里的卡片，在浏览器填写签约登记表并确认签约"
+wait_for = {
+"key": "signed",
+"type": "variable_equals",
+"value": true
+}
+next = "s3_fill_reply"
+
+[sub_resource type="Resource" id="Resource_7i4km"]
+script = ExtResource("2_nei2n")
+step_id = "s3_fill_reply"
+description = "签约完成：LinkChat 置前，玩家发送\"我已经填好了哦\""
+actions = Array[Dictionary]([{
+"app_id": "linkchat",
+"type": "focus_app"
+}, {
+"topic_path": "res://resources/story/topics/prologue_fill_reply.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "prologue_fill_reply",
+"type": "topic_completed"
+}
+next = "s4_check_llm"
+
+[sub_resource type="Resource" id="Resource_gtvf7"]
+script = ExtResource("2_nei2n")
+step_id = "s4_check_llm"
+description = "判断聊天 LLM 是否可用，决定鸢鸢评价艺名的方式"
+actions = Array[Dictionary]([{
+"key": "llm_available",
+"type": "check_llm_available"
+}])
+next_conditions = Array[Dictionary]([{
+"if": "llm_available == true",
+"next": "s5_name_review_llm"
+}, {
+"default": true,
+"next": "s5_name_review_fallback"
+}])
+
+[sub_resource type="Resource" id="Resource_osvml"]
+script = ExtResource("2_nei2n")
+step_id = "s5_name_review_llm"
+description = "鸢鸢（LLM）评价玩家填写的艺名，并约咖啡厅见面"
+actions = Array[Dictionary]([{
+"allowed_speakers": ["lu_yuanyuan", "player"],
+"topic_path": "res://resources/story/topics/prologue_name_review.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "prologue_name_review",
+"type": "topic_completed"
+}
+next = "s6_cafe_transit"
+
+[sub_resource type="Resource" id="Resource_j3yub"]
+script = ExtResource("2_nei2n")
+step_id = "s5_name_review_fallback"
+description = "LLM 不可用时的预写版本"
+actions = Array[Dictionary]([{
+"topic_path": "res://resources/story/topics/prologue_name_review_fallback.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "prologue_name_review_fallback",
+"type": "topic_completed"
+}
+next = "s6_cafe_transit"
+
+[sub_resource type="Resource" id="Resource_transit"]
+script = ExtResource("2_nei2n")
+step_id = "s6_cafe_transit"
+description = "离开线上聊天，前往与鸢鸢约好的咖啡厅"
+actions = Array[Dictionary]([{
+"duration": 3.6,
+"id": "prologue_to_cafe",
+"title": "前往楼下咖啡厅",
+"type": "play_transit",
+"window_title": "行程"
+}])
+wait_for = {
+"transit_id": "prologue_to_cafe",
+"type": "transit_finished"
+}
+next = "s6_cafe_avg"
+
+[sub_resource type="Resource" id="Resource_iegs1"]
+script = ExtResource("2_nei2n")
+step_id = "s6_cafe_avg"
+description = "Scene 3：切 AVG 咖啡厅演出，图穷匕见"
+actions = Array[Dictionary]([{
+"dsl_path": "res://resources/story/avg/cafe.txt",
+"session_id": "prologue_cafe",
+"title": "楼下咖啡厅",
+"type": "play_avg"
+}])
+wait_for = {
+"session_id": "prologue_cafe",
+"type": "avg_finished"
+}
+next = "s7_back_to_os"
+
+[sub_resource type="Resource" id="Resource_2dtst"]
+script = ExtResource("2_nei2n")
+step_id = "s7_back_to_os"
+description = "Scene 4：切回桌面，直播软件出现在桌面上"
+actions = Array[Dictionary]([{
+"app_id": "avg_player",
+"type": "close_app"
+}, {
+"path": "res://resources/apps/obs_live_app.tres",
+"type": "install_app"
+}, {
+"app_id": "linkchat",
+"type": "focus_app"
+}, {
+"topic_path": "res://resources/story/topics/prologue_obs_intro.tres",
+"type": "activate_topic"
+}])
+wait_for = {
+"topic_id": "prologue_obs_intro",
+"type": "topic_completed"
+}
+next = "s8_wait_obs"
+
+[sub_resource type="Resource" id="Resource_p37xb"]
+script = ExtResource("2_nei2n")
+step_id = "s8_wait_obs"
+description = "等待玩家双击 OBS 直播姬，序章结束"
+wait_for = {
+"app_id": "obs_live",
+"type": "app_launched"
+}
+
+[resource]
+script = ExtResource("1_m33lm")
+chapter_id = "prologue"
+chapter_name = "序章 - 离谱的内推"
+description = "柚柚被鸢鸢内推进星茫网络，签下电子合同后在咖啡厅被告知 90 天对赌条款，回家开始直播教学"
+steps = Array[Resource]([SubResource("Resource_m33lm"), SubResource("Resource_nei2n"), SubResource("Resource_7i4km"), SubResource("Resource_gtvf7"), SubResource("Resource_osvml"), SubResource("Resource_j3yub"), SubResource("Resource_transit"), SubResource("Resource_iegs1"), SubResource("Resource_2dtst"), SubResource("Resource_p37xb")])

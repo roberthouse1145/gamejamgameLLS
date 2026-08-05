@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ChatTopic" format=3]
+
+[ext_resource type="Script" path="res://scripts/chat/resources/chat_topic.gd" id="1_script"]
+
+[resource]
+script = ExtResource("1_script")
+topic_id = "prologue_obs_intro"
+channel_id = "鸢鸢"
+mode = 0
+local_script = "lu_yuanyuan: 我已经帮你把直播软件下好啦，在桌面上哦。
+lu_yuanyuan: 距离第一次考核还有 15 天。今晚就开始你的初配信吧。
+lu_yuanyuan: 点开软件，我教你怎么操作~ 别想逃跑哦，乖乖听话。
+END done"

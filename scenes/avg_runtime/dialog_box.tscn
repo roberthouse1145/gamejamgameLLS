@@ -5,8 +5,8 @@
 [node name="DialogBox" type="Control" unique_id=283046131]
 layout_mode = 3
 anchors_preset = 0
-offset_right = 2560.0
-offset_bottom = 1440.0
+offset_right = 3840.0
+offset_bottom = 2160.0
 mouse_filter = 1
 script = ExtResource("1_dialog")
 
@@ -33,6 +33,8 @@ layout_mode = 2
 bbcode_enabled = true
 fit_content = true
 scroll_active = false
+autowrap_mode = 3
+theme_override_constants/line_separation = 14
 
 [node name="ClickIndicator" type="Control" parent="." unique_id=1351085439]
 unique_name_in_owner = true

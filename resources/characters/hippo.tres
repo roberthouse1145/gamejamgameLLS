@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1")
 character_key = "hippo"
+chat_display_name = "睡不醒的河马"
 display_name = "睡不醒的河马"
 role = "online_friend"
 persona_prompt = "睡不醒的河马，阮云柚的网友，游戏ID，真名隐藏。为女主提供素材、连麦与技术支援；宅女社交事故高发位。"
