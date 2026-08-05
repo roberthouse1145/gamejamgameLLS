@@ -26,3 +26,6 @@ all_emotions.txt
 # 保留 web 导出文件用于部署
 
 .env
+
+# Oversized font (116MB) - kept locally only
+Assets/fonts/SourceHanMono.ttc
