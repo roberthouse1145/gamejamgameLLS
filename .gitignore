@@ -10,8 +10,12 @@ ai_config.cfg
 .claude/settings.local.json
 .kiro/
 .qoder/
+.cursor/
 .mcp.json
 .vscode/mcp.json
+
+# Temporary debug files
+tmp/
 
 # Local machine noise
 NVIDIA Corporation/
