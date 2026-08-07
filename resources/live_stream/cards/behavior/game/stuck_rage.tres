@@ -1,9 +1,10 @@
-[gd_resource type="Resource" script_class="BehaviorCardResource" load_steps=7 format=3]
+[gd_resource type="Resource" script_class="BehaviorCardResource" format=3 uid="uid://ssu7npkhy0lr"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="4"]
+[ext_resource type="Script" uid="uid://wvbgu88pwof3" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3"]
+[ext_resource type="Texture2D" uid="uid://bau33kpjofu1o" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="4"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="5_n8fvm"]
 
 [sub_resource type="Resource" id="Axes"]
 script = ExtResource("2")
@@ -13,21 +14,19 @@ risk = 1.0
 [sub_resource type="Resource" id="Boost"]
 script = ExtResource("3")
 with_tag = &"trash_game"
-axis_key = &"impact"
-multiplier = 1.3
 
 [resource]
 script = ExtResource("1")
+left_slots = Array[int]([2, 4])
+right_slots = Array[int]([2])
+axes = SubResource("Axes")
+material_boosts = Array[ExtResource("3")]([SubResource("Boost")])
+family = &"game"
+tier = 2
+budget_cost = 4
+stress_cost = 8.0
 content_id = &"game_stuck_rage"
 display_name = "卡关暴走"
 description = "把卡关的火气直接变成节目效果。"
 icon = ExtResource("4")
 tags = Array[StringName]([&"game", &"rage_bait"])
-family = &"game"
-tier = 1
-budget_cost = 4
-stress_cost = 8.0
-mood_inputs = Array[StringName]([&"hot", &"calm"])
-mood_outputs = Array[StringName]([&"gloom", &"hot"])
-axes = SubResource("Axes")
-material_boosts = Array[Resource]([SubResource("Boost")])

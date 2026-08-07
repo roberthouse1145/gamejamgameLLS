@@ -1,8 +1,10 @@
-[gd_resource type="Resource" script_class="BehaviorCardResource" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="BehaviorCardResource" format=3 uid="uid://b0a58mfvbmb1f"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="3"]
+[ext_resource type="Script" uid="uid://wvbgu88pwof3" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://c6bmn87ogu8h7" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="3"]
+[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_rd7s7"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="5_j058l"]
 
 [sub_resource type="Resource" id="Axes"]
 script = ExtResource("2")
@@ -10,15 +12,12 @@ quality = 1.0
 
 [resource]
 script = ExtResource("1")
+left_slots = Array[int]([1, 3])
+right_slots = Array[int]([])
+axes = SubResource("Axes")
+stress_cost = -2.0
 content_id = &"talk_goodnight"
 display_name = "温柔晚安"
 description = "留下一句会被记住的晚安。"
 icon = ExtResource("3")
 tags = Array[StringName]([&"talk"])
-family = &"talk"
-tier = 1
-budget_cost = 2
-stress_cost = -2.0
-mood_inputs = Array[StringName]([&"warm", &"gloom"])
-mood_outputs = Array[StringName]([])
-axes = SubResource("Axes")

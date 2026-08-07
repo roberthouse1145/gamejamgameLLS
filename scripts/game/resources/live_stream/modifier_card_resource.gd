@@ -7,7 +7,6 @@ const KIND_PROJECT: StringName = &"project"
 @export var modifier_kind: StringName = KIND_TONE
 @export var axis_multiplier_bonus: StreamAxisValues = null
 @export var target_family: StringName = &""
-@export var target_mood: StringName = &""
 
 
 func get_card_kind() -> StringName:
@@ -19,9 +18,4 @@ func is_valid() -> bool:
 		return false
 	if target_family != &"" and target_family not in FAMILIES:
 		return false
-	return target_mood == &"" or target_mood in [
-		BehaviorCardResource.MOOD_HOT,
-		BehaviorCardResource.MOOD_CALM,
-		BehaviorCardResource.MOOD_WARM,
-		BehaviorCardResource.MOOD_GLOOM,
-	]
+	return true

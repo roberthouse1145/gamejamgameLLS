@@ -1,8 +1,10 @@
-[gd_resource type="Resource" script_class="BehaviorCardResource" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="BehaviorCardResource" format=3 uid="uid://bw4jgbx2wxfp"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+[ext_resource type="Script" uid="uid://wvbgu88pwof3" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://c4u8u05tmwf58" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_4qlrv"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="5_ykwbe"]
 
 [sub_resource type="Resource" id="Axes"]
 script = ExtResource("2")
@@ -10,15 +12,14 @@ impact = 2.0
 
 [resource]
 script = ExtResource("1")
+left_slots = Array[int]([2, 3])
+right_slots = Array[int]([2, 3])
+axes = SubResource("Axes")
+family = &"act"
+budget_cost = 3
+stress_cost = 5.0
 content_id = &"act_cute_appeal"
 display_name = "卖萌撒娇"
 description = "顺着观众期待，把可爱演到底。"
 icon = ExtResource("3")
 tags = Array[StringName]([&"act"])
-family = &"act"
-tier = 1
-budget_cost = 3
-stress_cost = 5.0
-mood_inputs = Array[StringName]([&"warm", &"hot"])
-mood_outputs = Array[StringName]([&"warm"])
-axes = SubResource("Axes")

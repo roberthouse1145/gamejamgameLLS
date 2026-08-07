@@ -1,8 +1,10 @@
-[gd_resource type="Resource" script_class="BehaviorCardResource" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="BehaviorCardResource" format=3 uid="uid://c7t6lwch7c8af"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+[ext_resource type="Script" uid="uid://wvbgu88pwof3" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://c4u8u05tmwf58" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_1cksp"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="5_hi2m0"]
 
 [sub_resource type="Resource" id="Axes"]
 script = ExtResource("2")
@@ -11,15 +13,14 @@ risk = 1.0
 
 [resource]
 script = ExtResource("1")
+left_slots = Array[int]([3])
+right_slots = Array[int]([1, 4])
+axes = SubResource("Axes")
+family = &"act"
+budget_cost = 3
+stress_cost = 6.0
 content_id = &"act_plead"
 display_name = "装可怜"
 description = "把一点委屈放大成观众舍不得移开的表情。"
 icon = ExtResource("3")
 tags = Array[StringName]([&"act", &"confession"])
-family = &"act"
-tier = 1
-budget_cost = 3
-stress_cost = 6.0
-mood_inputs = Array[StringName]([&"gloom", &"warm"])
-mood_outputs = Array[StringName]([&"gloom"])
-axes = SubResource("Axes")

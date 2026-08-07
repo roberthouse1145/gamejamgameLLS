@@ -1,11 +1,15 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene format=3 uid="uid://b20kel7nsgq2n"]
 
-[ext_resource type="Script" path="res://scripts/apps/obs_live/components/live_stream_card.gd" id="1_script"]
-[ext_resource type="Script" path="res://scripts/apps/obs_live/components/card_mood_edges.gd" id="2_edges"]
+[ext_resource type="Script" uid="uid://bbhma0ls6dfp1" path="res://scripts/apps/obs_live/components/live_stream_card.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://tm4e7yo08jbr" path="res://scripts/apps/obs_live/components/card_slot_edges.gd" id="2_edges"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_button"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stat"]
+content_margin_left = 13.0
+content_margin_top = 8.0
+content_margin_right = 13.0
+content_margin_bottom = 8.0
 bg_color = Color(1, 1, 1, 0.82)
 border_width_left = 1
 border_width_top = 1
@@ -16,24 +20,21 @@ corner_radius_top_left = 18
 corner_radius_top_right = 18
 corner_radius_bottom_right = 18
 corner_radius_bottom_left = 18
-content_margin_left = 13.0
-content_margin_top = 8.0
-content_margin_right = 13.0
-content_margin_bottom = 8.0
 
-[node name="LiveStreamCard" type="Button"]
-custom_minimum_size = Vector2(440, 600)
+[node name="LiveStreamCard" type="Button" unique_id=1828850788]
+custom_minimum_size = Vector2(260, 360)
 offset_right = 440.0
 offset_bottom = 600.0
-mouse_default_cursor_shape = 2
+focus_mode = 0
 theme_override_styles/normal = SubResource("StyleBoxEmpty_button")
-theme_override_styles/hover = SubResource("StyleBoxEmpty_button")
 theme_override_styles/pressed = SubResource("StyleBoxEmpty_button")
+theme_override_styles/hover = SubResource("StyleBoxEmpty_button")
 theme_override_styles/disabled = SubResource("StyleBoxEmpty_button")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_button")
+disabled = true
 script = ExtResource("1_script")
 
-[node name="MoodEdges" type="Control" parent="."]
+[node name="SlotEdges" type="Control" parent="." unique_id=633799928]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -44,7 +45,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("2_edges")
 
-[node name="ContentMargin" type="MarginContainer" parent="."]
+[node name="ContentMargin" type="MarginContainer" parent="." unique_id=1064517484]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -58,86 +59,82 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="Content" type="VBoxContainer" parent="ContentMargin"]
+[node name="Content" type="VBoxContainer" parent="ContentMargin" unique_id=1102080762]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="ContentMargin/Content"]
+[node name="TitleLabel" type="Label" parent="ContentMargin/Content" unique_id=2076959728]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 46)
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
 theme_override_colors/font_outline_color = Color(1, 1, 1, 0.9)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 30
-text = "卡牌名称"
 horizontal_alignment = 1
 vertical_alignment = 1
 text_overrun_behavior = 3
 
-[node name="TitleDivider" type="ColorRect" parent="ContentMargin/Content"]
+[node name="TitleDivider" type="ColorRect" parent="ContentMargin/Content" unique_id=662026981]
 custom_minimum_size = Vector2(0, 2)
 layout_mode = 2
 mouse_filter = 2
 color = Color(0.78, 0.835, 0.91, 0.85)
 
-[node name="FamilyLabel" type="Label" parent="ContentMargin/Content"]
+[node name="FamilyLabel" type="Label" parent="ContentMargin/Content" unique_id=1304737751]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
 theme_override_font_sizes/font_size = 20
-text = "杂谈系 · Tier 1 · 行为卡"
 horizontal_alignment = 1
 
-[node name="MainIcon" type="TextureRect" parent="ContentMargin/Content"]
+[node name="MainIcon" type="TextureRect" parent="ContentMargin/Content" unique_id=2062026954]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 190)
+custom_minimum_size = Vector2(0, 150)
 layout_mode = 2
 mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="DescriptionLabel" type="Label" parent="ContentMargin/Content"]
+[node name="DescriptionLabel" type="Label" parent="ContentMargin/Content" unique_id=1074415988]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 140)
+custom_minimum_size = Vector2(0, 130)
 layout_mode = 2
 size_flags_vertical = 3
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
 theme_override_colors/font_outline_color = Color(1, 1, 1, 0.8)
 theme_override_constants/line_spacing = 5
 theme_override_constants/outline_size = 2
 theme_override_font_sizes/font_size = 23
-text = "卡牌描述"
+horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="FooterDivider" type="ColorRect" parent="ContentMargin/Content"]
+[node name="FooterDivider" type="ColorRect" parent="ContentMargin/Content" unique_id=985044234]
 custom_minimum_size = Vector2(0, 2)
 layout_mode = 2
 mouse_filter = 2
 color = Color(0.78, 0.835, 0.91, 0.85)
 
-[node name="Stats" type="HBoxContainer" parent="ContentMargin/Content"]
+[node name="Stats" type="HBoxContainer" parent="ContentMargin/Content" unique_id=1448824933]
 custom_minimum_size = Vector2(0, 54)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="LeftStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats"]
+[node name="LeftStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats" unique_id=2009514919]
+visible = false
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_stat")
 
-[node name="LeftStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/LeftStatPanel"]
+[node name="LeftStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/LeftStatPanel" unique_id=1839570093]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 9
 
-[node name="LeftStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat"]
+[node name="LeftStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat" unique_id=1011415214]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(34, 34)
 layout_mode = 2
@@ -145,32 +142,32 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="LeftStatValue" type="Label" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat"]
+[node name="LeftStatValue" type="Label" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat" unique_id=1487904201]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
 theme_override_font_sizes/font_size = 26
 text = "0"
 vertical_alignment = 1
 
-[node name="StatSpacer" type="Control" parent="ContentMargin/Content/Stats"]
+[node name="StatSpacer" type="Control" parent="ContentMargin/Content/Stats" unique_id=2051661607]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="RightStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats"]
+[node name="RightStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats" unique_id=1386254185]
+visible = false
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_stat")
 
-[node name="RightStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/RightStatPanel"]
+[node name="RightStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/RightStatPanel" unique_id=1866654163]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 9
 
-[node name="RightStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat"]
+[node name="RightStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat" unique_id=41766046]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(34, 34)
 layout_mode = 2
@@ -178,16 +175,15 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="RightStatValue" type="Label" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat"]
+[node name="RightStatValue" type="Label" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat" unique_id=1384915974]
 unique_name_in_owner = true
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
 theme_override_font_sizes/font_size = 26
 text = "0%"
 vertical_alignment = 1
 
-[node name="LockedLabel" type="Label" parent="."]
+[node name="LockedLabel" type="Label" parent="." unique_id=1602756543]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -202,7 +198,6 @@ offset_right = 110.0
 offset_bottom = 32.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
 theme_override_colors/font_outline_color = Color(1, 1, 1, 0.9)
 theme_override_constants/outline_size = 5

@@ -18,9 +18,18 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 	var axes: Dictionary = {"hook": 0.0, "quality": 0.0, "impact": 0.0, "risk": 0.0}
 	var fan_bias: Dictionary = {"r": 0.0, "m": 0.0, "w": 0.0, "c": 0.0, "b": 0.0}
 	var stress_delta: float = 0.0
-	var previous_outputs: Array[StringName] = []
-	var conflict_rescue_available: bool = _get_skill_level(plan, &"talk") >= 3
+	var behavior_cards: Array[BehaviorCardResource] = []
+	var behavior_slot_indices: Array[int] = []
+	for slot_index: int in range(plan.behavior_card_ids.size()):
+		var card_id: StringName = plan.behavior_card_ids[slot_index]
+		var behavior_card: BehaviorCardResource = catalog.get_card(card_id) as BehaviorCardResource
+		if behavior_card != null:
+			behavior_cards.append(behavior_card)
+			behavior_slot_indices.append(slot_index)
+	var empty_program_slot_count: int = plan.behavior_card_ids.size() - behavior_cards.size()
+	var empty_fill_rescue_available: bool = _get_skill_level(plan, &"talk") >= 3
 	var seamless_transition: bool = _has_effect(plan.modifier_card_ids, catalog, &"seam_penalty_half")
+	var full_chain_active: bool = behavior_cards.size() > 1 and _are_all_seams_full(behavior_cards)
 	var global_modifiers: Array[ModifierCardResource] = []
 	for modifier_id: StringName in plan.modifier_card_ids:
 		var modifier: ModifierCardResource = catalog.get_card(modifier_id) as ModifierCardResource
@@ -29,27 +38,32 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 			stress_delta += modifier.stress_cost
 			_accumulate_fan_bias(fan_bias, modifier.fan_bias)
 
-	for card_id: StringName in plan.behavior_card_ids:
-		var card: BehaviorCardResource = catalog.get_card(card_id) as BehaviorCardResource
-		if card == null:
-			continue
-		var seam_multiplier: float = 1.0
+	for card_index: int in range(behavior_cards.size()):
+		var card: BehaviorCardResource = behavior_cards[card_index]
+		var connected_slots: Array[int] = []
+		var fill_ratio: float = 1.0
+		var fill_multiplier: float = 1.0
 		var seam_risk_bonus: float = 0.0
-		if not previous_outputs.is_empty() and not card.mood_inputs.is_empty():
-			if _has_matching_mood(previous_outputs, card.mood_inputs):
-				seam_multiplier = balance.perfect_seam_multiplier
-			elif _all_pairs_conflict(previous_outputs, card.mood_inputs):
-				if conflict_rescue_available:
-					conflict_rescue_available = false
+		if card_index > 0 and not card.left_slots.is_empty():
+			var previous_card: BehaviorCardResource = behavior_cards[card_index - 1]
+			connected_slots = BehaviorCardResource.intersect_slots(previous_card.right_slots, card.left_slots)
+			fill_ratio = float(connected_slots.size()) / float(card.left_slots.size())
+			fill_multiplier = balance.get_fill_multiplier(fill_ratio)
+			if is_zero_approx(fill_ratio):
+				if empty_fill_rescue_available:
+					empty_fill_rescue_available = false
+					fill_multiplier = balance.half_fill_multiplier
 				elif seamless_transition:
-					seam_multiplier = lerpf(1.0, balance.conflict_seam_multiplier, 0.5)
-					seam_risk_bonus = balance.conflict_risk_bonus * 0.5
+					fill_multiplier = balance.partial_fill_multiplier
+					seam_risk_bonus = balance.empty_fill_risk_bonus * 0.5
 				else:
-					seam_multiplier = balance.conflict_seam_multiplier
-					seam_risk_bonus = balance.conflict_risk_bonus
+					seam_risk_bonus = balance.empty_fill_risk_bonus
 		var skill_level: int = _get_skill_level(plan, card.family)
 		var skill_multiplier: float = 1.0 + balance.skill_bonus_per_level * float(maxi(skill_level - 1, 0))
-		var base_multiplier: float = skill_multiplier * material.affinity.get_value(card.family) * seam_multiplier
+		var width_multiplier: float = balance.get_left_width_multiplier(card.get_left_width())
+		var chain_multiplier: float = balance.full_chain_multiplier if full_chain_active else 1.0
+		var base_multiplier: float = skill_multiplier * material.affinity.get_value(card.family)
+		base_multiplier *= width_multiplier * fill_multiplier * chain_multiplier
 		base_multiplier *= persona.base_performance_multiplier
 		for axis_key: StringName in StreamAxisValues.KEYS:
 			var value: float = card.axes.get_value(axis_key) * base_multiplier
@@ -59,12 +73,16 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 		axes["risk"] = float(axes["risk"]) + seam_risk_bonus * 10.0
 		stress_delta += card.stress_cost
 		_accumulate_fan_bias(fan_bias, card.fan_bias)
-		result.mood_flow.append({
+		result.interface_trace.append({
 			"card_id": String(card.content_id),
-			"inputs": card.mood_inputs.map(func(mood: StringName) -> String: return String(mood)),
-			"outputs": card.mood_outputs.map(func(mood: StringName) -> String: return String(mood)),
+			"slot_index": behavior_slot_indices[card_index],
+			"left_slots": card.left_slots.duplicate(),
+			"right_slots": card.right_slots.duplicate(),
+			"connected_slots": connected_slots.duplicate(),
+			"fill_ratio": fill_ratio,
+			"fill_multiplier": fill_multiplier,
+			"width_multiplier": width_multiplier,
 		})
-		previous_outputs.assign(card.mood_outputs)
 
 	for axis_key: StringName in StreamAxisValues.KEYS:
 		axes[String(axis_key)] = float(axes[String(axis_key)]) + material.axes.get_value(axis_key)
@@ -77,6 +95,7 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 	var freshness: float = clampf(float(material_state.get("freshness", 1.0)), 0.4, 1.0)
 	var fans: int = maxi(int(plan.state_snapshot.get("fans", 0)), 0)
 	var base_audience: float = (material.base_popularity + float(fans) * 0.08) * freshness
+	base_audience *= pow(balance.empty_program_slot_multiplier, empty_program_slot_count)
 	result.peak_viewers = maxi(int(round(base_audience * maxf(0.2, 1.0 + float(axes["hook"]) * 0.12))), 1)
 	var passerby_ratio: float = clampf(float((plan.state_snapshot.get("fan_vector", {}) as Dictionary).get("r", 100.0)) / 100.0, 0.05, 1.0)
 	result.fan_delta = maxi(int(round(float(result.peak_viewers) * maxf(0.0, 0.03 + float(axes["quality"]) * 0.01) * passerby_ratio)), 0)
@@ -96,6 +115,11 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 	if result.accident_occurred:
 		fan_bias["b"] = float(fan_bias["b"]) + 5.0
 		fan_bias["r"] = float(fan_bias["r"]) - 5.0
+	if material.material_type == LiveStreamMaterialResource.TYPE_SPONSOR and material.sponsor_terms != null:
+		result.sponsor_satisfied = float(axes["quality"]) >= material.sponsor_terms.quality_floor and not result.accident_occurred
+		var sponsor_multiplier: float = 1.0 if result.sponsor_satisfied else material.sponsor_terms.failure_payout_multiplier
+		result.sponsor_payout = int(round(float(material.sponsor_terms.guaranteed_money) * sponsor_multiplier))
+		result.revenue += result.sponsor_payout
 	result.resulting_fan_vector = _resolve_fan_vector(fan_vector, fan_bias)
 	result.axes = axes
 	result.stress_delta = int(round(stress_delta))
@@ -115,27 +139,11 @@ func _get_skill_level(plan: StreamPlanSnapshot, family: StringName) -> int:
 	return clampi(int(levels.get(String(family), 1)), 1, 5)
 
 
-func _is_conflict(left: StringName, right: StringName) -> bool:
-	return (
-		(left == BehaviorCardResource.MOOD_HOT and right == BehaviorCardResource.MOOD_GLOOM)
-		or (left == BehaviorCardResource.MOOD_GLOOM and right == BehaviorCardResource.MOOD_HOT)
-	)
-
-
-func _has_matching_mood(left: Array[StringName], right: Array[StringName]) -> bool:
-	for mood: StringName in left:
-		if mood in right:
-			return true
-	return false
-
-
-func _all_pairs_conflict(left: Array[StringName], right: Array[StringName]) -> bool:
-	if left.is_empty() or right.is_empty():
-		return false
-	for left_mood: StringName in left:
-		for right_mood: StringName in right:
-			if not _is_conflict(left_mood, right_mood):
-				return false
+func _are_all_seams_full(cards: Array[BehaviorCardResource]) -> bool:
+	for index: int in range(1, cards.size()):
+		var card: BehaviorCardResource = cards[index]
+		if card.left_slots.is_empty() or card.get_fill_ratio(cards[index - 1].right_slots) < 1.0:
+			return false
 	return true
 
 
@@ -155,9 +163,7 @@ func _get_card_modifier_multiplier(card: BehaviorCardResource, modifiers: Array[
 	for modifier: ModifierCardResource in modifiers:
 		if modifier.target_family != &"" and modifier.target_family != card.family:
 			continue
-		if modifier.target_mood != &"" and not card.has_mood(modifier.target_mood):
-			continue
-		if modifier.target_family == &"" and modifier.target_mood == &"":
+		if modifier.target_family == &"":
 			continue
 		result *= 1.0 + modifier.axis_multiplier_bonus.get_value(axis_key)
 	return maxf(result, 0.0)
@@ -166,7 +172,7 @@ func _get_card_modifier_multiplier(card: BehaviorCardResource, modifiers: Array[
 func _get_global_modifier_multiplier(modifiers: Array[ModifierCardResource], axis_key: StringName) -> float:
 	var result: float = 1.0
 	for modifier: ModifierCardResource in modifiers:
-		if modifier.target_family == &"" and modifier.target_mood == &"":
+		if modifier.target_family == &"":
 			result *= 1.0 + modifier.axis_multiplier_bonus.get_value(axis_key)
 	return maxf(result, 0.0)
 

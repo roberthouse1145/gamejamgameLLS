@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://cmmxe7p7rwerx"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://c6bmn87ogu8h7" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="2"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2_fx7kw"]
+
+[resource]
+script = ExtResource("1")
+skill_id = &"talk_interview_lv3"
+level = 3
+ability_level_bonus = 1
+display_name = "深度访谈"
+description = "沿着对方的回答追问，挖出更有分量的话题。"
+icon = ExtResource("2")
+tree_position = Vector2(2, 1.4)
+point_cost = 1
+required_skill_ids = Array[StringName]([&"talk_lv2"])

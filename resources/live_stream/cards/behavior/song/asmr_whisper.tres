@@ -1,8 +1,10 @@
-[gd_resource type="Resource" script_class="BehaviorCardResource" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="BehaviorCardResource" format=3 uid="uid://diyw2uckhuxr0"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_song.svg" id="3"]
+[ext_resource type="Script" uid="uid://wvbgu88pwof3" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://1bnmak5lk0e6" path="res://Assets/images/live_stream/cards/icons/family_song.svg" id="3"]
+[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_ypffg"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="5_e2oyk"]
 
 [sub_resource type="Resource" id="Axes"]
 script = ExtResource("2")
@@ -12,18 +14,18 @@ impact = 3.0
 
 [resource]
 script = ExtResource("1")
-content_id = &"song_asmr_whisper"
-display_name = "ASMR 轻语"
-description = "把声音压到耳边，只留给愿意停下来的观众。"
-icon = ExtResource("3")
-tags = Array[StringName]([&"music", &"voice_acting"])
+left_slots = Array[int]([2, 3])
+right_slots = Array[int]([2, 3])
+axes = SubResource("Axes")
+material_require = Array[StringName]([&"voice_acting"])
 family = &"song"
 tier = 2
 budget_cost = 4
 stress_cost = 6.0
 required_skill_family = &"song"
 required_skill_level = 3
-mood_inputs = Array[StringName]([&"warm", &"gloom"])
-mood_outputs = Array[StringName]([&"warm"])
-axes = SubResource("Axes")
-material_require = Array[StringName]([&"voice_acting"])
+content_id = &"song_asmr_whisper"
+display_name = "ASMR 轻语"
+description = "把声音压到耳边，只留给愿意停下来的观众。"
+icon = ExtResource("3")
+tags = Array[StringName]([&"music", &"voice_acting"])

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://1fdc1apiksw5"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://1bnmak5lk0e6" path="res://Assets/images/live_stream/cards/icons/family_song.svg" id="2"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2_6tqpb"]
+
+[resource]
+script = ExtResource("1")
+skill_id = &"song_expression_lv3"
+family = &"song"
+level = 3
+ability_level_bonus = 1
+display_name = "情绪演绎"
+description = "让同一首歌呈现出更鲜明、更连贯的情绪层次。"
+icon = ExtResource("2")
+tree_position = Vector2(2, 2.4)
+point_cost = 1
+required_skill_ids = Array[StringName]([&"song_lv2"])

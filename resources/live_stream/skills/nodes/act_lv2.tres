@@ -1,22 +1,26 @@
-[gd_resource type="Resource" script_class="StreamerSkill" load_steps=5 format=3]
-[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://dkki0lm2wbwd1"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://c4u8u05tmwf58" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+
 [sub_resource type="Resource" id="Effect"]
 script = ExtResource("2")
 effect_id = &"tone_cards_available"
 value = 1.0
 display_text = "演出系语气卡解禁"
+
 [resource]
 script = ExtResource("1")
 skill_id = &"act_lv2"
 family = &"act"
 level = 2
+ability_level_bonus = 1
 display_name = "语气入门"
 description = "开始有意识地控制整场直播的腔调。"
 icon = ExtResource("3")
-tree_position = Vector2i(1, 3)
+tree_position = Vector2(1, 3)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"act_lv1"])
 unlocked_card_ids = Array[StringName]([&"modifier_motherly_tone"])
-rule_effects = Array[Resource]([SubResource("Effect")])
+rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

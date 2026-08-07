@@ -1,21 +1,25 @@
-[gd_resource type="Resource" script_class="StreamerSkill" load_steps=5 format=3]
-[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="3"]
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://bnwt2l5wtx1ls"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://bau33kpjofu1o" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="3"]
+
 [sub_resource type="Resource" id="Effect"]
 script = ExtResource("2")
 effect_id = &"game_accident_half"
 value = 0.5
 display_text = "高难操作事故减半"
+
 [resource]
 script = ExtResource("1")
 skill_id = &"game_lv3"
 family = &"game"
 level = 3
+ability_level_bonus = 1
 display_name = "操作怪"
 description = "高压操作不再轻易演变成事故。"
 icon = ExtResource("3")
-tree_position = Vector2i(2, 0)
+tree_position = Vector2(2, 0)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"game_lv2"])
-rule_effects = Array[Resource]([SubResource("Effect")])
+rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

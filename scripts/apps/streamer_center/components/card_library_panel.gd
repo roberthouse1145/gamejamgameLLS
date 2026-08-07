@@ -121,10 +121,8 @@ func _get_category_text(card: LiveStreamCardResource) -> String:
 func _get_description_text(card: LiveStreamCardResource) -> String:
 	if card is BehaviorCardResource:
 		var behavior := card as BehaviorCardResource
-		return "%s\n\n情绪接口：%s → %s\n四轴：噱头 %+.0f　质量 %+.0f　效果 %+.0f　风险 %+.0f\n压力：%+.0f" % [
+		return "%s\n\n四轴：噱头 %+.0f　质量 %+.0f　效果 %+.0f　风险 %+.0f\n压力：%+.0f" % [
 			behavior.description,
-			_get_mood_names(behavior.mood_inputs),
-			_get_mood_names(behavior.mood_outputs),
 			behavior.axes.hook,
 			behavior.axes.quality,
 			behavior.axes.impact,
@@ -140,31 +138,6 @@ func _get_description_text(card: LiveStreamCardResource) -> String:
 		modifier.axis_multiplier_bonus.risk * 100.0,
 		modifier.stress_cost,
 	]
-
-
-func _get_mood_name(mood: StringName) -> String:
-	match mood:
-		BehaviorCardResource.MOOD_OPEN:
-			return "平齐"
-		BehaviorCardResource.MOOD_HOT:
-			return "热烈"
-		BehaviorCardResource.MOOD_CALM:
-			return "冷静"
-		BehaviorCardResource.MOOD_WARM:
-			return "温和"
-		BehaviorCardResource.MOOD_GLOOM:
-			return "丧气"
-	return "未知"
-
-
-func _get_mood_names(moods: Array[StringName]) -> String:
-	if moods.is_empty():
-		return "平齐"
-	var names: PackedStringArray = []
-	for mood: StringName in moods:
-		names.append(_get_mood_name(mood))
-	return " / ".join(names)
-
 
 func _update_filter_styles() -> void:
 	for filter_key: StringName in filter_buttons:

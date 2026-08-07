@@ -1,13 +1,14 @@
 class_name StreamerSkill extends Resource
-## 五维技能树中的一个线性等级里程碑。
+## 技能图中的一个独立节点；拓扑完全由前置节点与画布坐标描述。
 
 @export var skill_id: StringName = &""
 @export var family: StringName = &"talk"
-@export_range(1, 5, 1) var level: int = 1
+@export_range(1, 99, 1) var level: int = 1
+@export_range(0, 4, 1) var ability_level_bonus: int = 0
 @export var display_name: String = ""
 @export_multiline var description: String = ""
 @export var icon: Texture2D = null
-@export var tree_position: Vector2i = Vector2i.ZERO
+@export var tree_position: Vector2 = Vector2.ZERO
 @export_range(0, 4, 1) var point_cost: int = 0
 @export var required_skill_ids: Array[StringName] = []
 @export var unlocked_card_ids: Array[StringName] = []
@@ -17,9 +18,11 @@ class_name StreamerSkill extends Resource
 func is_valid() -> bool:
 	if String(skill_id).is_empty() or display_name.strip_edges().is_empty():
 		return false
-	if family not in LiveStreamCardResource.FAMILIES or level < 1 or level > 5:
+	if String(family).is_empty() or level < 1:
 		return false
-	for effect: StreamSpecialEffect in rule_effects:
-		if effect == null or not effect.is_valid():
+	# Check effect fields directly; avoid nested is_valid on loaded subresources.
+	for i: int in range(rule_effects.size()):
+		var effect_value: Variant = rule_effects[i]
+		if effect_value == null or String(effect_value.get("effect_id")).is_empty():
 			return false
 	return true

@@ -1,13 +1,14 @@
-[gd_resource type="Resource" script_class="StreamerSkill" load_steps=3 format=3]
-[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_tech.svg" id="2"]
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://bsag73aw22ox0"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://nqv2avdkspsa" path="res://Assets/images/live_stream/cards/icons/family_tech.svg" id="2"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2_0t7dp"]
+
 [resource]
 script = ExtResource("1")
 skill_id = &"tech_lv1"
 family = &"tech"
-level = 1
 display_name = "杂项力 Lv.1"
 description = "能够维持基础直播设备与画面。"
 icon = ExtResource("2")
-tree_position = Vector2i(0, 4)
-point_cost = 0
+tree_position = Vector2(0, 4)

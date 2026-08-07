@@ -6,13 +6,15 @@ class_name StreamSettlementResult extends Resource
 @export var peak_viewers: int = 0
 @export var fan_delta: int = 0
 @export var revenue: int = 0
+@export var sponsor_payout: int = 0
+@export var sponsor_satisfied: bool = true
 @export var accident_probability: float = 0.0
 @export var accident_occurred: bool = false
 @export var stress_delta: int = 0
 @export var streamer_exp_gain: int = 0
 @export var resulting_fan_vector: Dictionary = {}
 @export var material_use: Dictionary = {}
-@export var mood_flow: Array[Dictionary] = []
+@export var interface_trace: Array[Dictionary] = []
 
 
 func to_dict() -> Dictionary:
@@ -22,11 +24,13 @@ func to_dict() -> Dictionary:
 		"peak_viewers": peak_viewers,
 		"fan_delta": fan_delta,
 		"revenue": revenue,
+		"sponsor_payout": sponsor_payout,
+		"sponsor_satisfied": sponsor_satisfied,
 		"accident_probability": accident_probability,
 		"accident_occurred": accident_occurred,
 		"stress_delta": stress_delta,
 		"streamer_exp_gain": streamer_exp_gain,
 		"resulting_fan_vector": resulting_fan_vector.duplicate(true),
 		"material_use": material_use.duplicate(true),
-		"mood_flow": mood_flow.duplicate(true),
+		"interface_trace": interface_trace.duplicate(true),
 	}

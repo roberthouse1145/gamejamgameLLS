@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="ModifierCardResource" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="ModifierCardResource" format=3 uid="uid://bk0ct5e48xikx"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/modifier_card_resource.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/modifier_tone.svg" id="3"]
+[ext_resource type="Script" uid="uid://nudgy3ptkhrl" path="res://scripts/game/resources/live_stream/modifier_card_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://rdw8a8c17t4x" path="res://Assets/images/live_stream/cards/icons/modifier_tone.svg" id="3"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="4_ncsgo"]
 
 [sub_resource type="Resource" id="Multipliers"]
 script = ExtResource("2")
@@ -11,17 +12,15 @@ risk = 0.1
 
 [resource]
 script = ExtResource("1")
-content_id = &"modifier_toxic_commentator"
-display_name = "毒舌吐槽役"
-description = "把每个话头都磨出一点锋利的边。"
-icon = ExtResource("3")
-tags = Array[StringName]([&"talk", &"rant"])
-family = &"talk"
+axis_multiplier_bonus = SubResource("Multipliers")
+target_family = &"talk"
 tier = 2
 budget_cost = 3
 stress_cost = 5.0
 required_skill_family = &"talk"
 required_skill_level = 2
-modifier_kind = &"tone"
-axis_multiplier_bonus = SubResource("Multipliers")
-target_family = &"talk"
+content_id = &"modifier_toxic_commentator"
+display_name = "毒舌吐槽役"
+description = "把每个话头都磨出一点锋利的边。"
+icon = ExtResource("3")
+tags = Array[StringName]([&"talk", &"rant"])

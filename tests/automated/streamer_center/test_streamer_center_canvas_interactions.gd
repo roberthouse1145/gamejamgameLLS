@@ -18,16 +18,17 @@ func _test_card_flow_layout() -> void:
 	assert(flow != null, "card flow scene should instantiate")
 	add_child(flow)
 	flow.size = Vector2(930, 100)
-	for index: int in range(4):
+	for index: int in range(3):
 		var card := Control.new()
 		card.name = "Card%d" % index
 		card.custom_minimum_size = Vector2(440, 600)
 		flow.add_child(card)
 	flow.queue_sort()
 	await get_tree().process_frame
-	assert(flow.get_node("Card0").position == Vector2.ZERO, "first card should start the flow")
+	assert(is_equal_approx(flow.get_node("Card0").position.x, 14.0), "complete rows should be centered in the available width")
 	assert(flow.get_node("Card1").position.x > 0.0, "second card should use the next available column")
 	assert(flow.get_node("Card2").position.y > 0.0, "third card should wrap onto the next row")
+	assert(is_equal_approx(flow.get_node("Card2").position.x, 245.0), "partial rows should be centered independently")
 	flow.queue_free()
 
 

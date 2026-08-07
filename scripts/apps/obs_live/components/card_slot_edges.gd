@@ -1,40 +1,49 @@
 @tool
-class_name CardMoodEdges extends Control
-## 卡牌唯一外轮廓：四种情绪分别占据四条纵向接口轨道。
+class_name CardSlotEdges extends Control
+## 卡牌唯一外轮廓：只在激活的 1~4 号位置绘制接口，并显示逐槽连接状态。
 
 const BODY_COLOR: Color = Color("#F9FCFF")
 const BODY_LOCKED_COLOR: Color = Color("#EDF2F8")
 const OUTLINE_COLOR: Color = Color("#20283A")
 const HOVER_OUTLINE_COLOR: Color = Color("#6B9FEA")
-const SELECTED_OUTLINE_COLOR: Color = Color("#E5486D")
+const SELECTED_OUTLINE_COLOR: Color = Color("#7568CB")
 const LOCKED_OUTLINE_COLOR: Color = Color("#8793A5")
 const PATTERN_COLOR: Color = Color(0.72, 0.82, 0.93, 0.28)
-const MOOD_COLORS: Dictionary = {
-	BehaviorCardResource.MOOD_HOT: Color("#EE5A78"),
-	BehaviorCardResource.MOOD_CALM: Color("#5F86D9"),
-	BehaviorCardResource.MOOD_WARM: Color("#DDB84F"),
-	BehaviorCardResource.MOOD_GLOOM: Color("#9169C9"),
-}
-const MOOD_LANES: Dictionary = {
-	BehaviorCardResource.MOOD_HOT: 0,
-	BehaviorCardResource.MOOD_CALM: 1,
-	BehaviorCardResource.MOOD_WARM: 2,
-	BehaviorCardResource.MOOD_GLOOM: 3,
-}
-const LANE_COUNT: int = 4
+const DISCONNECTED_COLOR: Color = Color("#E65B72")
+const CONNECTED_COLOR: Color = Color("#42BFA0")
+const SLOT_COUNT: int = 4
 
-var mood_inputs: Array[StringName] = []
-var mood_outputs: Array[StringName] = []
+var left_slots: Array[int] = []
+var right_slots: Array[int] = []
+var connected_left_slots: Array[int] = []
+var connected_right_slots: Array[int] = []
+var show_connection_state: bool = false
 var show_connectors: bool = true
 var selected: bool = false
 var hovered: bool = false
 var locked: bool = false
+var glow_strength: float = 0.0
 
 
-func configure(input_moods: Array[StringName], output_moods: Array[StringName], enabled: bool = true) -> void:
-	mood_inputs.assign(input_moods)
-	mood_outputs.assign(output_moods)
+func set_glow_strength(strength: float) -> void:
+	glow_strength = clampf(strength, 0.0, 1.0)
+	queue_redraw()
+
+
+func configure(input_slots: Array[int], output_slots: Array[int], enabled: bool = true) -> void:
+	left_slots.assign(input_slots)
+	right_slots.assign(output_slots)
+	connected_left_slots.clear()
+	connected_right_slots.clear()
+	show_connection_state = false
 	show_connectors = enabled
+	queue_redraw()
+
+
+func set_connected_slots(left_connected: Array[int], right_connected: Array[int]) -> void:
+	connected_left_slots.assign(left_connected)
+	connected_right_slots.assign(right_connected)
+	show_connection_state = true
 	queue_redraw()
 
 
@@ -45,27 +54,30 @@ func set_interaction_state(is_selected: bool, is_hovered: bool, is_locked: bool)
 	queue_redraw()
 
 
-func has_input_notches() -> bool:
-	return show_connectors and not mood_inputs.is_empty()
+func has_left_notches() -> bool:
+	return show_connectors and not left_slots.is_empty()
 
 
-func has_output_tabs() -> bool:
-	return show_connectors and not mood_outputs.is_empty()
+func has_right_tabs() -> bool:
+	return show_connectors and not right_slots.is_empty()
 
 
-func get_input_lanes() -> Array[int]:
-	return _get_lanes(mood_inputs)
-
-
-func get_output_lanes() -> Array[int]:
-	return _get_lanes(mood_outputs)
-
-
-func get_lane_y(mood: StringName) -> float:
-	var lane: int = _get_lane(mood)
-	if lane < 0:
+func get_slot_y(slot: int) -> float:
+	if slot < BehaviorCardResource.SLOT_MIN or slot > BehaviorCardResource.SLOT_MAX:
 		return -1.0
-	return size.y * (float(lane) + 0.5) / float(LANE_COUNT)
+	return size.y * (float(slot) - 0.5) / float(SLOT_COUNT)
+
+
+func is_left_slot_connected(slot: int) -> bool:
+	return slot in connected_left_slots
+
+
+func is_right_slot_connected(slot: int) -> bool:
+	return slot in connected_right_slots
+
+
+func is_connection_state_visible() -> bool:
+	return show_connection_state
 
 
 func _ready() -> void:
@@ -85,35 +97,51 @@ func _draw() -> void:
 	points.append_array(_arc_points(Vector2(left + corner_radius, top + corner_radius), corner_radius, PI, PI * 1.5, 6))
 	points.append(Vector2(right - corner_radius, top))
 	points.append_array(_arc_points(Vector2(right - corner_radius, top + corner_radius), corner_radius, PI * 1.5, TAU, 6))
-	if has_output_tabs():
-		for mood: StringName in _ordered_moods(mood_outputs):
-			var output_y: float = get_lane_y(mood)
+	if has_right_tabs():
+		for slot: int in _ordered_slots(right_slots):
+			var output_y: float = get_slot_y(slot)
 			points.append(Vector2(right, output_y - connector_radius))
 			points.append_array(_arc_points(Vector2(right, output_y), connector_radius, -PI * 0.5, PI * 0.5, 12))
 	points.append(Vector2(right, bottom - corner_radius))
 	points.append_array(_arc_points(Vector2(right - corner_radius, bottom - corner_radius), corner_radius, 0.0, PI * 0.5, 6))
 	points.append(Vector2(left + corner_radius, bottom))
 	points.append_array(_arc_points(Vector2(left + corner_radius, bottom - corner_radius), corner_radius, PI * 0.5, PI, 6))
-	if has_input_notches():
-		var ordered_inputs: Array[StringName] = _ordered_moods(mood_inputs)
+	if has_left_notches():
+		var ordered_inputs: Array[int] = _ordered_slots(left_slots)
 		ordered_inputs.reverse()
-		for mood: StringName in ordered_inputs:
-			var input_y: float = get_lane_y(mood)
+		for slot: int in ordered_inputs:
+			var input_y: float = get_slot_y(slot)
 			points.append(Vector2(left, input_y + connector_radius))
 			points.append_array(_arc_points(Vector2(left, input_y), connector_radius, PI * 0.5, -PI * 0.5, 12))
 	points.append(Vector2(left, top + corner_radius))
 
 	draw_colored_polygon(points, BODY_LOCKED_COLOR if locked else BODY_COLOR)
 	_draw_inner_pattern(left, right, top, bottom)
-	if has_output_tabs():
-		for mood: StringName in mood_outputs:
-			draw_circle(Vector2(right, get_lane_y(mood)), connector_radius - 5.0, _mood_color(mood))
-	if has_input_notches():
-		for mood: StringName in mood_inputs:
-			draw_arc(Vector2(left, get_lane_y(mood)), connector_radius - 3.0, -PI * 0.5, PI * 0.5, 24, _mood_color(mood), 12.0, true)
+	if show_connection_state and has_right_tabs():
+		for slot: int in right_slots:
+			draw_circle(
+				Vector2(right, get_slot_y(slot)),
+				connector_radius - 5.0,
+				_get_connection_color(is_right_slot_connected(slot))
+			)
+	if show_connection_state and has_left_notches():
+		for slot: int in left_slots:
+			draw_arc(
+				Vector2(left, get_slot_y(slot)),
+				connector_radius - 3.0,
+				-PI * 0.5,
+				PI * 0.5,
+				24,
+				_get_connection_color(is_left_slot_connected(slot)),
+				12.0,
+				true
+			)
 
 	var closed_outline: PackedVector2Array = points.duplicate()
 	closed_outline.append(points[0])
+	if glow_strength > 0.02:
+		var glow_color := Color(HOVER_OUTLINE_COLOR, 0.22 + glow_strength * 0.45)
+		draw_polyline(closed_outline, glow_color, _get_outline_width() + 10.0 + glow_strength * 8.0, true)
 	draw_polyline(closed_outline, _get_outline_color(), _get_outline_width(), true)
 
 
@@ -151,23 +179,11 @@ func _get_outline_width() -> float:
 	return 4.0
 
 
-func _get_lane(mood: StringName) -> int:
-	return int(MOOD_LANES.get(mood, -1))
-
-
-func _get_lanes(moods: Array[StringName]) -> Array[int]:
+func _ordered_slots(slots: Array[int]) -> Array[int]:
 	var result: Array[int] = []
-	for mood: StringName in _ordered_moods(moods):
-		result.append(_get_lane(mood))
-	return result
-
-
-func _ordered_moods(moods: Array[StringName]) -> Array[StringName]:
-	var result: Array[StringName] = []
-	for lane: int in range(LANE_COUNT):
-		for mood: StringName in moods:
-			if _get_lane(mood) == lane:
-				result.append(mood)
+	for slot: int in range(BehaviorCardResource.SLOT_MIN, BehaviorCardResource.SLOT_MAX + 1):
+		if slot in slots:
+			result.append(slot)
 	return result
 
 
@@ -180,5 +196,5 @@ func _arc_points(center: Vector2, radius: float, from_angle: float, to_angle: fl
 	return result
 
 
-func _mood_color(mood: StringName) -> Color:
-	return MOOD_COLORS.get(mood, Color("#AEB8C8"))
+func _get_connection_color(is_connected: bool) -> Color:
+	return CONNECTED_COLOR if is_connected else DISCONNECTED_COLOR

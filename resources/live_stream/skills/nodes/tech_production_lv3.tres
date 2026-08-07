@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://c7g2oc3qr7a3c"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://nqv2avdkspsa" path="res://Assets/images/live_stream/cards/icons/family_tech.svg" id="2"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2_xp2ja"]
+
+[resource]
+script = ExtResource("1")
+skill_id = &"tech_production_lv3"
+family = &"tech"
+level = 3
+ability_level_bonus = 1
+display_name = "节目编排"
+description = "提前组织画面、音频与转场，让整场直播更紧凑。"
+icon = ExtResource("2")
+tree_position = Vector2(2, 4.4)
+point_cost = 1
+required_skill_ids = Array[StringName]([&"tech_lv2"])

@@ -3,7 +3,6 @@ class_name LiveStreamBalance extends Resource
 
 @export var level_exp_thresholds: PackedInt32Array = PackedInt32Array([0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200])
 @export var performance_budgets: PackedInt32Array = PackedInt32Array([10, 11, 12, 13, 14, 16, 17, 18, 19, 20])
-@export var behavior_slot_levels: PackedInt32Array = PackedInt32Array([1, 3, 5, 7])
 @export var modifier_slot_levels: PackedInt32Array = PackedInt32Array([3, 8])
 @export var tier_unlock_levels: PackedInt32Array = PackedInt32Array([1, 4, 7])
 @export var skill_node_costs: PackedInt32Array = PackedInt32Array([0, 1, 1, 2, 3])
@@ -11,9 +10,14 @@ class_name LiveStreamBalance extends Resource
 @export_range(0, 100, 1) var stream_exp_reward: int = 50
 @export_range(0, 100, 1) var high_stress_threshold: int = 80
 @export_range(0, 20, 1) var high_stress_budget_penalty: int = 3
-@export_range(0.0, 2.0, 0.05) var perfect_seam_multiplier: float = 1.2
-@export_range(0.0, 2.0, 0.05) var conflict_seam_multiplier: float = 0.8
-@export_range(0.0, 1.0, 0.01) var conflict_risk_bonus: float = 0.15
+@export var left_width_multipliers: PackedFloat32Array = PackedFloat32Array([0.85, 1.0, 1.2, 1.35])
+@export_range(0.0, 2.0, 0.05) var full_fill_multiplier: float = 1.2
+@export_range(0.0, 2.0, 0.05) var half_fill_multiplier: float = 1.0
+@export_range(0.0, 2.0, 0.05) var partial_fill_multiplier: float = 0.9
+@export_range(0.0, 2.0, 0.05) var empty_fill_multiplier: float = 0.8
+@export_range(0.0, 1.0, 0.01) var empty_fill_risk_bonus: float = 0.10
+@export_range(0.0, 2.0, 0.05) var full_chain_multiplier: float = 1.1
+@export_range(0.0, 1.0, 0.05) var empty_program_slot_multiplier: float = 0.9
 
 
 func get_level_for_exp(total_exp: int) -> int:
@@ -32,14 +36,6 @@ func get_budget(streamer_level: int, stress: int = 0) -> int:
 	return maxi(result, 0)
 
 
-func get_behavior_slot_count(streamer_level: int) -> int:
-	var result: int = 1
-	for required_level: int in behavior_slot_levels:
-		if streamer_level >= required_level:
-			result += 1
-	return mini(result, 5)
-
-
 func get_modifier_slot_count(streamer_level: int) -> int:
 	var result: int = 0
 	for required_level: int in modifier_slot_levels:
@@ -54,3 +50,19 @@ func get_tier_unlock_level(tier: int) -> int:
 
 func get_skill_node_cost(level: int) -> int:
 	return skill_node_costs[clampi(level, 1, skill_node_costs.size()) - 1]
+
+
+func get_left_width_multiplier(width: int) -> float:
+	if width <= 0:
+		return 1.0
+	return left_width_multipliers[clampi(width, 1, left_width_multipliers.size()) - 1]
+
+
+func get_fill_multiplier(fill_ratio: float) -> float:
+	if fill_ratio >= 1.0:
+		return full_fill_multiplier
+	if fill_ratio >= 0.5:
+		return half_fill_multiplier
+	if fill_ratio > 0.0:
+		return partial_fill_multiplier
+	return empty_fill_multiplier

@@ -37,10 +37,10 @@ func rebuild() -> void:
 		child.queue_free()
 	_buttons.clear()
 
-	var max_position := Vector2i.ZERO
+	var max_position := Vector2.ZERO
 	for skill: StreamerSkill in SkillTreeManager.get_skills():
-		max_position.x = maxi(max_position.x, skill.tree_position.x)
-		max_position.y = maxi(max_position.y, skill.tree_position.y)
+		max_position.x = maxf(max_position.x, skill.tree_position.x)
+		max_position.y = maxf(max_position.y, skill.tree_position.y)
 		var button := Button.new()
 		button.name = "Skill_%s" % String(skill.skill_id)
 		button.position = ORIGIN + Vector2(skill.tree_position) * CELL_SIZE

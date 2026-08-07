@@ -1,22 +1,26 @@
-[gd_resource type="Resource" script_class="StreamerSkill" load_steps=5 format=3]
-[ext_resource type="Script" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://dyloxdfdx2rq1"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://c4u8u05tmwf58" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="3"]
+
 [sub_resource type="Resource" id="Effect"]
 script = ExtResource("2")
 effect_id = &"persona_switch_loss_reduction"
 value = 0.05
 display_text = "换人设脱粉减少 5%"
+
 [resource]
 script = ExtResource("1")
 skill_id = &"act_lv3"
 family = &"act"
 level = 3
+ability_level_bonus = 1
 display_name = "变声自如"
 description = "能够在不同表演状态之间迅速切换。"
 icon = ExtResource("3")
-tree_position = Vector2i(2, 3)
+tree_position = Vector2(2, 3)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"act_lv2"])
 unlocked_card_ids = Array[StringName]([&"act_instant_voice"])
-rule_effects = Array[Resource]([SubResource("Effect")])
+rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

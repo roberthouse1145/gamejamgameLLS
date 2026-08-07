@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="LiveStreamCardResource" format=3 uid="uid://g3ebegnbl6vi"]
+
+[ext_resource type="Script" path="res://scripts/apps/obs_live/resources/live_stream_card_resource.gd" id="1_card"]
+[ext_resource type="Script" path="res://scripts/apps/obs_live/resources/live_stream_card_stat.gd" id="2_stat"]
+[ext_resource type="Texture2D" uid="uid://babk0606m553m" path="res://Assets/images/live_stream/cards/icons/confident_greeting.svg" id="3_icon"]
+[ext_resource type="Texture2D" uid="uid://ssuwww4sx5u4" path="res://Assets/images/live_stream/cards/icons/stat_stress.svg" id="4_stress"]
+[ext_resource type="Texture2D" uid="uid://pfux71t5yl5j" path="res://Assets/images/live_stream/cards/icons/stat_risk.svg" id="5_risk"]
+
+[sub_resource type="Resource" id="Resource_left"]
+script = ExtResource("2_stat")
+stat_key = &"stress"
+icon = ExtResource("4_stress")
+value = 5
+
+[sub_resource type="Resource" id="Resource_right"]
+script = ExtResource("2_stat")
+stat_key = &"risk_percent"
+icon = ExtResource("5_risk")
+value = 5
+suffix = "%"
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"confident_greeting"
+display_name = "强装镇定"
+icon = ExtResource("3_icon")
+description = "用完整台词撑住气势，但表演负担更高。"
+effect_text = "第一印象更强"
+left_stat = SubResource("Resource_left")
+right_stat = SubResource("Resource_right")

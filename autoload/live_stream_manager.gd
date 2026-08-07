@@ -46,6 +46,8 @@ func reset_draft() -> void:
 		"persona_id": default_persona_id,
 		"material_instance_id": "",
 		"behavior_slots": [],
+		"locked_behavior_slot_indices": [],
+		"material_lock_rules": [],
 		"modifier_slots": [],
 	}
 	_resize_slots()
@@ -111,7 +113,7 @@ func select_material(material_instance_id: StringName) -> bool:
 	if get_material_instance(material_instance_id).is_empty():
 		return false
 	_draft["material_instance_id"] = String(material_instance_id)
-	_clear_incompatible_behavior_cards()
+	_configure_material_slots()
 	draft_changed.emit(get_draft())
 	return true
 
@@ -120,7 +122,7 @@ func select_behavior_card(card_id: StringName) -> bool:
 	var card: BehaviorCardResource = CATALOG.get_card(card_id) as BehaviorCardResource
 	var material_instance_id := StringName(str(_draft.get("material_instance_id", "")))
 	var card_manager: Node = get_node_or_null("/root/CardLibraryManager")
-	if card == null or card_manager == null or not card_manager.is_card_unlocked(card_id):
+	if card == null or CATALOG.is_material_behavior_card(card_id) or card_manager == null or not card_manager.is_card_unlocked(card_id):
 		return false
 	if material_instance_id == &"" or not card_manager.is_compatible(card_id, material_instance_id):
 		return false
@@ -129,7 +131,7 @@ func select_behavior_card(card_id: StringName) -> bool:
 	if existing_index >= 0:
 		slots[existing_index] = ""
 	else:
-		var empty_index: int = slots.find("")
+		var empty_index: int = _find_first_player_slot(slots)
 		if empty_index < 0:
 			return false
 		slots[empty_index] = String(card_id)
@@ -140,10 +142,63 @@ func select_behavior_card(card_id: StringName) -> bool:
 
 func clear_behavior_slot(slot_index: int) -> bool:
 	var slots: Array = (_draft.get("behavior_slots", []) as Array).duplicate()
-	if slot_index < 0 or slot_index >= slots.size() or str(slots[slot_index]).is_empty():
+	if slot_index < 0 or slot_index >= slots.size() or is_behavior_slot_locked(slot_index) or str(slots[slot_index]).is_empty():
 		return false
 	slots[slot_index] = ""
 	_draft["behavior_slots"] = slots
+	draft_changed.emit(get_draft())
+	return true
+
+
+## 拖拽落点：把行为卡放进指定节目槽。目标槽已被占用时交换两张卡的位置。
+func place_behavior_card_at(card_id: StringName, slot_index: int) -> bool:
+	var card: BehaviorCardResource = CATALOG.get_card(card_id) as BehaviorCardResource
+	var material_instance_id := StringName(str(_draft.get("material_instance_id", "")))
+	var card_manager: Node = get_node_or_null("/root/CardLibraryManager")
+	if card == null or CATALOG.is_material_behavior_card(card_id) or card_manager == null or not card_manager.is_card_unlocked(card_id):
+		return false
+	if material_instance_id == &"" or not card_manager.is_compatible(card_id, material_instance_id):
+		return false
+	var slots: Array = (_draft.get("behavior_slots", []) as Array).duplicate()
+	if slot_index < 0 or slot_index >= slots.size() or is_behavior_slot_locked(slot_index):
+		return false
+	var existing_index: int = slots.find(String(card_id))
+	if existing_index == slot_index:
+		return false
+	var displaced_id: String = str(slots[slot_index])
+	if existing_index >= 0:
+		slots[existing_index] = displaced_id
+	elif not displaced_id.is_empty():
+		return false
+	slots[slot_index] = String(card_id)
+	_draft["behavior_slots"] = slots
+	draft_changed.emit(get_draft())
+	return true
+
+
+func move_behavior_card(from_index: int, to_index: int) -> bool:
+	var slots: Array = (_draft.get("behavior_slots", []) as Array).duplicate()
+	if from_index < 0 or from_index >= slots.size() or to_index < 0 or to_index >= slots.size() or from_index == to_index:
+		return false
+	if str(slots[from_index]).is_empty() or not str(slots[to_index]).is_empty() or is_behavior_slot_locked(to_index):
+		return false
+	var moving_locked: bool = is_behavior_slot_locked(from_index)
+	if moving_locked:
+		var lock_rule: Dictionary = _get_serialized_lock_rule(str(slots[from_index]))
+		if lock_rule.is_empty() or str(lock_rule.get("mode", "")) != String(MaterialLockedCard.MODE_LOOSE):
+			return false
+		if to_index + 1 not in (lock_rule.get("allowed_positions", []) as Array):
+			return false
+	var card_id: String = str(slots[from_index])
+	slots[from_index] = ""
+	slots[to_index] = card_id
+	_draft["behavior_slots"] = slots
+	if moving_locked:
+		var locked_indices: Array = (_draft.get("locked_behavior_slot_indices", []) as Array).duplicate()
+		locked_indices.erase(from_index)
+		locked_indices.append(to_index)
+		locked_indices.sort()
+		_draft["locked_behavior_slot_indices"] = locked_indices
 	draft_changed.emit(get_draft())
 	return true
 
@@ -179,11 +234,24 @@ func clear_modifier_slot(slot_index: int) -> bool:
 
 func get_budget_used() -> int:
 	var result: int = 0
-	for card_id: Variant in (_draft.get("behavior_slots", []) as Array) + (_draft.get("modifier_slots", []) as Array):
+	var locked_indices: Array = _draft.get("locked_behavior_slot_indices", [])
+	var behavior_slots: Array = _draft.get("behavior_slots", [])
+	for index: int in range(behavior_slots.size()):
+		if index in locked_indices:
+			continue
+		var card_id: Variant = behavior_slots[index]
+		var card: LiveStreamCardResource = CATALOG.get_card(StringName(str(card_id)))
+		if card != null:
+			result += card.budget_cost
+	for card_id: Variant in _draft.get("modifier_slots", []):
 		var card: LiveStreamCardResource = CATALOG.get_card(StringName(str(card_id)))
 		if card != null:
 			result += card.budget_cost
 	return result
+
+
+func is_behavior_slot_locked(slot_index: int) -> bool:
+	return slot_index in (_draft.get("locked_behavior_slot_indices", []) as Array)
 
 
 func get_budget_limit() -> int:
@@ -212,9 +280,8 @@ func get_validation_message(step: int = -1) -> String:
 		if get_material_instance().is_empty():
 			return "选择本场素材"
 	elif resolved_step == WizardStep.SCRIPT:
-		for card_id: Variant in _draft.get("behavior_slots", []):
-			if str(card_id).is_empty():
-				return "节目槽尚未排满"
+		if _count_program_cards() == 0:
+			return "至少安排一张行为卡"
 		var structure_error: String = _get_structure_error()
 		if not structure_error.is_empty():
 			return structure_error
@@ -241,6 +308,19 @@ func previous_step() -> bool:
 	return true
 
 
+## 顶部 tab 跳转：回退任意步；前进要求途中每一步都已达完成条件。
+func goto_step(step: int) -> bool:
+	if _broadcast_pending or step < 0 or step >= STEP_COUNT or step == _current_step:
+		return false
+	if step > _current_step:
+		for probe: int in range(_current_step, step):
+			if not can_advance(probe):
+				return false
+	_current_step = step
+	step_changed.emit(_current_step)
+	return true
+
+
 func build_stream_plan(rng_seed: int = 1, session_id: StringName = &"preview") -> StreamPlanSnapshot:
 	if not _is_setup_valid() or not _is_script_valid():
 		return null
@@ -251,6 +331,7 @@ func build_stream_plan(rng_seed: int = 1, session_id: StringName = &"preview") -
 	plan.material_instance_id = StringName(str(_draft.get("material_instance_id", "")))
 	for card_id: Variant in _draft.get("behavior_slots", []):
 		plan.behavior_card_ids.append(StringName(str(card_id)))
+	plan.locked_behavior_slot_indices = PackedInt32Array(_draft.get("locked_behavior_slot_indices", []))
 	for card_id: Variant in _draft.get("modifier_slots", []):
 		if not str(card_id).is_empty():
 			plan.modifier_card_ids.append(StringName(str(card_id)))
@@ -334,7 +415,8 @@ func load_run_state(data: Dictionary) -> bool:
 	if not loaded_draft is Dictionary:
 		return false
 	_draft = (loaded_draft as Dictionary).duplicate(true)
-	_resize_slots()
+	_configure_material_slots(false)
+	_resize_modifier_slots()
 	_current_step = clampi(int(data.get("current_step", WizardStep.SETUP)), WizardStep.SETUP, WizardStep.CONFIRM)
 	_broadcast_pending = false
 	_pending_plan = null
@@ -358,11 +440,21 @@ func _is_script_valid() -> bool:
 		return false
 	var material_instance_id := StringName(str(_draft.get("material_instance_id", "")))
 	var slots: Array = _draft.get("behavior_slots", [])
-	if slots.size() != BALANCE.get_behavior_slot_count(GameState.streamer_level):
+	var material: LiveStreamMaterialResource = get_material_definition(material_instance_id)
+	if material == null or slots.size() != material.program_slot_count or _count_program_cards() == 0:
 		return false
-	for card_id: Variant in slots:
+	if not _are_material_locks_satisfied():
+		return false
+	for index: int in range(slots.size()):
+		var card_id: Variant = slots[index]
 		var normalized_id := StringName(str(card_id))
-		if normalized_id == &"" or not card_manager.is_card_unlocked(normalized_id) or not card_manager.is_compatible(normalized_id, material_instance_id):
+		if normalized_id == &"":
+			continue
+		if is_behavior_slot_locked(index):
+			if not CATALOG.is_material_behavior_card(normalized_id):
+				return false
+			continue
+		if CATALOG.is_material_behavior_card(normalized_id) or not card_manager.is_card_unlocked(normalized_id) or not card_manager.is_compatible(normalized_id, material_instance_id):
 			return false
 	if not _get_structure_error().is_empty():
 		return false
@@ -374,28 +466,40 @@ func _is_script_valid() -> bool:
 
 func _get_structure_error() -> String:
 	var slots: Array = _draft.get("behavior_slots", [])
-	if slots.is_empty():
-		return "节目单需要一张开场卡"
+	var occupied_indices: Array[int] = []
 	for index: int in range(slots.size()):
+		if not str(slots[index]).is_empty():
+			occupied_indices.append(index)
+	if occupied_indices.is_empty():
+		return "节目单需要一张开场卡"
+	var first_index: int = occupied_indices[0]
+	var last_index: int = occupied_indices[-1]
+	for index: int in occupied_indices:
 		var card: BehaviorCardResource = CATALOG.get_card(StringName(str(slots[index]))) as BehaviorCardResource
 		if card == null:
 			continue
 		if index == 0 and not card.is_opening_card():
 			return "第一张必须是左端平齐的开场卡"
-		if index > 0 and card.is_opening_card():
-			return "开场卡只能放在第一格"
-		if index < slots.size() - 1 and card.is_closing_card():
-			return "右端平齐的收尾卡只能放在最后一格"
+		if card.is_opening_card() and index != first_index:
+			return "开场卡只能位于有效节目链首"
+		if index == slots.size() - 1 and not card.is_closing_card():
+			return "最后一格必须是右端平齐的收尾卡"
+		if card.is_closing_card() and index != last_index:
+			return "收尾卡只能位于有效节目链尾"
 	return ""
 
 
 func _resize_slots() -> void:
-	var behavior_slots: Array = (_draft.get("behavior_slots", []) as Array).duplicate()
-	behavior_slots.resize(BALANCE.get_behavior_slot_count(GameState.streamer_level))
-	for index: int in range(behavior_slots.size()):
-		if behavior_slots[index] == null:
-			behavior_slots[index] = ""
-	_draft["behavior_slots"] = behavior_slots
+	if get_material_definition() != null:
+		_configure_material_slots(false)
+	else:
+		_draft["behavior_slots"] = []
+		_draft["locked_behavior_slot_indices"] = []
+		_draft["material_lock_rules"] = []
+	_resize_modifier_slots()
+
+
+func _resize_modifier_slots() -> void:
 	var modifier_slots: Array = (_draft.get("modifier_slots", []) as Array).duplicate()
 	modifier_slots.resize(BALANCE.get_modifier_slot_count(GameState.streamer_level))
 	for index: int in range(modifier_slots.size()):
@@ -404,16 +508,92 @@ func _resize_slots() -> void:
 	_draft["modifier_slots"] = modifier_slots
 
 
-func _clear_incompatible_behavior_cards() -> void:
-	var card_manager: Node = get_node_or_null("/root/CardLibraryManager")
-	if card_manager == null:
+func _configure_material_slots(clear_player_cards: bool = true) -> void:
+	var material: LiveStreamMaterialResource = get_material_definition()
+	var instance: Dictionary = get_material_instance()
+	if material == null or instance.is_empty():
+		_draft["behavior_slots"] = []
+		_draft["locked_behavior_slot_indices"] = []
+		_draft["material_lock_rules"] = []
 		return
-	var material_instance_id := StringName(str(_draft.get("material_instance_id", "")))
-	var slots: Array = (_draft.get("behavior_slots", []) as Array).duplicate()
+	var previous_slots: Array = (_draft.get("behavior_slots", []) as Array).duplicate()
+	var slots: Array = []
+	slots.resize(material.program_slot_count)
 	for index: int in range(slots.size()):
-		if not str(slots[index]).is_empty() and not card_manager.is_compatible(StringName(str(slots[index])), material_instance_id):
-			slots[index] = ""
+		slots[index] = ""
+	if not clear_player_cards:
+		for index: int in range(mini(previous_slots.size(), slots.size())):
+			var card_id := StringName(str(previous_slots[index]))
+			if card_id != &"" and not CATALOG.is_material_behavior_card(card_id):
+				slots[index] = String(card_id)
+	var locked_indices: Array[int] = []
+	var serialized_rules: Array[Dictionary] = []
+	for lock_rule: MaterialLockedCard in material.get_locked_cards_for_progress(int(instance.get("progress", 0))):
+		if lock_rule == null:
+			continue
+		var slot_index: int = _resolve_lock_slot_index(lock_rule, slots)
+		if slot_index < 0:
+			continue
+		slots[slot_index] = String(lock_rule.card_id)
+		locked_indices.append(slot_index)
+		serialized_rules.append({
+			"card_id": String(lock_rule.card_id),
+			"mode": String(lock_rule.mode),
+			"allowed_positions": Array(lock_rule.get_allowed_positions()),
+		})
 	_draft["behavior_slots"] = slots
+	_draft["locked_behavior_slot_indices"] = locked_indices
+	_draft["material_lock_rules"] = serialized_rules
+
+
+func _resolve_lock_slot_index(lock_rule: MaterialLockedCard, slots: Array) -> int:
+	var preferred_index: int = lock_rule.position - 1
+	if lock_rule.mode == MaterialLockedCard.MODE_STRICT:
+		return preferred_index if preferred_index >= 0 and preferred_index < slots.size() else -1
+	if preferred_index >= 0 and preferred_index < slots.size() and str(slots[preferred_index]).is_empty():
+		return preferred_index
+	for position: int in lock_rule.get_allowed_positions():
+		var index: int = position - 1
+		if index >= 0 and index < slots.size() and str(slots[index]).is_empty():
+			return index
+	return preferred_index if preferred_index >= 0 and preferred_index < slots.size() else -1
+
+
+func _find_first_player_slot(slots: Array) -> int:
+	for index: int in range(slots.size()):
+		if str(slots[index]).is_empty() and not is_behavior_slot_locked(index):
+			return index
+	return -1
+
+
+func _count_program_cards() -> int:
+	var result: int = 0
+	for card_id: Variant in _draft.get("behavior_slots", []):
+		if not str(card_id).is_empty():
+			result += 1
+	return result
+
+
+func _are_material_locks_satisfied() -> bool:
+	var slots: Array = _draft.get("behavior_slots", [])
+	for rule: Dictionary in _draft.get("material_lock_rules", []):
+		var card_id: String = str(rule.get("card_id", ""))
+		var found: bool = false
+		for position: Variant in rule.get("allowed_positions", []):
+			var index: int = int(position) - 1
+			if index >= 0 and index < slots.size() and str(slots[index]) == card_id and is_behavior_slot_locked(index):
+				found = true
+				break
+		if not found:
+			return false
+	return true
+
+
+func _get_serialized_lock_rule(card_id: String) -> Dictionary:
+	for rule: Dictionary in _draft.get("material_lock_rules", []):
+		if str(rule.get("card_id", "")) == card_id:
+			return rule
+	return {}
 
 
 func _build_state_snapshot(material_instance_id: StringName) -> Dictionary:
@@ -468,12 +648,15 @@ func _connect_material_inventory() -> void:
 
 
 func _on_streamer_progress_changed(_level: int, _exp: int, _points: int) -> void:
-	_resize_slots()
+	_resize_modifier_slots()
 	draft_changed.emit(get_draft())
 
 
 func _on_inventory_changed() -> void:
 	if not str(_draft.get("material_instance_id", "")).is_empty() and get_material_instance().is_empty():
 		_draft["material_instance_id"] = ""
+		_configure_material_slots()
+	elif not str(_draft.get("material_instance_id", "")).is_empty():
+		_configure_material_slots(false)
 	catalogs_changed.emit()
 	draft_changed.emit(get_draft())

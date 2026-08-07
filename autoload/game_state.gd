@@ -10,6 +10,7 @@ signal money_changed(value: int)
 signal fans_changed(value: int)
 signal streamer_progress_changed(level: int, exp: int, growth_points: int)
 signal skill_levels_changed(family: StringName, level: int)
+signal skill_nodes_changed()
 signal material_inventory_changed()
 
 const ATTR_STRESS: String = "stress"
@@ -58,6 +59,7 @@ var streamer_level: int = 1
 var streamer_exp: int = 0
 var growth_points: int = 2
 var skill_levels: Dictionary = DEFAULT_SKILL_LEVELS.duplicate(true)
+var unlocked_skill_ids: Array[StringName] = []
 
 ## 素材运行态：instance_id -> definition_id/depth/progress/freshness/use_count。
 var material_instances: Dictionary = {}
@@ -147,6 +149,21 @@ func set_skill_level(family: StringName, value: int) -> void:
 	skill_levels_changed.emit(family, normalized_value)
 
 
+func set_unlocked_skill_ids(skill_ids: Array[StringName]) -> void:
+	unlocked_skill_ids.clear()
+	for skill_id: StringName in skill_ids:
+		if skill_id != &"" and skill_id not in unlocked_skill_ids:
+			unlocked_skill_ids.append(skill_id)
+	skill_nodes_changed.emit()
+
+
+func add_unlocked_skill_id(skill_id: StringName) -> void:
+	if skill_id == &"" or skill_id in unlocked_skill_ids:
+		return
+	unlocked_skill_ids.append(skill_id)
+	skill_nodes_changed.emit()
+
+
 func set_growth_points(value: int) -> void:
 	growth_points = maxi(value, 0)
 	streamer_progress_changed.emit(streamer_level, streamer_exp, growth_points)
@@ -223,6 +240,7 @@ func to_dict() -> Dictionary:
 		"streamer_exp": streamer_exp,
 		"growth_points": growth_points,
 		"skill_levels": skill_levels.duplicate(true),
+		"unlocked_skill_ids": unlocked_skill_ids.duplicate(),
 		"material_instances": material_instances.duplicate(true),
 		"material_serial": material_serial,
 		"persona_progress": persona_progress.duplicate(true),
@@ -252,6 +270,11 @@ func from_dict(data: Dictionary) -> void:
 	if loaded_levels is Dictionary:
 		for family: StringName in SKILL_FAMILIES:
 			skill_levels[String(family)] = clampi(int((loaded_levels as Dictionary).get(String(family), 1)), 1, 5)
+	unlocked_skill_ids.clear()
+	for skill_id: Variant in data.get("unlocked_skill_ids", []):
+		var normalized_skill_id := StringName(str(skill_id))
+		if normalized_skill_id != &"" and normalized_skill_id not in unlocked_skill_ids:
+			unlocked_skill_ids.append(normalized_skill_id)
 	material_instances = data.get("material_instances", {}).duplicate(true)
 	material_serial = maxi(int(data.get("material_serial", 0)), 0)
 	persona_progress = data.get("persona_progress", {}).duplicate(true)

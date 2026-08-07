@@ -1,5 +1,5 @@
 extends Node
-## v0.5 开播链路：素材实例、拼图结构、纯预结算和幂等提交。
+## v0.7 开播链路：素材题面、锁定卡、合法空槽、纯预结算和幂等提交。
 
 const CARD_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/live_stream_card.tscn")
 
@@ -25,18 +25,24 @@ func _ready() -> void:
 	manager.select_persona(&"persona_default")
 	var material_instance_id: StringName = _find_material_instance(material_inventory, &"material_trash_hunter")
 	assert(material_instance_id != &"")
+	var material_instance: Dictionary = GameState.material_instances[String(material_instance_id)]
+	material_instance["progress"] = 2
+	GameState.material_instances[String(material_instance_id)] = material_instance
 	manager.select_material(material_instance_id)
 	assert(manager.can_advance(0), "title, persona and material instance should complete setup")
+	var material: LiveStreamMaterialResource = manager.get_material_definition()
+	var material_draft: Dictionary = manager.get_draft()
+	assert(material_draft.get("behavior_slots", []).size() == material.program_slot_count, "material must define program slot count")
+	assert((material_draft.get("behavior_slots", []) as Array)[2] == "material_boss_fight", "chapter three must inject its locked BOSS card")
+	assert(manager.is_behavior_slot_locked(2))
+	assert(not manager.clear_behavior_slot(2), "strict material cards cannot be removed")
 	assert(manager.advance_step())
 
-	assert(manager.select_behavior_card(&"talk_goodnight"))
 	assert(manager.select_behavior_card(&"talk_daily_greeting"))
-	assert(not manager.can_advance(1), "opening and closing cards must occupy their structural positions")
-	assert(manager.clear_behavior_slot(0) and manager.clear_behavior_slot(1))
-	assert(manager.select_behavior_card(&"talk_daily_greeting"))
-	assert(manager.select_behavior_card(&"talk_goodnight"))
-	assert(manager.can_advance(1), "opening followed by closing should be a valid two-slot program")
-	assert(card_library.is_card_unlocked(&"game_stuck_rage"), "the vertical slice should expose a hot-to-gloom transition at Lv1")
+	assert(manager.select_behavior_card(&"talk_passionate_rant"))
+	assert(manager.can_advance(1), "a trailing empty slot is legal and acts as the chain ending")
+	assert(manager.get_budget_used() == 6, "material locked cards must not consume performance budget")
+	assert(not card_library.is_card_unlocked(&"game_stuck_rage"), "stuck rage follows the v0.6 Tier 2 unlock")
 	await _test_puzzle_edges(card_library)
 	await _instantiate_obs_live_app()
 	assert(manager.advance_step())
@@ -44,7 +50,8 @@ func _ready() -> void:
 
 	var plan: StreamPlanSnapshot = manager.build_stream_plan(2468, &"preview_contract")
 	assert(plan != null)
-	assert(plan.behavior_card_ids == [&"talk_daily_greeting", &"talk_goodnight"])
+	assert(plan.behavior_card_ids == [&"talk_daily_greeting", &"talk_passionate_rant", &"material_boss_fight", &""])
+	assert(plan.locked_behavior_slot_indices == PackedInt32Array([2]))
 	var first_preview: StreamSettlementResult = manager.get_preview_result()
 	var second_preview: StreamSettlementResult = manager.get_preview_result()
 	assert(first_preview.to_dict() == second_preview.to_dict(), "same snapshot and seed should be deterministic")
@@ -85,10 +92,11 @@ func _test_puzzle_edges(card_library: Node) -> void:
 	add_child(opening_view)
 	opening_view.configure(card_library.get_card(&"talk_daily_greeting"))
 	await get_tree().process_frame
-	var opening_edges: CardMoodEdges = opening_view.get_node("MoodEdges") as CardMoodEdges
-	assert(not opening_edges.has_input_notches(), "opening card must have a flat left edge")
-	assert(opening_edges.has_output_tabs(), "opening card must have right output tabs")
-	assert(opening_edges.get_output_lanes() == [0, 2], "an opening card may expose multiple output connectors")
+	var opening_edges: CardSlotEdges = opening_view.get_node("SlotEdges") as CardSlotEdges
+	assert(not opening_edges.has_left_notches(), "opening card must have a flat left edge")
+	assert(opening_edges.has_right_tabs(), "opening card must have right output tabs")
+	assert(opening_edges.right_slots == [2, 3], "daily greeting must use the authored D-shaped output")
+	assert(opening_view.find_child("InterfaceLabel", true, false) == null, "card faces must express slots through their shape instead of L/R text")
 	assert(opening_view.find_child("Background", true, false) == null, "card must not contain a second card frame")
 	assert(opening_view.find_child("IconArea", true, false) == null, "icon must not be wrapped in another panel")
 	var main_icon: TextureRect = opening_view.find_child("MainIcon", true, false) as TextureRect
@@ -99,28 +107,33 @@ func _test_puzzle_edges(card_library: Node) -> void:
 	add_child(closing_view)
 	closing_view.configure(card_library.get_card(&"talk_goodnight"))
 	await get_tree().process_frame
-	var closing_edges: CardMoodEdges = closing_view.get_node("MoodEdges") as CardMoodEdges
-	assert(closing_edges.has_input_notches(), "closing card must have left input notches")
-	assert(not closing_edges.has_output_tabs(), "closing card must have a flat right edge")
-	assert(closing_edges.get_input_lanes() == [2, 3], "a closing card may accept multiple input moods")
+	var closing_edges: CardSlotEdges = closing_view.get_node("SlotEdges") as CardSlotEdges
+	assert(closing_edges.has_left_notches(), "closing card must have left input notches")
+	assert(not closing_edges.has_right_tabs(), "closing card must have a flat right edge")
+	assert(closing_edges.left_slots == [1, 3], "goodnight must expose only its two authored left slots")
 	closing_view.queue_free()
 
 	var transition_card: BehaviorCardResource = card_library.get_card(&"game_stuck_rage") as BehaviorCardResource
 	var probe: LiveStreamCardView = CARD_SCENE.instantiate()
 	add_child(probe)
 	await get_tree().process_frame
-	var probe_edges: CardMoodEdges = probe.get_node("MoodEdges") as CardMoodEdges
+	var probe_edges: CardSlotEdges = probe.get_node("SlotEdges") as CardSlotEdges
 	var lane_positions: Array[float] = [
-		probe_edges.get_lane_y(BehaviorCardResource.MOOD_HOT),
-		probe_edges.get_lane_y(BehaviorCardResource.MOOD_CALM),
-		probe_edges.get_lane_y(BehaviorCardResource.MOOD_WARM),
-		probe_edges.get_lane_y(BehaviorCardResource.MOOD_GLOOM),
+		probe_edges.get_slot_y(1),
+		probe_edges.get_slot_y(2),
+		probe_edges.get_slot_y(3),
+		probe_edges.get_slot_y(4),
 	]
 	assert(lane_positions[0] < lane_positions[1])
 	assert(lane_positions[1] < lane_positions[2])
-	assert(lane_positions[2] < lane_positions[3], "four moods must occupy four distinct vertical lanes")
+	assert(lane_positions[2] < lane_positions[3], "four slot positions must occupy four distinct vertical lanes")
 	probe.configure(transition_card)
 	await get_tree().process_frame
-	assert(probe_edges.get_input_lanes() == [0, 1], "the card must draw both authored left-side notches")
-	assert(probe_edges.get_output_lanes() == [0, 3], "the card must draw both authored right-side tabs")
+	assert(probe_edges.left_slots == [2, 4], "stuck rage must draw only its two authored left-side notches")
+	assert(probe_edges.right_slots == [2], "stuck rage must draw only its authored right-side tab")
+	assert(not probe_edges.is_connection_state_visible(), "card library views must not paint connection success or failure")
+	probe.configure_connection_state([2], [2])
+	assert(probe_edges.is_connection_state_visible(), "placed program cards must enable per-slot connection feedback")
+	assert(probe_edges.is_left_slot_connected(2) and not probe_edges.is_left_slot_connected(4))
+	assert(probe_edges.is_right_slot_connected(2), "connected slots must expose their green state independently")
 	probe.queue_free()

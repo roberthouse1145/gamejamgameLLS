@@ -2,7 +2,7 @@
 class_name StreamerCardFlowContainer extends Container
 ## 卡牌库的响应式流式排布：按可用宽度自动计算列数，并保持稳定的行优先顺序。
 
-@export var card_size: Vector2 = Vector2(440, 600):
+@export var card_size: Vector2 = CardDisplayMetrics.FULL_SIZE:
 	set(value):
 		card_size = Vector2(maxf(value.x, 1.0), maxf(value.y, 1.0))
 		update_minimum_size()
@@ -47,13 +47,18 @@ func _get_minimum_size() -> Vector2:
 
 func _layout_cards() -> void:
 	var cards: Array[Control] = _get_layout_children()
-	var columns: int = _get_column_count(maxf(size.x, card_size.x))
+	var available_width: float = maxf(size.x, card_size.x)
+	var columns: int = _get_column_count(available_width)
 	for index: int in range(cards.size()):
 		var column: int = index % columns
 		@warning_ignore("integer_division")
 		var row: int = index / columns
+		var row_start_index: int = row * columns
+		var row_card_count: int = mini(columns, cards.size() - row_start_index)
+		var row_width: float = row_card_count * card_size.x + maxi(row_card_count - 1, 0) * horizontal_separation
+		var row_start_x: float = maxf((available_width - row_width) * 0.5, 0.0)
 		var card_position := Vector2(
-			column * (card_size.x + horizontal_separation),
+			row_start_x + column * (card_size.x + horizontal_separation),
 			row * (card_size.y + vertical_separation)
 		)
 		fit_child_in_rect(cards[index], Rect2(card_position, card_size))

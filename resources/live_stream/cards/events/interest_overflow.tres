@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="LiveStreamCardResource" format=3 uid="uid://c5bpjksqw87kr"]
+
+[ext_resource type="Script" path="res://scripts/apps/obs_live/resources/live_stream_card_resource.gd" id="1_card"]
+[ext_resource type="Script" path="res://scripts/apps/obs_live/resources/live_stream_card_stat.gd" id="2_stat"]
+[ext_resource type="Texture2D" uid="uid://blb2nt77hgfjo" path="res://Assets/images/live_stream/cards/icons/interest_overflow.svg" id="3_icon"]
+[ext_resource type="Texture2D" uid="uid://ssuwww4sx5u4" path="res://Assets/images/live_stream/cards/icons/stat_stress.svg" id="4_stress"]
+[ext_resource type="Texture2D" uid="uid://pfux71t5yl5j" path="res://Assets/images/live_stream/cards/icons/stat_risk.svg" id="5_risk"]
+
+[sub_resource type="Resource" id="Resource_left"]
+script = ExtResource("2_stat")
+stat_key = &"stress"
+icon = ExtResource("4_stress")
+value = 4
+
+[sub_resource type="Resource" id="Resource_right"]
+script = ExtResource("2_stat")
+stat_key = &"risk_percent"
+icon = ExtResource("5_risk")
+value = 7
+suffix = "%"
+
+[resource]
+script = ExtResource("1_card")
+card_id = &"interest_overflow"
+display_name = "兴趣暴走"
+icon = ExtResource("3_icon")
+description = "聊到喜欢的内容就不刹车，内容更足。"
+slot_index = 1
+effect_text = "内容浓度上升"
+left_stat = SubResource("Resource_left")
+right_stat = SubResource("Resource_right")

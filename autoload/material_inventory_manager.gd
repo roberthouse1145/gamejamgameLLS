@@ -76,7 +76,7 @@ func commit_use(use_delta: Dictionary) -> bool:
 	var definition: LiveStreamMaterialResource = get_material_definition(StringName(str(instance.get("definition_id", ""))))
 	if definition == null:
 		return false
-	if definition.material_type == LiveStreamMaterialResource.TYPE_CONSUMABLE:
+	if definition.material_type in [LiveStreamMaterialResource.TYPE_CONSUMABLE, LiveStreamMaterialResource.TYPE_SPONSOR]:
 		GameState.material_instances.erase(instance_id)
 	else:
 		instance["depth"] = maxf(float(instance.get("depth", 0.0)) + float(use_delta.get("depth_delta", -1.0)), 0.0)

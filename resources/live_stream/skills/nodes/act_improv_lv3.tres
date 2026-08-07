@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://cl0oe6vyhimb3"]
+
+[ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://c4u8u05tmwf58" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="2"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2_tum82"]
+
+[resource]
+script = ExtResource("1")
+skill_id = &"act_improv_lv3"
+family = &"act"
+level = 3
+ability_level_bonus = 1
+display_name = "即兴反应"
+description = "把临场意外顺势接入表演，不让节目节奏中断。"
+icon = ExtResource("2")
+tree_position = Vector2(2, 3.4)
+point_cost = 1
+required_skill_ids = Array[StringName]([&"act_lv2"])

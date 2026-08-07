@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="BehaviorCardResource" format=3 uid="uid://dntygueg8r0vw"]
+
+[ext_resource type="Script" uid="uid://wvbgu88pwof3" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="2"]
+[ext_resource type="Texture2D" uid="uid://bau33kpjofu1o" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="3"]
+[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_ll6bk"]
+[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="5_7bdut"]
+
+[sub_resource type="Resource" id="Axes"]
+script = ExtResource("2")
+hook = 1.0
+quality = 2.0
+impact = 2.0
+risk = 1.0
+
+[resource]
+script = ExtResource("1")
+left_slots = Array[int]([2, 4])
+right_slots = Array[int]([2, 4])
+axes = SubResource("Axes")
+family = &"game"
+budget_cost = 0
+stress_cost = 6.0
+content_id = &"material_boss_fight"
+display_name = "BOSS 战"
+description = "素材进度推进到强制决战，必须围绕这场战斗编排节目。"
+icon = ExtResource("3")
+tags = Array[StringName]([&"game", &"boss_fight", &"high_difficulty"])

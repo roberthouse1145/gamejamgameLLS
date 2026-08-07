@@ -1,9 +1,12 @@
-[gd_resource type="Resource" script_class="LiveStreamMaterialResource" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="LiveStreamMaterialResource" format=3 uid="uid://b20e1rchkj78h"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/material_resource.gd" id="1"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_family_values.gd" id="2"]
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="3"]
-[ext_resource type="Texture2D" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="4"]
+[ext_resource type="Script" uid="uid://dypbjcd0e7jpi" path="res://scripts/game/resources/live_stream/material_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://jmvhm65g2xaf" path="res://scripts/game/resources/live_stream/stream_family_values.gd" id="2"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="3"]
+[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_cv13u"]
+[ext_resource type="Texture2D" uid="uid://c6bmn87ogu8h7" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="4"]
+[ext_resource type="Script" uid="uid://b0wgs72067lck" path="res://scripts/game/resources/live_stream/material_locked_card.gd" id="5_70u6x"]
+[ext_resource type="Script" uid="uid://p1r0pl3acdgx" path="res://scripts/game/resources/live_stream/material_progress_locks.gd" id="6_jlr2i"]
 
 [sub_resource type="Resource" id="Affinity"]
 script = ExtResource("2")
@@ -20,15 +23,14 @@ impact = 1.0
 
 [resource]
 script = ExtResource("1")
+initial_depth = 3.0
+max_progress = 3
+base_popularity = 110.0
+program_slot_count = 3
+affinity = SubResource("Affinity")
+axes = SubResource("Axes")
 content_id = &"material_season_anime_notes"
 display_name = "本季新番笔记"
 description = "角色、声优和改编差异都记得密密麻麻。"
 icon = ExtResource("4")
 tags = Array[StringName]([&"story_rich", &"voice_acting", &"moe", &"otaku_culture"])
-material_type = &"continuous"
-initial_depth = 3.0
-max_progress = 3
-freshness_decay = 0.2
-base_popularity = 110.0
-affinity = SubResource("Affinity")
-axes = SubResource("Axes")
