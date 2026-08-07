@@ -7,6 +7,7 @@ const CONTENT_CARD_SCENE: PackedScene = preload("res://scenes/apps/obs_live/comp
 const DROP_SLOT_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/card_drop_slot.tscn")
 const DRAG_CONTROLLER_SCENE: PackedScene = preload("res://scenes/ui/cards/card_drag_controller.tscn")
 const DECK_SCENE: PackedScene = preload("res://scenes/ui/cards/card_deck.tscn")
+const LIVE_SHOW_GENERATOR_SCRIPT = preload("res://scripts/game/live_stream/live_show_generator.gd")
 
 const COLOR_TEXT: Color = Color("#1A2238")
 const COLOR_TEXT_SECONDARY: Color = Color("#5A6885")
@@ -23,7 +24,6 @@ const COLOR_DASHBOARD_BG: Color = Color("#EAF1FA")
 enum AppState { WIZARD, ENTRANCE, LIVE, SETTLEMENT }
 
 const OBS_APP_ID: String = "obs_live"
-const VIEWERS_START_RATIO: float = 0.05
 
 @onready var wizard_root: VBoxContainer = %WizardRoot
 @onready var wizard_tab_bar: WizardTabBar = %WizardTabBar
@@ -33,28 +33,41 @@ const VIEWERS_START_RATIO: float = 0.05
 @onready var back_button: Button = %BackButton
 @onready var next_button: Button = %NextButton
 @onready var live_root: Control = %LiveRoot
-@onready var live_title: Label = %LiveTitle
-@onready var live_viewers: Label = %LiveViewers
-@onready var live_clock: Label = %LiveClock
-@onready var fast_button: Button = %FastButton
-@onready var skip_button: Button = %SkipButton
 @onready var stream_stage: StreamStage = %StreamStage
 @onready var stream_chat: StreamChat = %StreamChat
 @onready var entrance_overlay: EntranceOverlay = %EntranceOverlay
 @onready var settlement_panel: SettlementPanel = %SettlementPanel
+
+var live_title: Label:
+	get: return stream_stage.live_title if stream_stage != null else null
+var live_viewers: Label:
+	get: return stream_stage.live_viewers if stream_stage != null else null
+var live_clock: Label:
+	get: return stream_stage.live_clock if stream_stage != null else null
+var avatar_rect: RoundedAvatar:
+	get: return stream_stage.avatar_rect if stream_stage != null else null
+var channel_name: Label:
+	get: return stream_stage.channel_name if stream_stage != null else null
+var channel_tag: Label:
+	get: return stream_stage.channel_tag if stream_stage != null else null
+var fast_button: Button:
+	get: return stream_stage.fast_button if stream_stage != null else null
+var skip_button: Button:
+	get: return stream_stage.skip_button if stream_stage != null else null
 
 var _manager: Node = null
 var _card_library_manager: Node = null
 var _state: int = AppState.WIZARD
 var _max_step_reached: int = 0
 var _title_edit: LineEdit = null
-var _director: StreamShowDirector = null
+var _generator: Node = null
 var _live_plan: StreamPlanSnapshot = null
 var _live_result: StreamSettlementResult = null
 var _live_elapsed: float = 0.0
-var _live_viewers: float = 0.0
 var _drag_controller: CardDragController = null
 var _deck: CardDeck = null
+var _axis_hint: String = DanmakuPool.HINT_NEUTRAL
+var _live_show: Dictionary = {}
 
 
 func _ready() -> void:
@@ -68,6 +81,8 @@ func _ready() -> void:
 	skip_button.pressed.connect(_on_skip_pressed)
 	entrance_overlay.entrance_finished.connect(_on_entrance_finished)
 	settlement_panel.finish_pressed.connect(_on_settlement_finish)
+	stream_stage.show_finished.connect(_on_show_finished)
+	stream_stage.live_chat_event.connect(_on_live_chat_event)
 	_apply_primary_button_style(next_button)
 	if _manager == null or _card_library_manager == null:
 		_render_manager_error()
@@ -91,8 +106,19 @@ func _process(delta: float) -> void:
 	_live_elapsed += delta
 	var total_seconds: int = int(_live_elapsed)
 	live_clock.text = "%02d:%02d" % [total_seconds / 60, total_seconds % 60]
-	_live_viewers = lerpf(_live_viewers, float(_live_result.peak_viewers), minf(delta * 0.6, 1.0))
-	live_viewers.text = "%d 人在线" % int(round(_live_viewers))
+
+
+func _update_channel_info() -> void:
+	var persona: StreamPersonaResource = null
+	if _manager != null and _live_plan != null:
+		persona = _manager.get_persona(_live_plan.persona_id)
+	if persona == null and _card_library_manager != null and _card_library_manager.has_method("get_catalog"):
+		var catalog = _card_library_manager.get_catalog()
+		if catalog != null and catalog.has_method("get_persona"):
+			persona = catalog.get_persona(_live_plan.persona_id)
+	if persona != null:
+		if avatar_rect != null and persona.icon != null:
+			avatar_rect.set_avatar(persona.icon, persona.display_name)
 
 
 # ---------------------------------------------------------------- 向导
@@ -815,24 +841,82 @@ func _enter_entrance(plan: StreamPlanSnapshot) -> void:
 	_state = AppState.ENTRANCE
 	_live_plan = plan
 	_live_result = _manager.get_pending_result()
+	_live_show.clear()
 	wizard_root.visible = false
 	live_root.visible = true
 	live_title.text = plan.title
 	live_clock.text = "00:00"
-	_live_viewers = float(_live_result.peak_viewers) * VIEWERS_START_RATIO if _live_result != null else 0.0
-	live_viewers.text = "%d 人在线" % int(round(_live_viewers))
+	var viewer_count: int = _live_result.peak_viewers if _live_result != null else 0
+	live_viewers.text = "%d 人在线" % viewer_count
 	fast_button.text = "快进"
 	fast_button.disabled = false
 	skip_button.disabled = false
+	_update_channel_info()
+	if stream_stage != null:
+		stream_stage.viewers_target = viewer_count
+		stream_stage.refresh_channel_info()
 	entrance_overlay.play(plan.title)
 
-	_director = StreamShowDirector.new()
-	add_child(_director)
-	_director.setup(plan, _live_result, _card_library_manager.get_catalog())
-	_director.first_beat_resolved.connect(entrance_overlay.set_ready)
-	_director.beat_started.connect(_on_live_beat_started)
-	_director.show_finished.connect(_on_show_finished)
-	_director.start()
+	_generator = LIVE_SHOW_GENERATOR_SCRIPT.new()
+	add_child(_generator)
+	_generator.setup(plan, _live_result, _card_library_manager.get_catalog(), stream_stage.streamer)
+	_axis_hint = _generator.get_axis_hint()
+	_generator.show_ready.connect(_on_show_ready)
+	_generator.generation_failed.connect(_on_generation_failed)
+	_generator.generate()
+
+
+## Playtest / 调试：跳过向导与 LLM，直接播放注入的 DSL。
+func play_test_show(dsl_text: String, plan: StreamPlanSnapshot = null, result: StreamSettlementResult = null) -> bool:
+	_cleanup_live_session()
+	_live_plan = plan if plan != null else _make_demo_plan()
+	_live_result = result if result != null else _make_demo_result(_live_plan)
+	_state = AppState.ENTRANCE
+	_live_show.clear()
+	wizard_root.visible = false
+	live_root.visible = true
+	settlement_panel.visible = false
+	live_title.text = _live_plan.title
+	live_clock.text = "00:00"
+	var viewer_count: int = _live_result.peak_viewers
+	live_viewers.text = "%d 人在线" % viewer_count
+	fast_button.text = "快进"
+	fast_button.disabled = false
+	skip_button.disabled = false
+	_update_channel_info()
+	if stream_stage != null:
+		stream_stage.viewers_target = viewer_count
+		stream_stage.refresh_channel_info()
+	entrance_overlay.play(_live_plan.title)
+
+	_generator = LIVE_SHOW_GENERATOR_SCRIPT.new()
+	add_child(_generator)
+	_generator.setup(
+		_live_plan,
+		_live_result,
+		_card_library_manager.get_catalog() if _card_library_manager != null else null,
+		stream_stage.streamer
+	)
+	_axis_hint = _generator.get_axis_hint()
+	var compiled: Dictionary = _generator.compile_dsl(dsl_text, _live_plan.title)
+	if not bool(compiled.get("success", false)):
+		push_error("play_test_show compile failed: %s" % str(compiled.get("errors", [])))
+		entrance_overlay.set_ready()
+		return false
+	_on_show_ready(compiled.get("show", {}))
+	return true
+
+
+func _on_show_ready(show_data: Dictionary) -> void:
+	_live_show = show_data
+	entrance_overlay.set_ready()
+	if _state == AppState.LIVE and not stream_stage.is_playing():
+		stream_stage.play_show(_live_show, _live_plan.rng_seed if _live_plan != null else 1)
+
+
+func _on_generation_failed(reason: String) -> void:
+	push_warning("LiveShowGenerator failed: %s" % reason)
+	entrance_overlay.set_ready()
 
 
 func _on_entrance_finished() -> void:
@@ -840,26 +924,24 @@ func _on_entrance_finished() -> void:
 		return
 	_state = AppState.LIVE
 	_live_elapsed = 0.0
-	stream_chat.start_ambient(_director.get_axis_hint(), _live_plan.rng_seed if _live_plan != null else 1)
+	stream_chat.start_ambient(_axis_hint, _live_plan.rng_seed if _live_plan != null else 1)
 	stream_chat.push_system("直播开始了")
+	if not _live_show.is_empty() and not stream_stage.is_playing():
+		stream_stage.play_show(_live_show, _live_plan.rng_seed if _live_plan != null else 1)
 
 
-func _on_live_beat_started(beat: Dictionary) -> void:
-	stream_stage.show_beat(beat)
-	stream_chat.push_entries(beat.get("danmaku", []))
+func _on_live_chat_event(event: Dictionary) -> void:
+	stream_chat.handle_live_chat_event(event)
 
 
 func _on_fast_pressed() -> void:
-	if _director == null:
-		return
 	var enabled: bool = fast_button.text == "快进"
-	_director.set_fast_forward(enabled)
+	stream_stage.set_fast_forward(enabled)
 	fast_button.text = "原速" if enabled else "快进"
 
 
 func _on_skip_pressed() -> void:
-	if _director != null:
-		_director.skip()
+	stream_stage.skip()
 
 
 func _on_show_finished() -> void:
@@ -873,25 +955,54 @@ func _on_show_finished() -> void:
 
 
 func _on_settlement_finish() -> void:
-	if _live_plan != null:
+	if _live_plan != null and _manager != null and _manager.has_method("commit_broadcast"):
+		# playtest 假 session 可能未 pending，忽略失败
 		_manager.commit_broadcast(_live_plan.session_id)
 	_cleanup_live_session()
-	_manager.reset_draft()
+	if _manager != null and _manager.has_method("reset_draft"):
+		_manager.reset_draft()
 	var app_manager: Node = get_node_or_null("/root/AppManager")
 	if app_manager != null:
 		app_manager.close_app(OBS_APP_ID)
 
 
 func _cleanup_live_session() -> void:
-	if _director != null:
-		_director.queue_free()
-		_director = null
+	if _generator != null:
+		_generator.queue_free()
+		_generator = null
 	_live_plan = null
 	_live_result = null
+	_live_show.clear()
 	_state = AppState.WIZARD
 	live_root.visible = false
 	settlement_panel.visible = false
 	wizard_root.visible = true
+
+
+func _make_demo_plan() -> StreamPlanSnapshot:
+	var plan := StreamPlanSnapshot.new()
+	plan.session_id = &"playtest_live_show"
+	plan.title = "【验收】直播 DSL 放映"
+	plan.rng_seed = 20260807
+	plan.state_snapshot = {
+		"stress": 40,
+		"otaku_desire": 55,
+		"loneliness": 30,
+		"fans": 1200,
+	}
+	return plan
+
+
+func _make_demo_result(plan: StreamPlanSnapshot) -> StreamSettlementResult:
+	var result := StreamSettlementResult.new()
+	result.session_id = plan.session_id
+	result.peak_viewers = 800
+	result.fan_delta = 12
+	result.revenue = 320
+	result.sponsor_satisfied = true
+	result.accident_occurred = false
+	result.axes = {"hook": 1.0, "quality": 0.8, "impact": 0.6, "risk": 0.1}
+	return result
 
 
 # ---------------------------------------------------------------- 事件回调

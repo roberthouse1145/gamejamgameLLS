@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="StreamerCharacterResource" format=3 uid="uid://dcubmr4ya4ppm"]
+
+[ext_resource type="Script" uid="uid://dtwdcrbqabkq4" path="res://scripts/game/resources/live_stream/streamer_character_resource.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dnlkho8uhgr7c" path="res://Assets/images/characters/ruan_yunyou/casual/expression_02.png" id="2_default"]
+[ext_resource type="Texture2D" uid="uid://cb1lu51ru6fp8" path="res://Assets/images/characters/ruan_yunyou/casual/expression_01.png" id="3_smile"]
+[ext_resource type="Texture2D" uid="uid://cinnxm4cn67ly" path="res://Assets/images/characters/ruan_yunyou/casual/expression_22.png" id="4_strained"]
+[ext_resource type="Texture2D" uid="uid://b8peg5odlodws" path="res://Assets/images/characters/ruan_yunyou/casual/expression_20.png" id="5_shocked"]
+[ext_resource type="Texture2D" uid="uid://bjqy33ktdesa6" path="res://Assets/images/characters/ruan_yunyou/casual/expression_18.png" id="6_worried"]
+[ext_resource type="Texture2D" uid="uid://v5sb6sqta0jk" path="res://Assets/images/characters/ruan_yunyou/casual/expression_19.png" id="7_panicked"]
+[ext_resource type="Texture2D" uid="uid://in3xfkywijtr" path="res://Assets/images/characters/ruan_yunyou/casual/expression_26.png" id="8_embarrassed"]
+
+[resource]
+script = ExtResource("1_script")
+streamer_id = &"ruan_yunyou"
+display_name = "阮云柚"
+expressions = {
+&"default": ExtResource("2_default"),
+&"embarrassed": ExtResource("8_embarrassed"),
+&"neutral": ExtResource("2_default"),
+&"panicked": ExtResource("7_panicked"),
+&"shocked": ExtResource("5_shocked"),
+&"smile": ExtResource("3_smile"),
+&"strained": ExtResource("4_strained"),
+&"worried": ExtResource("6_worried")
+}
+portrait_offset = Vector2(0, 0.18)
+portrait_scale = 1.45

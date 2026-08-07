@@ -1,12 +1,333 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=14 format=3]
 
-[ext_resource type="Script" path="res://scripts/apps/obs_live/components/stream_stage.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/apps/obs_live/components/stream_stage.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/stream_scene_display.tscn" id="2_stream_display"]
+[ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="3_avatar"]
+[ext_resource type="Texture2D" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="4_avatar_texture"]
+[ext_resource type="Resource" path="res://resources/live_stream/streamers/ruan_yunyou.tres" id="5_streamer"]
+[ext_resource type="Texture2D" path="res://Assets/images/backgrounds/yunyou_desktop.png" id="6_room_bg"]
+[ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/live_show_player.tscn" id="7_player"]
 
-[node name="StreamStage" type="Control"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_live_badge"]
+bg_color = Color(0.898, 0.282, 0.427, 1)
+content_margin_left = 18.0
+content_margin_top = 9.0
+content_margin_right = 18.0
+content_margin_bottom = 9.0
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stats"]
+bg_color = Color(0, 0, 0, 0.45)
+content_margin_left = 18.0
+content_margin_top = 9.0
+content_margin_right = 18.0
+content_margin_bottom = 9.0
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.784, 0.839, 0.918, 1)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.918, 0.945, 0.98, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.784, 0.839, 0.918, 1)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.867, 0.91, 0.961, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.784, 0.839, 0.918, 1)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_subtitle"]
+bg_color = Color(0.02, 0.027, 0.047, 0.76)
+content_margin_left = 44.0
+content_margin_top = 24.0
+content_margin_right = 44.0
+content_margin_bottom = 24.0
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[node name="StreamStage" type="VBoxContainer"]
 layout_mode = 3
+anchors_preset = 0
+offset_right = 2560.0
+offset_bottom = 1660.0
+size_flags_horizontal = 3
+theme_override_constants/separation = 22
+script = ExtResource("1_script")
+streamer = ExtResource("5_streamer")
+
+[node name="LiveShowPlayer" parent="." instance=ExtResource("7_player")]
+unique_name_in_owner = true
+
+[node name="LiveTitle" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_font_sizes/font_size = 48
+text = "直播标题"
+text_overrun_behavior = 3
+
+[node name="VideoFrame" type="Control" parent="."]
+unique_name_in_owner = true
+clip_contents = true
+custom_minimum_size = Vector2(0, 1440)
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VideoBackground" type="ColorRect" parent="VideoFrame"]
+layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-script = ExtResource("1")
+mouse_filter = 2
+color = Color(0.043, 0.071, 0.125, 1)
+
+[node name="CameraClip" type="Control" parent="VideoFrame"]
+unique_name_in_owner = true
+clip_contents = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PreviewContainer" type="SubViewportContainer" parent="VideoFrame/CameraClip"]
+unique_name_in_owner = true
+stretch = true
+mouse_filter = 2
+
+[node name="PreviewViewport" type="SubViewport" parent="VideoFrame/CameraClip/PreviewContainer"]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(3840, 2160)
+render_target_update_mode = 4
+gui_disable_input = true
+
+[node name="StreamSceneDisplay" parent="VideoFrame/CameraClip/PreviewContainer/PreviewViewport" instance=ExtResource("2_stream_display")]
+unique_name_in_owner = true
+background_texture = ExtResource("6_room_bg")
+
+[node name="VideoOverlay" type="MarginContainer" parent="VideoFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="OverlayTopRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay"]
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="LiveBadge" type="PanelContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_badge")
+
+[node name="BadgeRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="LiveDot" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge/BadgeRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 26
+text = "●"
+
+[node name="LiveText" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge/BadgeRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 34
+text = "LIVE"
+
+[node name="OverlaySpacer" type="Control" parent="VideoFrame/VideoOverlay/OverlayTopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="StatsCapsule" type="PanelContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_stats")
+
+[node name="StatsRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="LiveViewers" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 34
+text = "0 人在线"
+
+[node name="StatsSeparator" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.7)
+theme_override_font_sizes/font_size = 34
+text = "·"
+
+[node name="LiveClock" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 34
+text = "00:00"
+
+[node name="SubtitleOverlay" type="MarginContainer" parent="VideoFrame"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 260
+theme_override_constants/margin_top = 120
+theme_override_constants/margin_right = 260
+theme_override_constants/margin_bottom = 100
+
+[node name="SubtitleColumn" type="VBoxContainer" parent="VideoFrame/SubtitleOverlay"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="SubtitleSpacer" type="Control" parent="VideoFrame/SubtitleOverlay/SubtitleColumn"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="SubtitlePanel" type="PanelContainer" parent="VideoFrame/SubtitleOverlay/SubtitleColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_subtitle")
+
+[node name="SubtitleLabel" type="Label" parent="VideoFrame/SubtitleOverlay/SubtitleColumn/SubtitlePanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
+theme_override_constants/shadow_offset_x = 2
+theme_override_constants/shadow_offset_y = 2
+theme_override_font_sizes/font_size = 52
+text = "直播字幕"
+horizontal_alignment = 1
+vertical_alignment = 1
+autowrap_mode = 2
+
+[node name="ChannelRow" type="HBoxContainer" parent="."]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="AvatarRect" parent="ChannelRow" instance=ExtResource("3_avatar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(88, 88)
+layout_mode = 2
+size_flags_vertical = 4
+texture = ExtResource("4_avatar_texture")
+fallback_text = "柚"
+corner_radius = 0.5
+outline_width = 0.05
+outline_color = Color(0.898, 0.282, 0.427, 1)
+
+[node name="NameColumn" type="VBoxContainer" parent="ChannelRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 4
+
+[node name="ChannelName" type="Label" parent="ChannelRow/NameColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_font_sizes/font_size = 36
+text = "柚柚"
+
+[node name="ChannelTag" type="Label" parent="ChannelRow/NameColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.322, 0.439, 0.604, 1)
+theme_override_font_sizes/font_size = 28
+text = "0 位订阅者"
+
+[node name="ChannelSpacer" type="Control" parent="ChannelRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FastButton" type="Button" parent="ChannelRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(150, 60)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_hover_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_pressed_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_font_sizes/font_size = 26
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "快进"
+
+[node name="SkipButton" type="Button" parent="ChannelRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 60)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_hover_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_pressed_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_font_sizes/font_size = 26
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
+text = "跳过演出"

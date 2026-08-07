@@ -215,6 +215,7 @@ func _ready() -> void:
 	_setup_command_context()
 	_connect_signals()
 	call_deferred("_update_container_scale")
+	call_deferred("_setup_camera")
 	# 监听 viewport size 变化，更新容器缩放
 	var vp = get_viewport()
 	if vp and vp is SubViewport:
@@ -465,6 +466,7 @@ func load_game_data(data: Resource) -> void:
 	if dialog_overlay_container:
 		dialog_overlay_container.size = _project_resolution
 	_update_container_scale()
+	_setup_camera()
 
 	# 传递设计分辨率给 character_display（立绘直接用设计坐标，不需要缩放）
 	if character_display != null and character_display.has_method("set_design_resolution"):

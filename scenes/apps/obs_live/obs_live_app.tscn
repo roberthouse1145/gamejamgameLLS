@@ -1,8 +1,8 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene format=3 uid="uid://ciy6mqpd2wt5g"]
 
-[ext_resource type="Script" path="res://scripts/apps/obs_live/obs_live_app.gd" id="1_script"]
-[ext_resource type="Theme" path="res://resources/themes/obs_live_light.tres" id="2_theme"]
-[ext_resource type="Texture2D" path="res://Assets/images/app_icons/obs_live_v2.png" id="3_icon"]
+[ext_resource type="Script" uid="uid://bhhpmc7qulym6" path="res://scripts/apps/obs_live/obs_live_app.gd" id="1_script"]
+[ext_resource type="Theme" uid="uid://dal0b6uyjb28v" path="res://resources/themes/obs_live_light.tres" id="2_theme"]
+[ext_resource type="Texture2D" uid="uid://dq5lfgfk88hhs" path="res://Assets/images/app_icons/obs_live_v2.png" id="3_icon"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/wizard_tab_bar.tscn" id="4_tabbar"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/stream_stage.tscn" id="5_stage"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/stream_chat.tscn" id="6_chat"]
@@ -24,16 +24,7 @@ shadow_color = Color(0.18, 0.22, 0.32, 0.08)
 shadow_size = 6
 shadow_offset = Vector2(0, 2)
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_topbar"]
-bg_color = Color(1, 1, 1, 1)
-border_width_bottom = 2
-border_color = Color(0.784, 0.839, 0.906, 1)
-corner_radius_top_left = 0
-corner_radius_top_right = 0
-corner_radius_bottom_right = 0
-corner_radius_bottom_left = 0
-
-[node name="OBSLiveApp" type="Control"]
+[node name="OBSLiveApp" type="Control" unique_id=1915010184]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -43,7 +34,7 @@ grow_vertical = 2
 theme = ExtResource("2_theme")
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=581913633]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -52,7 +43,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.941, 0.957, 0.976, 1)
 
-[node name="WizardRoot" type="VBoxContainer" parent="."]
+[node name="WizardRoot" type="VBoxContainer" parent="." unique_id=1487025580]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -66,23 +57,23 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="Header" type="PanelContainer" parent="WizardRoot"]
+[node name="Header" type="PanelContainer" parent="WizardRoot" unique_id=787931933]
 custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_chrome")
 
-[node name="HeaderMargin" type="MarginContainer" parent="WizardRoot/Header"]
+[node name="HeaderMargin" type="MarginContainer" parent="WizardRoot/Header" unique_id=785356393]
 layout_mode = 2
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 8
 
-[node name="HeaderRow" type="HBoxContainer" parent="WizardRoot/Header/HeaderMargin"]
+[node name="HeaderRow" type="HBoxContainer" parent="WizardRoot/Header/HeaderMargin" unique_id=1699291047]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="BrandIcon" type="TextureRect" parent="WizardRoot/Header/HeaderMargin/HeaderRow"]
+[node name="BrandIcon" type="TextureRect" parent="WizardRoot/Header/HeaderMargin/HeaderRow" unique_id=217289243]
 custom_minimum_size = Vector2(40, 40)
 layout_mode = 2
 size_flags_vertical = 4
@@ -90,86 +81,83 @@ texture = ExtResource("3_icon")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="BrandTitle" type="Label" parent="WizardRoot/Header/HeaderMargin/HeaderRow"]
+[node name="BrandTitle" type="Label" parent="WizardRoot/Header/HeaderMargin/HeaderRow" unique_id=231714290]
 layout_mode = 2
-size_flags_vertical = 4
 theme_override_colors/font_color = Color(0.102, 0.133, 0.227, 1)
 theme_override_font_sizes/font_size = 24
 text = "V-Stream 直播姬"
 
-[node name="BrandStatus" type="Label" parent="WizardRoot/Header/HeaderMargin/HeaderRow"]
+[node name="BrandStatus" type="Label" parent="WizardRoot/Header/HeaderMargin/HeaderRow" unique_id=1027285563]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_vertical = 4
 theme_override_colors/font_color = Color(0.247, 0.639, 0.478, 1)
 theme_override_font_sizes/font_size = 18
 text = "● 推流准备中"
 
-[node name="HeaderSpacer" type="Control" parent="WizardRoot/Header/HeaderMargin/HeaderRow"]
+[node name="HeaderSpacer" type="Control" parent="WizardRoot/Header/HeaderMargin/HeaderRow" unique_id=953417109]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="WizardTabBar" parent="WizardRoot/Header/HeaderMargin/HeaderRow" instance=ExtResource("4_tabbar")]
+[node name="WizardTabBar" parent="WizardRoot/Header/HeaderMargin/HeaderRow" unique_id=545856391 instance=ExtResource("4_tabbar")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 4
 
-[node name="DeskPanel" type="PanelContainer" parent="WizardRoot"]
+[node name="DeskPanel" type="PanelContainer" parent="WizardRoot" unique_id=744228178]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_styles/panel = SubResource("StyleBoxFlat_chrome")
 
-[node name="DeskMargin" type="MarginContainer" parent="WizardRoot/DeskPanel"]
+[node name="DeskMargin" type="MarginContainer" parent="WizardRoot/DeskPanel" unique_id=1451084081]
 layout_mode = 2
 theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
 theme_override_constants/margin_right = 16
 theme_override_constants/margin_bottom = 16
 
-[node name="DeskHost" type="Control" parent="WizardRoot/DeskPanel/DeskMargin"]
+[node name="DeskHost" type="Control" parent="WizardRoot/DeskPanel/DeskMargin" unique_id=1282462590]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 
-[node name="Footer" type="PanelContainer" parent="WizardRoot"]
+[node name="Footer" type="PanelContainer" parent="WizardRoot" unique_id=260588421]
 custom_minimum_size = Vector2(0, 64)
 layout_mode = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_chrome")
 
-[node name="FooterMargin" type="MarginContainer" parent="WizardRoot/Footer"]
+[node name="FooterMargin" type="MarginContainer" parent="WizardRoot/Footer" unique_id=1410435692]
 layout_mode = 2
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 20
 theme_override_constants/margin_bottom = 8
 
-[node name="FooterRow" type="HBoxContainer" parent="WizardRoot/Footer/FooterMargin"]
+[node name="FooterRow" type="HBoxContainer" parent="WizardRoot/Footer/FooterMargin" unique_id=2071457606]
 layout_mode = 2
 theme_override_constants/separation = 14
 
-[node name="FooterStatus" type="Label" parent="WizardRoot/Footer/FooterMargin/FooterRow"]
+[node name="FooterStatus" type="Label" parent="WizardRoot/Footer/FooterMargin/FooterRow" unique_id=1192786708]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_vertical = 4
 theme_override_colors/font_color = Color(0.529, 0.576, 0.647, 1)
 theme_override_font_sizes/font_size = 20
 text = "先完成当前步骤"
 
-[node name="BackButton" type="Button" parent="WizardRoot/Footer/FooterMargin/FooterRow"]
+[node name="BackButton" type="Button" parent="WizardRoot/Footer/FooterMargin/FooterRow" unique_id=1298986236]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(160, 48)
 layout_mode = 2
 text = "← 上一步"
 
-[node name="NextButton" type="Button" parent="WizardRoot/Footer/FooterMargin/FooterRow"]
+[node name="NextButton" type="Button" parent="WizardRoot/Footer/FooterMargin/FooterRow" unique_id=1655838914]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(220, 52)
 layout_mode = 2
 text = "下一步 →"
 
-[node name="LiveRoot" type="Control" parent="."]
+[node name="LiveRoot" type="Control" parent="." unique_id=1725237285]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -179,7 +167,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="LiveBackground" type="ColorRect" parent="LiveRoot"]
+[node name="LiveBackground" type="ColorRect" parent="LiveRoot" unique_id=334642987]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -188,110 +176,42 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.941, 0.957, 0.976, 1)
 
-[node name="LiveTopBar" type="PanelContainer" parent="LiveRoot"]
-custom_minimum_size = Vector2(0, 88)
-layout_mode = 1
-anchors_preset = 10
-anchor_right = 1.0
-grow_horizontal = 2
-theme_override_styles/panel = SubResource("StyleBoxFlat_topbar")
-
-[node name="TopMargin" type="MarginContainer" parent="LiveRoot/LiveTopBar"]
-layout_mode = 2
-theme_override_constants/margin_left = 28
-theme_override_constants/margin_top = 14
-theme_override_constants/margin_right = 28
-theme_override_constants/margin_bottom = 14
-
-[node name="TopRow" type="HBoxContainer" parent="LiveRoot/LiveTopBar/TopMargin"]
-layout_mode = 2
-theme_override_constants/separation = 20
-
-[node name="LiveTitle" type="Label" parent="LiveRoot/LiveTopBar/TopMargin/TopRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.102, 0.133, 0.227, 1)
-theme_override_font_sizes/font_size = 28
-text = "直播标题"
-
-[node name="LiveViewers" type="Label" parent="LiveRoot/LiveTopBar/TopMargin/TopRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.898, 0.282, 0.427, 1)
-theme_override_font_sizes/font_size = 24
-text = "0 人在线"
-
-[node name="LiveClock" type="Label" parent="LiveRoot/LiveTopBar/TopMargin/TopRow"]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 4
-theme_override_colors/font_color = Color(0.529, 0.576, 0.647, 1)
-theme_override_font_sizes/font_size = 24
-text = "00:00"
-
-[node name="FastButton" type="Button" parent="LiveRoot/LiveTopBar/TopMargin/TopRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(140, 52)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "快进"
-
-[node name="SkipButton" type="Button" parent="LiveRoot/LiveTopBar/TopMargin/TopRow"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(180, 52)
-layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "跳过演出"
-
-[node name="LiveBodyMargin" type="MarginContainer" parent="LiveRoot"]
+[node name="LiveBodyMargin" type="MarginContainer" parent="LiveRoot" unique_id=1587081005]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = 88.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 20
+theme_override_constants/margin_left = 16
 theme_override_constants/margin_top = 16
-theme_override_constants/margin_right = 20
-theme_override_constants/margin_bottom = 20
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
 
-[node name="LiveBody" type="HBoxContainer" parent="LiveRoot/LiveBodyMargin"]
+[node name="LiveBody" type="HBoxContainer" parent="LiveRoot/LiveBodyMargin" unique_id=1410501301]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="StreamStage" parent="LiveRoot/LiveBodyMargin/LiveBody" instance=ExtResource("5_stage")]
+[node name="StreamStage" parent="LiveRoot/LiveBodyMargin/LiveBody" unique_id=2036939152 instance=ExtResource("5_stage")]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.8
+size_flags_vertical = 4
+size_flags_stretch_ratio = 3.2
 
-[node name="StreamChat" parent="LiveRoot/LiveBodyMargin/LiveBody" instance=ExtResource("6_chat")]
+[node name="StreamChat" parent="LiveRoot/LiveBodyMargin/LiveBody" unique_id=1063871215 instance=ExtResource("6_chat")]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 1.0
-custom_minimum_size = Vector2(360, 0)
+size_flags_vertical = 3
 
-[node name="EntranceOverlay" parent="LiveRoot" instance=ExtResource("7_entrance")]
+[node name="EntranceOverlay" parent="LiveRoot" unique_id=38301941 instance=ExtResource("7_entrance")]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
 
-[node name="SettlementPanel" parent="LiveRoot" instance=ExtResource("8_settlement")]
+[node name="SettlementPanel" parent="LiveRoot" unique_id=1527225534 instance=ExtResource("8_settlement")]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2

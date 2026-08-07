@@ -1111,23 +1111,54 @@ func _parse_target_args(s: String) -> Dictionary:
 		var p: String = p_raw.strip_edges()
 		if p.is_empty():
 			continue
-		if "=" in p:
+		var equals_index: int = _find_top_level_equals(p)
+		if equals_index >= 0:
 			found_kw = true
-			var parts: PackedStringArray = p.split("=", false, 1)
-			var k: String = parts[0].strip_edges()
-			var v: String = _strip_quotes(parts[1].strip_edges())
-			kw[k] = _safe_convert_value(v)
+			var k: String = p.substr(0, equals_index).strip_edges()
+			var raw_value: String = p.substr(equals_index + 1).strip_edges()
+			kw[k] = _parse_argument_value(raw_value)
 		else:
 			if not found_kw:
-				pos.append(_safe_convert_value(_strip_quotes(p)))
+				pos.append(_parse_argument_value(p))
 	
 	return {"positional": pos, "kwargs": kw}
+
+
+func _parse_argument_value(raw: String) -> Variant:
+	var value: String = raw.strip_edges()
+	if value.begins_with("[") and value.ends_with("]"):
+		return _safe_convert_value(value)
+	return _safe_convert_value(_strip_quotes(value))
+
+
+func _find_top_level_equals(text: String) -> int:
+	var quote_char: String = ""
+	var bracket_depth: int = 0
+	for index: int in range(text.length()):
+		var ch: String = text.substr(index, 1)
+		if not quote_char.is_empty():
+			if ch == quote_char:
+				quote_char = ""
+			continue
+		if ch == "\"" or ch == "'":
+			quote_char = ch
+			continue
+		if ch == "[":
+			bracket_depth += 1
+			continue
+		if ch == "]":
+			bracket_depth = maxi(bracket_depth - 1, 0)
+			continue
+		if ch == "=" and bracket_depth == 0:
+			return index
+	return -1
 
 
 func _split_call_arguments(s: String) -> Array[String]:
 	var parts: Array[String] = []
 	var current: String = ""
 	var quote_char: String = ""
+	var bracket_depth: int = 0
 
 	for i in range(s.length()):
 		var ch: String = s.substr(i, 1)
@@ -1142,7 +1173,16 @@ func _split_call_arguments(s: String) -> Array[String]:
 			current += ch
 			continue
 
-		if ch == ",":
+		if ch == "[":
+			bracket_depth += 1
+			current += ch
+			continue
+		if ch == "]":
+			bracket_depth = maxi(bracket_depth - 1, 0)
+			current += ch
+			continue
+
+		if ch == "," and bracket_depth == 0:
 			parts.append(current.strip_edges())
 			current = ""
 			continue
@@ -1256,11 +1296,31 @@ func _build_default_image_id(image_path: String) -> String:
 	return normalized
 
 func _safe_convert_value(val_str: String) -> Variant:
-	if val_str.to_lower() == "true": return true
-	elif val_str.to_lower() == "false": return false
-	elif val_str.is_valid_int(): return int(val_str)
-	elif val_str.is_valid_float(): return float(val_str)
-	return val_str
+	var trimmed: String = val_str.strip_edges()
+	if trimmed.to_lower() == "true":
+		return true
+	if trimmed.to_lower() == "false":
+		return false
+	if trimmed.is_valid_int():
+		return int(trimmed)
+	if trimmed.is_valid_float():
+		return float(trimmed)
+	if trimmed.begins_with("[") and trimmed.ends_with("]"):
+		return _parse_array_literal(trimmed)
+	return trimmed
+
+
+func _parse_array_literal(raw: String) -> Array:
+	var inner: String = raw.substr(1, raw.length() - 2).strip_edges()
+	var result: Array = []
+	if inner.is_empty():
+		return result
+	for part: String in _split_call_arguments(inner):
+		var item: String = part.strip_edges()
+		if item.is_empty():
+			continue
+		result.append(_safe_convert_value(_strip_quotes(item)))
+	return result
 
 
 func _parse_variable_literal(raw_value: String) -> Variant:
