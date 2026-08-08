@@ -3,7 +3,6 @@ extends Control
 ## Step0 左右分栏；Step1 主区+右侧预计结算面板；Step2 确认单。
 
 const CARD_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/live_stream_card.tscn")
-const CONTENT_CARD_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/content_card.tscn")
 const DROP_SLOT_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/card_drop_slot.tscn")
 const DRAG_CONTROLLER_SCENE: PackedScene = preload("res://scenes/ui/cards/card_drag_controller.tscn")
 const DECK_SCENE: PackedScene = preload("res://scenes/ui/cards/card_deck.tscn")
@@ -246,7 +245,7 @@ func _build_setup_step() -> void:
 	slot_row.add_child(persona_slot)
 	_register_slot(persona_slot)
 	if persona != null:
-		var stage_persona: ContentCard = _make_persona_card(persona, true, false)
+		var stage_persona: LiveStreamCardView = _make_persona_card(persona, true, false)
 		_bind_card(stage_persona)
 		persona_slot.set_content(stage_persona)
 
@@ -258,7 +257,7 @@ func _build_setup_step() -> void:
 	slot_row.add_child(material_slot)
 	_register_slot(material_slot)
 	if material != null:
-		var stage_material: ContentCard = _make_material_card(material, material_instance, true, false)
+		var stage_material: LiveStreamCardView = _make_material_card(material, material_instance, true, false)
 		_bind_card(stage_material)
 		material_slot.set_content(stage_material)
 
@@ -280,7 +279,7 @@ func _build_setup_step() -> void:
 	var selected_material: String = str(draft.get("material_instance_id", ""))
 	for persona_res: StreamPersonaResource in _manager.get_personas():
 		var is_selected: bool = persona != null and persona_res.content_id == persona.content_id
-		var persona_card: ContentCard = _make_persona_card(persona_res, is_selected, true)
+		var persona_card: LiveStreamCardView = _make_persona_card(persona_res, is_selected, true)
 		persona_card.pressed.connect(_on_persona_selected.bind(persona_res.content_id))
 		_bind_card(persona_card)
 		deck.add_card(persona_card)
@@ -289,7 +288,7 @@ func _build_setup_step() -> void:
 		var instance_material: LiveStreamMaterialResource = _manager.get_material_definition(instance_id)
 		if instance_material == null:
 			continue
-		var material_card: ContentCard = _make_material_card(
+		var material_card: LiveStreamCardView = _make_material_card(
 			instance_material, instance, String(instance_id) == selected_material, true
 		)
 		material_card.pressed.connect(_on_material_selected.bind(instance_id))
@@ -297,42 +296,52 @@ func _build_setup_step() -> void:
 		deck.add_card(material_card)
 
 
-func _make_persona_card(persona: StreamPersonaResource, selected: bool, draggable: bool) -> ContentCard:
-	var card: ContentCard = CONTENT_CARD_SCENE.instantiate()
-	card.configure(
-		persona.display_name,
-		"人设卡",
-		persona.icon,
-		[persona.description],
-		{"kind": "persona", "id": String(persona.content_id), "title": persona.display_name},
-		selected,
-		"形象",
-		"本场出镜"
-	)
-	card.drag_enabled = draggable
+func _make_persona_card(persona: StreamPersonaResource, selected: bool, draggable: bool) -> LiveStreamCardView:
+	var card: LiveStreamCardView = CARD_SCENE.instantiate()
+	card.configure(persona, selected)
+	if draggable:
+		card.drag_payload = {
+			"kind": "persona",
+			"id": String(persona.content_id),
+			"title": persona.display_name,
+		}
 	return card
 
 
-func _make_material_card(material: LiveStreamMaterialResource, instance: Dictionary, selected: bool, draggable: bool) -> ContentCard:
-	var card: ContentCard = CONTENT_CARD_SCENE.instantiate()
+func _make_material_card(
+	material: LiveStreamMaterialResource,
+	instance: Dictionary,
+	selected: bool,
+	draggable: bool
+) -> LiveStreamCardView:
+	var card: LiveStreamCardView = CARD_SCENE.instantiate()
 	var instance_id := StringName(str(instance.get("instance_id", "")))
 	var material_progress: int = int(instance.get("progress", 0))
-	var info_lines: Array[String] = [
-		"含量 %.0f　·　新鲜度 %d%%" % [float(instance.get("depth", 0.0)), int(round(float(instance.get("freshness", 1.0)) * 100.0))],
+	var tooltip: String = "\n".join([
+		"含量 %.0f　·　新鲜度 %d%%" % [
+			float(instance.get("depth", 0.0)),
+			int(round(float(instance.get("freshness", 1.0)) * 100.0)),
+		],
 		"进度 %d/%d" % [material_progress, material.max_progress],
-		"节目 %d 槽　·　锁定 %d 张" % [material.program_slot_count, material.get_locked_cards_for_progress(material_progress).size()],
-	]
+		"节目 %d 槽　·　锁定 %d 张" % [
+			material.program_slot_count,
+			material.get_locked_cards_for_progress(material_progress).size(),
+		],
+	])
 	card.configure(
-		material.display_name,
-		"素材 · %s" % _get_material_type_label(material.material_type),
-		material.icon,
-		info_lines,
-		{"kind": "material", "id": String(instance_id), "title": material.display_name},
+		material,
 		selected,
+		false,
 		"槽 %d" % material.program_slot_count,
-		"进度 %d/%d" % [material_progress, material.max_progress]
+		"进度 %d/%d" % [material_progress, material.max_progress],
+		tooltip
 	)
-	card.drag_enabled = draggable
+	if draggable:
+		card.drag_payload = {
+			"kind": "material",
+			"id": String(instance_id),
+			"title": material.display_name,
+		}
 	return card
 
 
@@ -808,15 +817,6 @@ func _apply_primary_button_style(button: Button) -> void:
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
-func _get_material_type_label(material_type: StringName) -> String:
-	match material_type:
-		LiveStreamMaterialResource.TYPE_CONSUMABLE:
-			return "消耗型"
-		LiveStreamMaterialResource.TYPE_SPONSOR:
-			return "商单型"
-	return "连续型"
-
-
 func _find_neighbor_behavior(slots: Array, origin_index: int, direction: int) -> BehaviorCardResource:
 	var index: int = origin_index + direction
 	while index >= 0 and index < slots.size():
@@ -852,14 +852,20 @@ func _enter_entrance(plan: StreamPlanSnapshot) -> void:
 	fast_button.disabled = false
 	skip_button.disabled = false
 	_update_channel_info()
+	var persona: StreamPersonaResource = _manager.get_persona(plan.persona_id)
 	if stream_stage != null:
 		stream_stage.viewers_target = viewer_count
-		stream_stage.refresh_channel_info()
+		stream_stage.setup_persona(persona)
 	entrance_overlay.play(plan.title)
 
 	_generator = LIVE_SHOW_GENERATOR_SCRIPT.new()
 	add_child(_generator)
-	_generator.setup(plan, _live_result, _card_library_manager.get_catalog(), stream_stage.streamer)
+	_generator.setup(
+		plan,
+		_live_result,
+		_card_library_manager.get_catalog(),
+		stream_stage.get_model_resource()
+	)
 	_axis_hint = _generator.get_axis_hint()
 	_generator.show_ready.connect(_on_show_ready)
 	_generator.generation_failed.connect(_on_generation_failed)
@@ -884,9 +890,14 @@ func play_test_show(dsl_text: String, plan: StreamPlanSnapshot = null, result: S
 	fast_button.disabled = false
 	skip_button.disabled = false
 	_update_channel_info()
+	var persona: StreamPersonaResource = (
+		_manager.get_persona(_live_plan.persona_id)
+		if _manager != null
+		else null
+	)
 	if stream_stage != null:
 		stream_stage.viewers_target = viewer_count
-		stream_stage.refresh_channel_info()
+		stream_stage.setup_persona(persona)
 	entrance_overlay.play(_live_plan.title)
 
 	_generator = LIVE_SHOW_GENERATOR_SCRIPT.new()
@@ -895,7 +906,7 @@ func play_test_show(dsl_text: String, plan: StreamPlanSnapshot = null, result: S
 		_live_plan,
 		_live_result,
 		_card_library_manager.get_catalog() if _card_library_manager != null else null,
-		stream_stage.streamer
+		stream_stage.get_model_resource()
 	)
 	_axis_hint = _generator.get_axis_hint()
 	var compiled: Dictionary = _generator.compile_dsl(dsl_text, _live_plan.title)
@@ -990,6 +1001,9 @@ func _make_demo_plan() -> StreamPlanSnapshot:
 		"loneliness": 30,
 		"fans": 1200,
 	}
+	var personas: Array[StreamPersonaResource] = _manager.get_personas() if _manager != null else []
+	if not personas.is_empty():
+		plan.persona_id = personas[0].content_id
 	return plan
 
 

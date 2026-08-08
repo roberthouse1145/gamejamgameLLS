@@ -1,19 +1,24 @@
 class_name LiveDSLParser extends RefCounted
-## 直播 DSL 解析器。只处理线性的主播字幕、弹幕、SC 与停顿。
+## 直播 DSL 解析器。处理 3D 主播动作、字幕、弹幕、SC 与停顿。
 
-var _say_pattern := RegEx.new()
 var _message_pattern := RegEx.new()
 
 
 func _init() -> void:
-	_say_pattern.compile("^say(?:\\s+(\\S+))?$")
 	_message_pattern.compile("^(chat|sc)(?:\\s+(\\d+))?$")
 
 
-func parse(dsl_text: String, allowed_expressions: Array) -> Dictionary:
+func parse(
+	dsl_text: String,
+	allowed_expressions: Array,
+	allowed_postures: Array = [],
+	allowed_gestures: Array = [],
+	allowed_costumes: Array = [],
+	allowed_arm_poses: Array = [],
+	allowed_head_poses: Array = []
+) -> Dictionary:
 	var ops: Array[Dictionary] = []
 	var errors: Array[String] = []
-	var current_expression: StringName = &""
 	var lines: PackedStringArray = dsl_text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
 
 	for index: int in range(lines.size()):
@@ -30,20 +35,37 @@ func parse(dsl_text: String, allowed_expressions: Array) -> Dictionary:
 			errors.append(_line_error(index, "冒号后缺少内容"))
 			continue
 
-		var say_match: RegExMatch = _say_pattern.search(head)
-		if say_match != null:
-			var expression_text: String = say_match.get_string(1).strip_edges()
-			if not expression_text.is_empty():
-				var expression := StringName(expression_text)
-				if not _has_expression(allowed_expressions, expression):
-					errors.append(_line_error(index, "主播资源中不存在表情“%s”" % expression_text))
-					continue
-				current_expression = expression
-			ops.append({
-				"op": "say",
-				"expression": current_expression,
-				"text": body,
-			})
+		if head == "say":
+			ops.append({"op": "say", "text": body})
+			continue
+
+		if head in ["expression", "posture", "gesture", "costume", "arm_pose", "head_pose"]:
+			var value := StringName(body)
+			var allowed_values: Array
+			var value_label: String
+			match head:
+				"expression":
+					allowed_values = allowed_expressions
+					value_label = "表情"
+				"posture":
+					allowed_values = allowed_postures
+					value_label = "姿态"
+				"gesture":
+					allowed_values = allowed_gestures
+					value_label = "手势"
+				"arm_pose":
+					allowed_values = allowed_arm_poses
+					value_label = "手臂姿势"
+				"head_pose":
+					allowed_values = allowed_head_poses
+					value_label = "头部姿势"
+				_:
+					allowed_values = allowed_costumes
+					value_label = "服装"
+			if not _has_value(allowed_values, value):
+				errors.append(_line_error(index, "主播模型不支持%s“%s”" % [value_label, body]))
+				continue
+			ops.append({"op": head, "value": value})
 			continue
 
 		var message_match: RegExMatch = _message_pattern.search(head)
@@ -103,9 +125,9 @@ func _parse_message_pool(body: String) -> Array[String]:
 	return messages
 
 
-func _has_expression(allowed_expressions: Array, expression: StringName) -> bool:
-	for allowed: Variant in allowed_expressions:
-		if StringName(str(allowed)) == expression:
+func _has_value(allowed_values: Array, value: StringName) -> bool:
+	for allowed: Variant in allowed_values:
+		if StringName(str(allowed)) == value:
 			return true
 	return false
 

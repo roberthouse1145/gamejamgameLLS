@@ -37,13 +37,15 @@ func rebuild() -> void:
 		child.queue_free()
 	_buttons.clear()
 
+	var layout: Dictionary = _compute_layout()
 	var max_position := Vector2.ZERO
 	for skill: StreamerSkill in SkillTreeManager.get_skills():
-		max_position.x = maxf(max_position.x, skill.tree_position.x)
-		max_position.y = maxf(max_position.y, skill.tree_position.y)
+		var grid_position: Vector2 = layout.get(skill.skill_id, Vector2.ZERO)
+		max_position.x = maxf(max_position.x, grid_position.x)
+		max_position.y = maxf(max_position.y, grid_position.y)
 		var button := Button.new()
 		button.name = "Skill_%s" % String(skill.skill_id)
-		button.position = ORIGIN + Vector2(skill.tree_position) * CELL_SIZE
+		button.position = ORIGIN + grid_position * CELL_SIZE
 		button.size = NODE_SIZE
 		button.icon = skill.icon
 		button.add_theme_constant_override("icon_max_width", 92)
@@ -64,6 +66,70 @@ func rebuild() -> void:
 	queue_redraw()
 	if _selected_skill_id != &"":
 		set_selected_skill(_selected_skill_id)
+
+
+## 按图结构推导网格坐标：列为前置链深度，叶子依次占行，父节点在子节点行区间居中。
+func _compute_layout() -> Dictionary:
+	var by_id: Dictionary = {}
+	var child_ids: Dictionary = {}
+	var roots: Array[StreamerSkill] = []
+	for skill: StreamerSkill in SkillTreeManager.get_skills():
+		by_id[skill.skill_id] = skill
+		if skill.required_skill_ids.is_empty():
+			roots.append(skill)
+		for required_id: StringName in skill.required_skill_ids:
+			var siblings: Array = child_ids.get(required_id, [])
+			siblings.append(skill.skill_id)
+			child_ids[required_id] = siblings
+	var state := {"rows": {}, "depths": {}, "visited": {}, "next_row": 0.0}
+	for root: StreamerSkill in roots:
+		_assign_grid_position(root, by_id, child_ids, state)
+	_resolve_column_overlaps(state)
+	var layout: Dictionary = {}
+	for skill_id: StringName in state["rows"]:
+		layout[skill_id] = Vector2(int(state["depths"][skill_id]), float(state["rows"][skill_id]))
+	return layout
+
+
+func _assign_grid_position(skill: StreamerSkill, by_id: Dictionary, child_ids: Dictionary, state: Dictionary) -> void:
+	if state["visited"].has(skill.skill_id):
+		return
+	state["visited"][skill.skill_id] = true
+	var depth: int = 0
+	for required_id: StringName in skill.required_skill_ids:
+		depth = maxi(depth, int(state["depths"].get(required_id, -1)) + 1)
+	state["depths"][skill.skill_id] = depth
+	var children: Array = child_ids.get(skill.skill_id, [])
+	if children.is_empty():
+		state["rows"][skill.skill_id] = state["next_row"]
+		state["next_row"] = float(state["next_row"]) + 1.0
+		return
+	for child_id: StringName in children:
+		var child := by_id.get(child_id) as StreamerSkill
+		if child != null:
+			_assign_grid_position(child, by_id, child_ids, state)
+	var first_row: float = state["rows"].get(children.front(), 0.0)
+	var last_row: float = state["rows"].get(children.back(), 0.0)
+	state["rows"][skill.skill_id] = (first_row + last_row) * 0.5
+
+
+## 同一列内行距不足一格时下推，保证任何图结构都不会渲染出重叠节点。
+func _resolve_column_overlaps(state: Dictionary) -> void:
+	var rows: Dictionary = state["rows"]
+	var depths: Dictionary = state["depths"]
+	var columns: Dictionary = {}
+	for skill_id: StringName in rows:
+		var depth: int = depths[skill_id]
+		var column: Array = columns.get(depth, [])
+		column.append(skill_id)
+		columns[depth] = column
+	for depth: int in columns:
+		var column: Array = columns[depth]
+		column.sort_custom(func(a: StringName, b: StringName) -> bool: return float(rows[a]) < float(rows[b]))
+		for index: int in range(1, column.size()):
+			var previous_row: float = rows[column[index - 1]]
+			if float(rows[column[index]]) < previous_row + 1.0:
+				rows[column[index]] = previous_row + 1.0
 
 
 func _draw() -> void:

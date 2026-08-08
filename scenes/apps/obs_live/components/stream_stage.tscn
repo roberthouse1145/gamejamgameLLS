@@ -1,10 +1,9 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/apps/obs_live/components/stream_stage.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/stream_scene_display.tscn" id="2_stream_display"]
 [ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="3_avatar"]
 [ext_resource type="Texture2D" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="4_avatar_texture"]
-[ext_resource type="Resource" path="res://resources/live_stream/streamers/ruan_yunyou.tres" id="5_streamer"]
 [ext_resource type="Texture2D" path="res://Assets/images/backgrounds/yunyou_desktop.png" id="6_room_bg"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/live_show_player.tscn" id="7_player"]
 
@@ -87,7 +86,6 @@ offset_bottom = 1660.0
 size_flags_horizontal = 3
 theme_override_constants/separation = 22
 script = ExtResource("1_script")
-streamer = ExtResource("5_streamer")
 
 [node name="LiveShowPlayer" parent="." instance=ExtResource("7_player")]
 unique_name_in_owner = true

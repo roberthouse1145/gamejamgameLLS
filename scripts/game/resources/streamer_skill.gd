@@ -1,5 +1,5 @@
 class_name StreamerSkill extends Resource
-## 技能图中的一个独立节点；拓扑完全由前置节点与画布坐标描述。
+## 技能图中的一个独立节点；拓扑完全由前置节点描述，UI 布局由画布按图结构推导。
 
 @export var skill_id: StringName = &""
 @export var family: StringName = &"talk"
@@ -8,7 +8,6 @@ class_name StreamerSkill extends Resource
 @export var display_name: String = ""
 @export_multiline var description: String = ""
 @export var icon: Texture2D = null
-@export var tree_position: Vector2 = Vector2.ZERO
 @export_range(0, 4, 1) var point_cost: int = 0
 @export var required_skill_ids: Array[StringName] = []
 @export var unlocked_card_ids: Array[StringName] = []

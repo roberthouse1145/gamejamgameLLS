@@ -45,6 +45,8 @@ func stop(emit_finished: bool = false) -> void:
 	_pending_bursts = 0
 	if _subtitle_panel != null:
 		_subtitle_panel.visible = false
+	if _display != null:
+		_display.set_talking(false)
 	if emit_finished and was_playing:
 		finished.emit()
 
@@ -88,6 +90,18 @@ func _run_show(ops: Array, run_id: int) -> void:
 			continue
 		var op: Dictionary = value
 		match str(op.get("op", "")):
+			"expression":
+				_display.set_expression(StringName(str(op.get("value", ""))))
+			"posture":
+				_display.set_posture(StringName(str(op.get("value", ""))))
+			"arm_pose":
+				_display.set_arm_pose(StringName(str(op.get("value", ""))))
+			"head_pose":
+				_display.set_head_pose(StringName(str(op.get("value", ""))))
+			"gesture":
+				_display.play_gesture(StringName(str(op.get("value", ""))))
+			"costume":
+				_display.set_costume(StringName(str(op.get("value", ""))))
 			"say":
 				await _play_say(op, run_id)
 			"chat", "sc":
@@ -105,9 +119,8 @@ func _run_show(ops: Array, run_id: int) -> void:
 
 
 func _play_say(op: Dictionary, run_id: int) -> void:
-	var expression := StringName(str(op.get("expression", "")))
-	if _display != null and not String(expression).is_empty():
-		_display.set_expression(expression)
+	if _display != null:
+		_display.set_talking(true)
 	var text: String = str(op.get("text", ""))
 	_subtitle_label.text = text
 	_subtitle_label.visible_characters = 0
@@ -122,6 +135,8 @@ func _play_say(op: Dictionary, run_id: int) -> void:
 		revealed += get_process_delta_time() * speed
 		_subtitle_label.visible_characters = mini(int(revealed), text.length())
 	if run_id != _run_id:
+		if _display != null:
+			_display.set_talking(false)
 		return
 	_subtitle_label.visible_characters = -1
 
@@ -133,6 +148,8 @@ func _play_say(op: Dictionary, run_id: int) -> void:
 		var target: float = FAST_HOLD_SECONDS if _fast_forward else hold_seconds
 		if elapsed >= target:
 			break
+	if _display != null:
+		_display.set_talking(false)
 
 
 func _wait_duration(seconds: float, run_id: int) -> void:

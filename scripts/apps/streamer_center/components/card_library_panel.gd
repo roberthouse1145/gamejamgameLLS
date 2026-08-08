@@ -24,6 +24,8 @@ const RISK_ICON: Texture2D = preload("res://Assets/images/live_stream/cards/icon
 	&"": %FilterAll,
 	&"behavior": %FilterPersona,
 	&"modifier": %FilterMaterial,
+	&"persona": %FilterPersonaCard,
+	&"material": %FilterMaterialCard,
 	&"locked": %FilterEvent,
 }
 
@@ -48,77 +50,101 @@ func _rebuild() -> void:
 	for child: Node in card_flow.get_children():
 		child.queue_free()
 
-	var cards: Array[LiveStreamCardResource] = _get_filtered_cards()
+	var cards: Array[StreamContentResource] = _get_filtered_cards()
 	empty_label.visible = cards.is_empty()
 	owned_count_label.text = "已解锁 %d / %d" % [CardLibraryManager.get_unlocked_count(), CardLibraryManager.get_total_count()]
 	_update_filter_styles()
 
-	var selected_card: LiveStreamCardResource = _find_card(cards, _selected_card_id)
+	var selected_card: StreamContentResource = _find_card(cards, _selected_card_id)
 	if selected_card == null:
 		selected_card = cards[0] if not cards.is_empty() else null
 	_selected_card_id = selected_card.content_id if selected_card != null else &""
 
-	for card: LiveStreamCardResource in cards:
-		var is_unlocked: bool = CardLibraryManager.is_card_unlocked(card.content_id)
+	for entry: StreamContentResource in cards:
 		var card_view: LiveStreamCardView = CARD_SCENE.instantiate()
-		card_view.configure(card, card.content_id == _selected_card_id, not is_unlocked)
-		card_view.tooltip_text = card.description if is_unlocked else CardLibraryManager.get_unlock_reason(card.content_id)
+		var is_game_card: bool = entry is LiveStreamCardResource
+		var is_unlocked: bool = (
+			CardLibraryManager.is_card_unlocked(entry.content_id) if is_game_card else true
+		)
+		card_view.configure(entry, entry.content_id == _selected_card_id, not is_unlocked)
+		if is_game_card and not is_unlocked:
+			card_view.override_tooltip(CardLibraryManager.get_unlock_reason(entry.content_id))
 		if is_unlocked:
-			card_view.pressed.connect(_on_card_selected.bind(card.content_id))
+			card_view.pressed.connect(_on_card_selected.bind(entry.content_id))
 		card_flow.add_child(card_view)
 
 	_render_detail(selected_card)
 
 
-func _get_filtered_cards() -> Array[LiveStreamCardResource]:
-	var result: Array[LiveStreamCardResource] = []
-	for card: LiveStreamCardResource in CardLibraryManager.get_all_cards():
-		if _filter == &"behavior" and not card is BehaviorCardResource:
-			continue
-		if _filter == &"modifier" and not card is ModifierCardResource:
-			continue
-		if _filter == &"locked" and CardLibraryManager.is_card_unlocked(card.content_id):
-			continue
-		result.append(card)
+func _get_filtered_cards() -> Array[StreamContentResource]:
+	var result: Array[StreamContentResource] = []
+	if _filter != &"persona" and _filter != &"material" and _filter != &"locked":
+		for card: LiveStreamCardResource in CardLibraryManager.get_all_cards():
+			if _filter == &"behavior" and not card is BehaviorCardResource:
+				continue
+			if _filter == &"modifier" and not card is ModifierCardResource:
+				continue
+			result.append(card)
+	if _filter == &"persona" or _filter == &"":
+		for persona: StreamPersonaResource in CardLibraryManager.get_catalog().personas:
+			result.append(persona)
+	if _filter == &"material" or _filter == &"":
+		for material: LiveStreamMaterialResource in CardLibraryManager.get_catalog().materials:
+			result.append(material)
+	if _filter == &"locked":
+		var locked_result: Array[StreamContentResource] = []
+		for card: LiveStreamCardResource in CardLibraryManager.get_all_cards():
+			if not CardLibraryManager.is_card_unlocked(card.content_id):
+				locked_result.append(card)
+		return locked_result
 	return result
 
 
-func _find_card(cards: Array[LiveStreamCardResource], card_id: StringName) -> LiveStreamCardResource:
-	for card: LiveStreamCardResource in cards:
+func _find_card(cards: Array[StreamContentResource], card_id: StringName) -> StreamContentResource:
+	for card: StreamContentResource in cards:
 		if card.content_id == card_id:
 			return card
 	return null
 
 
-func _render_detail(card: LiveStreamCardResource) -> void:
+func _render_detail(card: StreamContentResource) -> void:
 	var has_card: bool = card != null
 	detail_icon.visible = has_card
 	detail_name.text = card.display_name if has_card else "这个分类暂时没有卡牌"
 	detail_category.text = _get_category_text(card) if has_card else ""
 	detail_description.text = _get_description_text(card) if has_card else ""
-	detail_left_stat.visible = has_card
-	detail_right_stat.visible = has_card
+	var is_game_card: bool = card is LiveStreamCardResource
+	detail_left_stat.visible = is_game_card
+	detail_right_stat.visible = is_game_card
 	if not has_card:
 		detail_icon.texture = null
 		unlock_source.text = ""
 		return
-	detail_icon.texture = card.icon
+	detail_icon.texture = CardFaceCatalog.face_for(card)
+	unlock_source.text = _get_unlock_text(card)
+	if not is_game_card:
+		return
+	var card_resource := card as LiveStreamCardResource
 	detail_left_icon.texture = COST_ICON
-	detail_left_value.text = "预算 %d" % card.budget_cost
+	detail_left_value.text = "预算 %d" % card_resource.budget_cost
 	detail_right_icon.texture = RISK_ICON
-	var risk: float = (card as BehaviorCardResource).axes.risk if card is BehaviorCardResource else 0.0
+	var risk: float = (card_resource as BehaviorCardResource).axes.risk if card_resource is BehaviorCardResource else 0.0
 	detail_right_value.text = "风险 %+.0f" % risk
-	unlock_source.text = CardLibraryManager.get_unlock_reason(card.content_id)
-	if card.required_skill_family != &"":
-		unlock_source.text += "　·　%s力 Lv.%d" % [card.get_family_display_name(), card.required_skill_level]
 
 
-func _get_category_text(card: LiveStreamCardResource) -> String:
-	var kind_text: String = "行为卡" if card is BehaviorCardResource else "修饰卡"
-	return "%s　·　%s系　·　Tier %d" % [kind_text, card.get_family_display_name(), card.tier]
+func _get_category_text(card: StreamContentResource) -> String:
+	if card is BehaviorCardResource:
+		return "行为卡　·　%s系　·　Tier %d" % [card.get_family_display_name(), card.tier]
+	if card is ModifierCardResource:
+		return "修饰卡　·　%s系　·　Tier %d" % [card.get_family_display_name(), card.tier]
+	if card is StreamPersonaResource:
+		return "人设卡　·　出镜形象"
+	if card is LiveStreamMaterialResource:
+		return "素材卡　·　%s" % (card as LiveStreamMaterialResource).get_material_type_label()
+	return ""
 
 
-func _get_description_text(card: LiveStreamCardResource) -> String:
+func _get_description_text(card: StreamContentResource) -> String:
 	if card is BehaviorCardResource:
 		var behavior := card as BehaviorCardResource
 		return "%s\n\n四轴：噱头 %+.0f　质量 %+.0f　效果 %+.0f　风险 %+.0f\n压力：%+.0f" % [
@@ -129,15 +155,32 @@ func _get_description_text(card: LiveStreamCardResource) -> String:
 			behavior.axes.risk,
 			behavior.stress_cost,
 		]
-	var modifier := card as ModifierCardResource
-	return "%s\n\n全场修正：噱头 %+.0f%%　质量 %+.0f%%　效果 %+.0f%%　风险 %+.0f%%\n压力：%+.0f" % [
-		modifier.description,
-		modifier.axis_multiplier_bonus.hook * 100.0,
-		modifier.axis_multiplier_bonus.quality * 100.0,
-		modifier.axis_multiplier_bonus.impact * 100.0,
-		modifier.axis_multiplier_bonus.risk * 100.0,
-		modifier.stress_cost,
-	]
+	if card is ModifierCardResource:
+		var modifier := card as ModifierCardResource
+		return "%s\n\n全场修正：噱头 %+.0f%%　质量 %+.0f%%　效果 %+.0f%%　风险 %+.0f%%\n压力：%+.0f" % [
+			modifier.description,
+			modifier.axis_multiplier_bonus.hook * 100.0,
+			modifier.axis_multiplier_bonus.quality * 100.0,
+			modifier.axis_multiplier_bonus.impact * 100.0,
+			modifier.axis_multiplier_bonus.risk * 100.0,
+			modifier.stress_cost,
+		]
+	return card.description
+
+
+func _get_unlock_text(card: StreamContentResource) -> String:
+	if card is LiveStreamCardResource:
+		var card_resource := card as LiveStreamCardResource
+		var text: String = CardLibraryManager.get_unlock_reason(card.content_id)
+		if card_resource.required_skill_family != &"":
+			text += "　·　%s力 Lv.%d" % [card_resource.get_family_display_name(), card_resource.required_skill_level]
+		return text
+	if card is StreamPersonaResource:
+		return "始终可用"
+	if card is LiveStreamMaterialResource:
+		return "开播时从素材库存选用"
+	return ""
+
 
 func _update_filter_styles() -> void:
 	for filter_key: StringName in filter_buttons:

@@ -34,7 +34,6 @@ func find_skill_unlocking_card(card_id: StringName) -> StreamerSkill:
 
 func is_valid() -> bool:
 	var known_ids: Dictionary = {}
-	var occupied_positions: Dictionary = {}
 	var indegrees: Dictionary = {}
 	var dependents: Dictionary = {}
 	var skill_list: Array[StreamerSkill] = get_skills()
@@ -42,10 +41,6 @@ func is_valid() -> bool:
 		if skill == null or not _skill_fields_valid(skill) or known_ids.has(skill.skill_id):
 			return false
 		known_ids[skill.skill_id] = true
-		var pos_key: String = str(skill.tree_position)
-		if occupied_positions.has(pos_key):
-			return false
-		occupied_positions[pos_key] = true
 		indegrees[skill.skill_id] = 0
 		dependents[skill.skill_id] = []
 	if known_ids.is_empty():

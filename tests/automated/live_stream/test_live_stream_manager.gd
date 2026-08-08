@@ -98,9 +98,8 @@ func _test_puzzle_edges(card_library: Node) -> void:
 	assert(opening_edges.right_slots == [2, 3], "daily greeting must use the authored D-shaped output")
 	assert(opening_view.find_child("InterfaceLabel", true, false) == null, "card faces must express slots through their shape instead of L/R text")
 	assert(opening_view.find_child("Background", true, false) == null, "card must not contain a second card frame")
-	assert(opening_view.find_child("IconArea", true, false) == null, "icon must not be wrapped in another panel")
-	var main_icon: TextureRect = opening_view.find_child("MainIcon", true, false) as TextureRect
-	assert(main_icon != null and main_icon.get_parent() is VBoxContainer, "icon should live directly in card content")
+	assert(opening_view.find_child("MainIcon", true, false) == null, "card face texture is drawn by SlotEdges, not a nested icon panel")
+	assert(opening_edges.face_texture != null, "card face should use the content icon texture")
 	opening_view.queue_free()
 
 	var closing_view: LiveStreamCardView = CARD_SCENE.instantiate()

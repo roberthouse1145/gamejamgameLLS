@@ -19,7 +19,6 @@ ability_level_bonus = 1
 display_name = "攻略眼"
 description = "更快看出游戏里的有效内容。"
 icon = ExtResource("3")
-tree_position = Vector2(1, 0)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"game_lv1"])
 rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

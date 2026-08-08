@@ -13,6 +13,5 @@ ability_level_bonus = 1
 display_name = "节目编排"
 description = "提前组织画面、音频与转场，让整场直播更紧凑。"
 icon = ExtResource("2")
-tree_position = Vector2(2, 4.4)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"tech_lv2"])

@@ -18,7 +18,6 @@ ability_level_bonus = 1
 display_name = "救场王"
 description = "每场第一次空接可被话术救回正常功效。"
 icon = ExtResource("3")
-tree_position = Vector2(2, 1)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"talk_lv2"])
 rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

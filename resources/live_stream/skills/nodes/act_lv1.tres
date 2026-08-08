@@ -11,4 +11,3 @@ family = &"act"
 display_name = "演出力 Lv.1"
 description = "能够完成基础镜头营业。"
 icon = ExtResource("2")
-tree_position = Vector2(0, 3)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="StreamerModelResource" format=3 uid="uid://b55ckxqvxj8g"]
+
+[ext_resource type="Script" uid="uid://cf6tn6v782mqc" path="res://scripts/game/resources/live_stream/streamer_model_resource.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://dlh2letdhp2oq" path="res://Assets/models/platinum/Platinum_VRM.vrm" id="2_model"]
+[ext_resource type="PackedScene" path="res://scenes/game/live_stream/models/platinum_avatar.tscn" id="3_avatar"]
+
+[resource]
+script = ExtResource("1_script")
+model_id = &"platinum"
+model_scene = ExtResource("2_model")
+avatar_scene = ExtResource("3_avatar")
+supported_expressions = Array[StringName]([&"default", &"neutral", &"smile", &"happy", &"laugh", &"excited", &"embarrassed", &"shy", &"worried", &"strained", &"sad", &"angry", &"serious", &"surprised", &"shocked", &"panicked", &"thinking", &"smug", &"love", &"wink", &"sleepy", &"teasing", &"dizzy"])
+supported_postures = Array[StringName]([&"idle", &"thinking", &"lean_forward", &"lean_back", &"slump", &"proud"])
+supported_arm_poses = Array[StringName]([&"idle", &"hands_on_hips", &"hand_on_hip_l", &"hand_on_hip_r", &"arms_crossed"])
+supported_head_poses = Array[StringName]([&"idle", &"head_down", &"head_down_side", &"head_tilt"])
+supported_gestures = Array[StringName]([&"wave", &"nod", &"shake_head", &"bow", &"clap", &"cheer"])
+model_rotation_degrees = Vector3(0, 180, 0)
+camera_position = Vector3(0, 1.2, 2.25)
+camera_target = Vector3(0, 1.2, 0)
+camera_fov = 15.5

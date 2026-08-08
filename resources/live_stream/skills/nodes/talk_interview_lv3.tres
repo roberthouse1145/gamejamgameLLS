@@ -12,6 +12,5 @@ ability_level_bonus = 1
 display_name = "深度访谈"
 description = "沿着对方的回答追问，挖出更有分量的话题。"
 icon = ExtResource("2")
-tree_position = Vector2(2, 1.4)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"talk_lv2"])

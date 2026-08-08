@@ -12,6 +12,5 @@ ability_level_bonus = 1
 display_name = "内容拆解"
 description = "从复杂流程中提炼观众容易理解的节目段落。"
 icon = ExtResource("2")
-tree_position = Vector2(2, 0.8)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"game_lv2"])

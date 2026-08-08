@@ -213,7 +213,7 @@ func _container_name(node: Node) -> String:
 func _card_title(card: Control) -> String:
 	if card is LiveStreamCardView:
 		var view := card as LiveStreamCardView
-		return view.card_resource.display_name if view.card_resource != null else "?"
+		return view.content_resource.display_name if view.content_resource != null else "?"
 	return card.name
 
 

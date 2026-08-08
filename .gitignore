@@ -33,3 +33,7 @@ all_emotions.txt
 
 # Oversized font (116MB) - kept locally only
 Assets/fonts/SourceHanMono.ttc
+
+# Licensed third-party character source files (local playtests only)
+Assets/third_party/platinum/
+Assets/models/platinum/

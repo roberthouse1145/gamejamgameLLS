@@ -40,10 +40,9 @@ func reset_draft() -> void:
 	_broadcast_pending = false
 	_pending_plan = null
 	_pending_result = null
-	var default_persona_id: String = String(CATALOG.personas[0].content_id) if not CATALOG.personas.is_empty() else ""
 	_draft = {
 		"title": "",
-		"persona_id": default_persona_id,
+		"persona_id": "",
 		"material_instance_id": "",
 		"behavior_slots": [],
 		"locked_behavior_slot_indices": [],

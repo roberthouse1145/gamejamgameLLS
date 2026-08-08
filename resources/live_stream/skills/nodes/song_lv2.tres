@@ -19,7 +19,6 @@ ability_level_bonus = 1
 display_name = "音准稳定"
 description = "不依赖伴奏也能稳住音准。"
 icon = ExtResource("3")
-tree_position = Vector2(1, 2)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"song_lv1"])
 rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

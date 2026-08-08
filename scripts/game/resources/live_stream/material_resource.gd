@@ -40,6 +40,15 @@ func is_valid() -> bool:
 	return true
 
 
+func get_material_type_label() -> String:
+	match material_type:
+		TYPE_CONSUMABLE:
+			return "消耗型"
+		TYPE_SPONSOR:
+			return "商单型"
+	return "连续型"
+
+
 func get_locked_cards_for_progress(progress: int) -> Array[MaterialLockedCard]:
 	var chapter: int = progress + 1
 	for progress_lock: MaterialProgressLocks in progress_locks:

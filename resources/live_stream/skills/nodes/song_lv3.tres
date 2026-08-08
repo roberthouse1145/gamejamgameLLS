@@ -19,7 +19,6 @@ ability_level_bonus = 1
 display_name = "曲库扩容"
 description = "能够驾驭更长、更安静的声音企划。"
 icon = ExtResource("3")
-tree_position = Vector2(2, 2)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"song_lv2"])
 unlocked_card_ids = Array[StringName]([&"song_asmr_whisper"])

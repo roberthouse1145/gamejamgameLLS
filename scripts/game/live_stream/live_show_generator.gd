@@ -24,7 +24,7 @@ const FALLBACK_LINES: Dictionary = {
 var _plan: StreamPlanSnapshot = null
 var _result: StreamSettlementResult = null
 var _catalog: LiveStreamCatalog = null
-var _streamer: StreamerCharacterResource = null
+var _model: StreamerModelResource = null
 var _llm: AIService = null
 var _pending_request_id: String = ""
 var _pending_started_msec: int = 0
@@ -38,12 +38,12 @@ func setup(
 	plan: StreamPlanSnapshot,
 	result: StreamSettlementResult,
 	catalog: LiveStreamCatalog,
-	streamer: StreamerCharacterResource
+	model: StreamerModelResource
 ) -> void:
 	_plan = plan
 	_result = result
 	_catalog = catalog
-	_streamer = streamer
+	_model = model
 	_rng.seed = plan.rng_seed if plan != null else 1
 	_finished = false
 	_attempt = 0
@@ -67,8 +67,21 @@ func compile_dsl(dsl_text: String, title: String = "") -> Dictionary:
 	var scene_title: String = title
 	if scene_title.is_empty():
 		scene_title = _plan.title if _plan != null else "直播"
-	var expression_names: Array = _streamer.get_expression_names() if _streamer != null else []
-	var parsed: Dictionary = parser.parse(dsl_text, expression_names)
+	var expression_names: Array = _model.get_expression_names() if _model != null else []
+	var posture_names: Array = _model.supported_postures if _model != null else []
+	var gesture_names: Array = _model.supported_gestures if _model != null else []
+	var costume_names: Array = _model.supported_costumes if _model != null else []
+	var arm_pose_names: Array = _model.supported_arm_poses if _model != null else []
+	var head_pose_names: Array = _model.supported_head_poses if _model != null else []
+	var parsed: Dictionary = parser.parse(
+		dsl_text,
+		expression_names,
+		posture_names,
+		gesture_names,
+		costume_names,
+		arm_pose_names,
+		head_pose_names
+	)
 	if not bool(parsed.get("success", false)):
 		return parsed
 	return {
@@ -155,6 +168,10 @@ func _build_vars() -> Dictionary:
 	return {
 		"persona_block": _format_persona(persona),
 		"expression_list": _format_expression_list(),
+		"posture_list": _format_name_list(_model.supported_postures if _model != null else []),
+		"arm_pose_list": _format_name_list(_model.supported_arm_poses if _model != null else []),
+		"head_pose_list": _format_name_list(_model.supported_head_poses if _model != null else []),
+		"gesture_list": _format_name_list(_model.supported_gestures if _model != null else []),
 		"stream_title": _plan.title if _plan != null else "",
 		"stream_count": str(stream_count),
 		"fans": str(int(snapshot.get("fans", 0))),
@@ -170,11 +187,15 @@ func _build_vars() -> Dictionary:
 
 
 func _format_expression_list() -> String:
-	if _streamer == null:
+	if _model == null:
 		return ""
+	return _format_name_list(_model.get_expression_names())
+
+
+func _format_name_list(values: Array) -> String:
 	var names: Array[String] = []
-	for expression: StringName in _streamer.get_expression_names():
-		names.append(String(expression))
+	for value: Variant in values:
+		names.append(str(value))
 	return ", ".join(names)
 
 
@@ -231,8 +252,13 @@ func _format_outcome() -> String:
 func _build_inline_prompt(vars: Dictionary) -> String:
 	return "\n".join([
 		"输出直播 DSL。",
-		"语法：say [表情]: 台词；chat [数量]: 消息 | 消息；sc [数量]: 消息 | 消息；wait: 秒数。",
+		"语法：expression: 表情；posture: 姿态；arm_pose: 手臂姿势；head_pose: 头部姿势；gesture: 手势；say: 台词；chat [数量]: 消息 | 消息；sc [数量]: 消息 | 消息；wait: 秒数。",
+		"持续状态（姿态、手臂姿势、头部姿势、表情）在情绪回落时显式归位 idle/default，每张节目卡结束和整场收尾时全部归位。",
 		"可用表情：%s" % vars.get("expression_list", ""),
+		"可用姿态：%s" % vars.get("posture_list", ""),
+		"可用手臂姿势：%s" % vars.get("arm_pose_list", ""),
+		"可用头部姿势：%s" % vars.get("head_pose_list", ""),
+		"可用手势：%s" % vars.get("gesture_list", ""),
 		"主播人设：%s" % vars.get("persona_block", ""),
 		"直播背景：标题 %s；第 %s 次直播；粉丝 %s" % [
 			vars.get("stream_title", ""), vars.get("stream_count", "1"), vars.get("fans", "0"),
@@ -279,6 +305,11 @@ func _emit_fallback(reason: String) -> void:
 
 func _build_fallback_dsl() -> String:
 	var lines: Array[String] = []
+	if _model != null:
+		if &"idle" in _model.supported_postures:
+			lines.append("posture: idle")
+		if _model.has_expression(_model.default_expression):
+			lines.append("expression: %s" % String(_model.default_expression))
 	lines.append("say: %s" % _pick_fallback("opening"))
 	lines.append("chat: 来了来了 | 前排 | 打卡")
 	if _plan != null and _catalog != null:

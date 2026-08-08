@@ -3,7 +3,6 @@ extends Node
 
 const CATALOG: LiveStreamCatalog = preload("res://resources/live_stream/catalogs/vertical_slice_catalog.tres")
 const BALANCE: LiveStreamBalance = preload("res://resources/live_stream/balance/vertical_slice_balance.tres")
-const STREAMER: StreamerCharacterResource = preload("res://resources/live_stream/streamers/ruan_yunyou.tres")
 const LIVE_SHOW_GENERATOR_SCRIPT = preload("res://scripts/game/live_stream/live_show_generator.gd")
 
 var _generator: Node = null
@@ -39,7 +38,7 @@ func _ready() -> void:
 	_generator = LIVE_SHOW_GENERATOR_SCRIPT.new()
 	_generator.llm_enabled = true
 	add_child(_generator)
-	_generator.setup(plan, result, CATALOG, STREAMER)
+	_generator.setup(plan, result, CATALOG, CATALOG.personas[0].model)
 	_generator.show_ready.connect(_on_ready)
 	_generator.generation_failed.connect(_on_failed)
 	print("LAB_LIVE_SHOW_START")

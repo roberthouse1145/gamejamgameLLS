@@ -1,6 +1,23 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/apps/obs_live/components/stream_scene_display.gd" id="1_script"]
+[ext_resource type="Shader" path="res://scenes/apps/obs_live/components/stream_scene_grading.gdshader" id="2_grading"]
+[ext_resource type="Shader" path="res://scenes/apps/obs_live/components/stream_avatar_outline.gdshader" id="3_outline"]
+
+[sub_resource type="Environment" id="Environment_avatar"]
+background_mode = 1
+background_color = Color(0, 0, 0, 0)
+ambient_light_source = 2
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 1.0
+reflected_light_source = 2
+tonemap_mode = 0
+
+[sub_resource type="ShaderMaterial" id="Material_grading"]
+shader = ExtResource("2_grading")
+
+[sub_resource type="ShaderMaterial" id="Material_outline"]
+shader = ExtResource("3_outline")
 
 [node name="StreamSceneDisplay" type="Control"]
 layout_mode = 3
@@ -25,16 +42,56 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="PortraitCurrent" type="TextureRect" parent="."]
+[node name="AvatarViewportContainer" type="SubViewportContainer" parent="."]
 unique_name_in_owner = true
-layout_mode = 0
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
+stretch = true
+material = SubResource("Material_outline")
 
-[node name="PortraitOutgoing" type="TextureRect" parent="."]
+[node name="AvatarViewport" type="SubViewport" parent="AvatarViewportContainer"]
+size = Vector2i(3840, 2160)
+transparent_bg = true
+handle_input_locally = false
+render_target_update_mode = 4
+gui_disable_input = true
+msaa_3d = 2
+screen_space_aa = 1
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="AvatarViewportContainer/AvatarViewport"]
+environment = SubResource("Environment_avatar")
+
+[node name="KeyLight" type="DirectionalLight3D" parent="AvatarViewportContainer/AvatarViewport"]
+rotation_degrees = Vector3(-18, -22, 0)
+light_energy = 0.5
+
+[node name="RimLight" type="OmniLight3D" parent="AvatarViewportContainer/AvatarViewport"]
+position = Vector3(-1.4, 1.75, -0.5)
+light_color = Color(0.36, 0.58, 1, 1)
+light_energy = 5.0
+omni_range = 4.0
+
+[node name="AvatarRoot" type="Node3D" parent="AvatarViewportContainer/AvatarViewport"]
 unique_name_in_owner = true
-layout_mode = 0
+
+[node name="AvatarCamera" type="Camera3D" parent="AvatarViewportContainer/AvatarViewport"]
+unique_name_in_owner = true
+position = Vector3(0, 1.33, 3.15)
+current = true
+fov = 24.0
+near = 0.05
+
+[node name="GradingOverlay" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
+material = SubResource("Material_grading")

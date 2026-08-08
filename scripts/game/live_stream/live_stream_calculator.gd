@@ -64,7 +64,6 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 		var chain_multiplier: float = balance.full_chain_multiplier if full_chain_active else 1.0
 		var base_multiplier: float = skill_multiplier * material.affinity.get_value(card.family)
 		base_multiplier *= width_multiplier * fill_multiplier * chain_multiplier
-		base_multiplier *= persona.base_performance_multiplier
 		for axis_key: StringName in StreamAxisValues.KEYS:
 			var value: float = card.axes.get_value(axis_key) * base_multiplier
 			value *= _get_material_axis_multiplier(card, material, axis_key)

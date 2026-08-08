@@ -19,7 +19,6 @@ ability_level_bonus = 1
 display_name = "设备调校"
 description = "常见设备问题不再轻易毁掉直播。"
 icon = ExtResource("3")
-tree_position = Vector2(1, 4)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"tech_lv1"])
 rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

@@ -10,4 +10,3 @@ skill_id = &"talk_lv1"
 display_name = "杂谈力 Lv.1"
 description = "能够维持基础聊天节奏。"
 icon = ExtResource("2")
-tree_position = Vector2(0, 1)

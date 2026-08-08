@@ -18,7 +18,6 @@ ability_level_bonus = 1
 display_name = "接梗自如"
 description = "更容易接住弹幕抛来的话头。"
 icon = ExtResource("3")
-tree_position = Vector2(1, 1)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"talk_lv1"])
 unlocked_card_ids = Array[StringName]([&"modifier_toxic_commentator"])

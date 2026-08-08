@@ -54,7 +54,7 @@ display/window/dpi/allow_hidpi=true
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot_mcp/plugin.cfg", "res://addons/mtoon/plugin.cfg", "res://addons/vrm/plugin.cfg")
 
 [gui]
 

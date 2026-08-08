@@ -3,18 +3,40 @@ extends Control
 ## 入口：tests/playtest/live_stream/playtest_live_show.tscn
 
 const OBS_APP_PATH: String = "res://resources/apps/obs_live_app.tres"
-const DEMO_DSL: String = """say strained: 大家晚上好……今天来打那个卡了我一星期的 BOSS。
+const DEMO_DSL: String = """posture: idle
+expression: strained
+gesture: wave
+say: 大家晚上好……今天来打那个卡了我一星期的 BOSS。
 chat: 来了来了 | 终于打这个了 | 前排围观受难 | 加油柚柚
 wait: 0.35
-say smile: 好，深呼吸一下。这一次应该……能过吧。
+posture: lean_forward
+expression: serious
+say: 好，深呼吸一下。这一次应该……能过吧。
 chat: 稳住 | 我信你 | 草我紧张了
 sc: 加油！今晚必须过！
 wait: 0.25
-say shocked: 等一下，血量怎么还剩这么多——啊啊啊！
+posture: thinking
+expression: shocked
+gesture: shake_head
+say: 等一下，血量怎么还剩这么多——啊啊啊！
 chat 25: 翻车预警 | 别慌 | 哈哈哈 | 节目效果 | 草
 sc 4: 节目效果有了 | 打赏压惊 | 再来一次
 wait: 0.8
-say default: 今天先到这里，谢谢大家陪我挨打。下次见。
+posture: slump
+expression: sad
+say: 又没过……让我缓一会儿。
+chat: 摸摸 | 心疼 | 下把一定行
+wait: 0.5
+posture: proud
+expression: laugh
+gesture: cheer
+say: 骗你们的，刚才其实过了！哈哈哈哈！
+chat 20: ？？？ | 好家伙 | 被骗了 | 牛的牛的
+sc: 恭喜过关！
+posture: idle
+expression: smile
+gesture: bow
+say: 今天先到这里，谢谢大家陪我挨打。下次见。
 chat: 辛苦了 | 下次见 | 下播打卡
 """
 

@@ -11,4 +11,3 @@ family = &"song"
 display_name = "歌唱力 Lv.1"
 description = "能够完成基础歌唱节目。"
 icon = ExtResource("2")
-tree_position = Vector2(0, 2)

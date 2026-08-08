@@ -40,23 +40,22 @@ func _ready() -> void:
 
 
 func _test_extensible_graph_schema() -> void:
-	var root_a: StreamerSkill = _make_skill(&"root_a", Vector2(0, 0.5), [])
-	var root_b: StreamerSkill = _make_skill(&"root_b", Vector2(0, 3), [])
-	var branch: StreamerSkill = _make_skill(&"branch", Vector2(1, 0.5), [&"root_a"])
-	var leaf_a: StreamerSkill = _make_skill(&"leaf_a", Vector2(2, 0), [&"branch"])
-	var leaf_b: StreamerSkill = _make_skill(&"leaf_b", Vector2(2, 1), [&"branch"])
-	var merge: StreamerSkill = _make_skill(&"merge", Vector2(3, 1.5), [&"leaf_b", &"root_b"])
+	var root_a: StreamerSkill = _make_skill(&"root_a", [])
+	var root_b: StreamerSkill = _make_skill(&"root_b", [])
+	var branch: StreamerSkill = _make_skill(&"branch", [&"root_a"])
+	var leaf_a: StreamerSkill = _make_skill(&"leaf_a", [&"branch"])
+	var leaf_b: StreamerSkill = _make_skill(&"leaf_b", [&"branch"])
+	var merge: StreamerSkill = _make_skill(&"merge", [&"leaf_b", &"root_b"])
 	var custom_tree := StreamerSkillTree.new()
 	custom_tree.initially_unlocked_skill_ids.assign([&"root_a", &"root_b"])
 	custom_tree.skills.assign([root_a, root_b, branch, leaf_a, leaf_b, merge])
 	assert(custom_tree.is_valid(), "schema must allow arbitrary roots, recursive forks and multi-parent convergence")
 
 
-func _make_skill(skill_id: StringName, position: Vector2, prerequisites: Array[StringName]) -> StreamerSkill:
+func _make_skill(skill_id: StringName, prerequisites: Array[StringName]) -> StreamerSkill:
 	var skill := StreamerSkill.new()
 	skill.skill_id = skill_id
 	skill.family = &"custom"
 	skill.display_name = String(skill_id)
-	skill.tree_position = position
 	skill.required_skill_ids = prerequisites
 	return skill

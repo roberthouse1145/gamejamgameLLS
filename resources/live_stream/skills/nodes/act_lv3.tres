@@ -19,7 +19,6 @@ ability_level_bonus = 1
 display_name = "变声自如"
 description = "能够在不同表演状态之间迅速切换。"
 icon = ExtResource("3")
-tree_position = Vector2(2, 3)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"act_lv2"])
 unlocked_card_ids = Array[StringName]([&"act_instant_voice"])

@@ -1,15 +1,14 @@
-[gd_resource type="Resource" script_class="StreamPersonaResource" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="StreamPersonaResource" format=3 uid="uid://bva2hureqqmtj"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/live_stream/persona_resource.gd" id="1"]
-[ext_resource type="Texture2D" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="2"]
+[ext_resource type="Script" uid="uid://ci5afkewd5muq" path="res://scripts/game/resources/live_stream/persona_resource.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://di33ja4iggbb5" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="2"]
+[ext_resource type="Resource" path="res://resources/live_stream/models/platinum.tres" id="3_model"]
 
 [resource]
 script = ExtResource("1")
+model = ExtResource("3_model")
 content_id = &"persona_default"
 display_name = "阮云柚"
 description = "暂不叠加额外人设，以她本来的性格完成直播。"
 icon = ExtResource("2")
 tags = Array[StringName]([&"persona"])
-base_performance_multiplier = 1.0
-initial_proficiency = 0.0
-initial_fixation = 0.0

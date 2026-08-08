@@ -45,96 +45,53 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("2_edges")
 
-[node name="ContentMargin" type="MarginContainer" parent="." unique_id=1064517484]
+[node name="TitleLabel" type="Label" parent="." unique_id=2076959728]
 unique_name_in_owner = true
 layout_mode = 1
-anchors_preset = 15
+anchors_preset = 10
 anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 62.0
-offset_top = 30.0
-offset_right = -62.0
-offset_bottom = -30.0
+offset_left = 40.0
+offset_top = 14.0
+offset_right = -40.0
+offset_bottom = 62.0
 grow_horizontal = 2
-grow_vertical = 2
 mouse_filter = 2
-
-[node name="Content" type="VBoxContainer" parent="ContentMargin" unique_id=1102080762]
-layout_mode = 2
-mouse_filter = 2
-theme_override_constants/separation = 12
-
-[node name="TitleLabel" type="Label" parent="ContentMargin/Content" unique_id=2076959728]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 46)
-layout_mode = 2
 theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
 theme_override_colors/font_outline_color = Color(1, 1, 1, 0.9)
-theme_override_constants/outline_size = 3
+theme_override_constants/outline_size = 5
 theme_override_font_sizes/font_size = 30
 horizontal_alignment = 1
 vertical_alignment = 1
 text_overrun_behavior = 3
 
-[node name="TitleDivider" type="ColorRect" parent="ContentMargin/Content" unique_id=662026981]
-custom_minimum_size = Vector2(0, 2)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.78, 0.835, 0.91, 0.85)
-
-[node name="FamilyLabel" type="Label" parent="ContentMargin/Content" unique_id=1304737751]
+[node name="Stats" type="HBoxContainer" parent="." unique_id=1448824933]
 unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.286, 0.463, 0.725, 1)
-theme_override_font_sizes/font_size = 20
-horizontal_alignment = 1
-
-[node name="MainIcon" type="TextureRect" parent="ContentMargin/Content" unique_id=2062026954]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 150)
-layout_mode = 2
-mouse_filter = 2
-expand_mode = 1
-stretch_mode = 5
-
-[node name="DescriptionLabel" type="Label" parent="ContentMargin/Content" unique_id=1074415988]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(0, 130)
-layout_mode = 2
-size_flags_vertical = 3
-theme_override_colors/font_color = Color(0.251, 0.294, 0.384, 1)
-theme_override_colors/font_outline_color = Color(1, 1, 1, 0.8)
-theme_override_constants/line_spacing = 5
-theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 23
-horizontal_alignment = 1
-vertical_alignment = 1
-autowrap_mode = 2
-
-[node name="FooterDivider" type="ColorRect" parent="ContentMargin/Content" unique_id=985044234]
-custom_minimum_size = Vector2(0, 2)
-layout_mode = 2
-mouse_filter = 2
-color = Color(0.78, 0.835, 0.91, 0.85)
-
-[node name="Stats" type="HBoxContainer" parent="ContentMargin/Content" unique_id=1448824933]
-custom_minimum_size = Vector2(0, 54)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 44.0
+offset_top = -68.0
+offset_right = -44.0
+offset_bottom = -14.0
+grow_horizontal = 2
+grow_vertical = 0
 mouse_filter = 2
 
-[node name="LeftStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats" unique_id=2009514919]
+[node name="LeftStatPanel" type="PanelContainer" parent="Stats" unique_id=2009514919]
 visible = false
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_stat")
 
-[node name="LeftStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/LeftStatPanel" unique_id=1839570093]
+[node name="LeftStat" type="HBoxContainer" parent="Stats/LeftStatPanel" unique_id=1839570093]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 9
 
-[node name="LeftStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat" unique_id=1011415214]
+[node name="LeftStatIcon" type="TextureRect" parent="Stats/LeftStatPanel/LeftStat" unique_id=1011415214]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(34, 34)
 layout_mode = 2
@@ -142,7 +99,7 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="LeftStatValue" type="Label" parent="ContentMargin/Content/Stats/LeftStatPanel/LeftStat" unique_id=1487904201]
+[node name="LeftStatValue" type="Label" parent="Stats/LeftStatPanel/LeftStat" unique_id=1487904201]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)
@@ -150,24 +107,24 @@ theme_override_font_sizes/font_size = 26
 text = "0"
 vertical_alignment = 1
 
-[node name="StatSpacer" type="Control" parent="ContentMargin/Content/Stats" unique_id=2051661607]
+[node name="StatSpacer" type="Control" parent="Stats" unique_id=2051661607]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="RightStatPanel" type="PanelContainer" parent="ContentMargin/Content/Stats" unique_id=1386254185]
+[node name="RightStatPanel" type="PanelContainer" parent="Stats" unique_id=1386254185]
 visible = false
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_stat")
 
-[node name="RightStat" type="HBoxContainer" parent="ContentMargin/Content/Stats/RightStatPanel" unique_id=1866654163]
+[node name="RightStat" type="HBoxContainer" parent="Stats/RightStatPanel" unique_id=1866654163]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 9
 
-[node name="RightStatIcon" type="TextureRect" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat" unique_id=41766046]
+[node name="RightStatIcon" type="TextureRect" parent="Stats/RightStatPanel/RightStat" unique_id=41766046]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(34, 34)
 layout_mode = 2
@@ -175,7 +132,7 @@ mouse_filter = 2
 expand_mode = 1
 stretch_mode = 5
 
-[node name="RightStatValue" type="Label" parent="ContentMargin/Content/Stats/RightStatPanel/RightStat" unique_id=1384915974]
+[node name="RightStatValue" type="Label" parent="Stats/RightStatPanel/RightStat" unique_id=1384915974]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.125, 0.157, 0.227, 1)

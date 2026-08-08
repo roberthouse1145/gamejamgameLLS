@@ -11,4 +11,3 @@ family = &"tech"
 display_name = "杂项力 Lv.1"
 description = "能够维持基础直播设备与画面。"
 icon = ExtResource("2")
-tree_position = Vector2(0, 4)

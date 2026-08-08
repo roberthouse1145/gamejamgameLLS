@@ -19,7 +19,6 @@ ability_level_bonus = 1
 display_name = "场控"
 description = "用后台技术修补台前的生硬与事故。"
 icon = ExtResource("3")
-tree_position = Vector2(2, 4)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"tech_lv2"])
 unlocked_card_ids = Array[StringName]([&"tech_fake_disconnect", &"modifier_seamless_transition"])

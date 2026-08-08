@@ -45,7 +45,7 @@ text = "卡牌库"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
 theme_override_font_sizes/font_size = 24
-text = "查看行为卡、修饰卡及其解锁条件。素材在开播向导中单独管理。"
+text = "查看全部卡牌、人设与素材的图鉴。行为卡与修饰卡有解锁条件，人设和素材开播时选用。"
 
 [node name="OwnedCountPanel" type="PanelContainer" parent="PageMargin/Page/HeadingRow"]
 layout_mode = 2
@@ -90,6 +90,20 @@ custom_minimum_size = Vector2(170, 64)
 layout_mode = 2
 theme_type_variation = &"FilterButton"
 text = "未解锁"
+
+[node name="FilterPersonaCard" type="Button" parent="PageMargin/Page/Filters"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 64)
+layout_mode = 2
+theme_type_variation = &"FilterButton"
+text = "人设卡"
+
+[node name="FilterMaterialCard" type="Button" parent="PageMargin/Page/Filters"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 64)
+layout_mode = 2
+theme_type_variation = &"FilterButton"
+text = "素材卡"
 
 [node name="Body" type="HBoxContainer" parent="PageMargin/Page"]
 layout_mode = 2

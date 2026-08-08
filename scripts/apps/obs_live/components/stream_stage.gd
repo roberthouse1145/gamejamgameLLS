@@ -6,8 +6,6 @@ const DESIGN_RESOLUTION: Vector2 = Vector2(3840, 2160)
 signal show_finished()
 signal live_chat_event(event: Dictionary)
 
-@export var streamer: StreamerCharacterResource = null
-
 @onready var live_title: Label = %LiveTitle
 @onready var live_viewers: Label = %LiveViewers
 @onready var live_clock: Label = %LiveClock
@@ -34,6 +32,7 @@ var viewers_target: int = 0:
 			live_viewers.text = "%d 人在线" % viewers_target
 
 var _playing: bool = false
+var _persona: StreamPersonaResource = null
 
 
 func _ready() -> void:
@@ -41,7 +40,6 @@ func _ready() -> void:
 	_show_player.setup(_stream_display, _subtitle_panel, _subtitle_label)
 	_show_player.chat_event.connect(_on_live_chat_event)
 	_show_player.finished.connect(_on_player_finished)
-	_stream_display.setup(streamer)
 	_start_live_dot_pulse()
 	resized.connect(_update_video_height)
 	call_deferred("_update_video_height")
@@ -51,16 +49,39 @@ func _ready() -> void:
 func refresh_channel_info() -> void:
 	channel_name.text = _get_streamer_name()
 	channel_tag.text = _format_subscribers()
+	if _persona != null:
+		avatar_rect.texture = _persona.icon
+		avatar_rect.fallback_text = _persona.display_name.left(1)
+
+
+func setup_persona(persona: StreamPersonaResource) -> bool:
+	_persona = persona
+	if _persona == null or _persona.model == null:
+		return false
+	refresh_channel_info()
+	return _stream_display.setup(_persona.model)
+
+
+func get_model_resource() -> StreamerModelResource:
+	return _persona.model if _persona != null else null
 
 
 func play_show(show_data: Dictionary, seed_value: int = 1) -> bool:
 	var ops: Array = show_data.get("ops", [])
-	if streamer == null or ops.is_empty():
+	if _persona == null or _persona.model == null or ops.is_empty():
 		return false
 	_show_player.stop()
-	_stream_display.setup(streamer)
+	if not _stream_display.setup(_persona.model):
+		return false
+	_start_show_after_avatar_ready(ops, seed_value)
+	return true
+
+
+func _start_show_after_avatar_ready(ops: Array, seed_value: int) -> void:
+	await _stream_display.wait_for_avatar_ready()
+	if _persona == null or _persona.model == null:
+		return
 	_playing = _show_player.play(ops, seed_value)
-	return _playing
 
 
 func set_fast_forward(enabled: bool) -> void:
@@ -81,7 +102,7 @@ func _get_streamer_name() -> String:
 		var streamer_name: String = str(game_state.get("streamer_name"))
 		if not streamer_name.is_empty():
 			return streamer_name
-	return streamer.display_name if streamer != null else "主播"
+	return _persona.display_name if _persona != null else "主播"
 
 
 func _format_subscribers() -> String:

@@ -13,6 +13,5 @@ ability_level_bonus = 1
 display_name = "情绪演绎"
 description = "让同一首歌呈现出更鲜明、更连贯的情绪层次。"
 icon = ExtResource("2")
-tree_position = Vector2(2, 2.4)
 point_cost = 1
 required_skill_ids = Array[StringName]([&"song_lv2"])
