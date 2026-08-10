@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 topic_id = "prologue_fill_reply"
-channel_id = "鸢鸢"
+channel_id = "lu_yuanyuan"
 mode = 0
 local_script = "player: 我已经填好了哦
 END filled"

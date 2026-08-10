@@ -37,6 +37,9 @@ const EXPRESSION_STATES: Dictionary = {
 
 ## 服装 → 网格可见性与贴图替换。当前仅使用模型默认外观，暂无额外服装。
 const COSTUME_CONFIGS: Dictionary = {}
+const ILLUSTRATION_SHADER: Shader = preload(
+	"res://scenes/game/live_stream/models/streamer_illustration.gdshader"
+)
 
 @export var model_resource: StreamerModelResource = null
 
@@ -69,7 +72,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _animation_tree == null:
 		return
-	_mouth_amount = move_toward(_mouth_amount, _mouth_target, delta / 0.22)
+	_mouth_amount = move_toward(_mouth_amount, _mouth_target, delta / 0.08)
 	_animation_tree.set("parameters/MouthLayer/add_amount", _mouth_amount)
 	_flush_pending_gesture()
 
@@ -190,6 +193,10 @@ func set_costume(costume_name: StringName) -> bool:
 
 func set_talking(enabled: bool) -> void:
 	_mouth_target = 1.0 if enabled else 0.0
+	if not enabled:
+		_mouth_amount = 0.0
+		if _animation_tree != null:
+			_animation_tree.set("parameters/MouthLayer/add_amount", 0.0)
 
 
 func get_current_expression() -> StringName:
@@ -258,20 +265,84 @@ func _apply_costume() -> void:
 			mesh_instance.visible = mesh_instance.name not in hidden
 		for surface: int in range(mesh_instance.mesh.get_surface_count()):
 			mesh_instance.set_surface_override_material(surface, null)
-			if texture_map.is_empty():
-				continue
 			var surface_material: Material = mesh_instance.mesh.surface_get_material(surface)
 			if surface_material == null:
 				continue
 			var material_name := StringName(surface_material.resource_name)
-			if not texture_map.has(material_name):
+			var replace_texture: bool = texture_map.has(material_name)
+			var apply_illustration: bool = _should_apply_illustration(
+				surface_material,
+				material_name
+			)
+			if not replace_texture and not apply_illustration:
 				continue
-			var texture: Texture2D = load(str(texture_map[material_name])) as Texture2D
-			if texture == null:
-				continue
-			var override := surface_material.duplicate() as Material
-			_set_material_albedo(override, texture)
+			var override: Material = surface_material
+			if replace_texture:
+				override = surface_material.duplicate() as Material
+				var texture: Texture2D = load(str(texture_map[material_name])) as Texture2D
+				if texture != null:
+					_set_material_albedo(override, texture)
+			if apply_illustration:
+				override = _create_illustration_material(override as BaseMaterial3D)
 			mesh_instance.set_surface_override_material(surface, override)
+
+
+func _should_apply_illustration(source_material: Material, material_name: StringName) -> bool:
+	if model_resource == null or not model_resource.illustration_enabled:
+		return false
+	if not source_material is BaseMaterial3D:
+		return false
+	var lowered_name := String(material_name).to_lower()
+	for fragment: String in model_resource.illustration_material_fragments:
+		if lowered_name.contains(fragment.to_lower()):
+			return true
+	return false
+
+
+func _create_illustration_material(source_material: BaseMaterial3D) -> ShaderMaterial:
+	if source_material == null or model_resource == null:
+		return null
+	var target_material := ShaderMaterial.new()
+	target_material.shader = ILLUSTRATION_SHADER
+	target_material.resource_name = "%s_illustration" % source_material.resource_name
+	target_material.render_priority = source_material.render_priority
+	if source_material.albedo_texture != null:
+		target_material.set_shader_parameter("albedo_texture", source_material.albedo_texture)
+	target_material.set_shader_parameter("albedo_color", source_material.albedo_color)
+	target_material.set_shader_parameter(
+		"uv_transform",
+		Vector4(
+			source_material.uv1_scale.x,
+			source_material.uv1_scale.y,
+			source_material.uv1_offset.x,
+			source_material.uv1_offset.y
+		)
+	)
+	target_material.set_shader_parameter(
+		"shadow_tint",
+		model_resource.illustration_shadow_tint
+	)
+	target_material.set_shader_parameter(
+		"light_direction_view",
+		model_resource.illustration_light_direction_view
+	)
+	target_material.set_shader_parameter(
+		"shade_threshold",
+		model_resource.illustration_shade_threshold
+	)
+	target_material.set_shader_parameter(
+		"shade_softness",
+		model_resource.illustration_shade_softness
+	)
+	target_material.set_shader_parameter(
+		"shade_strength",
+		model_resource.illustration_shade_strength
+	)
+	target_material.set_shader_parameter(
+		"alpha_cutoff",
+		source_material.alpha_scissor_threshold
+	)
+	return target_material
 
 
 func _collect_hideable_meshes() -> Array[StringName]:

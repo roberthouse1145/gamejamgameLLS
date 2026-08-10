@@ -43,12 +43,7 @@ func grant_material(material_id: StringName) -> StringName:
 	var instance_id := StringName("%s_%03d" % [String(material_id), GameState.material_serial])
 	GameState.material_instances[String(instance_id)] = {
 		"definition_id": String(material_id),
-		"depth": definition.initial_depth,
-		"progress": 0,
-		"freshness": 1.0,
-		"use_count": 0,
 	}
-	GameState.material_inventory_changed.emit()
 	inventory_changed.emit()
 	material_granted.emit(instance_id)
 	return instance_id
@@ -62,29 +57,15 @@ func preview_use(instance_id: StringName) -> Dictionary:
 	return {
 		"instance_id": String(instance_id),
 		"material_type": String(definition.material_type),
-		"depth_delta": -1.0,
-		"progress_delta": 1,
-		"freshness_delta": -definition.freshness_decay,
 	}
 
 
+## 一次性素材：播一场烧一张（策划案 §6.1），统一从库存删除。
 func commit_use(use_delta: Dictionary) -> bool:
 	var instance_id: String = str(use_delta.get("instance_id", ""))
 	if instance_id.is_empty() or not GameState.material_instances.has(instance_id):
 		return false
-	var instance: Dictionary = (GameState.material_instances[instance_id] as Dictionary).duplicate(true)
-	var definition: LiveStreamMaterialResource = get_material_definition(StringName(str(instance.get("definition_id", ""))))
-	if definition == null:
-		return false
-	if definition.material_type in [LiveStreamMaterialResource.TYPE_CONSUMABLE, LiveStreamMaterialResource.TYPE_SPONSOR]:
-		GameState.material_instances.erase(instance_id)
-	else:
-		instance["depth"] = maxf(float(instance.get("depth", 0.0)) + float(use_delta.get("depth_delta", -1.0)), 0.0)
-		instance["progress"] = mini(int(instance.get("progress", 0)) + int(use_delta.get("progress_delta", 1)), definition.max_progress)
-		instance["freshness"] = maxf(float(instance.get("freshness", 1.0)) + float(use_delta.get("freshness_delta", -definition.freshness_decay)), 0.4)
-		instance["use_count"] = int(instance.get("use_count", 0)) + 1
-		GameState.material_instances[instance_id] = instance
-	GameState.material_inventory_changed.emit()
+	GameState.material_instances.erase(instance_id)
 	inventory_changed.emit()
 	material_consumed.emit(StringName(instance_id))
 	return true

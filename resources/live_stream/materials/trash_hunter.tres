@@ -6,7 +6,6 @@
 [ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_tx80s"]
 [ext_resource type="Texture2D" uid="uid://bau33kpjofu1o" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="4"]
 [ext_resource type="Script" uid="uid://b0wgs72067lck" path="res://scripts/game/resources/live_stream/material_locked_card.gd" id="5"]
-[ext_resource type="Script" uid="uid://p1r0pl3acdgx" path="res://scripts/game/resources/live_stream/material_progress_locks.gd" id="6"]
 
 [sub_resource type="Resource" id="Affinity"]
 script = ExtResource("2")
@@ -19,27 +18,15 @@ script = ExtResource("3")
 hook = 1.0
 quality = -1.0
 
-[sub_resource type="Resource" id="BossLock"]
-script = ExtResource("5")
-card_id = &"material_boss_fight"
-position = 3
-min_position = 3
-max_position = 3
-
-[sub_resource type="Resource" id="ChapterThree"]
-script = ExtResource("6")
-chapter = 3
-locked_cards = Array[ExtResource("5")]([SubResource("BossLock")])
-
 [resource]
 script = ExtResource("1")
 base_popularity = 130.0
 program_slot_count = 4
 affinity = SubResource("Affinity")
 axes = SubResource("Axes")
-progress_locks = Array[ExtResource("6")]([SubResource("ChapterThree")])
 content_id = &"material_trash_hunter"
 display_name = "《粪作猎人》"
 description = "漏洞、烂平衡和离谱 BOSS 挤在一起的动作游戏。"
 icon = ExtResource("4")
 tags = Array[StringName]([&"game", &"trash_game", &"boss_fight", &"high_difficulty", &"rage_bait"])
+prompt_fragment = "一款以烂出名为人所知的动作游戏，俗称《粪作猎人》：判定鬼畜、数值失衡、BOSS 设计离谱、夹杂各种莫名奇妙的 Bug。游戏里有多个广为流传的离谱桥段——例如某个会突然瞬移的 BOSS、某个判定范围比视觉大一圈的技能。观众大多冲着看它烂出花样而来，这类素材天然自带吐槽空间，容易触发具体到细节的抱怨、玩梗和起哄。"

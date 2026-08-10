@@ -4,9 +4,8 @@
 [ext_resource type="Theme" uid="uid://dal0b6uyjb28v" path="res://resources/themes/obs_live_light.tres" id="2_theme"]
 [ext_resource type="Texture2D" uid="uid://dq5lfgfk88hhs" path="res://Assets/images/app_icons/obs_live_v2.png" id="3_icon"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/wizard_tab_bar.tscn" id="4_tabbar"]
-[ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/stream_stage.tscn" id="5_stage"]
+[ext_resource type="PackedScene" uid="uid://c406l5nm44s7x" path="res://scenes/apps/obs_live/components/stream_stage.tscn" id="5_stage"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/stream_chat.tscn" id="6_chat"]
-[ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/entrance_overlay.tscn" id="7_entrance"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/settlement_panel.tscn" id="8_settlement"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_chrome"]
@@ -23,6 +22,59 @@ corner_radius_bottom_left = 16
 shadow_color = Color(0.18, 0.22, 0.32, 0.08)
 shadow_size = 6
 shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_ojucx"]
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.78431374, 0.8392157, 0.91764706, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0.18, 0.22, 0.32, 0.08)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_live_nav"]
+bg_color = Color(1, 1, 1, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.82, 0.867, 0.925, 1)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_live_nav_search"]
+bg_color = Color(0.957, 0.969, 0.984, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.875, 0.902, 0.941, 1)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_live_nav_circle"]
+bg_color = Color(0.851, 0.894, 0.953, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_live_nav_action"]
+bg_color = Color(1, 0.373, 0.588, 0.92)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
 
 [node name="OBSLiveApp" type="Control" unique_id=1915010184]
 layout_mode = 3
@@ -176,11 +228,165 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.941, 0.957, 0.976, 1)
 
+[node name="LiveTopNav" type="PanelContainer" parent="LiveRoot"]
+layout_mode = 1
+anchor_right = 1.0
+offset_left = 16.0
+offset_top = 16.0
+offset_right = -16.0
+offset_bottom = 88.0
+grow_horizontal = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_nav")
+
+[node name="NavMargin" type="MarginContainer" parent="LiveRoot/LiveTopNav"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 10
+
+[node name="NavRow" type="HBoxContainer" parent="LiveRoot/LiveTopNav/NavMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 24
+
+[node name="LeftLane" type="HBoxContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 22
+
+[node name="BrandMark" type="HBoxContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/LeftLane"]
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="BrandBarShort" type="ColorRect" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/LeftLane/BrandMark"]
+custom_minimum_size = Vector2(10, 24)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.153, 0.663, 0.875, 1)
+
+[node name="BrandBarTall" type="ColorRect" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/LeftLane/BrandMark"]
+custom_minimum_size = Vector2(10, 38)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.153, 0.663, 0.875, 1)
+
+[node name="BrandBarMedium" type="ColorRect" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/LeftLane/BrandMark"]
+custom_minimum_size = Vector2(10, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.153, 0.663, 0.875, 1)
+
+[node name="NavStubPrimary" type="ColorRect" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/LeftLane"]
+custom_minimum_size = Vector2(104, 8)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.298, 0.341, 0.416, 0.72)
+
+[node name="NavStubSecondary" type="ColorRect" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/LeftLane"]
+custom_minimum_size = Vector2(82, 8)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.298, 0.341, 0.416, 0.58)
+
+[node name="NavStubTertiary" type="ColorRect" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/LeftLane"]
+custom_minimum_size = Vector2(68, 8)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.298, 0.341, 0.416, 0.44)
+
+[node name="TopSearch" type="PanelContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow"]
+custom_minimum_size = Vector2(1080, 48)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_nav_search")
+
+[node name="SearchMargin" type="MarginContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/TopSearch"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 8
+theme_override_constants/margin_bottom = 8
+
+[node name="SearchRow" type="HBoxContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/TopSearch/SearchMargin"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="SearchHint" type="ColorRect" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/TopSearch/SearchMargin/SearchRow"]
+custom_minimum_size = Vector2(260, 6)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.62, 0.69, 0.79, 0.42)
+
+[node name="SearchSpacer" type="Control" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/TopSearch/SearchMargin/SearchRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="SearchKnob" type="PanelContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/TopSearch/SearchMargin/SearchRow"]
+custom_minimum_size = Vector2(32, 32)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_nav_circle")
+
+[node name="RightLane" type="HBoxContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_constants/separation = 22
+alignment = 2
+
+[node name="RightDotA" type="PanelContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/RightLane"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_nav_circle")
+
+[node name="RightDotB" type="PanelContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/RightLane"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_nav_circle")
+
+[node name="RightDotC" type="PanelContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/RightLane"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_nav_circle")
+
+[node name="RightAction" type="PanelContainer" parent="LiveRoot/LiveTopNav/NavMargin/NavRow/RightLane"]
+custom_minimum_size = Vector2(148, 40)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_live_nav_action")
+
 [node name="LiveBodyMargin" type="MarginContainer" parent="LiveRoot" unique_id=1587081005]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 88.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/margin_left = 16
@@ -194,23 +400,35 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="StreamStage" parent="LiveRoot/LiveBodyMargin/LiveBody" unique_id=2036939152 instance=ExtResource("5_stage")]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 4
-size_flags_stretch_ratio = 3.2
-
-[node name="StreamChat" parent="LiveRoot/LiveBodyMargin/LiveBody" unique_id=1063871215 instance=ExtResource("6_chat")]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(320, 0)
+[node name="StagePanel" type="PanelContainer" parent="LiveRoot/LiveBodyMargin/LiveBody" unique_id=694674199]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
+size_flags_stretch_ratio = 3.2
+theme_override_styles/panel = SubResource("StyleBoxFlat_ojucx")
 
-[node name="EntranceOverlay" parent="LiveRoot" unique_id=38301941 instance=ExtResource("7_entrance")]
+[node name="StageMargin" type="MarginContainer" parent="LiveRoot/LiveBodyMargin/LiveBody/StagePanel" unique_id=1159617404]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="StreamStage" parent="LiveRoot/LiveBodyMargin/LiveBody/StagePanel/StageMargin" unique_id=2036939152 instance=ExtResource("5_stage")]
 unique_name_in_owner = true
-layout_mode = 1
+layout_mode = 2
+size_flags_vertical = 3
+alignment = 1
+
+[node name="StreamChat" parent="LiveRoot/LiveBodyMargin/LiveBody" instance=ExtResource("6_chat")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(660, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+size_flags_stretch_ratio = 0.9
 
 [node name="SettlementPanel" parent="LiveRoot" unique_id=1527225534 instance=ExtResource("8_settlement")]
 unique_name_in_owner = true

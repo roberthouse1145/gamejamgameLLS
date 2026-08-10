@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2"]
+[ext_resource type="Texture2D" path="res://Assets/images/app_icons/cityhop.png" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/apps/cityhop/cityhop_app.tscn" id="4"]
+
+[sub_resource type="Resource" id="Constraints"]
+script = ExtResource("2")
+min_size = Vector2(2700, 1500)
+default_size = Vector2(3480, 1980)
+resizable = true
+
+[resource]
+script = ExtResource("1")
+app_id = "cityhop"
+app_name = "CityHop"
+icon = ExtResource("3")
+entry_scene = ExtResource("4")
+window_constraints = SubResource("Constraints")

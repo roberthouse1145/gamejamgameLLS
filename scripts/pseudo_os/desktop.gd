@@ -707,12 +707,12 @@ func show_system_notification(title: String, body: String, icon_token: String = 
 	if icon_texture == null:
 		icon_texture = UIIconLibraryClass.get_icon(icon_token)
 	if icon_texture != null:
-		var icon_margin := MarginContainer.new()
-		icon_margin.add_theme_constant_override("margin_left", 12)
-		icon_margin.add_theme_constant_override("margin_top", 12)
-		icon_margin.add_theme_constant_override("margin_right", 12)
-		icon_margin.add_theme_constant_override("margin_bottom", 12)
-		icon_panel.add_child(icon_margin)
+		var notification_icon_margin := MarginContainer.new()
+		notification_icon_margin.add_theme_constant_override("margin_left", 12)
+		notification_icon_margin.add_theme_constant_override("margin_top", 12)
+		notification_icon_margin.add_theme_constant_override("margin_right", 12)
+		notification_icon_margin.add_theme_constant_override("margin_bottom", 12)
+		icon_panel.add_child(notification_icon_margin)
 		var icon_rect := TextureRect.new()
 		icon_rect.texture = icon_texture
 		icon_rect.custom_minimum_size = Vector2(84, 84)
@@ -720,7 +720,7 @@ func show_system_notification(title: String, body: String, icon_token: String = 
 		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		if not is_app_icon:
 			icon_rect.modulate = _get_notification_icon_color(icon_token)
-		icon_margin.add_child(icon_rect)
+		notification_icon_margin.add_child(icon_rect)
 		hbox.add_child(icon_panel)
 
 	# 右侧文字

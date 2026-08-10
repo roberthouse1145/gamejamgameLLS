@@ -13,11 +13,6 @@ const MIN_ADVANCE_DELAY: float = 1.2
 const ADVANCE_CHAR_SECONDS: float = 0.06
 const MAX_ADVANCE_DELAY: float = 6.0
 
-## 玩家和联系人资料只负责 LinkChat 的显示身份；ChatTopic 仍只保存剧情脚本。
-@export var player_character: StreamerCharacter = null
-@export var chat_characters: Array[StreamerCharacter] = []
-@export var moment_posts: Array[Dictionary] = []
-
 @onready var background: ColorRect = $Background
 @onready var nav_strip: PanelContainer = %NavStrip
 @onready var nav_avatar: RoundedAvatar = %NavAvatar
@@ -46,17 +41,20 @@ const MAX_ADVANCE_DELAY: float = 6.0
 @onready var moments_container: VBoxContainer = %MomentsContainer
 
 var _topic_manager: Node = null
+var _linkchat_manager: Node = null
+var _player_character: CharacterProfile = null
 var _current_channel_id: String = ""
 var _advance_generation: int = 0
-var _contact_item: ChatContactItem = null
+var _contact_items: Dictionary = {}
 var _moments_panel: LinkChatMomentsPanel = null
 var _current_page: NavPage = NavPage.CHAT
 
 
 func _ready() -> void:
+	_connect_linkchat_manager()
 	_apply_original_theme()
 	_setup_original_layout()
-	_render_empty_contact()
+	_render_friend_contacts()
 	_setup_navigation()
 	_connect_topic_manager()
 	_connect_click_to_advance()
@@ -65,6 +63,8 @@ func _ready() -> void:
 func open_topic_channel(channel_id: String) -> void:
 	_current_channel_id = channel_id
 	_show_page(NavPage.CHAT)
+	_render_contact(channel_id)
+	_render_thread(channel_id)
 
 
 func _connect_topic_manager() -> void:
@@ -83,12 +83,33 @@ func _connect_topic_manager() -> void:
 	_topic_manager.topic_cancelled.connect(_on_topic_cancelled)
 
 
+func _connect_linkchat_manager() -> void:
+	_linkchat_manager = get_node_or_null("/root/LinkChatManager")
+	if _linkchat_manager == null:
+		return
+	_player_character = _linkchat_manager.call("get_player_character") as CharacterProfile
+	if not _linkchat_manager.friendship_changed.is_connected(_on_friendship_changed):
+		_linkchat_manager.friendship_changed.connect(_on_friendship_changed)
+	if not _linkchat_manager.friends_reloaded.is_connected(_on_friends_reloaded):
+		_linkchat_manager.friends_reloaded.connect(_on_friends_reloaded)
+	if not _linkchat_manager.moment_published.is_connected(_on_moment_published):
+		_linkchat_manager.moment_published.connect(_on_moment_published)
+	if not _linkchat_manager.moment_commented.is_connected(_on_moment_commented):
+		_linkchat_manager.moment_commented.connect(_on_moment_commented)
+	if not _linkchat_manager.moments_reloaded.is_connected(_on_moments_reloaded):
+		_linkchat_manager.moments_reloaded.connect(_on_moments_reloaded)
+	if not _linkchat_manager.message_appended.is_connected(_on_message_appended):
+		_linkchat_manager.message_appended.connect(_on_message_appended)
+	if not _linkchat_manager.messages_reloaded.is_connected(_on_messages_reloaded):
+		_linkchat_manager.messages_reloaded.connect(_on_messages_reloaded)
+
+
 func _apply_original_theme() -> void:
 	background.color = LCTheme.COLOR_BG_MAIN
 	nav_strip.add_theme_stylebox_override("panel", LCTheme.get_nav_strip_style())
 	nav_avatar.set_avatar(
-		player_character.avatar if player_character != null else null,
-		_character_name(player_character, "我")
+		_character_avatar(_player_character),
+		_character_name(_player_character, "我")
 	)
 	for button: Button in [nav_chat_btn, nav_moments_btn, nav_settings_btn]:
 		button.flat = false
@@ -115,8 +136,9 @@ func _apply_original_theme() -> void:
 	send_button.add_theme_stylebox_override("pressed", LCTheme.get_send_button_hover_style())
 	send_button.add_theme_stylebox_override("disabled", LCTheme.get_send_button_style())
 	send_button.add_theme_color_override("font_disabled_color", Color("#8793A6"))
-	send_button.add_theme_color_override("font_hover_color", Color("#FFFFFF"))
-	send_button.add_theme_color_override("font_pressed_color", Color("#FFFFFF"))
+	send_button.add_theme_color_override("font_hover_color", LCTheme.COLOR_TEXT_PRIMARY)
+	send_button.add_theme_color_override("font_hover_pressed_color", LCTheme.COLOR_TEXT_PRIMARY)
+	send_button.add_theme_color_override("font_pressed_color", LCTheme.COLOR_TEXT_PRIMARY)
 	typing_indicator.add_theme_color_override("font_color", LCTheme.COLOR_ACCENT_HOVER)
 	batch_indicator.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
 	var message_v_scroll: VScrollBar = message_scroll.get_v_scroll_bar()
@@ -148,7 +170,9 @@ func _setup_navigation() -> void:
 	_moments_panel = MomentsPanelScene.instantiate() as LinkChatMomentsPanel
 	_moments_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_moments_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_moments_panel.set_posts(moment_posts)
+	_moments_panel.set_posts(_visible_moment_view_data())
+	_moments_panel.post_liked.connect(_on_moment_like_requested)
+	_moments_panel.image_open_requested.connect(_on_moment_image_open_requested)
 	moments_container.add_child(_moments_panel)
 	_update_nav_highlight()
 
@@ -181,18 +205,6 @@ func _update_nav_highlight() -> void:
 	nav_moments_btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY if not chat_active else LCTheme.COLOR_TEXT_SECONDARY)
 
 
-func set_moment_posts(posts: Array[Dictionary]) -> void:
-	moment_posts = posts
-	if _moments_panel != null:
-		_moments_panel.set_posts(posts)
-
-
-func add_moment_post(post: Dictionary) -> void:
-	moment_posts.push_front(post)
-	if _moments_panel != null:
-		_moments_panel.add_post(post)
-
-
 func _render_empty_contact() -> void:
 	for child: Node in contact_list.get_children():
 		child.queue_free()
@@ -208,22 +220,48 @@ func _render_empty_contact() -> void:
 
 
 func _render_contact(channel_id: String) -> void:
+	_current_channel_id = channel_id
+	_render_friend_contacts()
+
+
+func _render_friend_contacts() -> void:
 	for child: Node in contact_list.get_children():
 		child.queue_free()
-
-	var character: StreamerCharacter = _find_channel_character(channel_id)
-	_contact_item = ContactItemScene.instantiate() as ChatContactItem
-	_contact_item.setup(channel_id, _character_name(character, channel_id), character.avatar if character != null else null)
-	_contact_item.selected.connect(_on_contact_selected)
-	contact_list.add_child(_contact_item)
-	_contact_item.set_selected(true)
+	_contact_items.clear()
+	if _linkchat_manager == null:
+		_render_empty_contact()
+		return
+	var friends_value: Variant = _linkchat_manager.call("get_friend_characters")
+	if not friends_value is Array or friends_value.is_empty():
+		_render_empty_contact()
+		return
+	if _current_channel_id.is_empty():
+		var first_character: CharacterProfile = friends_value[0] as CharacterProfile
+		if first_character != null:
+			_current_channel_id = first_character.character_id
+	for character_value: Variant in friends_value:
+		var character: CharacterProfile = character_value as CharacterProfile
+		if character == null:
+			continue
+		var item: ChatContactItem = ContactItemScene.instantiate() as ChatContactItem
+		item.setup(character.character_id, _character_name(character, character.display_name), _character_avatar(character))
+		item.selected.connect(_on_contact_selected)
+		contact_list.add_child(item)
+		item.set_selected(character.character_id == _current_channel_id)
+		_contact_items[character.character_id] = item
+	if not _current_channel_id.is_empty():
+		var current_character: CharacterProfile = _find_channel_character(_current_channel_id)
+		channel_title.text = _character_name(current_character, _current_channel_id)
+		channel_subtitle.text = "在线"
+		_render_thread(_current_channel_id)
 
 
 func _on_topic_activated(topic: Resource) -> void:
 	_current_channel_id = str(topic.channel_id)
-	channel_title.text = _current_channel_id
+	channel_title.text = _character_name(_find_channel_character(_current_channel_id), _current_channel_id)
 	channel_subtitle.text = "在线"
 	_render_contact(_current_channel_id)
+	_render_thread(_current_channel_id)
 	topic_info.text = "正在接收消息"
 	typing_indicator.text = "正在输入..."
 	typing_indicator.visible = true
@@ -233,8 +271,7 @@ func _on_topic_message_emitted(topic: Resource, speaker_id: String, text: String
 	if str(topic.channel_id) != _current_channel_id:
 		return
 	typing_indicator.visible = false
-	_append_message(speaker_id, text, is_player, card)
-	_schedule_advance(text.length())
+	# 消息由 LinkChatManager 持久化后通过 message_appended 渲染。
 
 
 func _on_topic_choices_presented(topic: Resource, choices: Array) -> void:
@@ -287,11 +324,11 @@ func _on_topic_cancelled(topic: Resource, _reason: String) -> void:
 
 
 func _append_message(speaker_id: String, text: String, is_player: bool, card: Dictionary = {}) -> void:
-	var character: StreamerCharacter = player_character if is_player else _find_character(speaker_id)
+	var character: CharacterProfile = _player_character if is_player else _find_character(speaker_id)
 	var message: Dictionary = {
 		"sender_id": "player" if is_player else speaker_id,
 		"sender_name": _character_name(character, "我" if is_player else speaker_id),
-		"avatar": character.avatar if character != null else null,
+		"avatar": _character_avatar(character),
 		"content": text,
 		"time": "",
 	}
@@ -302,9 +339,45 @@ func _append_message(speaker_id: String, text: String, is_player: bool, card: Di
 	if not bubble.gui_input.is_connected(_on_bubble_gui_input):
 		bubble.gui_input.connect(_on_bubble_gui_input)
 	message_list.add_child(bubble)
-	if _contact_item != null:
-		_contact_item.update_preview(str(message["sender_name"]), text, is_player)
+	var contact_item: ChatContactItem = _contact_items.get(_current_channel_id) as ChatContactItem
+	if contact_item != null:
+		contact_item.update_preview(str(message["sender_name"]), text, is_player)
 	_scroll_to_bottom.call_deferred()
+
+
+func _render_thread(channel_id: String) -> void:
+	for child: Node in message_list.get_children():
+		child.queue_free()
+	if _linkchat_manager == null:
+		return
+	var value: Variant = _linkchat_manager.call("get_thread_messages", channel_id)
+	if not value is Array:
+		return
+	var player_id: String = _player_character.character_id if _player_character != null else "player"
+	for message_value: Variant in value:
+		if not message_value is Dictionary:
+			continue
+		var message: Dictionary = message_value
+		var sender_id: String = str(message.get("sender_id", ""))
+		var attachment_value: Variant = message.get("attachment", {})
+		var attachment: Dictionary = (attachment_value as Dictionary) if attachment_value is Dictionary else {}
+		_append_message(sender_id, str(message.get("content", "")), sender_id == player_id, attachment)
+
+
+func _on_message_appended(message: Dictionary) -> void:
+	var channel_id: String = str(message.get("channel_id", ""))
+	if channel_id != _current_channel_id:
+		return
+	var sender_id: String = str(message.get("sender_id", ""))
+	var player_id: String = _player_character.character_id if _player_character != null else "player"
+	var attachment_value: Variant = message.get("attachment", {})
+	var attachment: Dictionary = (attachment_value as Dictionary) if attachment_value is Dictionary else {}
+	_append_message(sender_id, str(message.get("content", "")), sender_id == player_id, attachment)
+
+
+func _on_messages_reloaded() -> void:
+	if not _current_channel_id.is_empty():
+		_render_thread(_current_channel_id)
 
 
 func _on_bubble_gui_input(event: InputEvent) -> void:
@@ -324,51 +397,98 @@ func _make_click_through(node: Node) -> void:
 
 
 func _on_contact_selected(channel_id: String) -> void:
-	if channel_id == _current_channel_id and _contact_item != null:
-		_contact_item.set_selected(true)
+	if channel_id.is_empty():
+		return
+	_current_channel_id = channel_id
+	for item_id_value: Variant in _contact_items:
+		var item: ChatContactItem = _contact_items[item_id_value] as ChatContactItem
+		if item != null:
+			item.set_selected(str(item_id_value) == channel_id)
+	var character: CharacterProfile = _find_channel_character(channel_id)
+	channel_title.text = _character_name(character, channel_id)
+	channel_subtitle.text = "在线"
+	_render_thread(channel_id)
 
 
-func _find_character(character_key: String) -> StreamerCharacter:
-	for character: StreamerCharacter in chat_characters:
-		if character != null and character.character_key == character_key:
-			return character
-	return null
+func _find_character(character_id: String) -> CharacterProfile:
+	if _linkchat_manager == null:
+		return null
+	return _linkchat_manager.call("get_character", character_id) as CharacterProfile
 
 
-func _find_channel_character(channel_id: String) -> StreamerCharacter:
-	for character: StreamerCharacter in chat_characters:
-		if character == null:
-			continue
-		if character.chat_display_name == channel_id:
-			return character
-		if character.display_name == channel_id:
-			return character
-	return null
+func _find_channel_character(channel_id: String) -> CharacterProfile:
+	return _find_character(channel_id)
 
 
-func _character_name(character: StreamerCharacter, fallback: String) -> String:
+func _character_name(character: CharacterProfile, fallback: String) -> String:
 	if character == null:
 		return fallback
-	if not character.chat_display_name.is_empty():
-		return character.chat_display_name
+	if character.linkchat_profile != null and not character.linkchat_profile.account_name.is_empty():
+		return character.linkchat_profile.account_name
 	if not character.display_name.is_empty():
 		return character.display_name
 	return fallback
 
 
-func _schedule_advance(text_length: int) -> void:
-	_advance_generation += 1
-	var generation: int = _advance_generation
-	var delay: float = clampf(
-		MIN_ADVANCE_DELAY + ADVANCE_CHAR_SECONDS * text_length,
-		MIN_ADVANCE_DELAY,
-		MAX_ADVANCE_DELAY
-	)
-	var timer := get_tree().create_timer(delay)
-	timer.timeout.connect(func() -> void:
-		if generation == _advance_generation and is_instance_valid(_topic_manager):
-			_topic_manager.advance_topic(_current_channel_id)
-	)
+func _character_avatar(character: CharacterProfile) -> Texture2D:
+	if character == null or character.linkchat_profile == null:
+		return null
+	return character.linkchat_profile.avatar
+
+
+func _visible_moment_view_data() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if _linkchat_manager == null:
+		return result
+	var value: Variant = _linkchat_manager.call("get_visible_moment_view_data")
+	if value is Array:
+		for post_value: Variant in value:
+			if post_value is Dictionary:
+				result.append(post_value)
+	return result
+
+
+func _refresh_moments() -> void:
+	if _moments_panel != null:
+		_moments_panel.set_posts(_visible_moment_view_data())
+
+
+func _on_friendship_changed(_character_id: String, _is_friend: bool) -> void:
+	_render_friend_contacts()
+	_refresh_moments()
+
+
+func _on_friends_reloaded() -> void:
+	_render_friend_contacts()
+
+
+func _on_moment_published(_post: MomentPostRecord) -> void:
+	_refresh_moments()
+
+
+func _on_moment_commented(_post_id: String, _comment: MomentCommentRecord) -> void:
+	_refresh_moments()
+
+
+func _on_moments_reloaded() -> void:
+	_refresh_moments()
+
+
+func _on_moment_like_requested(post_id: String, liked: bool) -> void:
+	if _linkchat_manager != null:
+		_linkchat_manager.call("set_moment_liked", post_id, liked)
+
+
+func _on_moment_image_open_requested(texture: Texture2D, image_title: String) -> void:
+	var app_manager: Node = get_node_or_null("/root/AppManager")
+	if app_manager == null or not app_manager.has_method("focus_app"):
+		return
+	var window: Control = app_manager.call("focus_app", "image_viewer", true) as Control
+	if window == null:
+		return
+	var viewer: Node = window.get("content") as Node
+	if viewer != null and viewer.has_method("open_texture"):
+		viewer.call_deferred("open_texture", texture, image_title)
 
 
 ## 等待推进期间，玩家点击消息区域或气泡可立即继续

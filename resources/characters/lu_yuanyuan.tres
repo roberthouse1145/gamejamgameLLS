@@ -1,16 +1,54 @@
-[gd_resource type="Resource" script_class="StreamerCharacter" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="CharacterProfile" load_steps=13 format=3]
 
-[ext_resource type="Script" path="res://scripts/game/resources/streamer_character.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/character_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/avg/characters/lu_yuanyuan.tres" id="2_avg"]
 [ext_resource type="Texture2D" path="res://Assets/images/characters/lu_yuanyuan/avatar_linkchat.png" id="3_avatar"]
+[ext_resource type="Script" path="res://scripts/apps/linkchat/resources/linkchat_profile.gd" id="4_linkchat"]
+[ext_resource type="Resource" path="res://resources/characters/moments/lu_yuanyuan/cafe_meeting.tres" id="5_cafe"]
+[ext_resource type="Resource" path="res://resources/characters/moments/lu_yuanyuan/weekly_schedule.tres" id="6_schedule"]
+[ext_resource type="Script" path="res://scripts/social/resources/social_account_profile.gd" id="7_social"]
+[ext_resource type="Resource" path="res://resources/characters/social_posts/lu_yuanyuan/collab_notice.tres" id="8_stream_post"]
+[ext_resource type="Resource" path="res://resources/characters/social_posts/lu_yuanyuan/someone_started.tres" id="9_personal_post"]
+
+[sub_resource type="Resource" id="LinkChatProfile_yuanyuan"]
+script = ExtResource("4_linkchat")
+account_name = "鸢鸢"
+avatar = ExtResource("3_avatar")
+initially_friend = true
+moment_contents = Array[Resource]([ExtResource("5_cafe"), ExtResource("6_schedule")])
+
+[sub_resource type="Resource" id="SocialAccount_streamer"]
+script = ExtResource("7_social")
+account_id = "yuanyuan_streamer"
+identity_type = "streamer"
+display_name = "鸢鸢"
+handle = "@YuanyuanLive"
+avatar = ExtResource("3_avatar")
+bio = "虚拟主播。直播、联动和偶尔公开的工作日常。"
+verified = true
+post_contents = Array[Resource]([ExtResource("8_stream_post")])
+
+[sub_resource type="Resource" id="SocialAccount_personal"]
+script = ExtResource("7_social")
+account_id = "yuanyuan_personal"
+identity_type = "personal"
+display_name = "Yuan"
+handle = "@yuan_afterwork"
+avatar = ExtResource("3_avatar")
+bio = "下班以后，不代表停止安排明天。"
+post_contents = Array[Resource]([ExtResource("9_personal_post")])
 
 [resource]
 script = ExtResource("1")
-character_key = "lu_yuanyuan"
-chat_display_name = "鸢鸢"
+character_id = "lu_yuanyuan"
 display_name = "陆鸢鸢"
 role = "childhood_friend"
+datable = true
+outing_preference_tags = Array[String](["music", "night", "cafe"])
+outing_avoid_tags = Array[String](["crowded"])
+base_date_acceptance_modifier = 12
 address_to_heroine = "柚柚"
-persona_prompt = "陆鸢鸢，23岁，阮云柚的青梅，某Vtuber公司的王牌主播。潇洒干练的短发女孩。聊天框里叫女主“柚柚”，合同文件上称她“乙方”。关心是真的，控制也是真的：想以自己的方式逼女主行动起来；如果女主始终是个废物NEET，就养起来。她自己也是常年戴着职业面具的人，合约条款是专业级压榨。"
+persona_prompt = "{{characters/lu_yuanyuan_prompt}}"
 avg_character = ExtResource("2_avg")
-avatar = ExtResource("3_avatar")
+linkchat_profile = SubResource("LinkChatProfile_yuanyuan")
+social_accounts = Array[Resource]([SubResource("SocialAccount_streamer"), SubResource("SocialAccount_personal")])

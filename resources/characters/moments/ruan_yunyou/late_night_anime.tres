@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="MomentContent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/linkchat/resources/moment_content.gd" id="1_content"]
+
+[resource]
+script = ExtResource("1_content")
+moment_id = "late_night_anime"
+text_content = "凌晨三点补完本季最后一集。\n结论：明天的我一定能理解今天不睡觉的我。"

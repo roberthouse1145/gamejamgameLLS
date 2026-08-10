@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 topic_id = "prologue_obs_intro"
-channel_id = "鸢鸢"
+channel_id = "lu_yuanyuan"
 mode = 0
 local_script = "lu_yuanyuan: 我已经帮你把直播软件下好啦，在桌面上哦。
 lu_yuanyuan: 距离第一次考核还有 15 天。今晚就开始你的初配信吧。

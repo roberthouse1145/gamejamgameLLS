@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="OutingCatalog" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/outing_catalog.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/outing/places/riverside_park.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/outing/places/echo_live_hall.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/outing/activities/park_walk.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/outing/activities/weekend_concert.tres" id="5"]
+
+[resource]
+script = ExtResource("1")
+places = Array[Resource]([ExtResource("2"), ExtResource("3")])
+activities = Array[Resource]([ExtResource("4"), ExtResource("5")])

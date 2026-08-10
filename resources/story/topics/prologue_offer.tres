@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 topic_id = "prologue_offer"
-channel_id = "鸢鸢"
+channel_id = "lu_yuanyuan"
 mode = 0
 local_script = "lu_yuanyuan: 柚柚！醒了没？快看文件！
 lu_yuanyuan: [card:file|星茫网络-入职通知书.pdf|browser://offer-letter|星茫网络 · 入职通知书]

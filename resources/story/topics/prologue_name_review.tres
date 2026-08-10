@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 topic_id = "prologue_name_review"
-channel_id = "鸢鸢"
+channel_id = "lu_yuanyuan"
 mode = 1
 prompt = "你是鸢鸢（speaker id: lu_yuanyuan），柚柚（player）的青梅竹马。你刚帮柚柚办完星茫网络的入职，她也刚在电子签约系统里提交了自己的虚拟主播艺名。
 

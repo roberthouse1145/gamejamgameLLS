@@ -110,7 +110,7 @@ const TOOL_EFFECT_READ: String = "read"
 const TOOL_EFFECT_WRITE: String = "write"
 const TOOL_EFFECT_TERMINAL: String = "terminal"
 const READ_TOOL_NAMES: PackedStringArray = [
-	"kb_read", "db_list", "db_get", "get_story_outline", "get_scene_script",
+	"db_list", "db_get", "get_story_outline", "get_scene_script",
 	"gather_scene_context", "list_assets", "list_scene_catalog",
 	"analyze_story_reachability", "project_info", "wo_get_order_details",
 	"wo_list_order_summaries", "research",

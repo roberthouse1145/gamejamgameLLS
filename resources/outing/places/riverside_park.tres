@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="MapPlace" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/map_place.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/images/cityhop/riverside_park.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+place_id = "riverside_park"
+display_name = "汐见河滨公园"
+category = "公园与户外"
+district = "汐见区 · 河岸南侧"
+summary = "沿河步道、大片草地和安静的观景台。下午适合散步，入夜后桥灯会亮起来。"
+map_position = Vector2(0.29, 0.66)
+cover = ExtResource("2")
+rating = 4.6
+review_count = 328
+tags = Array[String](["outdoor", "quiet", "photo", "free"])

@@ -20,9 +20,13 @@
 
 {{avg_scene_asset_manifest}}
 
-## 已有剧情设定
+## 相关剧情事实
 
-{{game_shared_context}}
+{{lore_facts}}
+
+## 剧情约束
+
+{{lore_constraints}}
 
 ## 本次场景需求
 

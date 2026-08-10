@@ -27,7 +27,6 @@ buses/default_bus_layout=""
 
 AppManager="*res://autoload/app_manager.gd"
 PromptManager="*res://autoload/prompt_manager.gd"
-KnowledgeBaseManager="*res://autoload/knowledge_base_manager.gd"
 AudioManager="*res://autoload/audio_manager.gd"
 GameState="*res://autoload/game_state.gd"
 StoryDirector="*res://autoload/story_director.gd"
@@ -38,9 +37,15 @@ CardLibraryManager="*res://scenes/autoload/card_library_manager.tscn"
 SkillTreeManager="*res://scenes/autoload/skill_tree_manager.tscn"
 StreamHistoryManager="*res://scenes/autoload/stream_history_manager.tscn"
 MaterialInventoryManager="*res://scenes/autoload/material_inventory_manager.tscn"
+TooltipLayer="*res://autoload/tooltip_layer.gd"
 MCPScreenshot="*res://addons/godot_mcp/mcp_screenshot_service.gd"
 MCPInputService="*res://addons/godot_mcp/mcp_input_service.gd"
 MCPGameInspector="*res://addons/godot_mcp/mcp_game_inspector_service.gd"
+LinkChatManager="*res://scenes/autoload/linkchat_manager.tscn"
+SocialMediaManager="*res://autoload/social_media_manager.gd"
+StoryLockManager="*res://autoload/story_lock_manager.gd"
+OutingManager="*res://autoload/outing_manager.gd"
+ActionTransactionManager="*res://autoload/action_transaction_manager.gd"
 
 [display]
 

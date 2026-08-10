@@ -115,16 +115,7 @@ var _rx_elif_stmt: RegEx
 var _rx_else_if_stmt: RegEx
 var _rx_else_stmt: RegEx
 var _rx_kwargs_extractor: RegEx
-var _rx_legacy_jump_scene: RegEx
 var _rx_uppercase_command: RegEx
-var _rx_embedded_var_op: RegEx
-var _rx_embedded_method_call: RegEx
-var _rx_embedded_prop_assign: RegEx
-var _rx_embedded_if_stmt: RegEx
-var _rx_embedded_else_stmt: RegEx
-var _rx_embedded_elif_stmt: RegEx
-var _rx_embedded_else_if_stmt: RegEx
-var _rx_embedded_legacy_jump_scene: RegEx
 
 
 func _init() -> void:
@@ -182,39 +173,9 @@ func _compile_regexes() -> void:
 	_rx_else_stmt = RegEx.new()
 	_rx_else_stmt.compile("^\\s*else\\s*:\\s*$")
 
-	# jump_scene("scene_id") - legacy syntax compatibility
-	_rx_legacy_jump_scene = RegEx.new()
-	_rx_legacy_jump_scene.compile("^\\s*jump_scene\\((.*)\\)\\s*$")
-
-	# 引擎内部 command_type 形式（如 JUMP_SCENE(...) / SHOW_CHARACTER(...)）。
-	# 这些不是用户语法，LLM 偶尔会"还原"出来。匹配后必须报错而非降级旁白，
-	# 否则玩家会在游戏画面看到字面命令文本。
+	# 引擎内部 command_type 形式（如 JUMP_SCENE(...) / SHOW_CHARACTER(...)）不是公开 DSL。
 	_rx_uppercase_command = RegEx.new()
 	_rx_uppercase_command.compile("^\\s*([A-Z][A-Z_]+)\\s*\\(.*\\)\\s*$")
-
-	_rx_embedded_var_op = RegEx.new()
-	_rx_embedded_var_op.compile("var\\[(\\w+)\\]\\s*([+\\-*/%]?=)\\s*.+$")
-
-	_rx_embedded_method_call = RegEx.new()
-	_rx_embedded_method_call.compile("([^\\.\\s]+)\\.(\\w+)\\((.*)\\)\\s*$")
-
-	_rx_embedded_prop_assign = RegEx.new()
-	_rx_embedded_prop_assign.compile("([^\\.\\s]+)\\.(\\w+)\\s*=\\s*.+$")
-
-	_rx_embedded_if_stmt = RegEx.new()
-	_rx_embedded_if_stmt.compile("\\bif\\s+.+:\\s*$")
-
-	_rx_embedded_else_stmt = RegEx.new()
-	_rx_embedded_else_stmt.compile("\\belse\\s*:\\s*$")
-
-	_rx_embedded_elif_stmt = RegEx.new()
-	_rx_embedded_elif_stmt.compile("\\belif\\s+.+:\\s*$")
-
-	_rx_embedded_else_if_stmt = RegEx.new()
-	_rx_embedded_else_if_stmt.compile("\\belse\\s+if\\s+.+:\\s*$")
-
-	_rx_embedded_legacy_jump_scene = RegEx.new()
-	_rx_embedded_legacy_jump_scene.compile("jump_scene\\((.*)\\)\\s*$")
 	
 	# key="val" 或 key=123 (用于拆解 kwargs)
 	_rx_kwargs_extractor = RegEx.new()
@@ -378,7 +339,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			parsed_cmds.append(if_cmd)
 			continue
 
-		# 4.5. 显式拒绝不支持的 elif，避免被自动包装成旁白
+		# 4.5. 显式拒绝当前 DSL 不支持的 elif
 		var elif_match: RegExMatch = _rx_elif_stmt.search(prepared_line)
 		if elif_match:
 			errors.append({
@@ -388,7 +349,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			i += 1
 			continue
 
-		# 4.6. 显式拒绝 LLM 常写出的 else if 变体
+		# 4.6. 显式拒绝当前 DSL 不支持的 else if 变体
 		var else_if_match: RegExMatch = _rx_else_if_stmt.search(prepared_line)
 		if else_if_match:
 			errors.append({
@@ -451,18 +412,7 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			i += 1
 			continue
 
-		# 8. 兼容旧式全局跳转函数 jump_scene("scene_xxx")
-		var legacy_jump_match: RegExMatch = _rx_legacy_jump_scene.search(prepared_line)
-		if legacy_jump_match:
-			var legacy_jump_args: String = legacy_jump_match.get_string(1)
-			var legacy_jump_cmd: AVGCommand = _build_legacy_jump_scene_command(legacy_jump_args, i + 1, errors)
-			if legacy_jump_cmd != null:
-				parsed_cmds.append(legacy_jump_cmd)
-			i += 1
-			continue
-
-		# 8.5. 显式拒绝引擎内部 command_type 形式（JUMP_SCENE / SHOW_CHARACTER 等）。
-		# 必须在第 9 步旁白兜底之前拦截，否则会被当作旁白文本说给玩家听。
+		# 8. 显式拒绝引擎内部 command_type 形式（JUMP_SCENE / SHOW_CHARACTER 等）。
 		var upper_cmd_match: RegExMatch = _rx_uppercase_command.search(prepared_line)
 		if upper_cmd_match:
 			var upper_name: String = upper_cmd_match.get_string(1)
@@ -473,15 +423,12 @@ func _parse_block(lines: Array[String], start_idx: int, indent_level: int) -> Di
 			i += 1
 			continue
 
-		# 9. 其他未识别的行：自动降级为旁白 DIALOGUE（容错 LLM 输出裸文本）
+		# 9. 未识别的内容必须由生成流程修复，解析器不猜测它的语义。
 		var bare_text: String = line.strip_edges()
 		if not bare_text.is_empty():
-			var fallback_cmd: AVGCommand = _create_dialogue_command(bare_text, {})
-			parsed_cmds.append(fallback_cmd)
-			warnings.append({
+			errors.append({
 				"line": i + 1,
-				"message": "auto-wrapped bare text as narration: %s" % bare_text,
-				"text": bare_text,
+				"message": "Unknown AVG DSL statement: %s" % bare_text,
 			})
 		i += 1
 		
@@ -516,32 +463,6 @@ func _collect_dialogue_lines(lines: Array[String], start_idx: int, indent: int) 
 		"text": "\n".join(text_lines),
 		"next_idx": i,
 	}
-
-
-func _build_legacy_jump_scene_command(args_str: String, line_num: int, errors: Array[Dictionary]) -> AVGCommand:
-	var parsed: Dictionary = _parse_target_args(args_str)
-	var args: Array = parsed.get("positional", [])
-	var kwargs: Dictionary = parsed.get("kwargs", {})
-	var scene_id: String = ""
-	if kwargs.has("scene_id"):
-		scene_id = str(kwargs.get("scene_id", "")).strip_edges()
-	elif not args.is_empty():
-		scene_id = str(args[0]).strip_edges()
-
-	if scene_id.is_empty():
-		errors.append({"line": line_num, "message": "jump_scene() requires a target scene_id"})
-		return null
-
-	var cmd := AVGCommand.new()
-	cmd.command_type = "JUMP_SCENE"
-	cmd.params["scene_id"] = scene_id
-	if kwargs.has("transition"):
-		cmd.params["transition"] = kwargs["transition"]
-	if kwargs.has("duration"):
-		cmd.params["duration"] = kwargs["duration"]
-	if kwargs.has("color"):
-		cmd.params["color"] = kwargs["color"]
-	return cmd
 
 
 ## 解析 Choice 选项块
@@ -640,11 +561,7 @@ func _find_next_indent(lines: Array[String], start_idx: int) -> int:
 
 
 func _prepare_line_for_parse(raw_line: String) -> String:
-	var embedded: String = _extract_embedded_command_from_comment(raw_line)
-	if not embedded.is_empty():
-		return embedded
-	var stripped: String = _strip_inline_comment_suffix(raw_line)
-	return stripped
+	return _strip_inline_comment_suffix(raw_line)
 
 
 func _strip_inline_comment_suffix(raw_line: String) -> String:
@@ -672,43 +589,6 @@ func _strip_inline_comment_suffix(raw_line: String) -> String:
 		idx += 1
 	return raw_line
 
-
-func _extract_embedded_command_from_comment(raw_line: String) -> String:
-	var trimmed_left: String = raw_line.strip_edges(true, false)
-	if not trimmed_left.begins_with("#"):
-		return ""
-	# `# => TextBlock(...)` 和 `# => ChoiceBlock(...)` 是合法控制块，让上层正则处理。
-	# 但 LLM 经常把 `# =>` 错误地加在 screen.fade / bg.show / stage.set / xx.expression= 这类
-	# 普通命令前面，一旦不剥离前缀，整行会被兜底当成旁白。这里允许嵌入提取识别这类情况。
-	if trimmed_left.begins_with("# =>"):
-		var after_marker: String = trimmed_left.substr(4).strip_edges()
-		if after_marker.begins_with("TextBlock(") or after_marker.begins_with("ChoiceBlock("):
-			return ""
-
-	var candidate_patterns: Array[RegEx] = [
-		_rx_embedded_else_if_stmt,
-		_rx_embedded_elif_stmt,
-		_rx_embedded_if_stmt,
-		_rx_embedded_else_stmt,
-		_rx_embedded_var_op,
-		_rx_embedded_prop_assign,
-		_rx_embedded_method_call,
-		_rx_embedded_legacy_jump_scene,
-	]
-
-	var best_start: int = -1
-	for rx in candidate_patterns:
-		var match: RegExMatch = rx.search(trimmed_left)
-		if match == null:
-			continue
-		var start_idx: int = match.get_start()
-		if best_start == -1 or start_idx < best_start:
-			best_start = start_idx
-
-	if best_start == -1:
-		return ""
-
-	return trimmed_left.substr(best_start).strip_edges()
 
 ## 从 "speaker='char_001', emotion='smile'" 解析 kwargs 参数字典
 func _parse_kwargs(kwargs_str: String) -> Dictionary:

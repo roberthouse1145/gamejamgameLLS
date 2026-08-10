@@ -11,12 +11,19 @@ const TRANSIT_SCENE := preload("res://scenes/pseudo_os/transit_window_content.ts
 const WINDOW_CONSTRAINTS_CLASS := preload("res://scripts/pseudo_os/window_constraints.gd")
 const FINISH_HOLD_SECONDS: float = 0.42
 const WINDOW_CLOSE_SECONDS: float = 0.14
+const COMPLETION_RUSH_SECONDS: float = 0.48
+const GATED_WAIT_LIMIT: float = 0.995
 
 var _active_transit: Dictionary = {}
 var _elapsed_seconds: float = 0.0
 var _finishing: bool = false
 var _window: Control = null
 var _content: Control = null
+var _gated: bool = false
+var _ready_requested: bool = false
+var _minimum_duration: float = 0.0
+var _completion_elapsed: float = 0.0
+var _completion_start_progress: float = 0.0
 
 
 func _ready() -> void:
@@ -24,7 +31,18 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _active_transit.is_empty() or _finishing:
+	if _active_transit.is_empty():
+		return
+	if _finishing:
+		_process_completion_rush(delta)
+		return
+	if _gated:
+		_elapsed_seconds += delta
+		_advance_gated_progress(delta)
+		_refresh_window()
+		transit_updated.emit(str(_active_transit["id"]), _active_transit.duplicate(true))
+		if _ready_requested and _elapsed_seconds >= _minimum_duration:
+			_begin_finish()
 		return
 	var duration: float = float(_active_transit.get("duration", 0.0))
 	if duration <= 0.0:
@@ -45,11 +63,16 @@ func play_transit(request: Dictionary) -> String:
 	_active_transit = _normalize_request(request)
 	_elapsed_seconds = float(_active_transit["progress"]) * float(_active_transit["duration"])
 	_finishing = false
+	_gated = bool(_active_transit.get("gated", false))
+	_ready_requested = false
+	_minimum_duration = maxf(float(_active_transit.get("minimum_duration", 0.0)), 0.0)
+	_completion_elapsed = 0.0
+	_completion_start_progress = 0.0
 	if not _open_window():
 		_active_transit.clear()
 		return ""
 
-	set_process(float(_active_transit["duration"]) > 0.0)
+	set_process(_gated or float(_active_transit["duration"]) > 0.0)
 	var transit_id: String = str(_active_transit["id"])
 	transit_started.emit(transit_id, _active_transit.duplicate(true))
 	return transit_id
@@ -57,6 +80,23 @@ func play_transit(request: Dictionary) -> String:
 
 func play_timed_transit(request: Dictionary) -> String:
 	return play_transit(request)
+
+
+func play_gated_transit(request: Dictionary) -> String:
+	var gated_request: Dictionary = request.duplicate(true)
+	gated_request["gated"] = true
+	gated_request["minimum_duration"] = maxf(float(request.get("minimum_duration", 3.0)), 0.5)
+	gated_request["duration"] = 0.0
+	return play_transit(gated_request)
+
+
+func mark_transit_ready(transit_id: String) -> bool:
+	if not _matches_active(transit_id) or not _gated or _finishing:
+		return false
+	_ready_requested = true
+	if _elapsed_seconds >= _minimum_duration:
+		_begin_finish()
+	return true
 
 
 func update_transit(transit_id: String, progress: float, patch: Dictionary = {}) -> bool:
@@ -90,6 +130,11 @@ func cancel_transit(transit_id: String) -> bool:
 	_active_transit.clear()
 	_elapsed_seconds = 0.0
 	_finishing = false
+	_gated = false
+	_ready_requested = false
+	_minimum_duration = 0.0
+	_completion_elapsed = 0.0
+	_completion_start_progress = 0.0
 	transit_cancelled.emit(transit_id, payload)
 	return true
 
@@ -119,6 +164,8 @@ func _normalize_request(request: Dictionary) -> Dictionary:
 		"duration": maxf(float(request.get("duration", 3.0)), 0.0),
 		"progress": clampf(float(request.get("progress", 0.0)), 0.0, 1.0),
 		"completed": false,
+		"gated": bool(request.get("gated", false)),
+		"minimum_duration": maxf(float(request.get("minimum_duration", 0.0)), 0.0),
 	}
 
 
@@ -167,11 +214,46 @@ func _begin_finish() -> void:
 	if _active_transit.is_empty() or _finishing:
 		return
 	_finishing = true
+	_completion_elapsed = 0.0
+	_completion_start_progress = clampf(float(_active_transit.get("progress", 0.0)), 0.0, 1.0)
+	if _completion_start_progress >= 1.0:
+		_complete_progress_rush()
+		return
+	set_process(true)
+
+
+func _process_completion_rush(delta: float) -> void:
+	_completion_elapsed = minf(_completion_elapsed + delta, COMPLETION_RUSH_SECONDS)
+	var ratio: float = _completion_elapsed / COMPLETION_RUSH_SECONDS
+	var eased_ratio: float = 1.0 - pow(1.0 - ratio, 3.0)
+	_active_transit["progress"] = lerpf(_completion_start_progress, 1.0, eased_ratio)
+	_refresh_window()
+	transit_updated.emit(str(_active_transit["id"]), _active_transit.duplicate(true))
+	if ratio < 1.0:
+		return
+	_complete_progress_rush()
+
+
+func _complete_progress_rush() -> void:
 	set_process(false)
 	_active_transit["progress"] = 1.0
 	_active_transit["completed"] = true
 	_refresh_window()
 	_finish_after_presenting(str(_active_transit["id"]))
+
+
+func _advance_gated_progress(delta: float) -> void:
+	var progress: float = clampf(float(_active_transit.get("progress", 0.0)), 0.0, GATED_WAIT_LIMIT)
+	var speed: float = 0.0
+	if progress < 0.58:
+		speed = lerpf(0.42, 0.18, progress / 0.58)
+	elif progress < 0.82:
+		speed = lerpf(0.12, 0.045, (progress - 0.58) / 0.24)
+	elif progress < 0.94:
+		speed = lerpf(0.026, 0.008, (progress - 0.82) / 0.12)
+	else:
+		speed = maxf(0.00018, (GATED_WAIT_LIMIT - progress) * 0.055)
+	_active_transit["progress"] = minf(progress + speed * delta, GATED_WAIT_LIMIT)
 
 
 func _finish_after_presenting(transit_id: String) -> void:
@@ -186,6 +268,11 @@ func _finish_after_presenting(transit_id: String) -> void:
 	_active_transit.clear()
 	_elapsed_seconds = 0.0
 	_finishing = false
+	_gated = false
+	_ready_requested = false
+	_minimum_duration = 0.0
+	_completion_elapsed = 0.0
+	_completion_start_progress = 0.0
 	transit_finished.emit(transit_id, payload)
 
 

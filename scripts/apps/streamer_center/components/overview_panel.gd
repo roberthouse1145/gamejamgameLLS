@@ -9,8 +9,6 @@ const ABILITY_LABELS: Dictionary = {
 	"tech": "杂项力",
 }
 
-@export var channel_character: StreamerCharacter = null
-
 @onready var channel_avatar: RoundedAvatar = %ChannelAvatar
 @onready var channel_name_label: Label = %ChannelName
 @onready var channel_meta_label: Label = %ChannelMeta
@@ -46,6 +44,7 @@ const ABILITY_LABELS: Dictionary = {
 func _ready() -> void:
 	GameState.fans_changed.connect(_on_fans_changed)
 	GameState.skill_levels_changed.connect(_on_skill_level_changed)
+	GameState.persona_changed.connect(_on_persona_changed)
 	CardLibraryManager.library_changed.connect(_refresh_growth)
 	SkillTreeManager.skill_tree_changed.connect(_refresh_growth)
 	StreamHistoryManager.history_changed.connect(_refresh_growth)
@@ -53,12 +52,13 @@ func _ready() -> void:
 
 
 func refresh() -> void:
-	var stage_name: String = GameState.streamer_name.strip_edges()
-	channel_name_label.text = stage_name if not stage_name.is_empty() else "未设置艺名"
+	var persona: StreamPersonaResource = _get_active_persona()
+	var channel_name: String = persona.channel_name if persona != null else "暂无频道"
+	channel_name_label.text = channel_name
 	channel_meta_label.text = "频道运营第 %d 天" % GameState.day
 	channel_avatar.set_avatar(
-		channel_character.avatar if channel_character != null else null,
-		stage_name if not stage_name.is_empty() else "V"
+		persona.channel_avatar if persona != null else null,
+		channel_name
 	)
 	follower_value.text = _format_number(GameState.fans)
 	_refresh_abilities()
@@ -136,9 +136,20 @@ func _format_number(value: int) -> String:
 	return output
 
 
+func _get_active_persona() -> StreamPersonaResource:
+	var catalog: LiveStreamCatalog = CardLibraryManager.get_catalog()
+	if catalog == null:
+		return null
+	return catalog.get_persona(StringName(GameState.active_persona_id))
+
+
 func _on_fans_changed(_value: int) -> void:
 	refresh()
 
 
 func _on_skill_level_changed(_family: StringName, _value: int) -> void:
 	_refresh_abilities()
+
+
+func _on_persona_changed(_old_persona_id: String, _new_persona_id: String) -> void:
+	refresh()

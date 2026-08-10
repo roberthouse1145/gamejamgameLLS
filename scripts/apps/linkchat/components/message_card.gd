@@ -4,6 +4,7 @@ class_name LinkChatMessageCard extends PanelContainer
 const LCTheme = preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
 const DOCUMENT_ICON = preload("res://Assets/images/ui/linkchat/document_file_icon.png")
 const WEB_LINK_ICON = preload("res://Assets/images/ui/linkchat/web_link_icon.png")
+const LOCATION_ICON = preload("res://Assets/images/app_icons/cityhop.png")
 
 var _card_data: Dictionary = {}
 var _enabled: bool = true
@@ -59,7 +60,7 @@ func _build_link_card() -> void:
 
 	var icon_rect := TextureRect.new()
 	var is_file: bool = _card_type() == "file"
-	icon_rect.texture = DOCUMENT_ICON if is_file else WEB_LINK_ICON
+	icon_rect.texture = LOCATION_ICON if _card_type() == "location" else (DOCUMENT_ICON if is_file else WEB_LINK_ICON)
 	icon_rect.custom_minimum_size = Vector2(69, 69)
 	icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
@@ -78,7 +79,11 @@ func _build_link_card() -> void:
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	text_box.add_child(title)
 	var subtitle := Label.new()
-	subtitle.text = str(_card_data.get("subtitle", ""))
+	var subtitle_text: String = str(_card_data.get("subtitle", ""))
+	var price_text: String = str(_card_data.get("price_text", "")).strip_edges()
+	if not price_text.is_empty():
+		subtitle_text = "%s  ·  %s" % [subtitle_text, price_text] if not subtitle_text.is_empty() else price_text
+	subtitle.text = subtitle_text
 	subtitle.add_theme_font_size_override("font_size", 23)
 	subtitle.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
 	subtitle.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -200,6 +205,10 @@ func _gui_input(event: InputEvent) -> void:
 			_open_image_viewer()
 			accept_event()
 			return
+		if _card_type() == "location":
+			_open_location()
+			accept_event()
+			return
 		var url: String = _target_path()
 		var browser_manager: Node = get_node_or_null("/root/BrowserManager")
 		if browser_manager != null and not url.is_empty():
@@ -207,7 +216,19 @@ func _gui_input(event: InputEvent) -> void:
 			if app_manager != null and app_manager.has_method("focus_app"):
 				app_manager.focus_app("browser", true)
 			browser_manager.request_open_url.call_deferred(url, "", str(_card_data.get("title", "")))
-		accept_event()
+			accept_event()
+
+
+func _open_location() -> void:
+	var app_manager: Node = get_node_or_null("/root/AppManager")
+	if app_manager == null or not app_manager.has_method("focus_app"):
+		return
+	var window: Control = app_manager.call("focus_app", str(_card_data.get("target_app", "cityhop")), true) as Control
+	if window == null:
+		return
+	var app_content: Node = window.get("content") as Node
+	if app_content != null and app_content.has_method("open_activity"):
+		app_content.call_deferred("open_activity", str(_card_data.get("activity_id", "")))
 
 
 func _open_image_viewer() -> void:

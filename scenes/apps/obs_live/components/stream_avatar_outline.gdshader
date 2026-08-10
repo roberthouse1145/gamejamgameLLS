@@ -3,7 +3,7 @@ shader_type canvas_item;
 // 只描外轮廓，面部等内部线条由模型贴图自带，不受影响。
 
 uniform vec4 outline_color : source_color = vec4(0.045, 0.055, 0.085, 1.0);
-uniform float outline_width_px : hint_range(0.0, 24.0) = 6.0;
+uniform float outline_width_px : hint_range(0.0, 24.0) = 3.0;
 
 const int DIRECTIONS = 12;
 

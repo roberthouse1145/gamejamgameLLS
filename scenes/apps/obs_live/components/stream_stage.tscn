@@ -1,48 +1,46 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene format=3 uid="uid://c406l5nm44s7x"]
 
-[ext_resource type="Script" path="res://scripts/apps/obs_live/components/stream_stage.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://dw5ngqxqw0w5b" path="res://scripts/apps/obs_live/components/stream_stage.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/stream_scene_display.tscn" id="2_stream_display"]
 [ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="3_avatar"]
-[ext_resource type="Texture2D" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="4_avatar_texture"]
-[ext_resource type="Texture2D" path="res://Assets/images/backgrounds/yunyou_desktop.png" id="6_room_bg"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/live_show_player.tscn" id="7_player"]
+[ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/entrance_overlay.tscn" id="9_entrance"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_live_badge"]
-bg_color = Color(0.898, 0.282, 0.427, 1)
 content_margin_left = 18.0
 content_margin_top = 9.0
 content_margin_right = 18.0
 content_margin_bottom = 9.0
+bg_color = Color(0.898, 0.282, 0.427, 1)
 corner_radius_top_left = 28
 corner_radius_top_right = 28
 corner_radius_bottom_right = 28
 corner_radius_bottom_left = 28
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_stats"]
-bg_color = Color(0, 0, 0, 0.45)
 content_margin_left = 18.0
 content_margin_top = 9.0
 content_margin_right = 18.0
 content_margin_bottom = 9.0
+bg_color = Color(0, 0, 0, 0.45)
 corner_radius_top_left = 28
 corner_radius_top_right = 28
 corner_radius_bottom_right = 28
 corner_radius_bottom_left = 28
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_subtitle"]
+content_margin_left = 44.0
+content_margin_top = 24.0
+content_margin_right = 44.0
+content_margin_bottom = 24.0
+bg_color = Color(0.02, 0.027, 0.047, 0.76)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
 bg_color = Color(1, 1, 1, 1)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.784, 0.839, 0.918, 1)
-corner_radius_top_left = 30
-corner_radius_top_right = 30
-corner_radius_bottom_right = 30
-corner_radius_bottom_left = 30
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
-bg_color = Color(0.918, 0.945, 0.98, 1)
 border_width_left = 2
 border_width_top = 2
 border_width_right = 2
@@ -65,48 +63,76 @@ corner_radius_top_right = 30
 corner_radius_bottom_right = 30
 corner_radius_bottom_left = 30
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.918, 0.945, 0.98, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.784, 0.839, 0.918, 1)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
+bg_color = Color(0.957, 0.969, 0.984, 0.72)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.82, 0.867, 0.925, 0.55)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_focus"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_subtitle"]
-bg_color = Color(0.02, 0.027, 0.047, 0.76)
-content_margin_left = 44.0
-content_margin_top = 24.0
-content_margin_right = 44.0
-content_margin_bottom = 24.0
-corner_radius_top_left = 18
-corner_radius_top_right = 18
-corner_radius_bottom_right = 18
-corner_radius_bottom_left = 18
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_status_chip"]
+content_margin_left = 22.0
+content_margin_top = 10.0
+content_margin_right = 22.0
+content_margin_bottom = 10.0
+bg_color = Color(1, 0.941, 0.957, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.918, 0.718, 0.769, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
 
-[node name="StreamStage" type="VBoxContainer"]
-layout_mode = 3
-anchors_preset = 0
+[node name="StreamStage" type="VBoxContainer" unique_id=246085590]
 offset_right = 2560.0
 offset_bottom = 1660.0
 size_flags_horizontal = 3
 theme_override_constants/separation = 22
 script = ExtResource("1_script")
 
-[node name="LiveShowPlayer" parent="." instance=ExtResource("7_player")]
+[node name="LiveShowPlayer" parent="." unique_id=1647367839 instance=ExtResource("7_player")]
 unique_name_in_owner = true
 
-[node name="LiveTitle" type="Label" parent="."]
+[node name="LiveTitle" type="Label" parent="." unique_id=330513754]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
 theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
 theme_override_font_sizes/font_size = 48
 text = "直播标题"
 text_overrun_behavior = 3
 
-[node name="VideoFrame" type="Control" parent="."]
+[node name="VideoFrame" type="Control" parent="." unique_id=2008401608]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 0)
 clip_contents = true
-custom_minimum_size = Vector2(0, 1440)
 layout_mode = 2
-size_flags_horizontal = 3
+size_flags_horizontal = 4
+size_flags_vertical = 4
 
-[node name="VideoBackground" type="ColorRect" parent="VideoFrame"]
+[node name="VideoBackground" type="ColorRect" parent="VideoFrame" unique_id=570509609]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -116,7 +142,7 @@ grow_vertical = 2
 mouse_filter = 2
 color = Color(0.043, 0.071, 0.125, 1)
 
-[node name="CameraClip" type="Control" parent="VideoFrame"]
+[node name="CameraClip" type="Control" parent="VideoFrame" unique_id=435528046]
 unique_name_in_owner = true
 clip_contents = true
 layout_mode = 1
@@ -126,23 +152,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="PreviewContainer" type="SubViewportContainer" parent="VideoFrame/CameraClip"]
+[node name="PreviewContainer" type="SubViewportContainer" parent="VideoFrame/CameraClip" unique_id=611431917]
 unique_name_in_owner = true
-stretch = true
+layout_mode = 0
 mouse_filter = 2
+stretch = true
 
-[node name="PreviewViewport" type="SubViewport" parent="VideoFrame/CameraClip/PreviewContainer"]
+[node name="PreviewViewport" type="SubViewport" parent="VideoFrame/CameraClip/PreviewContainer" unique_id=1650811959]
 unique_name_in_owner = true
 handle_input_locally = false
-size = Vector2i(3840, 2160)
-render_target_update_mode = 4
 gui_disable_input = true
+size = Vector2i(2, 2)
+render_target_update_mode = 4
 
-[node name="StreamSceneDisplay" parent="VideoFrame/CameraClip/PreviewContainer/PreviewViewport" instance=ExtResource("2_stream_display")]
+[node name="StreamSceneDisplay" parent="VideoFrame/CameraClip/PreviewContainer/PreviewViewport" unique_id=764299732 instance=ExtResource("2_stream_display")]
 unique_name_in_owner = true
-background_texture = ExtResource("6_room_bg")
 
-[node name="VideoOverlay" type="MarginContainer" parent="VideoFrame"]
+[node name="VideoOverlay" type="MarginContainer" parent="VideoFrame" unique_id=912126322]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -155,71 +181,71 @@ theme_override_constants/margin_top = 20
 theme_override_constants/margin_right = 24
 theme_override_constants/margin_bottom = 20
 
-[node name="OverlayTopRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay"]
+[node name="OverlayTopRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay" unique_id=396059722]
 layout_mode = 2
 size_flags_vertical = 0
 mouse_filter = 2
 theme_override_constants/separation = 12
 
-[node name="LiveBadge" type="PanelContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow"]
+[node name="LiveBadge" type="PanelContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow" unique_id=20622254]
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_live_badge")
 
-[node name="BadgeRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge"]
+[node name="BadgeRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge" unique_id=1921797761]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="LiveDot" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge/BadgeRow"]
+[node name="LiveDot" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge/BadgeRow" unique_id=743047062]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 26
 text = "●"
 
-[node name="LiveText" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge/BadgeRow"]
+[node name="LiveText" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/LiveBadge/BadgeRow" unique_id=2081802265]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 34
 text = "LIVE"
 
-[node name="OverlaySpacer" type="Control" parent="VideoFrame/VideoOverlay/OverlayTopRow"]
+[node name="OverlaySpacer" type="Control" parent="VideoFrame/VideoOverlay/OverlayTopRow" unique_id=1996627896]
 layout_mode = 2
 size_flags_horizontal = 3
 mouse_filter = 2
 
-[node name="StatsCapsule" type="PanelContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow"]
+[node name="StatsCapsule" type="PanelContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow" unique_id=1967907495]
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_stats")
 
-[node name="StatsRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule"]
+[node name="StatsRow" type="HBoxContainer" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule" unique_id=1704771229]
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/separation = 14
 
-[node name="LiveViewers" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow"]
+[node name="LiveViewers" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow" unique_id=1052516551]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 34
 text = "0 人在线"
 
-[node name="StatsSeparator" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow"]
+[node name="StatsSeparator" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow" unique_id=384894950]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.7)
 theme_override_font_sizes/font_size = 34
 text = "·"
 
-[node name="LiveClock" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow"]
+[node name="LiveClock" type="Label" parent="VideoFrame/VideoOverlay/OverlayTopRow/StatsCapsule/StatsRow" unique_id=648921419]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 34
 text = "00:00"
 
-[node name="SubtitleOverlay" type="MarginContainer" parent="VideoFrame"]
+[node name="SubtitleOverlay" type="MarginContainer" parent="VideoFrame" unique_id=457767783]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -229,29 +255,28 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 260
 theme_override_constants/margin_top = 120
-theme_override_constants/margin_right = 260
+theme_override_constants/margin_right = 340
 theme_override_constants/margin_bottom = 100
 
-[node name="SubtitleColumn" type="VBoxContainer" parent="VideoFrame/SubtitleOverlay"]
+[node name="SubtitleColumn" type="VBoxContainer" parent="VideoFrame/SubtitleOverlay" unique_id=877797366]
 layout_mode = 2
 mouse_filter = 2
 
-[node name="SubtitleSpacer" type="Control" parent="VideoFrame/SubtitleOverlay/SubtitleColumn"]
+[node name="SubtitleSpacer" type="Control" parent="VideoFrame/SubtitleOverlay/SubtitleColumn" unique_id=1305308929]
 layout_mode = 2
 size_flags_vertical = 3
 mouse_filter = 2
 
-[node name="SubtitlePanel" type="PanelContainer" parent="VideoFrame/SubtitleOverlay/SubtitleColumn"]
+[node name="SubtitlePanel" type="PanelContainer" parent="VideoFrame/SubtitleOverlay/SubtitleColumn" unique_id=73876523]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_subtitle")
 
-[node name="SubtitleLabel" type="Label" parent="VideoFrame/SubtitleOverlay/SubtitleColumn/SubtitlePanel"]
+[node name="SubtitleLabel" type="Label" parent="VideoFrame/SubtitleOverlay/SubtitleColumn/SubtitlePanel" unique_id=1908206597]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 100)
 layout_mode = 2
-mouse_filter = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)
 theme_override_constants/shadow_offset_x = 2
@@ -262,70 +287,106 @@ horizontal_alignment = 1
 vertical_alignment = 1
 autowrap_mode = 2
 
-[node name="ChannelRow" type="HBoxContainer" parent="."]
+[node name="EntranceOverlay" parent="VideoFrame" unique_id=38301941 instance=ExtResource("9_entrance")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ChannelRow" type="HBoxContainer" parent="." unique_id=1561052783]
 layout_mode = 2
+size_flags_horizontal = 4
 theme_override_constants/separation = 18
 
-[node name="AvatarRect" parent="ChannelRow" instance=ExtResource("3_avatar")]
+[node name="AvatarRect" parent="ChannelRow" unique_id=1631035539 instance=ExtResource("3_avatar")]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(88, 88)
 layout_mode = 2
 size_flags_vertical = 4
-texture = ExtResource("4_avatar_texture")
-fallback_text = "柚"
-corner_radius = 0.5
+fallback_text = "V"
 outline_width = 0.05
 outline_color = Color(0.898, 0.282, 0.427, 1)
 
-[node name="NameColumn" type="VBoxContainer" parent="ChannelRow"]
+[node name="NameColumn" type="VBoxContainer" parent="ChannelRow" unique_id=1209693105]
 layout_mode = 2
 size_flags_vertical = 4
 theme_override_constants/separation = 4
 
-[node name="ChannelName" type="Label" parent="ChannelRow/NameColumn"]
+[node name="ChannelName" type="Label" parent="ChannelRow/NameColumn" unique_id=2094109317]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
 theme_override_font_sizes/font_size = 36
 text = "柚柚"
 
-[node name="ChannelTag" type="Label" parent="ChannelRow/NameColumn"]
+[node name="ChannelTag" type="Label" parent="ChannelRow/NameColumn" unique_id=482517553]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.322, 0.439, 0.604, 1)
 theme_override_font_sizes/font_size = 28
 text = "0 位订阅者"
 
-[node name="ChannelSpacer" type="Control" parent="ChannelRow"]
+[node name="ChannelDivider" type="ColorRect" parent="ChannelRow"]
+custom_minimum_size = Vector2(2, 52)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+color = Color(0.82, 0.867, 0.925, 1)
+
+[node name="StatusChip" type="PanelContainer" parent="ChannelRow"]
+custom_minimum_size = Vector2(170, 60)
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("StyleBoxFlat_status_chip")
+
+[node name="RoomStatus" type="Label" parent="ChannelRow/StatusChip"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.788, 0.298, 0.384, 1)
+theme_override_font_sizes/font_size = 26
+text = "等待开播"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="ChannelSpacer" type="Control" parent="ChannelRow" unique_id=1649824437]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="FastButton" type="Button" parent="ChannelRow"]
+[node name="FastButton" type="Button" parent="ChannelRow" unique_id=1519182133]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(150, 60)
 layout_mode = 2
 size_flags_vertical = 4
+disabled = true
 theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
-theme_override_colors/font_hover_color = Color(0.102, 0.133, 0.22, 1)
 theme_override_colors/font_pressed_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_hover_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_disabled_color = Color(0.322, 0.439, 0.604, 0.48)
 theme_override_font_sizes/font_size = 26
 theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "快进"
 
-[node name="SkipButton" type="Button" parent="ChannelRow"]
+[node name="SkipButton" type="Button" parent="ChannelRow" unique_id=1809549272]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(180, 60)
 layout_mode = 2
 size_flags_vertical = 4
+disabled = true
 theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
-theme_override_colors/font_hover_color = Color(0.102, 0.133, 0.22, 1)
 theme_override_colors/font_pressed_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_hover_color = Color(0.102, 0.133, 0.22, 1)
+theme_override_colors/font_disabled_color = Color(0.322, 0.439, 0.604, 0.48)
 theme_override_font_sizes/font_size = 26
 theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
-theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
 theme_override_styles/focus = SubResource("StyleBoxEmpty_focus")
 text = "跳过演出"

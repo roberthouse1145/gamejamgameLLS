@@ -4,3 +4,6 @@
 
 [node name="LiveShowPlayer" type="Node"]
 script = ExtResource("1_script")
+
+[node name="SpeechBlipPlayer" type="AudioStreamPlayer" parent="."]
+max_polyphony = 4

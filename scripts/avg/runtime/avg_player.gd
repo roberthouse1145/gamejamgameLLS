@@ -142,7 +142,38 @@ func _on_scene_ended(_scene_id: String) -> void:
 		"choice_id": choice_id,
 		"choice_text": selected_choice_text,
 		"summary": selected_choice_text,
+		"narrative_text": _build_playback_narrative_text(),
 	})
+
+
+func _build_playback_narrative_text() -> String:
+	if scene_runner == null or not scene_runner.has_method("get_history_manager"):
+		return ""
+	var history_manager: RefCounted = scene_runner.get_history_manager()
+	if history_manager == null or not history_manager.has_method("get_entries"):
+		return ""
+	var entries_value: Variant = history_manager.call("get_entries")
+	if not entries_value is Array:
+		return ""
+	var current_scene: Resource = _scene_package.get("scene", null)
+	var current_scene_id: String = str(current_scene.get("scene_id")) if current_scene != null and "scene_id" in current_scene else ""
+	var lines: Array[String] = []
+	for entry_value: Variant in entries_value:
+		if not entry_value is Dictionary:
+			continue
+		var entry: Dictionary = entry_value as Dictionary
+		if not current_scene_id.is_empty() and str(entry.get("scene_id", "")) != current_scene_id:
+			continue
+		var speaker: String = str(entry.get("speaker", "")).strip_edges()
+		var text: String = str(entry.get("text", "")).strip_edges()
+		if text.is_empty():
+			continue
+		for text_line_value: String in text.split("\n", false):
+			var text_line: String = text_line_value.strip_edges()
+			if text_line.is_empty():
+				continue
+			lines.append(text_line if speaker.is_empty() else "%s：%s" % [speaker, text_line])
+	return "\n".join(lines)
 
 
 func _emit_outcome(outcome: Dictionary) -> void:

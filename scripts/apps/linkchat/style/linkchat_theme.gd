@@ -163,6 +163,15 @@ static func get_moment_card_style() -> StyleBoxFlat:
 	return s
 
 
+static func get_moment_comment_panel_style() -> StyleBoxFlat:
+	var s := rounded_flat(Color("#F4F7FB"), RADIUS_MD, Color("#D8E3F0"), 2)
+	s.content_margin_left = 24
+	s.content_margin_top = 18
+	s.content_margin_right = 24
+	s.content_margin_bottom = 18
+	return s
+
+
 ## 联系人条目 hover
 static func get_contact_hover_style() -> StyleBoxFlat:
 	return rounded_flat(COLOR_CONTACT_HOVER, RADIUS_SM)
@@ -217,7 +226,7 @@ static func get_send_button_style() -> StyleBoxFlat:
 
 ## 发送按钮 hover
 static func get_send_button_hover_style() -> StyleBoxFlat:
-	var s := rounded_flat(COLOR_ACCENT, RADIUS_LG, COLOR_ACCENT_HOVER, 2, Color(0.12, 0.28, 0.52, 0.18), 6)
+	var s := rounded_flat(Color("#EDF5FF"), RADIUS_LG, COLOR_ACCENT, 2, Color(0.12, 0.28, 0.52, 0.14), 6)
 	s.shadow_offset = Vector2(0, 3)
 	s.content_margin_left = 27
 	s.content_margin_top = 18

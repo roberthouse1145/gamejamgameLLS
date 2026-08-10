@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="PostContent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/social/resources/post_content.gd" id="1_content"]
+
+[resource]
+script = ExtResource("1_content")
+content_id = "desk_cleanup"
+text_content = "为了准备直播把桌面整理了一次。结论：消失的不是杂物，是我的安全感。"

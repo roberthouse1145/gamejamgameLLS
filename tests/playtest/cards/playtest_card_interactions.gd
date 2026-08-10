@@ -71,18 +71,18 @@ func _build_slots() -> void:
 	_slot_locked = _make_slot("锁定", [], "锁定", true)
 
 	for slot: CardSlot in [_slot_empty, _slot_filled, _slot_behavior_only, _slot_locked]:
-		var wrap := Control.new()
-		wrap.custom_minimum_size = CardDisplayMetrics.FULL_SIZE + Vector2(0, 36)
+		var slot_wrapper := Control.new()
+		slot_wrapper.custom_minimum_size = CardDisplayMetrics.FULL_SIZE + Vector2(0, 36)
 		var label := Label.new()
 		label.text = String(slot.slot_key)
 		label.position = Vector2(0, 0)
 		label.add_theme_font_size_override("font_size", 20)
-		wrap.add_child(label)
+		slot_wrapper.add_child(label)
 		slot.position = Vector2(0, 28)
 		slot.custom_minimum_size = CardDisplayMetrics.FULL_SIZE
 		slot.size = slot.custom_minimum_size
-		wrap.add_child(slot)
-		row.add_child(wrap)
+		slot_wrapper.add_child(slot)
+		row.add_child(slot_wrapper)
 		_controller.register_container(slot)
 
 	var starter: LiveStreamCardView = _make_card(MODIFIER_PATHS[0], "modifier")
@@ -169,7 +169,7 @@ func _make_card(path: String, kind: String, is_locked: bool = false) -> LiveStre
 	return card
 
 
-func _on_move_committed(card: Control, payload: Dictionary, source: Node, target: Node) -> void:
+func _on_move_committed(_card: Control, payload: Dictionary, source: Node, target: Node) -> void:
 	_set_status("移动成功：%s  %s -> %s" % [
 		String(payload.get("title", "?")),
 		_container_name(source),
@@ -182,7 +182,7 @@ func _on_move_committed(card: Control, payload: Dictionary, source: Node, target
 	])
 
 
-func _on_drop_rejected(card: Control, payload: Dictionary, target: Node) -> void:
+func _on_drop_rejected(_card: Control, payload: Dictionary, target: Node) -> void:
 	_set_status("拒绝：%s -> %s" % [String(payload.get("title", "?")), _container_name(target)])
 	print("[Playtest] drop_rejected title=%s target=%s" % [
 		String(payload.get("title", "")),
@@ -190,7 +190,7 @@ func _on_drop_rejected(card: Control, payload: Dictionary, target: Node) -> void
 	])
 
 
-func _on_drag_finished(success: bool, card: Control, payload: Dictionary, target: Node) -> void:
+func _on_drag_finished(success: bool, _card: Control, payload: Dictionary, target: Node) -> void:
 	if success:
 		return
 	_set_status("回弹：%s（目标=%s）" % [String(payload.get("title", "?")), _container_name(target)])

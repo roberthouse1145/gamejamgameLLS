@@ -21,19 +21,15 @@ func _ready() -> void:
 	manager.reset_draft()
 
 	assert(not manager.can_advance(0), "setup should start incomplete")
-	manager.set_title("第一次试播")
-	manager.select_persona(&"persona_default")
 	var material_instance_id: StringName = _find_material_instance(material_inventory, &"material_trash_hunter")
 	assert(material_instance_id != &"")
-	var material_instance: Dictionary = GameState.material_instances[String(material_instance_id)]
-	material_instance["progress"] = 2
-	GameState.material_instances[String(material_instance_id)] = material_instance
 	manager.select_material(material_instance_id)
-	assert(manager.can_advance(0), "title, persona and material instance should complete setup")
+	assert(manager.can_advance(0), "material instance should complete setup")
 	var material: LiveStreamMaterialResource = manager.get_material_definition()
 	var material_draft: Dictionary = manager.get_draft()
 	assert(material_draft.get("behavior_slots", []).size() == material.program_slot_count, "material must define program slot count")
-	assert((material_draft.get("behavior_slots", []) as Array)[2] == "material_boss_fight", "chapter three must inject its locked BOSS card")
+	assert(material_draft.get("title") == material.display_name, "placeholder title must be the material name until the generator refines it")
+	assert((material_draft.get("behavior_slots", []) as Array)[2] == "material_boss_fight", "material must inject its locked BOSS card")
 	assert(manager.is_behavior_slot_locked(2))
 	assert(not manager.clear_behavior_slot(2), "strict material cards cannot be removed")
 	assert(manager.advance_step())
@@ -56,16 +52,15 @@ func _ready() -> void:
 	var second_preview: StreamSettlementResult = manager.get_preview_result()
 	assert(first_preview.to_dict() == second_preview.to_dict(), "same snapshot and seed should be deterministic")
 
-	var material_before: Dictionary = material_inventory.get_instance(material_instance_id)
 	var exp_before: int = GameState.streamer_exp
 	var requested_plan: StreamPlanSnapshot = manager.request_broadcast(2468)
 	assert(requested_plan != null and manager.is_broadcast_pending())
-	assert(material_inventory.get_instance(material_instance_id) == material_before, "preview must not mutate material state")
+	assert(not material_inventory.get_instance(material_instance_id).is_empty(), "preview must not consume the material")
 	assert(GameState.streamer_exp == exp_before, "preview must not grant EXP")
 	assert(manager.commit_broadcast(requested_plan.session_id), "first commit should succeed")
 	assert(not manager.commit_broadcast(requested_plan.session_id), "same session may only be committed once")
 	assert(GameState.streamer_exp == exp_before + 50)
-	assert(material_inventory.get_instance(material_instance_id).get("depth") == float(material_before.get("depth")) - 1.0)
+	assert(material_inventory.get_instance(material_instance_id).is_empty(), "consumed material must be removed from inventory")
 	assert(history.get_records().size() == 1)
 	print("LIVE_STREAM_MANAGER_TEST_PASS")
 

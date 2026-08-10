@@ -15,7 +15,7 @@ const AVGSceneClass = preload("res://scripts/avg/resources/avg_scene.gd")
 const AVGRootNodeClass = preload("res://scripts/avg/resources/nodes/avg_root_node.gd")
 const AVGVariableClass = preload("res://scripts/avg/resources/avg_variable.gd")
 const AVGCommandClass = preload("res://scripts/avg/resources/avg_command.gd")
-const AVGKnowledgeToolsClass = preload("res://scripts/avg/generation/avg_knowledge_tools.gd")
+const LoreSystemClass = preload("res://scripts/avg/generation/lore_system.gd")
 
 const PREVIEW_PROMPT_KEY: String = "avg_scene_dsl_preview"
 const PREVIEW_SOURCE_KEY: String = "avg_scene_source"
@@ -23,9 +23,6 @@ const PREVIEW_ASSET_KEY: String = "avg_scene_asset_manifest"
 const WRITER_ROLE: String = "avg_scene_writer"
 const MAX_GENERATION_ATTEMPTS: int = 3
 const NORMAL_CHOICE_VAR_ID: String = "var_001"
-## 0 表示 writer 工具循环不设本地回合上限。
-const WRITER_TOOL_ITERATIONS: int = 0
-
 const OUTLINE_COMMAND_TYPES: PackedStringArray = [
 	"DIALOGUE",
 	"CHOICE",
@@ -115,15 +112,9 @@ func compile_dsl(session_id: String, dsl_text: String, session: Dictionary = {})
 func _setup_ai_services() -> void:
 	_writer_service = AIService.new()
 	_writer_service.name = "AVGSceneGeneratorWriter"
-	# 允许 writer 在生成 DSL 前按需读取世界观、角色和故事设定。
-	_writer_service.auto_execute_tools = true
-	_writer_service.max_tool_iterations = WRITER_TOOL_ITERATIONS
 	add_child(_writer_service)
 	_writer_service.request_completed.connect(_on_writer_completed)
 	_writer_service.request_failed.connect(_on_writer_failed)
-	_writer_service.tool_executed.connect(_on_writer_tool_executed)
-
-	AVGKnowledgeToolsClass.register_read_only(_writer_service)
 
 	var config_mgr := AIConfigManager.get_instance()
 	_writer_ready = config_mgr.apply_to_service(_writer_service, WRITER_ROLE)
@@ -159,11 +150,12 @@ func _build_prompt(session: Dictionary) -> String:
 	if preview_prompt_key.is_empty():
 		preview_prompt_key = PREVIEW_PROMPT_KEY
 
+	var lore_payload: Dictionary = LoreSystemClass.resolve_avg_scene(session, base_prompt)
 	var ctx: Dictionary = {
 		preview_source_key: base_prompt,
 		preview_asset_key: _build_asset_prompt_block(),
-		# 注入剧情设定索引；需要全文时可调用 kb_read。
-		"game_shared_context": AVGScenePromptBuilderClass.build_avg_shared_context(),
+		"lore_facts": LoreSystemClass.build_prompt_block(lore_payload.get("facts", [])),
+		"lore_constraints": LoreSystemClass.build_prompt_block(lore_payload.get("constraints", [])),
 	}
 	if prompt_manager.has_method("has_prompt") and prompt_manager.has_prompt(preview_prompt_key):
 		return str(prompt_manager.resolve_with_vars(preview_prompt_key, ctx)).strip_edges()
@@ -183,15 +175,12 @@ func _request_generation(context: Dictionary) -> bool:
 	var updated_context: Dictionary = context.duplicate(true)
 	updated_context["attempt"] = int(updated_context.get("attempt", 0)) + 1
 
-	# 走 chat_with_tools 路径：让 writer 可以在返回 DSL 前主动调 kb_read。
-	# tools 传空数组 → 自动使用 service 上已 register 的工具（kb_read）。
 	var messages: Array = [
 		{"role": "system", "content": _build_system_prompt()},
 		{"role": "user", "content": prompt_text},
 	]
-	var request_id: String = _writer_service.chat_with_tools(messages, [], "auto", {
+	var request_id: String = _writer_service.chat(messages, {
 		"temperature": 0.75,
-		"auto_execute": true,
 	})
 	if request_id.is_empty():
 		return false
@@ -209,21 +198,8 @@ func _build_system_prompt() -> String:
 	return "You are an AVG DSL writer. Output only AVG DSL V2 content with no markdown fences or explanations."
 
 
-func _on_writer_tool_executed(request_id: String, tool_name: String, args: Dictionary, _result: Variant, _tool_call_id: String) -> void:
-	if not _request_context_by_id.has(request_id):
-		return
-	var session_id: String = str(_request_context_by_id[request_id].get("session_id", ""))
-	print("[AVGSceneGenerator] Writer tool: %s | session=%s | args=%s" % [tool_name, session_id, JSON.stringify(args)])
-
-
 func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 	if not _request_context_by_id.has(request_id):
-		return
-
-	# 在 auto_execute_tools 循环里，每一轮工具调用之后 AIService 也会发
-	# request_completed 信号——但那只是中间结果（response.choices[0].message.tool_calls
-	# 非空）。我们要等真正的最终结果（无 tool_calls）才处理 DSL。
-	if _response_has_tool_calls(response):
 		return
 
 	var context: Dictionary = _request_context_by_id[request_id]
@@ -289,20 +265,20 @@ func _on_repair_completed(session_id: String, repaired_dsl: String) -> void:
 		print("[AVGSceneGenerator] Repair succeeded for %s. Repaired DSL:\n%s" % [session_id, repaired_dsl])
 		_emit_scene_generated(session_id, validation.get("commands", []), context.get("session", {}))
 	else:
-		# 修复后仍然不通过（理论上不应发生），回退到全量重试
-		print("[AVGSceneGenerator] Repair output still invalid for %s, falling back" % session_id)
-		_fallback_after_repair(session_id, context, validation)
+		# 修复结果仍不合法时，继续同一会话的全量重试；不会生成本地备用场景。
+		print("[AVGSceneGenerator] Repair output still invalid for %s, retrying generation" % session_id)
+		_retry_after_repair(session_id, context, validation)
 
 
 func _on_repair_failed(session_id: String, error: String) -> void:
 	var repair_key: String = "repair_" + session_id
 	var context: Dictionary = _request_context_by_id.get(repair_key, {})
 	_request_context_by_id.erase(repair_key)
-	print("[AVGSceneGenerator] Repair failed for %s: %s, falling back to full retry" % [session_id, error])
-	_fallback_after_repair(session_id, context, {})
+	print("[AVGSceneGenerator] Repair failed for %s: %s, retrying generation" % [session_id, error])
+	_retry_after_repair(session_id, context, {})
 
 
-func _fallback_after_repair(session_id: String, context: Dictionary, validation: Dictionary) -> void:
+func _retry_after_repair(session_id: String, context: Dictionary, validation: Dictionary) -> void:
 	var attempt: int = int(context.get("attempt", 0))
 	if attempt < MAX_GENERATION_ATTEMPTS:
 		var retry_context: Dictionary = {
@@ -710,21 +686,6 @@ func _make_set_variable_command(variable_id: String, value: int) -> Resource:
 		"value": value,
 	}
 	return command
-
-
-## 检查 response 是不是工具循环的中间结果（消息里仍有 tool_calls 字段）
-static func _response_has_tool_calls(response: Dictionary) -> bool:
-	if not response.has("choices"):
-		return false
-	var choices: Variant = response.get("choices", [])
-	if not (choices is Array) or (choices as Array).is_empty():
-		return false
-	var first_choice: Variant = choices[0]
-	if not (first_choice is Dictionary):
-		return false
-	var message: Dictionary = (first_choice as Dictionary).get("message", {})
-	var tool_calls: Variant = message.get("tool_calls", null)
-	return tool_calls is Array and (tool_calls as Array).size() > 0
 
 
 func _strip_code_fences(raw_text: String) -> String:

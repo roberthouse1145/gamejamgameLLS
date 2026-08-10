@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="PostContent" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/social/resources/post_content.gd" id="1_content"]
+
+[resource]
+script = ExtResource("1_content")
+content_id = "someone_started"
+text_content = "某人终于决定往前走一步。值得纪念，但先不告诉她。"

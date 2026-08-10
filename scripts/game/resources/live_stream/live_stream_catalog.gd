@@ -86,24 +86,19 @@ func validate_content(expected_behavior_count: int = -1, expected_modifier_count
 
 
 func _validate_material_locks(material: LiveStreamMaterialResource, errors: PackedStringArray) -> void:
-	var lock_sets: Array = [material.locked_cards]
-	for progress_lock: MaterialProgressLocks in material.progress_locks:
-		if progress_lock != null:
-			lock_sets.append(progress_lock.locked_cards)
-	for lock_set: Array in lock_sets:
-		var strict_positions: Dictionary = {}
-		for lock_rule: MaterialLockedCard in lock_set:
-			if lock_rule == null:
-				continue
-			if lock_rule.mode == MaterialLockedCard.MODE_STRICT:
-				if strict_positions.has(lock_rule.position):
-					errors.append("素材 %s 的严锁槽位重复：%d" % [String(material.content_id), lock_rule.position])
-				strict_positions[lock_rule.position] = true
-			if not is_material_behavior_card(lock_rule.card_id):
-				errors.append("素材 %s 的锁定卡不在素材专属卡目录：%s" % [
-					String(material.content_id),
-					String(lock_rule.card_id),
-				])
+	var strict_positions: Dictionary = {}
+	for lock_rule: MaterialLockedCard in material.locked_cards:
+		if lock_rule == null:
+			continue
+		if lock_rule.mode == MaterialLockedCard.MODE_STRICT:
+			if strict_positions.has(lock_rule.position):
+				errors.append("素材 %s 的严锁槽位重复：%d" % [String(material.content_id), lock_rule.position])
+			strict_positions[lock_rule.position] = true
+		if not is_material_behavior_card(lock_rule.card_id):
+			errors.append("素材 %s 的锁定卡不在素材专属卡目录：%s" % [
+				String(material.content_id),
+				String(lock_rule.card_id),
+			])
 
 
 func _validate_duplicate_material_card_effects(errors: PackedStringArray) -> void:

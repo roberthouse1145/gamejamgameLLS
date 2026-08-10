@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="PostContent" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/social/resources/post_content.gd" id="1_content"]
+[ext_resource type="Texture2D" path="res://Assets/images/backgrounds/yunyou_desktop_resting.png" id="2_image"]
+
+[resource]
+script = ExtResource("1_content")
+content_id = "first_stream_notice"
+text_content = "今晚 20:00，第一次正式开播。设备已经检查了三遍，紧张只检查了一遍。直播间见。"
+texture_content = ExtResource("2_image")

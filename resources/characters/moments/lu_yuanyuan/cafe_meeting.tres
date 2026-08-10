@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="MomentContent" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/linkchat/resources/moment_content.gd" id="1_content"]
+[ext_resource type="Texture2D" path="res://Assets/images/backgrounds/cafe_day.png" id="2_image"]
+
+[resource]
+script = ExtResource("1_content")
+moment_id = "cafe_meeting"
+text_content = "谈工作的地方是我选的，甜品也是。\n某人再迟到十分钟，芭菲就归我。"
+texture_content = ExtResource("2_image")

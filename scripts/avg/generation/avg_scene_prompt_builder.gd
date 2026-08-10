@@ -1,9 +1,6 @@
 class_name AVGScenePromptBuilder extends RefCounted
 ## 将调用方提供的中性场景需求整理为动态 AVG 生成提示。
 
-const AVGKnowledgeToolsClass = preload("res://scripts/avg/generation/avg_knowledge_tools.gd")
-
-
 static func create_for_session(_session: Dictionary) -> AVGScenePromptBuilder:
 	return AVGScenePromptBuilder.new()
 
@@ -32,13 +29,6 @@ func build_prompt_from_session(session: Dictionary) -> String:
 	_append_optional_section(sections, "演出约束", session.get("constraints", ""))
 	_append_optional_section(sections, "导演指导", session.get("story_guidance_prompt", ""))
 	return "\n\n".join(sections).strip_edges()
-
-
-static func build_avg_shared_context() -> String:
-	var kb_index: String = AVGKnowledgeToolsClass.build_index_context().strip_edges()
-	if kb_index.is_empty():
-		return "当前没有预设剧情文档。只使用本次场景需求和调用方显式提供的设定。"
-	return "%s\n\n如需读取某份文档全文，可调用 kb_read(doc_id=\"...\")。" % kb_index
 
 
 static func _first_text(source: Dictionary, keys: Array[String]) -> String:

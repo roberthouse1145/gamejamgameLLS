@@ -35,6 +35,7 @@ var _search_cache: Dictionary = {}
 var _history_entries: Array[Dictionary] = []
 var _history_counter: int = 0
 var _browser_state: Dictionary = {}
+var _page_providers: Dictionary = {}
 
 
 func _ready() -> void:
@@ -81,6 +82,11 @@ func open_page(url: String, design_prompt: String = "", page_context: String = "
 		page_failed.emit.call_deferred(request_id, normalized, "网页地址不能为空")
 		return request_id
 
+	var provided_content: Dictionary = _build_provided_page(normalized)
+	if not provided_content.is_empty():
+		_emit_page_success.call_deferred(request_id, normalized, provided_content)
+		return request_id
+
 	var premade_page: Resource = _find_premade_page(normalized)
 	if premade_page != null:
 		var premade_content: Dictionary = _build_premade_page_payload(premade_page)
@@ -119,17 +125,17 @@ func surf(keyword: String) -> String:
 
 	var premade_results: Array = _search_premade_pages(normalized)
 	if not premade_results.is_empty():
-		var url: String = str(premade_results[0].get("url", ""))
-		var premade_page: Resource = _find_premade_page(url)
+		var premade_url: String = str(premade_results[0].get("url", ""))
+		var premade_page: Resource = _find_premade_page(premade_url)
 		var content: Dictionary = _build_premade_page_payload(premade_page)
-		_complete_surf.call_deferred(request_id, normalized, url, content)
+		_complete_surf.call_deferred(request_id, normalized, premade_url, content)
 		return request_id
 	if not _can_request_ai():
 		surf_failed.emit.call_deferred(request_id, normalized, "浏览器 AI 配置不可用")
 		return request_id
 
-	var url: String = "browser://generated/%s" % normalized.uri_encode()
-	var ai_request_id: String = _ai_service.chat(_build_page_messages(url, "", "围绕关键词“%s”生成一张完整网页。" % normalized))
+	var generated_url: String = "browser://generated/%s" % normalized.uri_encode()
+	var ai_request_id: String = _ai_service.chat(_build_page_messages(generated_url, "", "围绕关键词“%s”生成一张完整网页。" % normalized))
 	if ai_request_id.is_empty():
 		surf_failed.emit.call_deferred(request_id, normalized, "网页请求创建失败")
 		return request_id
@@ -137,7 +143,7 @@ func surf(keyword: String) -> String:
 		"type": "surf",
 		"public_request_id": request_id,
 		"keyword": normalized,
-		"url": url,
+		"url": generated_url,
 	}
 	return request_id
 
@@ -146,6 +152,30 @@ func request_open_url(url: String, design_prompt: String = "", page_context: Str
 	var normalized: String = url.strip_edges()
 	if not normalized.is_empty():
 		url_open_requested.emit(normalized, design_prompt, page_context)
+
+
+## 注册运行时网页提供者。适合社交站点等由游戏状态动态构建的网页。
+func register_page_provider(
+	provider_id: String,
+	handles_url: Callable,
+	build_page: Callable
+) -> bool:
+	var normalized_id: String = provider_id.strip_edges()
+	if normalized_id.is_empty() or not handles_url.is_valid() or not build_page.is_valid():
+		return false
+	_page_providers[normalized_id] = {
+		"handles_url": handles_url,
+		"build_page": build_page,
+	}
+	return true
+
+
+func unregister_page_provider(provider_id: String) -> void:
+	_page_providers.erase(provider_id.strip_edges())
+
+
+func has_page_provider_for(url: String) -> bool:
+	return not _build_provided_page(url.strip_edges()).is_empty()
 
 
 func get_history_entries(limit: int = 0) -> Array:
@@ -264,6 +294,21 @@ func reset_runtime_state(clear_persistent_history: bool = false) -> void:
 
 func has_premade_page(url: String) -> bool:
 	return _find_premade_page(url.strip_edges()) != null
+
+
+func _build_provided_page(url: String) -> Dictionary:
+	for provider_value: Variant in _page_providers.values():
+		if not provider_value is Dictionary:
+			continue
+		var provider: Dictionary = provider_value
+		var handles_url: Callable = provider.get("handles_url", Callable())
+		var build_page: Callable = provider.get("build_page", Callable())
+		if not handles_url.is_valid() or not build_page.is_valid():
+			continue
+		if bool(handles_url.call(url)):
+			var result: Variant = build_page.call(url)
+			return result.duplicate(true) if result is Dictionary else {}
+	return {}
 
 
 func _setup_ai_service() -> void:

@@ -6,6 +6,7 @@ signal page_action_requested(action_data: Dictionary)
 const BrowserTabDataClass = preload("res://scripts/apps/browser/browser_tab_data.gd")
 const BrowserThemeClass = preload("res://scripts/apps/browser/browser_theme.gd")
 const WebPageRendererClass = preload("res://scripts/apps/browser/web_page_renderer.gd")
+const BrowserHomePageScene: PackedScene = preload("res://scenes/apps/browser/browser_home_page.tscn")
 
 @onready var toolbar: PanelContainer = %ToolBar
 @onready var address_display: LineEdit = %AddressDisplay
@@ -524,6 +525,7 @@ func _stop_loading_animation() -> void:
 
 
 func _render_error(text: String) -> void:
+	_set_scene_page_scroll_mode(false)
 	_clear_content_root()
 	var T := BrowserThemeClass
 	var panel := PanelContainer.new()
@@ -561,109 +563,40 @@ func _render_idle_placeholder() -> void:
 	_render_home_page()
 
 
-func _build_home_quick_card(title_text: String, desc_text: String, url: String) -> Control:
-	var T := BrowserThemeClass
-	var panel := PanelContainer.new()
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	panel.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 12))
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 27)
-	margin.add_theme_constant_override("margin_top", 21)
-	margin.add_theme_constant_override("margin_right", 27)
-	margin.add_theme_constant_override("margin_bottom", 21)
-	panel.add_child(margin)
-
-	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 9)
-	margin.add_child(body)
-
-	var title := Label.new()
-	title.text = title_text
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", T.COLOR_TEXT)
-	body.add_child(title)
-
-	var desc := Label.new()
-	desc.text = desc_text
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	desc.add_theme_font_size_override("font_size", 22)
-	desc.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
-	body.add_child(desc)
-
-	panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	panel.gui_input.connect(_on_home_quick_card_gui_input.bind(url))
-	return panel
-
-
-func _build_home_history_card() -> Control:
-	var card := _build_home_quick_card("历史", "翻看刚才打开过的网页", "browser://history")
-	return card
-
-
-func _on_home_quick_card_gui_input(event: InputEvent, url: String) -> void:
-	if not event is InputEventMouseButton:
+func _render_home_page() -> void:
+	_set_scene_page_scroll_mode(false)
+	_clear_content_root()
+	var home_page: Control = BrowserHomePageScene.instantiate() as Control
+	if home_page == null:
+		_render_error("浏览器主页加载失败")
 		return
-	var mouse_event := event as InputEventMouseButton
-	if mouse_event.button_index != MOUSE_BUTTON_LEFT or not mouse_event.pressed:
+	home_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	home_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if home_page.has_signal("search_requested"):
+		home_page.connect("search_requested", Callable(self, "_on_home_search_requested"))
+	if home_page.has_signal("url_requested"):
+		home_page.connect("url_requested", Callable(self, "_on_home_url_requested"))
+	content_root.add_child(home_page)
+
+
+func _on_home_search_requested(query: String) -> void:
+	var normalized: String = query.strip_edges()
+	if normalized.is_empty():
 		return
-	if url == "browser://history":
-		_on_history_button_pressed()
+	if normalized.contains("://") or normalized.begins_with("www."):
+		if not normalized.contains("://"):
+			normalized = "https://" + normalized
+		_open_page(normalized)
 		return
+	_start_surf(normalized)
+
+
+func _on_home_url_requested(url: String) -> void:
 	_open_page(url)
 
 
-func _render_home_page() -> void:
-	_clear_content_root()
-
-	var T := BrowserThemeClass
-	var wrapper := VBoxContainer.new()
-	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wrapper.add_theme_constant_override("separation", 24)
-	content_root.add_child(wrapper)
-
-	var hero := PanelContainer.new()
-	hero.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	hero.add_theme_stylebox_override("panel", _make_content_panel_style(T.COLOR_SURFACE, T.COLOR_BORDER, 18))
-	wrapper.add_child(hero)
-
-	var hero_margin := MarginContainer.new()
-	hero_margin.add_theme_constant_override("margin_left", 48)
-	hero_margin.add_theme_constant_override("margin_top", 42)
-	hero_margin.add_theme_constant_override("margin_right", 48)
-	hero_margin.add_theme_constant_override("margin_bottom", 42)
-	hero.add_child(hero_margin)
-
-	var hero_body := VBoxContainer.new()
-	hero_body.add_theme_constant_override("separation", 16)
-	hero_margin.add_child(hero_body)
-
-	var title := Label.new()
-	title.text = "PixelNet"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 54)
-	title.add_theme_color_override("font_color", T.COLOR_ACCENT)
-	hero_body.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = "搜索网页、访问站点和查看浏览记录。"
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.add_theme_font_size_override("font_size", 27)
-	subtitle.add_theme_color_override("font_color", T.COLOR_TEXT_DIM)
-	hero_body.add_child(subtitle)
-
-	var quick_grid := GridContainer.new()
-	quick_grid.columns = 2
-	quick_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	quick_grid.add_theme_constant_override("h_separation", 24)
-	quick_grid.add_theme_constant_override("v_separation", 24)
-	wrapper.add_child(quick_grid)
-	quick_grid.add_child(_build_home_quick_card("欢迎页", "打开搜索入口和浏览器说明", "browser://welcome"))
-	quick_grid.add_child(_build_home_quick_card("服务公告", "查看浏览服务的最新消息", "browser://notice"))
-	quick_grid.add_child(_build_home_history_card())
-
-
 func _render_page(page_content: Dictionary) -> void:
+	_set_scene_page_scroll_mode(bool(page_content.get("owns_scroll", false)))
 	_clear_content_root()
 	if page_content.is_empty():
 		_render_error("网页内容为空")
@@ -695,6 +628,18 @@ func _render_page(page_content: Dictionary) -> void:
 		rendered = inner
 
 	content_root.add_child(rendered)
+
+
+func _set_scene_page_scroll_mode(owns_scroll: bool) -> void:
+	if content_scroll == null:
+		return
+	content_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED \
+		if owns_scroll else ScrollContainer.SCROLL_MODE_AUTO
+	content_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED \
+		if owns_scroll else ScrollContainer.SCROLL_MODE_AUTO
+	if owns_scroll:
+		content_scroll.scroll_vertical = 0
+		content_scroll.scroll_horizontal = 0
 
 
 func _instantiate_scene_page(scene_path: String, _page_content: Dictionary, _current_url: String) -> Control:
@@ -820,8 +765,10 @@ func _close_tab(tab_id: String) -> void:
 		_switch_tab(tab_id)
 		return
 
+	var closed_index: int = -1
 	for i in range(_tabs.size()):
 		if _tabs[i].tab_id == tab_id:
+			closed_index = i
 			_tabs.remove_at(i)
 			break
 
@@ -844,7 +791,8 @@ func _close_tab(tab_id: String) -> void:
 		return
 
 	if _current_tab_id == tab_id:
-		_switch_tab(_tabs[0].tab_id)
+		var fallback_index: int = clampi(closed_index - 1, 0, _tabs.size() - 1)
+		_switch_tab(_tabs[fallback_index].tab_id)
 	_refresh_window_lock()
 
 

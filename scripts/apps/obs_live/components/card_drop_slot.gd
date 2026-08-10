@@ -6,7 +6,7 @@ signal card_dropped(slot_key: Variant, data: Dictionary)
 const COLOR_PLACEHOLDER: Color = Color("#68748A")
 
 var _slot_edges: CardSlotEdges = null
-var _content_host: Control = null
+var _over_budget: bool = false
 
 
 func _ready() -> void:
@@ -32,6 +32,11 @@ func set_content(content: Control) -> void:
 	if _slot_edges == null:
 		_build_puzzle_chrome()
 	set_card(content)
+
+
+func set_over_budget(state: bool) -> void:
+	_over_budget = state
+	_refresh_style()
 
 
 func clear_content() -> void:
@@ -73,7 +78,7 @@ func _fit_puzzle() -> void:
 	_slot_edges.size = target
 	_slot_edges.queue_redraw()
 	_placeholder.position = Vector2(48, 48)
-	_placeholder.size = Vector2(maxi(target.x - 96.0, 1.0), maxi(target.y - 96.0, 1.0))
+	_placeholder.size = Vector2(maxf(target.x - 96.0, 1.0), maxf(target.y - 96.0, 1.0))
 
 
 func _refresh_style() -> void:
@@ -84,6 +89,7 @@ func _refresh_style() -> void:
 	_slot_edges.visible = not has_card()
 	var highlight: bool = _preview_active and _preview_ok and not locked
 	_slot_edges.set_interaction_state(false, highlight, locked)
+	_slot_edges.set_over_budget(_over_budget)
 	_slot_edges.queue_redraw()
 
 

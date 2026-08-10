@@ -1,7 +1,7 @@
 class_name CardTooltipView extends PanelContainer
 ## 卡牌 hover 提示：沿用卡体配色与描边，替代 Godot 默认 TooltipPanel。
 
-const MAX_TEXT_WIDTH: float = 340.0
+const MAX_TEXT_WIDTH: float = 520.0
 
 const BODY_COLOR: Color = Color("#F9FCFF")
 const BORDER_COLOR: Color = Color("#20283A")
@@ -26,7 +26,7 @@ func _ready() -> void:
 func _apply_style() -> void:
 	add_theme_stylebox_override("panel", _make_panel_style())
 	_body_label.add_theme_color_override("font_color", TEXT_COLOR)
-	_body_label.add_theme_font_size_override("font_size", 22)
+	_body_label.add_theme_font_size_override("font_size", 30)
 	_body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_body_label.custom_minimum_size.x = MAX_TEXT_WIDTH
 

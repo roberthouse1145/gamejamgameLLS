@@ -1,0 +1,51 @@
+@lore place_river
+scope: avg
+kind: fact
+priority: 100
+group: place
+keys: river|riverside
+cost: 40
+expand: place_district|located_in
+
+The riverside path belongs to the central district.
+@end
+
+@lore place_river_old
+scope: avg
+kind: fact
+priority: 10
+group: place
+keys: river
+cost: 40
+
+An older description of the riverside path.
+@end
+
+@lore river_rule
+scope: avg
+kind: constraint
+priority: 80
+keys: riverside
+cost: 40
+
+Keep the scene within the riverside path.
+@end
+
+@lore place_district
+scope: avg
+kind: fact
+priority: 20
+cost: 40
+
+The central district remains active after sunset.
+@end
+
+@lore mountain_note
+scope: avg
+kind: fact
+priority: 90
+keys: mountain
+cost: 40
+
+The mountain trail closes before sunset.
+@end

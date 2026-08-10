@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/automated/avg/test_avg_dsl_strict_output.gd" id="1_script"]
+
+[node name="TestAvgDslStrictOutput" type="Node"]
+script = ExtResource("1_script")

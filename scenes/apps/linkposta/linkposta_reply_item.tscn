@@ -1,0 +1,74 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/linkposta/linkposta_reply_item.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="2_avatar"]
+
+[node name="LinkPostaReplyItem" type="HBoxContainer"]
+custom_minimum_size = Vector2(0, 108)
+size_flags_horizontal = 3
+theme_override_constants/separation = 18
+script = ExtResource("1_script")
+
+[node name="DepthSpacer" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Avatar" parent="." instance=ExtResource("2_avatar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(76, 76)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="ReplyColumn" type="VBoxContainer" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+
+[node name="HeaderRow" type="HBoxContainer" parent="ReplyColumn"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="NameLabel" type="Label" parent="ReplyColumn/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.11, 0.12, 0.14, 1)
+theme_override_font_sizes/font_size = 29
+text = "账号名称"
+
+[node name="HandleLabel" type="Label" parent="ReplyColumn/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_font_sizes/font_size = 24
+text = "@account"
+vertical_alignment = 1
+
+[node name="HeaderSpacer" type="Control" parent="ReplyColumn/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="TimeLabel" type="Label" parent="ReplyColumn/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.5, 0.53, 0.57, 1)
+theme_override_font_sizes/font_size = 23
+text = "08-09 12:00"
+
+[node name="ReplyContextLabel" type="Label" parent="ReplyColumn"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_font_sizes/font_size = 23
+text = "回复 @account"
+
+[node name="ReplyBody" type="Label" parent="ReplyColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.16, 0.17, 0.19, 1)
+theme_override_font_sizes/font_size = 29
+text = "回复内容"
+autowrap_mode = 2
+theme_override_constants/line_spacing = 4

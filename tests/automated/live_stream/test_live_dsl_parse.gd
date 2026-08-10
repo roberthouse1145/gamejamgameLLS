@@ -3,6 +3,7 @@ extends Node
 
 const ParserScript = preload("res://scripts/game/live_stream/live_dsl_parser.gd")
 const PlayerScript = preload("res://scripts/apps/obs_live/components/live_show_player.gd")
+const PlayerScene = preload("res://scenes/apps/obs_live/components/live_show_player.tscn")
 
 const VALID_DSL: String = """posture: idle
 expression: strained
@@ -37,6 +38,7 @@ func _ready() -> void:
 	_test_fullwidth_separator()
 	_test_reject_invalid_wait()
 	_test_draw_without_replacement()
+	await _test_message_pools_are_consumed_in_order()
 	print("TEST_LIVE_DSL_PARSE_DONE")
 
 
@@ -196,5 +198,40 @@ func _test_draw_without_replacement() -> void:
 	var first_three: Array[String] = [drawn[0], drawn[1], drawn[2]]
 	first_three.sort()
 	assert(first_three == ["a", "b", "c"], "first bag should contain each pool item once")
-	assert(drawn[3] in pool and drawn[4] in pool, "refill should draw from full pool")
+	assert(drawn[3] in pool and drawn[4] in pool, "refill should draw from the current pool")
 	print("TEST_DRAW_WITHOUT_REPLACEMENT ok")
+
+
+func _test_message_pools_are_consumed_in_order() -> void:
+	var player: LiveShowPlayer = PlayerScene.instantiate() as LiveShowPlayer
+	add_child(player)
+	var display := StreamSceneDisplay.new()
+	var subtitle_panel := Control.new()
+	var subtitle_label := Label.new()
+	add_child(subtitle_panel)
+	add_child(subtitle_label)
+	player.setup(display, subtitle_panel, subtitle_label)
+
+	var received: Array[String] = []
+	player.chat_event.connect(func(event: Dictionary) -> void:
+		var entries: Array = event.get("entries", [])
+		if not entries.is_empty():
+			received.append(str(entries[0].get("text", "")))
+	)
+	var ops: Array = [
+		{"op": "chat", "messages": ["前池甲", "前池乙"], "count": 4},
+		{"op": "chat", "messages": ["后池甲", "后池乙"], "count": 4},
+	]
+	assert(player.play(ops, 42))
+	player.set_fast_forward(true)
+	await player.finished
+
+	assert(received.size() == 8, "both chat counts should be fully emitted")
+	for index: int in range(4):
+		assert(received[index] in ["前池甲", "前池乙"], "the first pool should finish before the next pool starts")
+	for index: int in range(4, 8):
+		assert(received[index] in ["后池甲", "后池乙"], "the next pool should only use its own messages")
+	player.queue_free()
+	subtitle_panel.queue_free()
+	subtitle_label.queue_free()
+	print("TEST_MESSAGE_POOLS_CONSUMED_IN_ORDER ok")

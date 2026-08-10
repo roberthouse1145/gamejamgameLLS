@@ -45,6 +45,7 @@ var _hover_index: int = -1
 var _preview_index: int = -1
 var _dragging_card: Control = null
 var _layout_dirty: bool = false
+var _draw_order_sync_queued: bool = false
 var _tweens: Dictionary = {} # Control -> Tween
 
 
@@ -247,14 +248,18 @@ func _on_card_clicked(card: Control) -> void:
 
 func _on_card_visual_state_changed(is_hovered: bool, is_dragging: bool, card: Control) -> void:
 	var index: int = _cards.find(card)
+	var draw_order_changed: bool = false
 	if is_dragging:
 		if index == _hover_index:
 			_hover_index = -1
+			draw_order_changed = true
 	elif is_hovered and index >= 0:
 		_hover_index = index
-		move_child(card, get_child_count() - 1)
+		draw_order_changed = true
 	elif index == _hover_index:
 		_hover_index = -1
+		draw_order_changed = true
+	if draw_order_changed:
 		_sync_card_draw_order()
 	_request_layout()
 
@@ -427,10 +432,23 @@ func layout_now() -> void:
 
 
 func _sync_card_draw_order() -> void:
+	if _draw_order_sync_queued:
+		return
+	_draw_order_sync_queued = true
+	call_deferred("_apply_card_draw_order")
+
+
+func _apply_card_draw_order() -> void:
+	_draw_order_sync_queued = false
 	for index: int in range(_cards.size()):
 		var card: Control = _cards[index]
 		if card.get_parent() == self:
 			move_child(card, index)
+	if _hover_index < 0 or _hover_index >= _cards.size():
+		return
+	var hovered_card: Control = _cards[_hover_index]
+	if hovered_card.get_parent() == self:
+		move_child(hovered_card, get_child_count() - 1)
 
 
 func _interaction_of(card: Control) -> CardInteraction:

@@ -1,0 +1,281 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/linkposta/linkposta_post_card.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="2_avatar"]
+
+[sub_resource type="StyleBoxFlat" id="Style_post"]
+bg_color = Color(1, 1, 1, 1)
+border_width_bottom = 1
+border_color = Color(0.88, 0.89, 0.91, 1)
+
+[sub_resource type="StyleBoxEmpty" id="Style_empty"]
+
+[sub_resource type="StyleBoxFlat" id="Style_verified"]
+bg_color = Color(1, 0.91, 0.93, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 9.0
+content_margin_top = 3.0
+content_margin_right = 9.0
+content_margin_bottom = 3.0
+
+[sub_resource type="StyleBoxFlat" id="Style_image"]
+bg_color = Color(0.965, 0.97, 0.978, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.84, 0.86, 0.89, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="Style_reply_layer"]
+bg_color = Color(0.965, 0.97, 0.978, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.89, 0.9, 0.92, 1)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="Style_action_hover"]
+bg_color = Color(1, 0.94, 0.95, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[sub_resource type="StyleBoxFlat" id="Style_action_pressed"]
+bg_color = Color(1, 0.88, 0.9, 1)
+corner_radius_top_left = 14
+corner_radius_top_right = 14
+corner_radius_bottom_right = 14
+corner_radius_bottom_left = 14
+
+[node name="LinkPostaPostCard" type="PanelContainer"]
+custom_minimum_size = Vector2(0, 280)
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("Style_post")
+script = ExtResource("1_script")
+
+[node name="PostMargin" type="MarginContainer" parent="."]
+layout_mode = 2
+theme_override_constants/margin_left = 38
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 38
+theme_override_constants/margin_bottom = 28
+
+[node name="ContentRow" type="HBoxContainer" parent="PostMargin"]
+layout_mode = 2
+theme_override_constants/separation = 28
+
+[node name="Avatar" parent="PostMargin/ContentRow" instance=ExtResource("2_avatar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="PostColumn" type="VBoxContainer" parent="PostMargin/ContentRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 16
+
+[node name="HeaderRow" type="HBoxContainer" parent="PostMargin/ContentRow/PostColumn"]
+layout_mode = 2
+theme_override_constants/separation = 9
+
+[node name="NameButton" type="Button" parent="PostMargin/ContentRow/PostColumn/HeaderRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 62)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.09, 0.1, 0.12, 1)
+theme_override_colors/font_hover_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_colors/font_pressed_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_font_sizes/font_size = 38
+theme_override_styles/normal = SubResource("Style_empty")
+theme_override_styles/hover = SubResource("Style_empty")
+theme_override_styles/pressed = SubResource("Style_empty")
+theme_override_styles/focus = SubResource("Style_empty")
+text = "账号名称"
+
+[node name="VerifiedBadge" type="Label" parent="PostMargin/ContentRow/PostColumn/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_font_sizes/font_size = 24
+theme_override_styles/normal = SubResource("Style_verified")
+text = "认证"
+vertical_alignment = 1
+
+[node name="MetaLabel" type="Label" parent="PostMargin/ContentRow/PostColumn/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_font_sizes/font_size = 28
+text = "@account"
+vertical_alignment = 1
+
+[node name="IdentityBadge" type="Label" parent="PostMargin/ContentRow/PostColumn/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "主播"
+vertical_alignment = 1
+
+[node name="HeaderSpacer" type="Control" parent="PostMargin/ContentRow/PostColumn/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="TimeLabel" type="Label" parent="PostMargin/ContentRow/PostColumn/HeaderRow"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_font_sizes/font_size = 26
+text = "08-09 12:00"
+vertical_alignment = 1
+
+[node name="PostBody" type="Label" parent="PostMargin/ContentRow/PostColumn"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.1, 0.11, 0.13, 1)
+theme_override_font_sizes/font_size = 38
+text = "帖子内容"
+autowrap_mode = 2
+theme_override_constants/line_spacing = 7
+
+[node name="LinkedButton" type="Button" parent="PostMargin/ContentRow/PostColumn"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 70)
+layout_mode = 2
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_colors/font_hover_color = Color(0.66, 0.13, 0.23, 1)
+theme_override_font_sizes/font_size = 28
+theme_override_styles/normal = SubResource("Style_empty")
+theme_override_styles/hover = SubResource("Style_action_hover")
+theme_override_styles/pressed = SubResource("Style_action_pressed")
+theme_override_styles/focus = SubResource("Style_empty")
+text = "打开链接"
+alignment = 0
+
+[node name="ImageSurface" type="PanelContainer" parent="PostMargin/ContentRow/PostColumn"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+clip_contents = true
+theme_override_styles/panel = SubResource("Style_image")
+
+[node name="ImageMargin" type="MarginContainer" parent="PostMargin/ContentRow/PostColumn/ImageSurface"]
+layout_mode = 2
+theme_override_constants/margin_left = 1
+theme_override_constants/margin_top = 1
+theme_override_constants/margin_right = 1
+theme_override_constants/margin_bottom = 1
+
+[node name="ImageTexture" type="TextureRect" parent="PostMargin/ContentRow/PostColumn/ImageSurface/ImageMargin"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 650)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="ActionDivider" type="HSeparator" parent="PostMargin/ContentRow/PostColumn"]
+layout_mode = 2
+theme_override_colors/separator = Color(0.9, 0.91, 0.93, 1)
+
+[node name="ActionRow" type="HBoxContainer" parent="PostMargin/ContentRow/PostColumn"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ReplyButton" type="Button" parent="PostMargin/ContentRow/PostColumn/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_colors/font_hover_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("Style_empty")
+theme_override_styles/hover = SubResource("Style_action_hover")
+theme_override_styles/pressed = SubResource("Style_action_pressed")
+theme_override_styles/focus = SubResource("Style_empty")
+text = "回复  0"
+
+[node name="RepostButton" type="Button" parent="PostMargin/ContentRow/PostColumn/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("Style_empty")
+theme_override_styles/hover = SubResource("Style_empty")
+theme_override_styles/pressed = SubResource("Style_empty")
+theme_override_styles/focus = SubResource("Style_empty")
+text = "转发  0"
+
+[node name="LikeButton" type="Button" parent="PostMargin/ContentRow/PostColumn/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_colors/font_hover_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_colors/icon_normal_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_colors/icon_hover_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("Style_empty")
+theme_override_styles/hover = SubResource("Style_action_hover")
+theme_override_styles/pressed = SubResource("Style_action_pressed")
+theme_override_styles/focus = SubResource("Style_empty")
+text = "点赞  0"
+icon_max_width = 34
+expand_icon = true
+
+[node name="DetailButton" type="Button" parent="PostMargin/ContentRow/PostColumn/ActionRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 72)
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_default_cursor_shape = 2
+theme_override_colors/font_color = Color(0.43, 0.47, 0.51, 1)
+theme_override_colors/font_hover_color = Color(0.79, 0.21, 0.31, 1)
+theme_override_font_sizes/font_size = 27
+theme_override_styles/normal = SubResource("Style_empty")
+theme_override_styles/hover = SubResource("Style_action_hover")
+theme_override_styles/pressed = SubResource("Style_action_pressed")
+theme_override_styles/focus = SubResource("Style_empty")
+text = "详情"
+
+[node name="ReplyLayer" type="PanelContainer" parent="PostMargin/ContentRow/PostColumn"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_styles/panel = SubResource("Style_reply_layer")
+
+[node name="ReplyMargin" type="MarginContainer" parent="PostMargin/ContentRow/PostColumn/ReplyLayer"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 20
+
+[node name="ReplyList" type="VBoxContainer" parent="PostMargin/ContentRow/PostColumn/ReplyLayer/ReplyMargin"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 18

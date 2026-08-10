@@ -39,6 +39,7 @@ var bgm_volume_db: float = 0.0:
 ## key: 逻辑名称，value: res:// 路径（延迟加载，首次使用时 load）
 var _sfx_registry: Dictionary = {
 	"ui_click": "res://Assets/sounds/ui/cursor_click.wav",
+	"stream_end": "res://Assets/sounds/live_stream/ui/stream_end_chime.wav",
 }
 
 ## 已加载的 AudioStream 缓存

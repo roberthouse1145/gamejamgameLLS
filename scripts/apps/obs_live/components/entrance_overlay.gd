@@ -1,88 +1,103 @@
 class_name EntranceOverlay extends Control
-## 确认开播后的入场动画与加载等待：固定短动画后停留在加载态，
-## 直到首拍内容就绪（set_ready）才发出 entrance_finished。
+## 确认开播后的入场视频：播完或点 Skip 即结束，不再等待 LLM。
 
 signal entrance_finished()
 
-const MIN_DURATION: float = 2.0
-const STATUS_LINES: Array[String] = [
-	"正在连接直播间…",
-	"推流已建立，正在同步节目单…",
-	"观众正在进入…",
-]
+const COLOR_SKIP_BG: Color = Color(0.1, 0.12, 0.18, 0.72)
+const COLOR_SKIP_BORDER: Color = Color("#C8D6EA")
+const COLOR_SKIP_TEXT: Color = Color("#FFFFFF")
 
-const COLOR_BG: Color = Color("#F0F4F8")
-const COLOR_TEXT: Color = Color("#1A2238")
-const COLOR_ACCENT: Color = Color("#E5486D")
-
-var _elapsed: float = 0.0
-var _content_ready: bool = false
+var _player: VideoStreamPlayer = null
+var _skip_button: Button = null
 var _playing: bool = false
 var _finished_emitted: bool = false
-var _status_label: Label = null
-var _dots_label: Label = null
-var _title_label: Label = null
 
 
 func _ready() -> void:
 	visible = false
+	mouse_filter = Control.MOUSE_FILTER_STOP
 	var bg := ColorRect.new()
-	bg.color = COLOR_BG
+	bg.color = Color(0.02, 0.03, 0.05, 1.0)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 36)
-	center.add_child(column)
-	_dots_label = _make_label("", 54, COLOR_ACCENT)
-	_dots_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_dots_label)
-	_status_label = _make_label("", 32, COLOR_TEXT)
-	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_status_label)
-	_title_label = _make_label("", 26, Color("#8793A5"))
-	_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(_title_label)
+
+	_player = VideoStreamPlayer.new()
+	_player.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_player.expand = true
+	_player.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_player.finished.connect(_on_video_finished)
+	add_child(_player)
+
+	_skip_button = Button.new()
+	_skip_button.text = "Skip"
+	_skip_button.custom_minimum_size = Vector2(140, 56)
+	_skip_button.add_theme_font_size_override("font_size", 26)
+	_skip_button.add_theme_color_override("font_color", COLOR_SKIP_TEXT)
+	_skip_button.add_theme_stylebox_override("normal", _make_skip_style(COLOR_SKIP_BG))
+	_skip_button.add_theme_stylebox_override("hover", _make_skip_style(Color(0.18, 0.22, 0.32, 0.85)))
+	_skip_button.add_theme_stylebox_override("pressed", _make_skip_style(Color(0.12, 0.15, 0.22, 0.9)))
+	_skip_button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	_skip_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_skip_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_skip_button.offset_left = -172.0
+	_skip_button.offset_top = 24.0
+	_skip_button.offset_right = -24.0
+	_skip_button.offset_bottom = 80.0
+	_skip_button.pressed.connect(skip)
+	add_child(_skip_button)
 
 
-func play(stream_title: String) -> void:
-	_elapsed = 0.0
-	_content_ready = false
+func play(video: VideoStream) -> void:
 	_playing = true
 	_finished_emitted = false
-	_title_label.text = "《%s》" % stream_title
-	_status_label.text = STATUS_LINES[0]
 	visible = true
-	modulate = Color(1, 1, 1, 0)
-	var tween := create_tween()
-	tween.tween_property(self, "modulate:a", 1.0, 0.4)
+	modulate = Color(1, 1, 1, 1)
+	_skip_button.visible = true
+	_skip_button.disabled = false
+	if video == null:
+		call_deferred("_finish")
+		return
+	_player.stream = video
+	_player.play()
 
 
-func set_ready() -> void:
-	_content_ready = true
-
-
-func _process(delta: float) -> void:
+func skip() -> void:
 	if not _playing or _finished_emitted:
 		return
-	_elapsed += delta
-	var status_index: int = clampi(int(_elapsed / 0.8), 0, STATUS_LINES.size() - 1)
-	_status_label.text = STATUS_LINES[status_index]
-	var dot_count: int = int(_elapsed * 3.0) % 4
-	_dots_label.text = "● ".repeat(dot_count + 1)
-	if _elapsed >= MIN_DURATION and _content_ready:
-		_finished_emitted = true
-		var tween := create_tween()
-		tween.tween_property(self, "modulate:a", 0.0, 0.35)
-		tween.tween_callback(func() -> void: visible = false)
+	_finish()
+
+
+func _on_video_finished() -> void:
+	if not _playing or _finished_emitted:
+		return
+	_finish()
+
+
+func _finish() -> void:
+	if _finished_emitted:
+		return
+	_finished_emitted = true
+	_playing = false
+	if _player != null:
+		_player.stop()
+	_skip_button.disabled = true
+	var tween := create_tween()
+	tween.tween_property(self, "modulate:a", 0.0, 0.3)
+	tween.tween_callback(func() -> void:
+		visible = false
 		entrance_finished.emit()
+	)
 
 
-func _make_label(text_value: String, font_size: int, color: Color) -> Label:
-	var label := Label.new()
-	label.text = text_value
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", color)
-	return label
+func _make_skip_style(bg_color: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = bg_color
+	style.border_color = COLOR_SKIP_BORDER
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(14)
+	style.content_margin_left = 18
+	style.content_margin_right = 18
+	style.content_margin_top = 10
+	style.content_margin_bottom = 10
+	return style

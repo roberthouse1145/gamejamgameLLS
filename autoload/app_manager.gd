@@ -19,6 +19,7 @@ signal app_closed(app_id: String)
 signal app_registered(app_id: String, app_definition: Resource)
 signal app_unregistered(app_id: String)
 signal app_desktop_visibility_changed(app_id: String, desired_visible: bool)
+signal web_shortcut_opened(app_id: String, url: String, browser_window: Control)
 
 # App registry: app_id -> AppDefinition
 var app_registry: Dictionary = {}
@@ -50,6 +51,8 @@ func _register_all_apps() -> void:
 		"res://resources/apps/browser_app.tres",
 		"res://resources/apps/image_viewer_app.tres",
 		"res://resources/apps/linkchat_app.tres",
+		"res://resources/apps/cityhop_app.tres",
+		"res://resources/apps/linkposta_app.tres",
 		"res://resources/apps/streamer_center_app.tres",
 		"res://resources/apps/obs_live_app.tres",
 	]
@@ -85,9 +88,9 @@ func register_app(definition: Resource) -> void:
 		push_warning("AppManager: Cannot register app with empty app_id")
 		return
 	
-	# Validate entry_scene is not null
-	if definition.entry_scene == null:
-		push_warning("AppManager: Cannot register app '%s' with null entry_scene" % app_id)
+	# 原生应用需要场景；Web 快捷应用只需要 URL。
+	if definition.entry_scene == null and definition.launch_url.strip_edges().is_empty():
+		push_warning("AppManager: App '%s' requires an entry_scene or launch_url" % app_id)
 		return
 	
 	# Check if app_id already exists
@@ -107,11 +110,19 @@ func launch_app(app_id: String, force_launch: bool = false) -> Control:
 	if not app_registry.has(app_id):
 		push_warning("AppManager: App '%s' is not registered" % app_id)
 		return null
+	if not _story_lock_allows_launch(app_id):
+		_notify_story_lock()
+		return null
 
 	# Runtime access control
 	if not force_launch and not is_app_accessible(app_id):
 		push_warning("AppManager: App '%s' is currently restricted by runtime policy" % app_id)
 		return null
+
+	var definition: Resource = app_registry[app_id]
+	var launch_url: String = definition.launch_url.strip_edges()
+	if not launch_url.is_empty():
+		return _launch_web_shortcut(app_id, launch_url)
 
 	# Check if app is already running - focus existing window
 	if is_app_running(app_id):
@@ -119,9 +130,6 @@ func launch_app(app_id: String, force_launch: bool = false) -> Control:
 		if window_manager:
 			window_manager.focus_window(existing_window)
 		return existing_window
-	
-	# Get the app definition
-	var definition: Resource = app_registry[app_id]
 	
 	# Instantiate entry_scene
 	var content: Control = definition.entry_scene.instantiate() as Control
@@ -148,6 +156,7 @@ func launch_app(app_id: String, force_launch: bool = false) -> Control:
 	
 	# Track in running_apps
 	running_apps[app_id] = window
+	_apply_window_story_lock(app_id, window)
 	
 	# Connect window close signal to handle app closure
 	window.close_requested.connect(_on_app_window_closed.bind(app_id))
@@ -156,6 +165,20 @@ func launch_app(app_id: String, force_launch: bool = false) -> Control:
 	app_launched.emit(app_id, window)
 	
 	return window
+
+
+func _launch_web_shortcut(app_id: String, url: String) -> Control:
+	var browser_window: Control = focus_app("browser", true)
+	if browser_window == null:
+		push_error("AppManager: Web shortcut '%s' could not open Browser" % app_id)
+		return null
+	var browser_content: Control = browser_window.get("content") as Control
+	if browser_content == null or not browser_content.has_method("navigate_to"):
+		push_error("AppManager: Browser content cannot navigate to '%s'" % url)
+		return null
+	browser_content.call_deferred("navigate_to", url)
+	web_shortcut_opened.emit(app_id, url, browser_window)
+	return browser_window
 
 
 ## Handle window close for an app
@@ -174,6 +197,9 @@ func close_app(app_id: String, force_close: bool = false) -> bool:
 	if not is_app_running(app_id):
 		if not force_close:
 			push_warning("AppManager: App '%s' is not running" % app_id)
+		return false
+	if not force_close and not _story_lock_allows_close(app_id):
+		_notify_story_lock()
 		return false
 	
 	# Get the window
@@ -220,6 +246,9 @@ func get_app_window(app_id: String) -> Control:
 
 
 func focus_app(app_id: String, force_launch: bool = false) -> Control:
+	if not _story_lock_allows_launch(app_id):
+		_notify_story_lock()
+		return null
 	if is_app_running(app_id):
 		var window: Control = running_apps[app_id]
 		if window_manager != null and window_manager.has_method("focus_window"):
@@ -228,6 +257,44 @@ func focus_app(app_id: String, force_launch: bool = false) -> Control:
 	if force_launch:
 		return launch_app(app_id, true)
 	return null
+
+
+func apply_story_locks() -> void:
+	for app_id_value: Variant in running_apps.keys():
+		var app_id: String = str(app_id_value)
+		var window: Control = running_apps.get(app_id) as Control
+		if window != null and is_instance_valid(window):
+			_apply_window_story_lock(app_id, window)
+
+
+func _apply_window_story_lock(app_id: String, window: Control) -> void:
+	var protected: bool = not _story_lock_allows_close(app_id)
+	if window.has_method("set_close_locked"):
+		window.call("set_close_locked", protected)
+	if window.has_method("set_minimize_locked"):
+		window.call("set_minimize_locked", protected)
+
+
+func _story_lock_allows_launch(app_id: String) -> bool:
+	var manager: Node = get_node_or_null("/root/StoryLockManager")
+	return manager == null or not manager.has_method("can_launch_app") \
+		or bool(manager.call("can_launch_app", app_id))
+
+
+func _story_lock_allows_close(app_id: String) -> bool:
+	var manager: Node = get_node_or_null("/root/StoryLockManager")
+	return manager == null or not manager.has_method("can_close_app") \
+		or bool(manager.call("can_close_app", app_id))
+
+
+func _notify_story_lock() -> void:
+	var manager: Node = get_node_or_null("/root/StoryLockManager")
+	var reason: String = "当前剧情尚未结束"
+	if manager != null and manager.has_method("get_reason"):
+		reason = str(manager.call("get_reason"))
+	var desktop: Node = get_tree().get_first_node_in_group("desktop")
+	if desktop != null and desktop.has_method("show_system_notification"):
+		desktop.call("show_system_notification", "暂时无法操作", reason, "warning", 3.0)
 
 
 func lock_app_window(app_id: String) -> bool:

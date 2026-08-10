@@ -6,7 +6,6 @@
 [ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_2ogcq"]
 [ext_resource type="Texture2D" uid="uid://bau33kpjofu1o" path="res://Assets/images/live_stream/cards/icons/family_game.svg" id="4"]
 [ext_resource type="Script" uid="uid://b0wgs72067lck" path="res://scripts/game/resources/live_stream/material_locked_card.gd" id="5_jnvb0"]
-[ext_resource type="Script" uid="uid://p1r0pl3acdgx" path="res://scripts/game/resources/live_stream/material_progress_locks.gd" id="6_j4ij8"]
 
 [sub_resource type="Resource" id="Affinity"]
 script = ExtResource("2")
@@ -20,9 +19,6 @@ quality = 1.0
 
 [resource]
 script = ExtResource("1")
-initial_depth = 5.0
-max_progress = 5
-freshness_decay = 0.15
 base_popularity = 90.0
 program_slot_count = 3
 affinity = SubResource("Affinity")
@@ -32,3 +28,4 @@ display_name = "悠闲岛生活存档"
 description = "适合慢慢逛、慢慢聊的休闲游戏进度。"
 icon = ExtResource("4")
 tags = Array[StringName]([&"game", &"casual"])
+prompt_fragment = "悠闲岛生活模拟游戏的一份存档。游戏内容包括：河边钓鱼、自家田里种稻子、岛上各处闲逛、与居民闲聊；节奏缓慢、没有战斗和压力，核心是日常劳作与岛上的温情互动。存档里留有不少细节：一片特意保留没砍的树、海边能钓到蓝鳟鱼的水域、通关后老爷爷会来搭桥的传说。这类素材适合慢慢逛、慢慢聊，可能触发放松的闲聊氛围和对岛上日常的讨论。"

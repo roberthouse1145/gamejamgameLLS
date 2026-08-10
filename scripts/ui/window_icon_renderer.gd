@@ -11,7 +11,7 @@ const COLOR_DEFAULT: Color = Color("#6B7086")
 static func create_minimize_icon(color: Color = COLOR_DEFAULT) -> ImageTexture:
 	var img := Image.create(ICON_SIZE, ICON_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var cy: int = ICON_SIZE / 2
+	var cy: int = int(ICON_SIZE * 0.5)
 	var x0: int = int(ICON_SIZE * 0.25)
 	var x1: int = int(ICON_SIZE * 0.75)
 	for x: int in range(x0, x1 + 1):

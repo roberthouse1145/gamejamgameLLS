@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="StreamRoomThemeResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/stream_room_theme_resource.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://db27mytgs6mvu" path="res://Assets/images/backgrounds/yunyou_desktop.png" id="2_live"]
+[ext_resource type="VideoStream" uid="uid://b7jq8pdouedwo" path="res://Assets/video/stream_startup.ogv" id="4_video"]
+
+[resource]
+script = ExtResource("1_script")
+live_background = ExtResource("2_live")
+entrance_video = ExtResource("4_video")

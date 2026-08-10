@@ -1,11 +1,16 @@
-[gd_resource type="Resource" script_class="StreamerCharacter" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="CharacterProfile" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://scripts/game/resources/streamer_character.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/character_profile.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/apps/linkchat/resources/linkchat_profile.gd" id="2_linkchat"]
+
+[sub_resource type="Resource" id="LinkChatProfile_su_he"]
+script = ExtResource("2_linkchat")
+account_name = "苏禾"
 
 [resource]
 script = ExtResource("1")
-character_key = "su_he"
-chat_display_name = "苏禾"
+character_id = "su_he"
 display_name = "苏禾"
 role = "close_friend"
 persona_prompt = "苏禾，阮云柚的闺蜜，上班族，正常人生的参照系。纯情感支持、减压力主力；长期不见会来敲门。"
+linkchat_profile = SubResource("LinkChatProfile_su_he")

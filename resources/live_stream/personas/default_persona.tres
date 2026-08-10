@@ -1,14 +1,22 @@
 [gd_resource type="Resource" script_class="StreamPersonaResource" format=3 uid="uid://bva2hureqqmtj"]
 
 [ext_resource type="Script" uid="uid://ci5afkewd5muq" path="res://scripts/game/resources/live_stream/persona_resource.gd" id="1"]
-[ext_resource type="Texture2D" uid="uid://di33ja4iggbb5" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="2"]
-[ext_resource type="Resource" path="res://resources/live_stream/models/platinum.tres" id="3_model"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/personas/white_star_sleep/channel_avatar.png" id="2_channel_avatar"]
+[ext_resource type="Resource" uid="uid://b55ckxqvxj8g" path="res://resources/live_stream/models/platinum.tres" id="3_model"]
+[ext_resource type="AudioStream" uid="uid://bhykq6un6ytpd" path="res://Assets/sounds/live_stream/voices/ruan_yunyou_blip.wav" id="4_speech_blip"]
+[ext_resource type="Texture2D" path="res://Assets/images/live_stream/personas/white_star_sleep/resting_background.png" id="5_resting_background"]
 
 [resource]
 script = ExtResource("1")
 model = ExtResource("3_model")
+channel_name = "白星眠"
+channel_avatar = ExtResource("2_channel_avatar")
+resting_background = ExtResource("5_resting_background")
+speech_blip = ExtResource("4_speech_blip")
+speech_blip_volume_db = -5.0
 content_id = &"persona_default"
-display_name = "阮云柚"
-description = "暂不叠加额外人设，以她本来的性格完成直播。"
-icon = ExtResource("2")
+display_name = "白星眠"
+description = "安静寡言的白发星夜系主播，灰白长外套与星纹领带是她固定的频道形象。"
+icon = ExtResource("2_channel_avatar")
 tags = Array[StringName]([&"persona"])
+prompt_fragment = "你以白星眠的身份直播：银白短发、灰色眼睛，穿宽松的灰白长外套与星纹领带。说话轻声细语、慢条斯理，情绪起伏不大，偶尔会因为紧张或害羞而小声结巴；观察力强，习惯先观察再开口，评论内容冷静克制，但偶尔会流露出呆萌的一面。"

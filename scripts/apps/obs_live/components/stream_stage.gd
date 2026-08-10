@@ -14,8 +14,10 @@ signal live_chat_event(event: Dictionary)
 @onready var channel_tag: Label = %ChannelTag
 @onready var fast_button: Button = %FastButton
 @onready var skip_button: Button = %SkipButton
+@onready var room_status: Label = %RoomStatus
 
 @onready var _video_frame: Control = %VideoFrame
+@onready var _channel_row: Control = $ChannelRow
 @onready var _camera_clip: Control = %CameraClip
 @onready var _preview_container: SubViewportContainer = %PreviewContainer
 @onready var _stream_display: StreamSceneDisplay = %StreamSceneDisplay
@@ -23,6 +25,7 @@ signal live_chat_event(event: Dictionary)
 @onready var _subtitle_panel: PanelContainer = %SubtitlePanel
 @onready var _subtitle_label: Label = %SubtitleLabel
 @onready var _live_dot: Label = %LiveDot
+@onready var entrance_overlay: EntranceOverlay = %EntranceOverlay
 
 ## 观看人数由 obs_live_app 根据本场热度结算注入并实时刷新。
 var viewers_target: int = 0:
@@ -33,6 +36,8 @@ var viewers_target: int = 0:
 
 var _playing: bool = false
 var _persona: StreamPersonaResource = null
+var _room_theme: StreamRoomThemeResource = null
+var _resting: bool = true
 
 
 func _ready() -> void:
@@ -46,20 +51,56 @@ func _ready() -> void:
 	call_deferred("_layout_preview")
 
 
+func apply_room_theme(room_theme: StreamRoomThemeResource) -> void:
+	_room_theme = room_theme
+	if _resting:
+		show_resting()
+	else:
+		show_live()
+
+
+func show_resting() -> void:
+	_resting = true
+	if _persona != null and _persona.resting_background != null:
+		_stream_display.set_background(_persona.resting_background)
+	_stream_display.set_avatar_visible(false)
+	if _subtitle_panel != null:
+		_subtitle_panel.visible = false
+	if room_status != null:
+		room_status.text = "等待开播"
+
+
+func show_live() -> void:
+	_resting = false
+	if _room_theme != null and _room_theme.live_background != null:
+		_stream_display.set_background(_room_theme.live_background)
+	_stream_display.set_avatar_visible(true)
+	if room_status != null:
+		room_status.text = "直播中"
+
+
+func set_elapsed_text(value: String) -> void:
+	live_clock.text = value
+
+
 func refresh_channel_info() -> void:
-	channel_name.text = _get_streamer_name()
+	if _persona == null:
+		return
+	channel_name.text = _persona.channel_name
 	channel_tag.text = _format_subscribers()
-	if _persona != null:
-		avatar_rect.texture = _persona.icon
-		avatar_rect.fallback_text = _persona.display_name.left(1)
+	avatar_rect.set_avatar(_persona.channel_avatar, _persona.channel_name)
 
 
 func setup_persona(persona: StreamPersonaResource) -> bool:
 	_persona = persona
-	if _persona == null or _persona.model == null:
+	_show_player.configure_persona(_persona)
+	if _persona == null or not _persona.is_valid():
 		return false
 	refresh_channel_info()
-	return _stream_display.setup(_persona.model)
+	var ok: bool = _stream_display.setup(_persona.model)
+	if _resting:
+		show_resting()
+	return ok
 
 
 func get_model_resource() -> StreamerModelResource:
@@ -71,8 +112,10 @@ func play_show(show_data: Dictionary, seed_value: int = 1) -> bool:
 	if _persona == null or _persona.model == null or ops.is_empty():
 		return false
 	_show_player.stop()
+	show_live()
 	if not _stream_display.setup(_persona.model):
 		return false
+	_stream_display.set_avatar_visible(true)
 	_start_show_after_avatar_ready(ops, seed_value)
 	return true
 
@@ -96,15 +139,6 @@ func is_playing() -> bool:
 	return _playing
 
 
-func _get_streamer_name() -> String:
-	var game_state: Node = get_node_or_null("/root/GameState")
-	if game_state != null:
-		var streamer_name: String = str(game_state.get("streamer_name"))
-		if not streamer_name.is_empty():
-			return streamer_name
-	return _persona.display_name if _persona != null else "主播"
-
-
 func _format_subscribers() -> String:
 	var fans: int = 0
 	var game_state: Node = get_node_or_null("/root/GameState")
@@ -115,12 +149,30 @@ func _format_subscribers() -> String:
 	return "%d 位订阅者" % fans
 
 
-## 画面高度只由实际宽度按 16:9 决定，避免父级高度参与计算造成循环收缩。
+## 视频区自适应容器：高度取 min(可用高度, 容器宽 × 9/16)，宽度 = 高 × 16/9。
+## 高度只依赖 StreamStage 自身布局结果，不依赖 VideoFrame 尺寸，无布局循环。
 func _update_video_height() -> void:
-	var width: float = size.x
-	if width < 2.0:
+	var container_width: float = size.x
+	var stage_height: float = size.y
+	if container_width < 2.0 or stage_height < 2.0:
 		return
-	_video_frame.custom_minimum_size.y = width * 9.0 / 16.0
+	var fixed_height: float = 0.0
+	var control_count: int = 0
+	for child: Node in get_children():
+		var control := child as Control
+		if control == null:
+			continue
+		control_count += 1
+		if child != _video_frame:
+			fixed_height += control.size.y
+	fixed_height += (control_count - 1) * get_theme_constant("separation")
+	var available_height: float = stage_height - fixed_height
+	var height: float = minf(available_height, container_width * 9.0 / 16.0)
+	if height < 2.0:
+		return
+	_video_frame.custom_minimum_size = Vector2(height * 16.0 / 9.0, height)
+	live_title.custom_minimum_size.x = _video_frame.custom_minimum_size.x
+	_channel_row.custom_minimum_size.x = _video_frame.custom_minimum_size.x
 
 
 func _layout_preview() -> void:
@@ -156,4 +208,6 @@ func _finish_show() -> void:
 	if not _playing:
 		return
 	_playing = false
+	show_resting()
+	room_status.text = "已下播"
 	show_finished.emit()

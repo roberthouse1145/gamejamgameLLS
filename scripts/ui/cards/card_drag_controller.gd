@@ -114,10 +114,10 @@ func _end_drag() -> void:
 func _try_commit(card: Control, interaction: CardInteraction, source: Node, source_index: int, target: Node) -> bool:
 	if target == source:
 		if target.has_method("commit_reorder"):
-			var drop_global: Vector2 = card.global_position
+			var reorder_global: Vector2 = card.global_position
 			var ok: bool = bool(target.call("commit_reorder", card, get_global_mouse_position()))
 			if ok:
-				card.global_position = drop_global
+				card.global_position = reorder_global
 				_settle_into_container(card, interaction, target)
 				move_committed.emit(card, interaction.get_card_payload(), source, target)
 			return ok
@@ -183,23 +183,23 @@ func _try_commit(card: Control, interaction: CardInteraction, source: Node, sour
 
 func _return_to_source(card: Control, interaction: CardInteraction) -> void:
 	if _source == null:
-		var drop_global: Vector2 = card.global_position
+		var original_global: Vector2 = card.global_position
 		if is_instance_valid(_original_parent):
 			if card.get_parent() != null:
 				card.get_parent().remove_child(card)
 			_original_parent.add_child(card)
 			_original_parent.move_child(card, clampi(_original_child_index, 0, _original_parent.get_child_count() - 1))
-			card.global_position = drop_global
+			card.global_position = original_global
 			interaction.settle_to(_source_home)
 		else:
 			interaction.snap_idle()
 		return
-	var drop_global: Vector2 = card.global_position
+	var return_global: Vector2 = card.global_position
 	if _source.has_method("insert_card"):
 		_source.call("insert_card", card, _source_index)
 	elif _source.has_method("set_card"):
 		_source.call("set_card", card)
-	card.global_position = drop_global
+	card.global_position = return_global
 	_settle_into_container(card, interaction, _source)
 
 

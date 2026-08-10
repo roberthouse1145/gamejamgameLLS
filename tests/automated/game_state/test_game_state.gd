@@ -57,13 +57,14 @@ func _test_threshold_signal() -> void:
 
 
 func _test_relationship() -> void:
-	var character: StreamerCharacter = load("res://resources/characters/lu_yuanyuan.tres")
-	_check(character != null and character.character_key == "lu_yuanyuan", "角色资源可加载")
-	_check(character.role == StreamerCharacter.ROLE_CHILDHOOD_FRIEND
+	var character: CharacterProfile = load("res://resources/characters/lu_yuanyuan.tres")
+	_check(character != null and character.character_id == "lu_yuanyuan", "角色资源可加载")
+	_check(character.role == CharacterProfile.ROLE_CHILDHOOD_FRIEND
 		and character.address_to_heroine == "柚柚"
-		and not character.persona_prompt.is_empty(), "角色字段完整")
+		and not character.persona_prompt.is_empty()
+		and character.linkchat_profile.account_name == "鸢鸢", "角色字段完整")
 
-	var named_fan: StreamerCharacter = load("res://resources/characters/lu_ling.tres")
+	var named_fan: CharacterProfile = load("res://resources/characters/lu_ling.tres")
 	_check(named_fan != null and named_fan.is_named_fan, "鹿铃具名例外标记")
 
 	GameState.init_relationship(character)
@@ -99,7 +100,6 @@ func _test_serialization_roundtrip() -> void:
 	GameState.set_attribute(GameState.ATTR_LONELINESS, 42)
 	GameState.add_money(880)
 	GameState.set_fans(12458)
-	GameState.streamer_name = "柚柚子"
 	GameState.flame_value = 12.5
 	GameState.contract = {"debt": 500000, "period_results": [true, false]}
 
@@ -107,11 +107,9 @@ func _test_serialization_roundtrip() -> void:
 	GameState.set_attribute(GameState.ATTR_LONELINESS, 0)
 	GameState.add_money(-880)
 	GameState.set_fans(0)
-	GameState.streamer_name = ""
 	GameState.from_dict(snapshot)
 
 	_check(GameState.loneliness == 42 and GameState.money == 880
 		and GameState.fans == 12458
-		and GameState.streamer_name == "柚柚子"
 		and GameState.contract["debt"] == 500000, "序列化往返还原数值")
 	_check(JSON.stringify(GameState.to_dict()) == JSON.stringify(snapshot), "序列化往返一致")

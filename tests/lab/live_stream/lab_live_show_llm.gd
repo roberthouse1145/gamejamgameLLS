@@ -30,8 +30,6 @@ func _ready() -> void:
 		"fan_vector": {"r": 60.0, "m": 25.0, "w": 10.0, "c": 4.0, "b": 1.0},
 		"material_instance": {
 			"definition_id": String(CATALOG.materials[0].content_id) if not CATALOG.materials.is_empty() else "",
-			"depth": 4.0,
-			"freshness": 1.0,
 		},
 	}
 	var result: StreamSettlementResult = LiveStreamCalculator.new().calculate(plan, CATALOG, BALANCE)

@@ -39,11 +39,20 @@ func open_image(image_path: String, image_title: String = "") -> bool:
 	if loaded_texture == null:
 		_show_load_error("图片资源无法读取")
 		return false
-	_texture = loaded_texture
+	var title: String = image_title if not image_title.strip_edges().is_empty() \
+		else image_path.get_file().get_basename()
+	return open_texture(loaded_texture, title)
+
+
+func open_texture(texture: Texture2D, image_title: String = "") -> bool:
+	if texture == null:
+		_show_load_error("图片资源无法读取")
+		return false
+	_texture = texture
 	image_texture.texture = _texture
 	image_texture.visible = true
 	empty_label.visible = false
-	title_label.text = image_title if not image_title.strip_edges().is_empty() else image_path.get_file().get_basename()
+	title_label.text = image_title if not image_title.strip_edges().is_empty() else "图片"
 	_fit_to_window = true
 	_zoom = 1.0
 	_refresh_image_size.call_deferred()
@@ -96,10 +105,10 @@ func _refresh_image_size() -> void:
 	if _texture == null or not is_instance_valid(image_scroll):
 		_refresh_controls()
 		return
-	var scale := clampf(_effective_zoom(), MIN_ZOOM, MAX_ZOOM)
+	var zoom_scale := clampf(_effective_zoom(), MIN_ZOOM, MAX_ZOOM)
 	if _fit_to_window:
-		_zoom = scale
-	var display_size := _texture.get_size() * scale
+		_zoom = zoom_scale
+	var display_size := _texture.get_size() * zoom_scale
 	image_texture.custom_minimum_size = display_size
 	image_center.custom_minimum_size = Vector2(
 		maxf(display_size.x, image_scroll.size.x - 6.0),

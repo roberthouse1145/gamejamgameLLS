@@ -15,9 +15,10 @@ enum WizardStep {
 }
 
 const STEP_COUNT: int = 3
-const MAX_TITLE_LENGTH: int = 48
+const SAVED_STATE_PATH: String = "user://obs_live_wizard.cfg"
 const CATALOG: LiveStreamCatalog = preload("res://resources/live_stream/catalogs/vertical_slice_catalog.tres")
 const BALANCE: LiveStreamBalance = preload("res://resources/live_stream/balance/vertical_slice_balance.tres")
+const ROOM_THEME: StreamRoomThemeResource = preload("res://resources/live_stream/rooms/stream_room.tres")
 
 var _current_step: int = WizardStep.SETUP
 var _draft: Dictionary = {}
@@ -30,6 +31,7 @@ var _calculator := LiveStreamCalculator.new()
 
 func _ready() -> void:
 	GameState.streamer_progress_changed.connect(_on_streamer_progress_changed)
+	GameState.persona_changed.connect(_on_persona_changed)
 	call_deferred("_connect_material_inventory")
 	_ensure_persona_state()
 	reset_draft()
@@ -42,7 +44,7 @@ func reset_draft() -> void:
 	_pending_result = null
 	_draft = {
 		"title": "",
-		"persona_id": "",
+		"persona_id": GameState.active_persona_id,
 		"material_instance_id": "",
 		"behavior_slots": [],
 		"locked_behavior_slot_indices": [],
@@ -50,8 +52,54 @@ func reset_draft() -> void:
 		"modifier_slots": [],
 	}
 	_resize_slots()
+	clear_saved_run_state()
+	_emit_step_changed()
+	_emit_draft_changed()
+
+
+## 上次配置落盘（策划 §10.1.4 老玩家快捷：默认沿用上次配置）。
+func save_run_state() -> void:
+	var config := ConfigFile.new()
+	config.set_value("wizard", "current_step", _current_step)
+	config.set_value("wizard", "draft", get_draft())
+	config.save(SAVED_STATE_PATH)
+
+
+func has_saved_run_state() -> bool:
+	var config := ConfigFile.new()
+	return config.load(SAVED_STATE_PATH) == OK and config.has_section("wizard")
+
+
+## 恢复上次配置；若配置已失效（素材消耗/卡被锁等）则回退到第一步。
+func load_saved_run_state() -> bool:
+	var config := ConfigFile.new()
+	if config.load(SAVED_STATE_PATH) != OK:
+		return false
+	var data := {
+		"current_step": int(config.get_value("wizard", "current_step", WizardStep.SETUP)),
+		"draft": config.get_value("wizard", "draft", {}),
+	}
+	if not load_run_state(data):
+		return false
+	if not can_advance(_current_step):
+		_current_step = WizardStep.SETUP
+		_emit_step_changed()
+	return true
+
+
+func clear_saved_run_state() -> void:
+	if FileAccess.file_exists(SAVED_STATE_PATH):
+		DirAccess.remove_absolute(SAVED_STATE_PATH)
+
+
+func _emit_step_changed() -> void:
 	step_changed.emit(_current_step)
+	save_run_state()
+
+
+func _emit_draft_changed() -> void:
 	draft_changed.emit(get_draft())
+	save_run_state()
 
 
 func get_current_step() -> int:
@@ -68,6 +116,34 @@ func get_personas() -> Array[StreamPersonaResource]:
 	return result
 
 
+## 当前扮演中的人设（开播前不可切换；切换走毕业转生，见策划案 §4.10）。
+func get_active_persona() -> StreamPersonaResource:
+	return CATALOG.get_persona(StringName(GameState.active_persona_id))
+
+
+func get_graduated_personas() -> Array[String]:
+	return GameState.graduated_personas.duplicate()
+
+
+## 毕业转生（策划案 §4.10）：切换当前人设的唯一途径。
+## 门控：目标人设必须存在、不是当前人设、未毕业。粉丝/熟练度/固化度由 GameState 重建。
+func perform_graduation(new_persona_id: StringName) -> bool:
+	var persona: StreamPersonaResource = CATALOG.get_persona(new_persona_id)
+	if persona == null or String(new_persona_id) == GameState.active_persona_id:
+		return false
+	if String(new_persona_id) in GameState.graduated_personas:
+		return false
+	if not GameState.graduation_transform(
+		String(new_persona_id),
+		persona.initial_proficiency,
+		persona.initial_fixation
+	):
+		return false
+	_draft["persona_id"] = GameState.active_persona_id
+	_emit_draft_changed()
+	return true
+
+
 func get_material_instances() -> Array[Dictionary]:
 	var material_manager: Node = get_node_or_null("/root/MaterialInventoryManager")
 	return material_manager.get_instances() if material_manager != null else []
@@ -76,6 +152,10 @@ func get_material_instances() -> Array[Dictionary]:
 func get_persona(persona_id: StringName = &"") -> StreamPersonaResource:
 	var resolved_id: StringName = persona_id if persona_id != &"" else StringName(str(_draft.get("persona_id", "")))
 	return CATALOG.get_persona(resolved_id)
+
+
+func get_room_theme() -> StreamRoomThemeResource:
+	return ROOM_THEME
 
 
 func get_material_instance(instance_id: StringName = &"") -> Dictionary:
@@ -90,30 +170,15 @@ func get_material_definition(instance_id: StringName = &"") -> LiveStreamMateria
 	return material_manager.get_definition_for_instance(resolved_id) if material_manager != null else null
 
 
-func set_title(value: String) -> void:
-	var normalized: String = value.replace("\n", " ").replace("\r", " ").strip_edges()
-	if normalized.length() > MAX_TITLE_LENGTH:
-		normalized = normalized.substr(0, MAX_TITLE_LENGTH)
-	if str(_draft.get("title", "")) == normalized:
-		return
-	_draft["title"] = normalized
-	draft_changed.emit(get_draft())
-
-
-func select_persona(persona_id: StringName) -> bool:
-	if CATALOG.get_persona(persona_id) == null:
-		return false
-	_draft["persona_id"] = String(persona_id)
-	draft_changed.emit(get_draft())
-	return true
-
-
 func select_material(material_instance_id: StringName) -> bool:
 	if get_material_instance(material_instance_id).is_empty():
 		return false
 	_draft["material_instance_id"] = String(material_instance_id)
+	# 标题占位 = 素材名；正式标题由演出生成器按人设/卡组中途生成（见 §10.2 第 1 步）。
+	var definition: LiveStreamMaterialResource = get_material_definition(material_instance_id)
+	_draft["title"] = definition.display_name if definition != null else ""
 	_configure_material_slots()
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	return true
 
 
@@ -135,7 +200,7 @@ func select_behavior_card(card_id: StringName) -> bool:
 			return false
 		slots[empty_index] = String(card_id)
 	_draft["behavior_slots"] = slots
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	return true
 
 
@@ -145,7 +210,7 @@ func clear_behavior_slot(slot_index: int) -> bool:
 		return false
 	slots[slot_index] = ""
 	_draft["behavior_slots"] = slots
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	return true
 
 
@@ -171,7 +236,7 @@ func place_behavior_card_at(card_id: StringName, slot_index: int) -> bool:
 		return false
 	slots[slot_index] = String(card_id)
 	_draft["behavior_slots"] = slots
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	return true
 
 
@@ -198,7 +263,7 @@ func move_behavior_card(from_index: int, to_index: int) -> bool:
 		locked_indices.append(to_index)
 		locked_indices.sort()
 		_draft["locked_behavior_slot_indices"] = locked_indices
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	return true
 
 
@@ -217,7 +282,7 @@ func select_modifier_card(card_id: StringName) -> bool:
 			return false
 		slots[empty_index] = String(card_id)
 	_draft["modifier_slots"] = slots
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	return true
 
 
@@ -227,7 +292,20 @@ func clear_modifier_slot(slot_index: int) -> bool:
 		return false
 	slots[slot_index] = ""
 	_draft["modifier_slots"] = slots
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
+	return true
+
+
+func move_modifier_card(from_index: int, to_index: int) -> bool:
+	var slots: Array = (_draft.get("modifier_slots", []) as Array).duplicate()
+	if from_index < 0 or from_index >= slots.size() or to_index < 0 or to_index >= slots.size() or from_index == to_index:
+		return false
+	if str(slots[from_index]).is_empty() or not str(slots[to_index]).is_empty():
+		return false
+	slots[to_index] = slots[from_index]
+	slots[from_index] = ""
+	_draft["modifier_slots"] = slots
+	_emit_draft_changed()
 	return true
 
 
@@ -272,10 +350,6 @@ func can_advance(step: int = -1) -> bool:
 func get_validation_message(step: int = -1) -> String:
 	var resolved_step: int = _current_step if step < 0 else step
 	if resolved_step == WizardStep.SETUP:
-		if str(_draft.get("title", "")).is_empty():
-			return "填写直播标题"
-		if get_persona() == null:
-			return "选择本场人设"
 		if get_material_instance().is_empty():
 			return "选择本场素材"
 	elif resolved_step == WizardStep.SCRIPT:
@@ -295,7 +369,7 @@ func advance_step() -> bool:
 	if _current_step >= WizardStep.CONFIRM or not can_advance(_current_step):
 		return false
 	_current_step += 1
-	step_changed.emit(_current_step)
+	_emit_step_changed()
 	return true
 
 
@@ -303,7 +377,7 @@ func previous_step() -> bool:
 	if _current_step <= WizardStep.SETUP or _broadcast_pending:
 		return false
 	_current_step -= 1
-	step_changed.emit(_current_step)
+	_emit_step_changed()
 	return true
 
 
@@ -316,7 +390,7 @@ func goto_step(step: int) -> bool:
 			if not can_advance(probe):
 				return false
 	_current_step = step
-	step_changed.emit(_current_step)
+	_emit_step_changed()
 	return true
 
 
@@ -357,7 +431,7 @@ func request_broadcast(rng_seed: int = 0) -> StreamPlanSnapshot:
 	_pending_plan = plan
 	_pending_result = result
 	_broadcast_pending = true
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	broadcast_requested.emit(plan, result)
 	return plan
 
@@ -385,7 +459,7 @@ func commit_broadcast(session_id: StringName) -> bool:
 	_pending_plan = null
 	_pending_result = null
 	broadcast_committed.emit(committed_plan, committed_result)
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 	return true
 
 
@@ -394,7 +468,7 @@ func mark_broadcast_failed(reason: String) -> void:
 	_pending_plan = null
 	_pending_result = null
 	broadcast_failed.emit(reason)
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
 
 
 func is_broadcast_pending() -> bool:
@@ -414,23 +488,26 @@ func load_run_state(data: Dictionary) -> bool:
 	if not loaded_draft is Dictionary:
 		return false
 	_draft = (loaded_draft as Dictionary).duplicate(true)
+	# 当前人设固定为扮演中档位；旧档残留的过期 persona_id 一律回退（策划案 §4.10）。
+	_draft["persona_id"] = GameState.active_persona_id
 	_configure_material_slots(false)
+	# 标题占位跟随素材名（策划案 §6.5：正式标题由生成器中途生成）。
+	var material_instance_id := StringName(str(_draft.get("material_instance_id", "")))
+	var material: LiveStreamMaterialResource = get_material_definition(material_instance_id)
+	if material != null:
+		_draft["title"] = material.display_name
 	_resize_modifier_slots()
 	_current_step = clampi(int(data.get("current_step", WizardStep.SETUP)), WizardStep.SETUP, WizardStep.CONFIRM)
 	_broadcast_pending = false
 	_pending_plan = null
 	_pending_result = null
-	step_changed.emit(_current_step)
-	draft_changed.emit(get_draft())
+	_emit_step_changed()
+	_emit_draft_changed()
 	return true
 
 
 func _is_setup_valid() -> bool:
-	return (
-		not str(_draft.get("title", "")).is_empty()
-		and get_persona() != null
-		and not get_material_instance().is_empty()
-	)
+	return not get_material_instance().is_empty()
 
 
 func _is_script_valid() -> bool:
@@ -527,7 +604,7 @@ func _configure_material_slots(clear_player_cards: bool = true) -> void:
 				slots[index] = String(card_id)
 	var locked_indices: Array[int] = []
 	var serialized_rules: Array[Dictionary] = []
-	for lock_rule: MaterialLockedCard in material.get_locked_cards_for_progress(int(instance.get("progress", 0))):
+	for lock_rule: MaterialLockedCard in material.locked_cards:
 		if lock_rule == null:
 			continue
 		var slot_index: int = _resolve_lock_slot_index(lock_rule, slots)
@@ -597,7 +674,6 @@ func _get_serialized_lock_rule(card_id: String) -> Dictionary:
 
 func _build_state_snapshot(material_instance_id: StringName) -> Dictionary:
 	return {
-		"streamer_name": GameState.streamer_name,
 		"streamer_level": GameState.streamer_level,
 		"skill_levels": GameState.skill_levels.duplicate(true),
 		"stress": GameState.stress,
@@ -638,6 +714,10 @@ func _ensure_persona_state() -> void:
 				"proficiency": persona.initial_proficiency,
 				"fixation": persona.initial_fixation,
 			}
+	if GameState.active_persona_id.is_empty() or get_active_persona() == null:
+		GameState.active_persona_id = "persona_default"
+		if get_active_persona() == null and not CATALOG.personas.is_empty():
+			GameState.active_persona_id = String(CATALOG.personas[0].content_id)
 
 
 func _connect_material_inventory() -> void:
@@ -648,7 +728,12 @@ func _connect_material_inventory() -> void:
 
 func _on_streamer_progress_changed(_level: int, _exp: int, _points: int) -> void:
 	_resize_modifier_slots()
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()
+
+
+func _on_persona_changed(_old_persona_id: String, _new_persona_id: String) -> void:
+	_draft["persona_id"] = GameState.active_persona_id
+	_emit_draft_changed()
 
 
 func _on_inventory_changed() -> void:
@@ -658,4 +743,4 @@ func _on_inventory_changed() -> void:
 	elif not str(_draft.get("material_instance_id", "")).is_empty():
 		_configure_material_slots(false)
 	catalogs_changed.emit()
-	draft_changed.emit(get_draft())
+	_emit_draft_changed()

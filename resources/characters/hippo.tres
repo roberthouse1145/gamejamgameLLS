@@ -1,11 +1,16 @@
-[gd_resource type="Resource" script_class="StreamerCharacter" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="CharacterProfile" load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://scripts/game/resources/streamer_character.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/character_profile.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/apps/linkchat/resources/linkchat_profile.gd" id="2_linkchat"]
+
+[sub_resource type="Resource" id="LinkChatProfile_hippo"]
+script = ExtResource("2_linkchat")
+account_name = "睡不醒的河马"
 
 [resource]
 script = ExtResource("1")
-character_key = "hippo"
-chat_display_name = "睡不醒的河马"
+character_id = "hippo"
 display_name = "睡不醒的河马"
 role = "online_friend"
 persona_prompt = "睡不醒的河马，阮云柚的网友，游戏ID，真名隐藏。为女主提供素材、连麦与技术支援；宅女社交事故高发位。"
+linkchat_profile = SubResource("LinkChatProfile_hippo")

@@ -1,7 +1,6 @@
 class_name GameStoryActions extends Node
 ## 游戏侧剧情动作处理器。
 ## 把 StoryDirector 的通用 action 接到桌面 OS / 浏览器 / AVG 播放器，
-## 并把关键剧情变量同步进 GameState。
 ## 由游戏组合入口创建。
 
 func _ready() -> void:
@@ -19,8 +18,10 @@ func _ready() -> void:
 	director.register_action_handler("play_transit", _action_play_transit)
 	director.register_action_handler("play_avg", _action_play_avg)
 	director.register_action_handler("check_llm_available", _action_check_llm_available)
-	if not director.story_variable_changed.is_connected(_on_story_variable_changed):
-		director.story_variable_changed.connect(_on_story_variable_changed)
+	director.register_action_handler("publish_moment", _action_publish_moment)
+	director.register_action_handler("publish_character_moment", _action_publish_character_moment)
+	director.register_action_handler("add_linkchat_friend", _action_add_linkchat_friend)
+	director.register_action_handler("remove_linkchat_friend", _action_remove_linkchat_friend)
 	# App 启动事件桥接为剧情等待条件：wait: app_launched + app_id 匹配
 	var app_manager: Node = get_node_or_null("/root/AppManager")
 	if app_manager != null and app_manager.has_signal("app_launched") \
@@ -173,14 +174,44 @@ func _action_check_llm_available(action: Dictionary) -> bool:
 	return true
 
 
+## { "type": "publish_moment", "character_id": "lu_yuanyuan", "content": "...", "texture_path": "res://..." }
+func _action_publish_moment(action: Dictionary) -> bool:
+	var manager: Node = get_node_or_null("/root/LinkChatManager")
+	if manager == null:
+		return false
+	var texture: Texture2D = null
+	var texture_path: String = str(action.get("texture_path", "")).strip_edges()
+	if not texture_path.is_empty() and ResourceLoader.exists(texture_path):
+		texture = ResourceLoader.load(texture_path) as Texture2D
+	return manager.call(
+		"publish_moment",
+		str(action.get("character_id", "")),
+		str(action.get("content", "")),
+		texture
+	) != null
+
+
+## { "type": "publish_character_moment", "character_id": "lu_yuanyuan", "moment_id": "cafe_photo" }
+func _action_publish_character_moment(action: Dictionary) -> bool:
+	var manager: Node = get_node_or_null("/root/LinkChatManager")
+	return manager != null and manager.call(
+		"publish_character_moment",
+		str(action.get("character_id", "")),
+		str(action.get("moment_id", ""))
+	) != null
+
+
+func _action_add_linkchat_friend(action: Dictionary) -> bool:
+	var manager: Node = get_node_or_null("/root/LinkChatManager")
+	return manager != null and bool(manager.call("add_friend", str(action.get("character_id", ""))))
+
+
+func _action_remove_linkchat_friend(action: Dictionary) -> bool:
+	var manager: Node = get_node_or_null("/root/LinkChatManager")
+	return manager != null and bool(manager.call("remove_friend", str(action.get("character_id", ""))))
+
+
 func _on_app_launched(app_id: String, _window: Control) -> void:
 	var director: Node = get_node_or_null("/root/StoryDirector")
 	if director != null:
 		director.notify_condition_met("app_launched", {"app_id": app_id})
-
-
-## 关键剧情变量 → GameState
-func _on_story_variable_changed(key: String, value: Variant) -> void:
-	var game_state: Node = get_node_or_null("/root/GameState")
-	if key == "vtuber_name" and game_state != null and "streamer_name" in game_state:
-		game_state.streamer_name = str(value)

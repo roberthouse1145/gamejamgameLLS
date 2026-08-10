@@ -1,7 +1,7 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene format=3 uid="uid://b33m5vax2hbsk"]
 
-[ext_resource type="Script" path="res://tests/playtest/live_stream/playtest_platinum_avatar.gd" id="1_script"]
-[ext_resource type="Resource" path="res://resources/live_stream/models/platinum.tres" id="2_model"]
+[ext_resource type="Script" uid="uid://diubu43uuarmp" path="res://tests/playtest/live_stream/playtest_platinum_avatar.gd" id="1_script"]
+[ext_resource type="Resource" uid="uid://b55ckxqvxj8g" path="res://resources/live_stream/models/platinum.tres" id="2_model"]
 [ext_resource type="PackedScene" path="res://scenes/game/live_stream/models/platinum_avatar.tscn" id="3_avatar"]
 
 [sub_resource type="Environment" id="Environment_avatar"]
@@ -9,9 +9,7 @@ background_mode = 1
 background_color = Color(0.035, 0.047, 0.075, 1)
 ambient_light_source = 2
 ambient_light_color = Color(1, 1, 1, 1)
-ambient_light_energy = 1.0
 reflected_light_source = 2
-tonemap_mode = 0
 
 [sub_resource type="StandardMaterial3D" id="Material_floor"]
 albedo_color = Color(0.07, 0.09, 0.14, 1)
@@ -39,41 +37,41 @@ corner_radius_bottom_left = 36
 shadow_color = Color(0, 0, 0, 0.35)
 shadow_size = 24
 
-[node name="PlaytestPlatinumAvatar" type="Node3D"]
+[node name="PlaytestPlatinumAvatar" type="Node3D" unique_id=1216643901]
 script = ExtResource("1_script")
 model_resource = ExtResource("2_model")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=564199207]
 environment = SubResource("Environment_avatar")
 
-[node name="KeyLight" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-18, -22, 0)
+[node name="KeyLight" type="DirectionalLight3D" parent="." unique_id=1153346566]
+transform = Transform3D(0.92718387, 0.115759805, -0.35627204, 0, 0.95105654, 0.309017, 0.37460658, -0.2865156, 0.8818043, 0, 0, 0)
 light_energy = 0.5
 
-[node name="RimLight" type="OmniLight3D" parent="."]
-position = Vector3(-1.4, 1.75, -0.5)
+[node name="RimLight" type="OmniLight3D" parent="." unique_id=1937436838]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.4, 1.75, -0.5)
 light_color = Color(0.36, 0.58, 1, 1)
 light_energy = 5.0
 omni_range = 4.0
 
-[node name="Floor" type="MeshInstance3D" parent="."]
+[node name="Floor" type="MeshInstance3D" parent="." unique_id=1153586306]
 mesh = SubResource("Plane_floor")
 
-[node name="PlatinumAvatar" parent="." instance=ExtResource("3_avatar")]
+[node name="PlatinumAvatar" parent="." unique_id=842460339 instance=ExtResource("3_avatar")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.47, 0, 0)
 model_resource = ExtResource("2_model")
-position = Vector3(0.47, 0, 0)
 
-[node name="Camera3D" type="Camera3D" parent="."]
+[node name="Camera3D" type="Camera3D" parent="." unique_id=375304874]
 unique_name_in_owner = true
-position = Vector3(0, 1.33, 3.15)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.33, 3.15)
 current = true
 fov = 24.0
-near = 0.05
 
-[node name="Interface" type="CanvasLayer" parent="."]
+[node name="Interface" type="CanvasLayer" parent="." unique_id=1119714325]
 layer = 10
 
-[node name="Controls" type="PanelContainer" parent="Interface"]
+[node name="Controls" type="PanelContainer" parent="Interface" unique_id=1176271584]
+anchors_preset = 9
 anchor_bottom = 1.0
 offset_left = 64.0
 offset_top = 64.0
@@ -81,108 +79,108 @@ offset_right = 1064.0
 offset_bottom = -64.0
 theme_override_styles/panel = SubResource("Style_panel")
 
-[node name="Layout" type="VBoxContainer" parent="Interface/Controls"]
+[node name="Layout" type="VBoxContainer" parent="Interface/Controls" unique_id=1411115951]
 layout_mode = 2
 theme_override_constants/separation = 20
 
-[node name="Title" type="Label" parent="Interface/Controls/Layout"]
+[node name="Title" type="Label" parent="Interface/Controls/Layout" unique_id=910207056]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.82, 0.9, 1, 1)
 theme_override_font_sizes/font_size = 56
 text = "Platinum 3D 主播动作预览"
 
-[node name="StatusLabel" type="Label" parent="Interface/Controls/Layout"]
+[node name="StatusLabel" type="Label" parent="Interface/Controls/Layout" unique_id=1025543314]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.82, 0.52, 1)
 theme_override_font_sizes/font_size = 42
 text = "正在载入模型"
 
-[node name="DetailLabel" type="Label" parent="Interface/Controls/Layout"]
+[node name="DetailLabel" type="Label" parent="Interface/Controls/Layout" unique_id=1623311555]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.68, 0.76, 0.9, 1)
 theme_override_font_sizes/font_size = 34
 text = "请选择动作"
 
-[node name="PostureTitle" type="Label" parent="Interface/Controls/Layout"]
+[node name="PostureTitle" type="Label" parent="Interface/Controls/Layout" unique_id=1641068294]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.68, 0.94, 1)
 theme_override_font_sizes/font_size = 36
 text = "姿态（持续）"
 
-[node name="PostureRow" type="HFlowContainer" parent="Interface/Controls/Layout"]
+[node name="PostureRow" type="HFlowContainer" parent="Interface/Controls/Layout" unique_id=1525587758]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 14
 
-[node name="ExpressionTitle" type="Label" parent="Interface/Controls/Layout"]
+[node name="ExpressionTitle" type="Label" parent="Interface/Controls/Layout" unique_id=443302888]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.68, 0.94, 1)
 theme_override_font_sizes/font_size = 36
 text = "表情（持续）"
 
-[node name="ExpressionRow" type="HFlowContainer" parent="Interface/Controls/Layout"]
+[node name="ExpressionRow" type="HFlowContainer" parent="Interface/Controls/Layout" unique_id=1211198695]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 14
 
-[node name="GestureTitle" type="Label" parent="Interface/Controls/Layout"]
+[node name="GestureTitle" type="Label" parent="Interface/Controls/Layout" unique_id=1230134295]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.68, 0.94, 1)
 theme_override_font_sizes/font_size = 36
 text = "手势（一次性）"
 
-[node name="GestureRow" type="HFlowContainer" parent="Interface/Controls/Layout"]
+[node name="GestureRow" type="HFlowContainer" parent="Interface/Controls/Layout" unique_id=1311700994]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 14
 
-[node name="ArmTitle" type="Label" parent="Interface/Controls/Layout"]
+[node name="ArmTitle" type="Label" parent="Interface/Controls/Layout" unique_id=413588918]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.68, 0.94, 1)
 theme_override_font_sizes/font_size = 36
 text = "手臂（持续，可与姿态、头部组合）"
 
-[node name="ArmRow" type="HFlowContainer" parent="Interface/Controls/Layout"]
+[node name="ArmRow" type="HFlowContainer" parent="Interface/Controls/Layout" unique_id=914248045]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 14
 
-[node name="HeadTitle" type="Label" parent="Interface/Controls/Layout"]
+[node name="HeadTitle" type="Label" parent="Interface/Controls/Layout" unique_id=1528393684]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.52, 0.68, 0.94, 1)
 theme_override_font_sizes/font_size = 36
 text = "头部（持续，可与姿态、手臂组合）"
 
-[node name="HeadRow" type="HFlowContainer" parent="Interface/Controls/Layout"]
+[node name="HeadRow" type="HFlowContainer" parent="Interface/Controls/Layout" unique_id=2110965763]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/h_separation = 14
 theme_override_constants/v_separation = 14
 
-[node name="BottomRow" type="HBoxContainer" parent="Interface/Controls/Layout"]
+[node name="BottomRow" type="HBoxContainer" parent="Interface/Controls/Layout" unique_id=1817680911]
 layout_mode = 2
 theme_override_constants/separation = 32
 
-[node name="TalkButton" type="Button" parent="Interface/Controls/Layout/BottomRow"]
+[node name="TalkButton" type="Button" parent="Interface/Controls/Layout/BottomRow" unique_id=299921283]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 36
 text = "开启口型"
 
-[node name="AutoToggle" type="CheckButton" parent="Interface/Controls/Layout/BottomRow"]
+[node name="AutoToggle" type="CheckButton" parent="Interface/Controls/Layout/BottomRow" unique_id=982577490]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.76, 0.84, 0.96, 1)
 theme_override_font_sizes/font_size = 36
 text = "每 3 秒自动轮播表情"
 
-[node name="Hint" type="Label" parent="Interface"]
+[node name="Hint" type="Label" parent="Interface" unique_id=251395641]
 offset_left = 1130.0
 offset_top = 2036.0
 offset_right = 3700.0

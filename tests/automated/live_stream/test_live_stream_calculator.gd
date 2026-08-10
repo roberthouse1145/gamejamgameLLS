@@ -89,8 +89,7 @@ func _make_material() -> LiveStreamMaterialResource:
 	var material := LiveStreamMaterialResource.new()
 	material.content_id = &"material_test"
 	material.display_name = "测试素材"
-	material.material_type = LiveStreamMaterialResource.TYPE_CONTINUOUS
-	material.initial_depth = 4.0
+	material.material_type = LiveStreamMaterialResource.TYPE_CONSUMABLE
 	material.affinity = StreamFamilyValues.new()
 	material.axes = StreamAxisValues.new()
 	material.base_popularity = 100.0
@@ -131,8 +130,6 @@ func _make_plan(
 		"fan_vector": {"r": 100.0, "m": 0.0, "w": 0.0, "c": 0.0, "b": 0.0},
 		"material_instance": {
 			"definition_id": "material_test",
-			"depth": 4.0,
-			"freshness": 1.0,
 		},
 	}
 	return plan

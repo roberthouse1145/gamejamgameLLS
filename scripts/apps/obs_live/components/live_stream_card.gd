@@ -4,10 +4,7 @@ class_name LiveStreamCardView extends Button
 
 const COST_ICON: Texture2D = preload("res://Assets/images/live_stream/cards/icons/stat_stress.svg")
 const RISK_ICON: Texture2D = preload("res://Assets/images/live_stream/cards/icons/stat_risk.svg")
-const CARD_TOOLTIP_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/card_tooltip.tscn")
 const TOOLTIP_DELAY: float = 0.35
-const TOOLTIP_GAP: float = 12.0
-const TOOLTIP_VIEWPORT_MARGIN: float = 8.0
 
 @export var content_resource: StreamContentResource = null:
 	set(value):
@@ -24,6 +21,13 @@ const TOOLTIP_VIEWPORT_MARGIN: float = 8.0
 @export var locked: bool = false:
 	set(value):
 		locked = value
+		if is_node_ready():
+			_refresh_interaction_state()
+
+## 本场不可用（素材不兼容等）：置灰显示但不可交互，不显示锁定标。
+@export var unavailable: bool = false:
+	set(value):
+		unavailable = value
 		if is_node_ready():
 			_refresh_interaction_state()
 
@@ -47,7 +51,6 @@ var _left_stat_override: String = ""
 var _right_stat_override: String = ""
 var _tooltip_override: String = ""
 var _tooltip_text: String = ""
-var _tooltip: CardTooltipView = null
 var _tooltip_serial: int = 0
 
 ## 拖拽负载；非空时本卡可被拖起。常用键：kind / card_id / id / from_slot / title。
@@ -64,6 +67,16 @@ func get_card_payload() -> Dictionary:
 func set_card_shadow_strength(strength: float) -> void:
 	if slot_edges != null:
 		slot_edges.set_glow_strength(strength)
+
+
+func set_over_budget(state: bool) -> void:
+	if slot_edges != null:
+		slot_edges.set_over_budget(state)
+
+
+func _process(_delta: float) -> void:
+	if _hovered and TooltipLayer.is_tooltip_visible():
+		TooltipLayer.move_tooltip(get_global_mouse_position())
 
 
 func _ready() -> void:
@@ -101,9 +114,16 @@ func configure_connection_state(left_connected: Array[int], right_connected: Arr
 		slot_edges.set_connected_slots(_connected_left_slots, _connected_right_slots)
 
 
+## 离开节目槽（拖回牌库）时清除接缝连接反馈。
+func clear_connection_state() -> void:
+	_show_connection_state = false
+	if is_node_ready() and slot_edges != null:
+		slot_edges.clear_connected_slots()
+
+
 func _render_card() -> void:
+	var empty_slots: Array[int] = []
 	if content_resource == null:
-		var empty_slots: Array[int] = []
 		title_label.text = ""
 		_hide_stat(left_stat)
 		_hide_stat(right_stat)
@@ -118,7 +138,6 @@ func _render_card() -> void:
 	title_label.text = content_resource.display_name
 	slot_edges.set_face_texture(CardFaceCatalog.face_for(content_resource))
 
-	var empty_slots: Array[int] = []
 	if content_resource is BehaviorCardResource:
 		var behavior := content_resource as BehaviorCardResource
 		slot_edges.configure(behavior.left_slots, behavior.right_slots, true)
@@ -167,9 +186,9 @@ func _stat_text(override_text: String, default_text: String) -> String:
 	return override_text if not override_text.is_empty() else default_text
 
 
-func override_tooltip(text: String) -> void:
-	_tooltip_override = text
-	_tooltip_text = text
+func override_tooltip(tooltip_copy: String) -> void:
+	_tooltip_override = tooltip_copy
+	_tooltip_text = tooltip_copy
 	if is_node_ready():
 		tooltip_text = ""
 
@@ -186,35 +205,12 @@ func _schedule_tooltip() -> void:
 
 
 func _show_tooltip() -> void:
-	if _tooltip == null:
-		_tooltip = CARD_TOOLTIP_SCENE.instantiate()
-		_tooltip.visible = false
-		_tooltip.z_index = 100
-		add_child(_tooltip)
-	_tooltip.configure(_tooltip_text)
-	_tooltip.reset_size()
-	var tip_size: Vector2 = _tooltip.get_combined_minimum_size()
-	var pos := Vector2((size.x - tip_size.x) * 0.5, -tip_size.y - TOOLTIP_GAP)
-	var card_global: Vector2 = get_global_rect().position
-	# 顶部放不下则改放卡片下方。
-	if card_global.y + pos.y < TOOLTIP_VIEWPORT_MARGIN:
-		pos.y = size.y + TOOLTIP_GAP
-	# 水平方向限制在视口内。
-	var viewport_width: float = get_viewport_rect().size.x
-	var clamped_x: float = clampf(
-		card_global.x + pos.x,
-		TOOLTIP_VIEWPORT_MARGIN,
-		maxf(TOOLTIP_VIEWPORT_MARGIN, viewport_width - tip_size.x - TOOLTIP_VIEWPORT_MARGIN)
-	)
-	pos.x += clamped_x - (card_global.x + pos.x)
-	_tooltip.position = pos
-	_tooltip.visible = true
+	TooltipLayer.show_tooltip(_tooltip_text, get_global_mouse_position())
 
 
 func _hide_tooltip() -> void:
 	_tooltip_serial += 1
-	if _tooltip != null:
-		_tooltip.visible = false
+	TooltipLayer.hide_tooltip()
 
 
 func _hide_stat(container: HBoxContainer) -> void:
@@ -272,9 +268,13 @@ func _get_effect_summary(card: LiveStreamCardResource) -> String:
 func _refresh_interaction_state() -> void:
 	if slot_edges == null or stats_bar == null or locked_label == null:
 		return
-	disabled = content_resource == null or locked
+	disabled = content_resource == null or locked or unavailable
 	locked_label.visible = locked and content_resource != null
-	var content_modulate := Color(1.0, 1.0, 1.0, 0.34) if locked else Color.WHITE
+	var content_modulate := Color.WHITE
+	if locked:
+		content_modulate = Color(1.0, 1.0, 1.0, 0.34)
+	elif unavailable:
+		content_modulate = Color(1.0, 1.0, 1.0, 0.5)
 	title_label.modulate = content_modulate
 	stats_bar.modulate = content_modulate
 	slot_edges.set_interaction_state(selected and not disabled, _hovered and not disabled, locked)
@@ -305,10 +305,10 @@ func _on_interaction_clicked() -> void:
 	pressed.emit()
 
 
-func _on_visual_state_changed(is_hovered: bool, is_dragging: bool) -> void:
-	_hovered = is_hovered or is_dragging
+func _on_visual_state_changed(hovered_now: bool, is_dragging: bool) -> void:
+	_hovered = hovered_now or is_dragging
 	_refresh_interaction_state()
-	if is_hovered and not is_dragging:
+	if hovered_now and not is_dragging:
 		_schedule_tooltip()
 	else:
 		_hide_tooltip()

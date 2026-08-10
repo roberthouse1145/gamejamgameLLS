@@ -15,10 +15,10 @@ signal clicked(position: Vector2)
 @export var color_shadow: Color = Color(0.0, 0.0, 0.0, 0.12)
 
 @export_group("Size")
-## 光标高度（px）
-@export var cursor_height: float = 28.0
+## 光标高度（px，4K 视口）
+@export var cursor_height: float = 56.0
 ## 描边粗细
-@export var border_width: float = 1.8
+@export var border_width: float = 3.2
 
 @export_group("Feel")
 ## 跟随灵敏度（越高越跟手）
@@ -73,7 +73,7 @@ func _rebuild_geometry() -> void:
 	_border_points = _offset_polygon(_arrow_points, border_width)
 
 	# 投影：整体偏移 + 稍微放大
-	_shadow_points = _offset_polygon(_arrow_points, border_width + 1.5)
+	_shadow_points = _offset_polygon(_arrow_points, border_width + 3.0)
 
 
 func _offset_polygon(poly: PackedVector2Array, amount: float) -> PackedVector2Array:
@@ -121,8 +121,8 @@ func _draw() -> void:
 	var sc: float = _current_scale
 	var sm := Transform2D().scaled(Vector2(sc, sc))
 
-	# 1. 投影（偏移 2px，半透明）
-	var shadow_offset := Transform2D(0.0, Vector2(1.5, 2.0)) * sm
+	# 1. 投影（偏移 3px，半透明）
+	var shadow_offset := Transform2D(0.0, Vector2(3.0, 4.0)) * sm
 	draw_set_transform_matrix(shadow_offset)
 	draw_colored_polygon(_shadow_points, color_shadow)
 

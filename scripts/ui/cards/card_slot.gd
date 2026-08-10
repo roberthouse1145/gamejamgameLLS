@@ -2,7 +2,6 @@ class_name CardSlot extends Control
 ## 单卡槽：过滤、锁定、占位高亮；占用时由 DragController 做原子交换。
 
 signal card_changed(card: Control)
-signal drop_rejected(card: Control)
 
 const COLOR_EMPTY_BG: Color = Color("#FBF8FB")
 const COLOR_EMPTY_BORDER: Color = Color("#C9B9C6")

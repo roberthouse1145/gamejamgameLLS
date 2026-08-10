@@ -39,6 +39,7 @@ func _ready() -> void:
 		button.pressed.connect(_on_filter_pressed.bind(filter_key))
 	CardLibraryManager.library_changed.connect(_rebuild)
 	SkillTreeManager.skill_tree_changed.connect(_rebuild)
+	GameState.persona_changed.connect(_on_persona_changed)
 	_rebuild()
 
 
@@ -89,8 +90,8 @@ func _get_filtered_cards() -> Array[StreamContentResource]:
 		for persona: StreamPersonaResource in CardLibraryManager.get_catalog().personas:
 			result.append(persona)
 	if _filter == &"material" or _filter == &"":
-		for material: LiveStreamMaterialResource in CardLibraryManager.get_catalog().materials:
-			result.append(material)
+		for stream_material: LiveStreamMaterialResource in CardLibraryManager.get_catalog().materials:
+			result.append(stream_material)
 	if _filter == &"locked":
 		var locked_result: Array[StreamContentResource] = []
 		for card: LiveStreamCardResource in CardLibraryManager.get_all_cards():
@@ -176,7 +177,12 @@ func _get_unlock_text(card: StreamContentResource) -> String:
 			text += "　·　%s力 Lv.%d" % [card_resource.get_family_display_name(), card_resource.required_skill_level]
 		return text
 	if card is StreamPersonaResource:
-		return "始终可用"
+		var persona := card as StreamPersonaResource
+		if String(persona.content_id) == GameState.active_persona_id:
+			return "当前扮演中"
+		if String(persona.content_id) in GameState.graduated_personas:
+			return "已毕业（不可再扮演）"
+		return "通过毕业转生解锁"
 	if card is LiveStreamMaterialResource:
 		return "开播时从素材库存选用"
 	return ""
@@ -193,6 +199,11 @@ func _on_filter_pressed(filter_key: StringName) -> void:
 		return
 	_filter = filter_key
 	_selected_card_id = &""
+	_rebuild()
+
+
+## 毕业转生后刷新人设卡状态（当前扮演中 / 已毕业）。
+func _on_persona_changed(_old_persona_id: String, _new_persona_id: String) -> void:
 	_rebuild()
 
 

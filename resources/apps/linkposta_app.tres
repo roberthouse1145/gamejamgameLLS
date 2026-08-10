@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Texture2D" path="res://Assets/images/app_icons/linkposta.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "linkposta"
+app_name = "LinkPosta"
+icon = ExtResource("2_icon")
+launch_url = "https://linkposta.net/"

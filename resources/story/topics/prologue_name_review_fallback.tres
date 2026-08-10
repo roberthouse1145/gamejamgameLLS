@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_script")
 topic_id = "prologue_name_review_fallback"
-channel_id = "鸢鸢"
+channel_id = "lu_yuanyuan"
 mode = 0
 local_script = "lu_yuanyuan: 这个艺名？
 lu_yuanyuan: 嗯，还挺像你的。

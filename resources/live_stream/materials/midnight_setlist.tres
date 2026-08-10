@@ -6,7 +6,6 @@
 [ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_tbynx"]
 [ext_resource type="Texture2D" uid="uid://1bnmak5lk0e6" path="res://Assets/images/live_stream/cards/icons/family_song.svg" id="4"]
 [ext_resource type="Script" uid="uid://b0wgs72067lck" path="res://scripts/game/resources/live_stream/material_locked_card.gd" id="5_6nv2f"]
-[ext_resource type="Script" uid="uid://p1r0pl3acdgx" path="res://scripts/game/resources/live_stream/material_progress_locks.gd" id="6_slsk0"]
 
 [sub_resource type="Resource" id="Affinity"]
 script = ExtResource("2")
@@ -21,7 +20,6 @@ impact = 1.0
 
 [resource]
 script = ExtResource("1")
-freshness_decay = 0.15
 program_slot_count = 4
 affinity = SubResource("Affinity")
 axes = SubResource("Axes")

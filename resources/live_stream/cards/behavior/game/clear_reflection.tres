@@ -22,3 +22,4 @@ display_name = "通关感言"
 description = "收好情绪，回顾这段旅程。"
 icon = ExtResource("3")
 tags = Array[StringName]([&"game", &"story_rich"])
+prompt_fragment = "收尾感言段的走向：结合本场游戏/素材的实际经历，回顾这一路走来的过程，把情绪收起来讲——先说说这段旅程里印象最深的几个瞬间，再表达不舍与感谢，最后收住、预告下次。节奏放慢，情绪收得干脆。"

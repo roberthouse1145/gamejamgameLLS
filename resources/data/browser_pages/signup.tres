@@ -86,11 +86,6 @@ XM-2026-0814-0126
 
 ---
 ::: form action=submit_story_form sep=20
-## 公开资料
-[公开艺名将显示在直播页面、粉丝互动及公司公开资料中，提交后由经纪团队统一维护。](color:#687A90)
-input field=vtuber_name placeholder=请输入公开艺名 required max_length=16 label=公开艺名 required_message=请输入公开艺名 max_length_message=公开艺名最长16个字符
-
----
 ## 内容方向问卷
 #### 最容易让你聊到忘记时间的是？
 select field=content_focus options=\"games:电子游戏|anime:动画与声优|music:唱歌与声音内容|variety:网络热点与整活\" placeholder=请选择一项 required label=内容兴趣 required_message=请选择最熟悉的内容方向
@@ -106,7 +101,7 @@ select field=preparation_style options=\"research:提前查资料并列出要点
 ## 协议确认
 [《虚拟演艺人员电子入驻协议》（XM-TALENT-2026.07）](url:browser://contract color=#5E6D7D size=22)
 checkbox field=agree text=\"我已阅读并同意协议全部条款，确认提交电子签约\" required required_message=请先勾选协议确认
-[确认签约并提交](action:submit_story_form story_key=signed story_value=true story_form_fields=vtuber_name,content_focus,on_camera_style,preparation_style success_url=browser://signup-success success_status=签约成功 bg_color=#245782 color=#FFFFFF)
+[确认签约并提交](action:submit_story_form story_key=signed story_value=true story_form_fields=content_focus,on_camera_style,preparation_style success_url=browser://signup-success success_status=签约成功 bg_color=#245782 color=#FFFFFF)
 :::
 :::
 :::

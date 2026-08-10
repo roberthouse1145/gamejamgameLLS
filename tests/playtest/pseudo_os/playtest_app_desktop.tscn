@@ -1,0 +1,9 @@
+[gd_scene format=3 uid="uid://dqc0jp4aujnrl"]
+
+[ext_resource type="PackedScene" uid="uid://b3lxv6taqbb6a" path="res://scenes/pseudo_os/desktop.tscn" id="1_desktop"]
+[ext_resource type="Script" uid="uid://crwimioy5m8e4" path="res://tests/playtest/pseudo_os/playtest_app_desktop.gd" id="2_bootstrap"]
+
+[node name="PlaytestAppDesktop" unique_id=1533667176 instance=ExtResource("1_desktop")]
+
+[node name="PlaytestInitializer" type="Node" parent="." index="5" unique_id=1291549906]
+script = ExtResource("2_bootstrap")

@@ -38,6 +38,7 @@ var _activation_counter: int = 0
 var _pending_topics: Dictionary = {}
 ## 完成/取消信号派发期间也视为占用，避免回调中的新 Topic 抢到队列前面。
 var _closing_channels: Dictionary = {}
+var _auto_advance_tokens: Dictionary = {}
 
 
 func _ready() -> void:
@@ -177,12 +178,14 @@ func submit_generated_topic_script(topic: ChatTopic, generated_script: String) -
 
 ## UI 播放完当前消息后调用，执行到下一条消息、选项或 END。
 func advance_topic(channel_id: String) -> bool:
+	_auto_advance_tokens[channel_id] = int(_auto_advance_tokens.get(channel_id, 0)) + 1
 	var runner: ChatRunner = _runners.get(channel_id) as ChatRunner
 	return runner.advance() if runner != null else false
 
 
 ## UI 提交固定 OPTION 的 id。此 API 不接收自由文本。
 func choose_topic_option(channel_id: String, option_id: String) -> bool:
+	_auto_advance_tokens[channel_id] = int(_auto_advance_tokens.get(channel_id, 0)) + 1
 	var runner: ChatRunner = _runners.get(channel_id) as ChatRunner
 	return runner.choose(option_id) if runner != null else false
 
@@ -226,6 +229,7 @@ func reset_runtime_state(clear_history: bool = false) -> void:
 	_activation_counter = 0
 	_pending_topics.clear()
 	_closing_channels.clear()
+	_auto_advance_tokens.clear()
 	active_topics.clear()
 	if clear_history:
 		topic_history.clear()
@@ -258,6 +262,27 @@ func _start_runner(topic: ChatTopic, source: String) -> bool:
 
 func _on_message_emitted(speaker_id: String, text: String, is_player: bool, card: Dictionary, topic: ChatTopic) -> void:
 	topic_message_emitted.emit(topic, speaker_id, text, is_player, card)
+	if topic.auto_advance:
+		_schedule_auto_advance(topic, text.length())
+
+
+func _schedule_auto_advance(topic: ChatTopic, text_length: int) -> void:
+	var channel_id: String = topic.channel_id
+	var token: int = int(_auto_advance_tokens.get(channel_id, 0)) + 1
+	_auto_advance_tokens[channel_id] = token
+	var delay: float = clampf(
+		topic.min_advance_delay + topic.advance_char_seconds * float(text_length),
+		topic.min_advance_delay,
+		topic.max_advance_delay
+	)
+	_auto_advance_after(channel_id, token, delay)
+
+
+func _auto_advance_after(channel_id: String, token: int, delay: float) -> void:
+	await get_tree().create_timer(delay).timeout
+	if int(_auto_advance_tokens.get(channel_id, -1)) != token:
+		return
+	advance_topic(channel_id)
 
 
 func _on_choices_presented(choices: Array, topic: ChatTopic) -> void:
@@ -419,6 +444,7 @@ func _cleanup_channel(channel_id: String) -> void:
 	_generation_prompts.erase(channel_id)
 	_active_entries.erase(channel_id)
 	active_topics.erase(channel_id)
+	_auto_advance_tokens.erase(channel_id)
 
 
 func _find_entry(channel_id: String, activation_id: int) -> Dictionary:

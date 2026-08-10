@@ -1,0 +1,203 @@
+extends Node
+## 独立 APP 验收入口的初始化器。场景根节点直接继承真实 Desktop，不经过 Main Game。
+
+const MOMENT_SEEDS: Array[Dictionary] = [
+	{
+		"character_id": "lu_yuanyuan",
+		"moment_id": "weekly_schedule",
+		"age_seconds": 3 * 60 * 60,
+		"comments": [
+			{"character_id": "ruan_yunyou", "content": "你的“安静”是不是指不让我关掉闹钟……"},
+		],
+	},
+	{
+		"character_id": "ruan_yunyou",
+		"moment_id": "late_night_anime",
+		"age_seconds": 2 * 60 * 60,
+		"comments": [
+			{"character_id": "lu_yuanyuan", "content": "明天的你让我转告：她并不理解。"},
+		],
+	},
+	{
+		"character_id": "lu_yuanyuan",
+		"moment_id": "cafe_meeting",
+		"age_seconds": 48 * 60,
+		"comments": [
+			{"character_id": "ruan_yunyou", "content": "我已经在路上了，真的。"},
+			{"character_id": "lu_yuanyuan", "content": "定位显示你还在家。"},
+		],
+	},
+	{
+		"character_id": "ruan_yunyou",
+		"moment_id": "rest_before_stream",
+		"age_seconds": 8 * 60,
+		"comments": [
+			{"character_id": "lu_yuanyuan", "content": "五分钟到了。"},
+			{"character_id": "ruan_yunyou", "content": "这是另一个时区的五分钟。"},
+		],
+	},
+]
+
+const SOCIAL_POST_SEEDS: Array[Dictionary] = [
+	{
+		"character_id": "lu_yuanyuan",
+		"account_id": "yuanyuan_personal",
+		"content_id": "someone_started",
+		"age_seconds": 11 * 60 * 60,
+		"likes": 48,
+		"reposts": 6,
+		"replies": 3,
+		"reply_items": [
+			{"reply_key": "root", "account_id": "yunyou_personal", "content": "看到了。请不要在评论区点名。"},
+			{"reply_key": "answer", "parent_key": "root", "account_id": "yuanyuan_personal", "content": "我没有写名字。"},
+			{"reply_key": "follow_up", "parent_key": "answer", "account_id": "yunyou_personal", "content": "但所有人都知道你在说谁。"},
+		],
+	},
+	{
+		"character_id": "ruan_yunyou",
+		"account_id": "yunyou_personal",
+		"content_id": "desk_cleanup",
+		"age_seconds": 7 * 60 * 60,
+		"likes": 21,
+		"reposts": 2,
+		"replies": 5,
+		"reply_items": [
+			{"reply_key": "root", "account_id": "yuanyuan_personal", "content": "先把桌面右边那摞收掉。"},
+			{"reply_key": "answer", "parent_key": "root", "account_id": "yunyou_personal", "content": "那摞是按使用频率排序的。"},
+			{"reply_key": "follow_up", "parent_key": "answer", "account_id": "yuanyuan_personal", "content": "最下面那本落灰了。"},
+		],
+	},
+	{
+		"character_id": "lu_yuanyuan",
+		"account_id": "yuanyuan_streamer",
+		"content_id": "collab_notice",
+		"age_seconds": 2 * 60 * 60,
+		"likes": 1842,
+		"reposts": 216,
+		"replies": 97,
+		"reply_items": [
+			{"reply_key": "root", "display_name": "晚风邮差", "handle": "@evening_post_47", "content": "这次联动几点开始？"},
+			{"reply_key": "answer", "parent_key": "root", "account_id": "yuanyuan_streamer", "content": "周六 20:00，开播前会再发一次提醒。"},
+			{"reply_key": "follow_up", "parent_key": "answer", "account_id": "yunyou_streamer", "content": "设备和流程今晚会再确认一次。"},
+		],
+	},
+	{
+		"character_id": "ruan_yunyou",
+		"account_id": "yunyou_streamer",
+		"content_id": "first_stream_notice",
+		"age_seconds": 18 * 60,
+		"likes": 126,
+		"reposts": 18,
+		"replies": 34,
+		"reply_items": [
+			{"reply_key": "root", "display_name": "星屑收集员", "handle": "@hoshikuzu_31", "content": "新人首播会留回放吗？"},
+			{"reply_key": "answer", "parent_key": "root", "account_id": "yunyou_streamer", "content": "会，结束后整理到主页。"},
+			{"reply_key": "follow_up", "parent_key": "answer", "account_id": "yuanyuan_streamer", "content": "先顺利播完，再整理回放。"},
+		],
+	},
+]
+
+const PLAYTEST_INITIAL_MONEY: int = 5000
+
+
+func _ready() -> void:
+	call_deferred("_initialize_playtest")
+
+
+func _initialize_playtest() -> void:
+	GameState.add_money(PLAYTEST_INITIAL_MONEY - GameState.money)
+	GameState.day = 1
+	GameState.time_slot = GameState.TIME_SLOT_MORNING
+	GameState.failed_date_invites.clear()
+	var linkchat_manager: Node = get_node_or_null("/root/LinkChatManager")
+	if linkchat_manager == null:
+		push_error("PlaytestAppDesktop: LinkChatManager is unavailable")
+		return
+
+	linkchat_manager.reset_runtime_state(true)
+	_seed_moments(linkchat_manager)
+	var social_manager: Node = get_node_or_null("/root/SocialMediaManager")
+	if social_manager == null:
+		push_error("PlaytestAppDesktop: SocialMediaManager is unavailable")
+		return
+	social_manager.reset_runtime_state()
+	_seed_social_posts(social_manager)
+	print("[Playtest] APP desktop initialized; waiting for manual interaction")
+
+
+func _seed_moments(linkchat_manager: Node) -> void:
+	var now: int = int(Time.get_unix_time_from_system())
+	for moment_seed: Dictionary in MOMENT_SEEDS:
+		var post: MomentPostRecord = linkchat_manager.publish_character_moment(
+			str(moment_seed.get("character_id", "")),
+			str(moment_seed.get("moment_id", ""))
+		) as MomentPostRecord
+		if post == null:
+			push_error("PlaytestAppDesktop: failed to publish moment %s" % str(moment_seed.get("moment_id", "")))
+			continue
+		post.published_at = now - int(moment_seed.get("age_seconds", 0))
+		var comments: Variant = moment_seed.get("comments", [])
+		if comments is Array:
+			for comment_value: Variant in comments:
+				if not comment_value is Dictionary:
+					continue
+				var comment: Dictionary = comment_value
+				linkchat_manager.add_moment_comment(
+					post.post_id,
+					str(comment.get("character_id", "")),
+					str(comment.get("content", ""))
+				)
+
+
+func _seed_social_posts(social_manager: Node) -> void:
+	var now: int = int(Time.get_unix_time_from_system())
+	for social_post_seed: Dictionary in SOCIAL_POST_SEEDS:
+		var post: SocialPostRecord = social_manager.publish_character_post(
+			str(social_post_seed.get("character_id", "")),
+			str(social_post_seed.get("account_id", "")),
+			str(social_post_seed.get("content_id", ""))
+		) as SocialPostRecord
+		if post == null:
+			push_error("PlaytestAppDesktop: failed to publish social post %s" % str(social_post_seed.get("content_id", "")))
+			continue
+		post.published_at = now - int(social_post_seed.get("age_seconds", 0))
+		social_manager.set_post_metrics(
+			post.post_id,
+			int(social_post_seed.get("likes", 0)),
+			int(social_post_seed.get("reposts", 0)),
+			int(social_post_seed.get("replies", 0))
+		)
+		var reply_items: Variant = social_post_seed.get("reply_items", [])
+		var reply_ids_by_key: Dictionary = {}
+		var reply_index: int = 0
+		if reply_items is Array:
+			for reply_value: Variant in reply_items:
+				if not reply_value is Dictionary:
+					continue
+				var reply: Dictionary = reply_value
+				var parent_key: String = str(reply.get("parent_key", ""))
+				var parent_reply_id: String = str(reply_ids_by_key.get(parent_key, ""))
+				var account_id: String = str(reply.get("account_id", ""))
+				var created_reply: SocialPostReplyRecord = null
+				if account_id.is_empty():
+					created_reply = social_manager.add_ambient_post_reply(
+						post.post_id,
+						str(reply.get("display_name", "")),
+						str(reply.get("handle", "")),
+						str(reply.get("content", "")),
+						post.published_at + (reply_index + 1) * 5 * 60,
+						parent_reply_id
+					) as SocialPostReplyRecord
+				else:
+					created_reply = social_manager.add_post_reply(
+						post.post_id,
+						account_id,
+						str(reply.get("content", "")),
+						post.published_at + (reply_index + 1) * 5 * 60,
+						parent_reply_id
+					) as SocialPostReplyRecord
+				if created_reply != null:
+					var reply_key: String = str(reply.get("reply_key", ""))
+					if not reply_key.is_empty():
+						reply_ids_by_key[reply_key] = created_reply.reply_id
+				reply_index += 1

@@ -1,6 +1,12 @@
 {
 	"backgrounds": {
 		"cafe_day": "res://Assets/images/backgrounds/cafe_day.png",
+		"city_street_night": "res://Assets/images/backgrounds/city_street_night.png",
+		"echo_live_hall_exterior_evening": "res://Assets/images/backgrounds/echo_live_hall_exterior_evening.png",
+		"echo_live_hall_interior": "res://Assets/images/backgrounds/echo_live_hall_interior.png",
+		"riverside_cafe_day": "res://Assets/images/backgrounds/riverside_cafe_day.png",
+		"riverside_park_day": "res://Assets/images/backgrounds/riverside_park_day.png",
+		"riverside_park_sunset": "res://Assets/images/backgrounds/riverside_park_sunset.png",
 		"yunyou_desktop": "res://Assets/images/backgrounds/yunyou_desktop.png"
 	},
 	"images": {},

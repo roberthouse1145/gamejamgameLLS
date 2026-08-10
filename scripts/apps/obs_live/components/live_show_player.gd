@@ -7,6 +7,19 @@ signal finished()
 const TYPEWRITER_CHARACTERS_PER_SECOND: float = 16.0
 const FAST_MULTIPLIER: float = 4.0
 const FAST_HOLD_SECONDS: float = 0.4
+const SHORT_PAUSE_PUNCTUATION: String = "，,、：:；;"
+const LONG_PAUSE_PUNCTUATION: String = "。.!！?？…"
+const SILENT_PUNCTUATION: String = "，,、：:；;。.!！?？…“”‘’\"'（）()【】[]《》〈〉—-"
+const CHAT_FLOOD_DURATION_MIN: float = 0.9
+const CHAT_FLOOD_DURATION_MAX: float = 1.8
+const SC_FLOOD_DURATION_MIN: float = 1.4
+const SC_FLOOD_DURATION_MAX: float = 2.6
+const MESSAGE_INTERVAL_JITTER_MIN: float = 0.7
+const MESSAGE_INTERVAL_JITTER_MAX: float = 1.3
+
+@export_group("Typewriter")
+@export_range(0.0, 1.0, 0.01) var short_punctuation_pause: float = 0.16
+@export_range(0.0, 1.5, 0.01) var long_punctuation_pause: float = 0.34
 
 var _display: StreamSceneDisplay = null
 var _subtitle_panel: Control = null
@@ -14,8 +27,24 @@ var _subtitle_label: Label = null
 var _playing: bool = false
 var _fast_forward: bool = false
 var _run_id: int = 0
-var _pending_bursts: int = 0
 var _rng := RandomNumberGenerator.new()
+var _speech_rng := RandomNumberGenerator.new()
+var _speech_blip_pitch_variation: float = 0.0
+var _speech_blip_character_interval: int = 2
+
+@onready var _speech_blip_player: AudioStreamPlayer = $SpeechBlipPlayer
+
+
+func configure_persona(persona: StreamPersonaResource) -> void:
+	_speech_blip_player.stop()
+	_speech_blip_player.max_polyphony = 4
+	if persona == null:
+		_speech_blip_player.stream = null
+		return
+	_speech_blip_player.stream = persona.speech_blip
+	_speech_blip_player.volume_db = persona.speech_blip_volume_db
+	_speech_blip_pitch_variation = persona.speech_blip_pitch_variation
+	_speech_blip_character_interval = persona.speech_blip_character_interval
 
 
 func setup(display: StreamSceneDisplay, subtitle_panel: Control, subtitle_label: Label) -> void:
@@ -30,9 +59,9 @@ func play(ops: Array, seed_value: int = 1) -> bool:
 	if _display == null or _subtitle_panel == null or _subtitle_label == null or ops.is_empty():
 		return false
 	_run_id += 1
-	_pending_bursts = 0
 	_fast_forward = false
 	_rng.seed = seed_value
+	_speech_rng.seed = seed_value ^ 0x51EE7
 	_playing = true
 	_run_show(ops.duplicate(true), _run_id)
 	return true
@@ -42,7 +71,8 @@ func stop(emit_finished: bool = false) -> void:
 	var was_playing: bool = _playing
 	_run_id += 1
 	_playing = false
-	_pending_bursts = 0
+	if _speech_blip_player != null:
+		_speech_blip_player.stop()
 	if _subtitle_panel != null:
 		_subtitle_panel.visible = false
 	if _display != null:
@@ -105,12 +135,10 @@ func _run_show(ops: Array, run_id: int) -> void:
 			"say":
 				await _play_say(op, run_id)
 			"chat", "sc":
-				_start_message_burst(op, run_id)
+				await _play_message_burst(op, run_id)
 			"wait":
 				await _wait_duration(float(op.get("seconds", 0.0)), run_id)
 
-	while run_id == _run_id and _pending_bursts > 0:
-		await get_tree().process_frame
 	if run_id != _run_id:
 		return
 	_playing = false
@@ -119,24 +147,26 @@ func _run_show(ops: Array, run_id: int) -> void:
 
 
 func _play_say(op: Dictionary, run_id: int) -> void:
-	if _display != null:
-		_display.set_talking(true)
 	var text: String = str(op.get("text", ""))
 	_subtitle_label.text = text
 	_subtitle_label.visible_characters = 0
 	_subtitle_panel.visible = true
 
-	var revealed: float = 0.0
-	while run_id == _run_id and _subtitle_label.visible_characters < text.length():
-		await get_tree().process_frame
-		var speed: float = TYPEWRITER_CHARACTERS_PER_SECOND
-		if _fast_forward:
-			speed *= FAST_MULTIPLIER
-		revealed += get_process_delta_time() * speed
-		_subtitle_label.visible_characters = mini(int(revealed), text.length())
-	if run_id != _run_id:
+	for index: int in range(text.length()):
+		if run_id != _run_id:
+			break
+		var character: String = text.substr(index, 1)
+		_subtitle_label.visible_characters = index + 1
 		if _display != null:
-			_display.set_talking(false)
+			_display.set_talking(_is_spoken_character(character))
+		if _should_play_speech_blip(character, index):
+			_play_speech_blip()
+		var step_duration: float = 1.0 / TYPEWRITER_CHARACTERS_PER_SECOND
+		step_duration += get_punctuation_pause(character)
+		await _wait_duration(step_duration, run_id)
+	if _display != null:
+		_display.set_talking(false)
+	if run_id != _run_id:
 		return
 	_subtitle_label.visible_characters = -1
 
@@ -150,6 +180,43 @@ func _play_say(op: Dictionary, run_id: int) -> void:
 			break
 	if _display != null:
 		_display.set_talking(false)
+	_speech_blip_player.stop()
+
+
+func get_punctuation_pause(character: String) -> float:
+	if character.is_empty():
+		return 0.0
+	if LONG_PAUSE_PUNCTUATION.contains(character):
+		return long_punctuation_pause
+	if SHORT_PAUSE_PUNCTUATION.contains(character):
+		return short_punctuation_pause
+	return 0.0
+
+
+func _is_spoken_character(character: String) -> bool:
+	if character.strip_edges().is_empty():
+		return false
+	if SILENT_PUNCTUATION.contains(character):
+		return false
+	return true
+
+
+func _should_play_speech_blip(character: String, character_index: int) -> bool:
+	if not _is_spoken_character(character):
+		return false
+	var interval: int = _speech_blip_character_interval * (2 if _fast_forward else 1)
+	return character_index % interval == 0
+
+
+func _play_speech_blip() -> void:
+	if _speech_blip_player.stream == null:
+		return
+	var pitch_offset: float = _speech_rng.randf_range(
+		-_speech_blip_pitch_variation,
+		_speech_blip_pitch_variation
+	)
+	_speech_blip_player.pitch_scale = 1.0 + pitch_offset
+	_speech_blip_player.play()
 
 
 func _wait_duration(seconds: float, run_id: int) -> void:
@@ -160,17 +227,17 @@ func _wait_duration(seconds: float, run_id: int) -> void:
 		elapsed += get_process_delta_time() * multiplier
 
 
-func _start_message_burst(op: Dictionary, run_id: int) -> void:
+func _play_message_burst(op: Dictionary, run_id: int) -> void:
 	var messages: Array = op.get("messages", [])
 	var count: int = int(op.get("count", messages.size()))
 	var drawn: Array[String] = draw_without_replacement(messages, count, _rng)
 	if drawn.is_empty():
 		return
-	_pending_bursts += 1
-	_emit_message_burst(str(op.get("op", "")), drawn, run_id)
+	await _emit_message_burst(str(op.get("op", "")), drawn, run_id)
 
 
 func _emit_message_burst(kind: String, messages: Array[String], run_id: int) -> void:
+	var base_interval: float = _get_message_base_interval(kind, messages.size())
 	for index: int in range(messages.size()):
 		if run_id != _run_id:
 			break
@@ -180,21 +247,30 @@ func _emit_message_burst(kind: String, messages: Array[String], run_id: int) -> 
 		else:
 			chat_event.emit({"kind": "send", "entries": [{"text": text}]})
 		if index + 1 < messages.size():
-			await _wait_message_interval(kind, messages.size(), run_id)
-	if run_id == _run_id:
-		_pending_bursts = maxi(_pending_bursts - 1, 0)
+			await _wait_message_interval(base_interval, run_id)
 
 
-func _wait_message_interval(kind: String, count: int, run_id: int) -> void:
-	var min_seconds: float
-	var max_seconds: float
-	if kind == "sc":
-		min_seconds = 0.35 if count <= 5 else 0.18
-		max_seconds = 0.75 if count <= 5 else 0.4
+func _get_message_base_interval(kind: String, count: int) -> float:
+	var gap_count: int = count - 1
+	if gap_count < 1:
+		return 0.0
+	var total_duration: float
+	if count <= 5:
+		var min_interval: float = 0.35 if kind == "sc" else 0.3
+		var max_interval: float = 0.75 if kind == "sc" else 0.8
+		total_duration = _rng.randf_range(min_interval, max_interval) * float(gap_count)
+	elif kind == "sc":
+		total_duration = _rng.randf_range(SC_FLOOD_DURATION_MIN, SC_FLOOD_DURATION_MAX)
 	else:
-		min_seconds = 0.3 if count <= 5 else 0.08
-		max_seconds = 0.8 if count <= 5 else 0.25
-	var target: float = _rng.randf_range(min_seconds, max_seconds)
+		total_duration = _rng.randf_range(CHAT_FLOOD_DURATION_MIN, CHAT_FLOOD_DURATION_MAX)
+	return total_duration / float(gap_count)
+
+
+func _wait_message_interval(base_interval: float, run_id: int) -> void:
+	var target: float = base_interval * _rng.randf_range(
+		MESSAGE_INTERVAL_JITTER_MIN,
+		MESSAGE_INTERVAL_JITTER_MAX
+	)
 	var elapsed: float = 0.0
 	while run_id == _run_id and elapsed < target:
 		await get_tree().process_frame

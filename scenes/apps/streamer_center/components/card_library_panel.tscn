@@ -45,7 +45,7 @@ text = "卡牌库"
 layout_mode = 2
 theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
 theme_override_font_sizes/font_size = 24
-text = "查看全部卡牌、人设与素材的图鉴。行为卡与修饰卡有解锁条件，人设和素材开播时选用。"
+text = "查看全部卡牌、人设与素材的图鉴。行为卡与修饰卡有解锁条件，人设通过毕业转生切换，素材开播时选用。"
 
 [node name="OwnedCountPanel" type="PanelContainer" parent="PageMargin/Page/HeadingRow"]
 layout_mode = 2

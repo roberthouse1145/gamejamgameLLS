@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="MapPlace" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/map_place.gd" id="1"]
+[ext_resource type="Texture2D" path="res://Assets/images/cityhop/echo_live_hall.png" id="2"]
+
+[resource]
+script = ExtResource("1")
+place_id = "echo_live_hall"
+display_name = "ECHO LIVE HALL"
+category = "演出与活动"
+district = "中央区 · 站前广场"
+summary = "以独立乐队和小型主题演出闻名的现场空间，舞台距离观众很近。"
+map_position = Vector2(0.67, 0.42)
+cover = ExtResource("2")
+rating = 4.8
+review_count = 615
+tags = Array[String](["indoor", "music", "night", "crowded"])

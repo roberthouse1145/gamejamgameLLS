@@ -1,59 +1,3 @@
-# 开发规范
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
-Tradeoff: These guidelines bias toward caution over speed. For trivial tasks, use judgment.
-
-1. Think Before Coding
-Don't assume. Don't hide confusion. Surface tradeoffs.
-
-Before implementing:
-
-State your assumptions explicitly. If uncertain, ask.
-If multiple interpretations exist, present them - don't pick silently.
-If a simpler approach exists, say so. Push back when warranted.
-If something is unclear, stop. Name what's confusing. Ask.
-2. Simplicity First
-Minimum code that solves the problem. Nothing speculative.
-
-No features beyond what was asked.
-No abstractions for single-use code.
-No "flexibility" or "configurability" that wasn't requested.
-No error handling for impossible scenarios.
-If you write 200 lines and it could be 50, rewrite it.
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-3. Surgical Changes
-Touch only what you must. Clean up only your own mess.
-
-When editing existing code:
-
-Don't "improve" adjacent code, comments, or formatting.
-Don't refactor things that aren't broken.
-Match existing style, even if you'd do it differently.
-If you notice unrelated dead code, mention it - don't delete it.
-When your changes create orphans:
-
-Remove imports/variables/functions that YOUR changes made unused.
-Don't remove pre-existing dead code unless asked.
-The test: Every changed line should trace directly to the user's request.
-
-4. Goal-Driven Execution
-Define success criteria. Loop until verified.
-
-Transform tasks into verifiable goals:
-
-"Add validation" → "Write tests for invalid inputs, then make them pass"
-"Fix the bug" → "Write a test that reproduces it, then make it pass"
-"Refactor X" → "Ensure tests pass before and after"
-For multi-step tasks, state a brief plan:
-
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
-These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
-
 # Prompt 编写规范
 
 编写给下游 LLM 使用的 prompt 时，优先提供正向的输出目标、允许语法、字段来源和最小示例。不要把 prompt 当前没有引入的错误形式、旧语法、其它语言/API、无关参数名写进提示词里做“勘误式否定”。
@@ -68,6 +12,14 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - 新增或修改 prompt 后，用搜索检查新增文本里是否引入了无来源的旧语法、错误参数、反例表或“不要写某错法”的内容。
 
 面向解析器、测试、开发者文档的错误用例可以保留；面向生成模型的 prompt 要保持上下文干净。
+
+# LLM 输出处理规范
+
+- LLM 返回的自然语言、DSL、聊天消息和结构化内容都是待校验的候选产物。运行时不得根据固定句式、消息数量、首条或末条位置，以及对自然语言含义的猜测，擅自插入、删除、替换、合并、拆分或重排内容。
+- 需要模型产出确定性的游戏行为时，在对应 prompt 中提供可用字段、资源和 DSL 命令，让模型在输出中显式决定内容及其位置；运行时只负责解析、校验和按 DSL 执行。
+- 校验失败时返回明确错误，并使用现有的 LLM 重试或 repair 流程。不得静默把未知文本改成旁白、命令、卡片或其它合法结构。
+- 只允许不改变语义的传输规范化，例如统一换行、去除首尾空白、移除包裹完整输出的 Markdown 代码围栏。不得借规范化修正文案、补全内容或猜测模型意图。
+- 游戏权威数据通过 prompt 变量、资源别名或结构化命令提供；不要在模型完成输出后，再按运行时猜测把数据并入某条自然语言消息。
 
 # 游戏项目改动规范
 
@@ -155,6 +107,64 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - 写完文案后删掉所有无法回答“玩家为什么需要知道”的句子。
 - 不为了让 UI 看起来更“完整”添加说明。信息量以玩家完成当前选择所需为准。
 
+### 游戏 UI/UX 与视觉设计原则
+
+#### 设计顺序与层级
+
+- 开始设计前先回答：玩家此刻要完成什么、注意力应落在哪里、主要操作是什么、操作后需要看到什么反馈。无法回答这四项时，不先堆组件。
+- 每个界面建立明确的一级主体和主要操作，再安排辅助信息与装饰。主体所需面积、比例和可读性在布局开始时就要得到保证，次要内容主动让位。
+- 通过尺寸、位置、留白、对比和密度建立层级。不要依赖大量边框、颜色、阴影或文字说明制造“丰富感”。
+- 空白是布局的一部分，用于分组、节奏和聚焦；不为了填空添加无助于玩家理解或决策的面板与文案。
+
+#### 参考与装饰
+
+- 使用现实产品、同类游戏或视觉稿作参考时，提取其构图、比例、对齐、层级、节奏和交互语法，不直接复制与当前玩法无关的业务内容。
+- 纯装饰优先使用克制的几何语言，例如形状 Panel、线条、分隔、色块、圆点和轮廓。装饰负责建立氛围与识别，不与主体争夺注意力。
+- 看起来像控件但仅用于装饰的节点必须不可交互、不获取焦点、不响应 hover/pressed，并在 Godot 中退出鼠标和键盘输入链路，避免制造虚假功能暗示。
+- 图片和图标只有在用途、语义、画风、角色归属、清晰度与裁切方式都匹配时才使用。不得因为素材“已经存在”就把它放入无关界面；没有合适素材时优先保持克制。
+- 同一视觉层级使用一致的色彩、圆角、描边、阴影、图标风格和材质语言，不拼接互不相干的设计系统。
+
+#### 布局、适配与可读性
+
+- 设计前读取项目实际逻辑分辨率、窗口缩放策略和常见显示尺寸，据此建立字号、间距、图标、描边和点击区尺度；不得直接套用其它分辨率或平台的默认数值。
+- 建立稳定的字号、间距与组件尺寸层级。最小常用文字在目标显示比例下必须无需凑近即可阅读，关键数据和主要操作应明显高于辅助信息。
+- 使用栅格、内容边线、文字基线和视觉重心对齐。不要把几何居中或垂直居中当成默认正确答案，也不要用任意偏移掩盖缺少布局关系的问题。
+- 图片、视频、模型视口和其它媒体区域保持其设计要求的宽高比；提前决定是完整显示、裁切填充还是留边，不拉伸素材，也不让外层布局意外制造黑边。
+- 窗口空间不足时，优先守住一级主体、可读文字和主要操作，再折叠、简化或移除次要装饰。
+- 尺寸适配使用容器、锚点、最小尺寸和主题尺度完成，不使用持久 `scale` 作为布局方案。
+
+#### 信息、文案与游戏感
+
+- 新增信息前先盘点当前界面已经表达的内容。同一状态、指标或结论只保留一个主要呈现位置；只有在不同上下文确实承担不同决策作用时才允许重复。
+- 玩家可见名词应清楚、稳定并符合玩法领域。已有明确玩法概念时直接使用，不为追求文艺感改写成含混隐喻。
+- 游戏界面可以借用现实软件的认知模型，但必须服从游戏世界、玩法反馈和美术风格；除非题材本身需要，不把界面做成通用企业后台或无叙事归属的软件模板。
+- 根据事件的重要性选择反馈载体：轻量反馈使用局部状态或提示，重要阶段变化使用完整界面或明确过渡。不要把所有结果都塞进弹窗，也不要为简单反馈另建重型页面。
+- 图表、数据卡和指标只在能帮助玩家理解状态、比较结果或作出选择时出现。数据表达优先清晰与可比较，装饰不得遮蔽数值和结论。
+
+#### 交互状态与反馈
+
+- 控件的可见、可用和禁用状态必须与当前游戏状态及操作含义一致。尚未成立的操作不应表现为可用。
+- 禁用状态同时包含逻辑禁用、输入阻断和视觉降级；可用控件必须提供及时且风格一致的 hover、pressed、成功、失败或等待反馈。
+- 状态转换要保持因果与视觉连续性，让玩家理解“刚才发生了什么、现在处于哪里、接下来能做什么”。视觉、文字、声音和动画只在有助于表达状态变化时使用。
+- 动效与音效服务确认、警示、节奏和空间连续性，不为了热闹而添加；同一事件避免多种强反馈互相叠加。
+- 主要操作必须有清晰反馈和恢复路径；异步、失败或不可用状态不能表现为无响应。
+
+#### 数据归属与一致性
+
+- 同一概念只有一个权威数据来源。多个区域展示同一数据时统一从该来源读取，不维护互相漂移的副本。
+- 成套的身份、主题或视觉资产由同一领域资源拥有并一起切换，不把其中个别字段散落到全局状态、场景脚本或硬编码文案中。
+- 可复用组件通过主题、设计 token 和明确的数据接口保持一致；不要在每个页面重新手写一套近似但不同的视觉参数。
+
+#### 实现前检查
+
+- 确认玩家目标、一级主体、主要操作和反馈方式。
+- 画出主体区域，检查辅助内容与装饰是否侵占主体。
+- 列出所有可见信息，删除没有独立用途的重复项。
+- 区分真实控件与纯装饰，检查焦点、鼠标和键盘输入归属。
+- 在项目目标分辨率和常见窗口比例下检查字号、点击区、裁切、媒体比例和布局优先级。
+- 检查正常、等待、禁用、失败、完成等关键状态，并确认视觉表现与真实逻辑一致。
+- 检查每项数据和成套视觉资产的权威来源，避免全局硬编码和多份状态。
+
 ### 游戏 UI 验收
 
 - 除非用户明确要求验收，UI、美术、布局、拖拽、卡牌交互和局部代码改动完成后：**不启动项目、不模拟点击/拖拽、不截图、不开 playtest 自测循环**。
@@ -196,6 +206,25 @@ These guidelines are working if: fewer unnecessary changes in diffs, fewer rewri
 - 信号定义在类顶部，变量之前
 - 使用 `@onready` 延迟初始化节点引用
 
+### Typed Array 与动态数据边界
+
+- `Array` 的元素类型属于运行时数组实例；`Array`（即 `Array[Variant]`）与 `Array[T]` 是不同的容器类型，`=` 只允许引用类型一致的数组。
+- Typed Array 函数统一先创建带类型的局部结果，例如 `var result: Array[Dictionary] = []`，通过 `append()` / `append_array()` 填充后返回；空结果也返回该 typed local。
+- JSON、`Dictionary.get()`、`Object.call()`、通用 `Node` 上的动态方法以及声明返回普通 `Array` 的 API 都视为无类型数据边界。进入 typed array 时创建目标数组并调用 `assign()`，由目标类型完成复制、转换和元素校验。
+- typed array 之间需要改变元素类型时使用目标数组的 `assign()`；不要依赖接收变量的类型注解把来源数组自动转换。
+- 能静态确定对象类型时使用具体脚本类型或直接访问已知 Autoload，保留方法参数与返回值类型信息，减少动态调用造成的类型盲区。
+
+最小边界示例：
+
+```gdscript
+func read_entries(payload: Dictionary) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var raw_entries: Variant = payload.get("entries", [])
+	if raw_entries is Array:
+		result.assign(raw_entries)
+	return result
+```
+
 ## 项目结构
 
 ```text
@@ -234,4 +263,9 @@ res://
 违反这条规则会出现：hover/动画把 scale 冲掉、布局算坐标时漏算 scale、容器 hit-test 与视觉不一致、拖拽落位 scale 回不到 1.0 等问题。
 
 ## 关于回复  
-- 用户主要使用中文，默认用中文回复。  
+- 用户主要使用中文，默认用中文回复。
+
+## 模型能力边界
+
+- 如果当前模型为 deepseek 系列，**无多模态能力，无法读取/识别图片**。
+- 不要通过截图、图片预览判断视觉结果；

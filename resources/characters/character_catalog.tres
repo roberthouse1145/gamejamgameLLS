@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CharacterCatalog" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/character_catalog.gd" id="1_catalog"]
+[ext_resource type="Resource" path="res://resources/characters/ruan_yunyou.tres" id="2_player"]
+[ext_resource type="Resource" path="res://resources/characters/lu_yuanyuan.tres" id="3_yuanyuan"]
+[ext_resource type="Resource" path="res://resources/characters/su_he.tres" id="4_su_he"]
+[ext_resource type="Resource" path="res://resources/characters/lu_ling.tres" id="5_lu_ling"]
+[ext_resource type="Resource" path="res://resources/characters/hippo.tres" id="6_hippo"]
+
+[resource]
+script = ExtResource("1_catalog")
+player_character_id = "ruan_yunyou"
+characters = Array[Resource]([ExtResource("2_player"), ExtResource("3_yuanyuan"), ExtResource("4_su_he"), ExtResource("5_lu_ling"), ExtResource("6_hippo")])

@@ -1,0 +1,1 @@
+res://tests/automated/avg/fixtures/test_lore_entries.txt

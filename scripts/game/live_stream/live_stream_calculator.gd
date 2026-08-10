@@ -87,13 +87,10 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 		axes[String(axis_key)] = float(axes[String(axis_key)]) + material.axes.get_value(axis_key)
 		axes[String(axis_key)] *= _get_global_modifier_multiplier(global_modifiers, axis_key)
 
-	if float(material_state.get("depth", material.initial_depth)) <= 0.0:
-		axes["quality"] = float(axes["quality"]) - 1.0
 	_apply_private_state_penalties(axes, plan.state_snapshot)
 
-	var freshness: float = clampf(float(material_state.get("freshness", 1.0)), 0.4, 1.0)
 	var fans: int = maxi(int(plan.state_snapshot.get("fans", 0)), 0)
-	var base_audience: float = (material.base_popularity + float(fans) * 0.08) * freshness
+	var base_audience: float = material.base_popularity + float(fans) * 0.08
 	base_audience *= pow(balance.empty_program_slot_multiplier, empty_program_slot_count)
 	result.peak_viewers = maxi(int(round(base_audience * maxf(0.2, 1.0 + float(axes["hook"]) * 0.12))), 1)
 	var passerby_ratio: float = clampf(float((plan.state_snapshot.get("fan_vector", {}) as Dictionary).get("r", 100.0)) / 100.0, 0.05, 1.0)
@@ -126,9 +123,6 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 	result.material_use = {
 		"instance_id": String(plan.material_instance_id),
 		"material_type": String(material.material_type),
-		"depth_delta": -1.0,
-		"progress_delta": 1,
-		"freshness_delta": -material.freshness_decay,
 	}
 	return result
 

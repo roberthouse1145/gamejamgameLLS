@@ -1,4 +1,4 @@
-[gd_scene load_steps=4 format=3 uid="uid://b3lxv6taqbb6a"]
+[gd_scene format=3 uid="uid://b3lxv6taqbb6a"]
 
 [ext_resource type="Script" uid="uid://djmswiwtuvins" path="res://scripts/pseudo_os/desktop.gd" id="1_desktop"]
 [ext_resource type="PackedScene" path="res://scenes/pseudo_os/taskbar.tscn" id="2_taskbar"]
@@ -12,7 +12,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_desktop")
-desktop_app_ids = PackedStringArray("linkchat", "browser", "streamer_center", "obs_live")
+desktop_app_ids = PackedStringArray("linkchat", "linkposta", "browser", "cityhop", "streamer_center", "obs_live")
 
 [node name="Background" type="ColorRect" parent="." unique_id=792729528]
 unique_name_in_owner = true

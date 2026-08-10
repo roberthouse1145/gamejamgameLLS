@@ -16,6 +16,7 @@ ai_config.cfg
 
 # Temporary debug files
 tmp/
+~*.TMP
 
 # Local machine noise
 NVIDIA Corporation/

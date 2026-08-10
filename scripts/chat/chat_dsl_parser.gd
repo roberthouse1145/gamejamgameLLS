@@ -226,9 +226,12 @@ static func parse(
 	if end_count == 0:
 		errors.append("Chat DSL requires at least one END")
 	for reference_value: Variant in label_references:
-		var reference: Dictionary = reference_value
-		if not labels.has(str(reference["target"])):
-			errors.append(_line_error(int(reference["line"]), "unknown label '%s'" % reference["target"]))
+		var label_reference: Dictionary = reference_value
+		if not labels.has(str(label_reference["target"])):
+			errors.append(_line_error(
+				int(label_reference["line"]),
+				"unknown label '%s'" % label_reference["target"]
+			))
 
 	return {
 		"ok": errors.is_empty(),
@@ -294,16 +297,41 @@ static func _parse_card_message(message_text: String) -> Dictionary:
 		return {"is_card": false}
 	var inner: String = message_text.trim_prefix("[card:").trim_suffix("]")
 	var parts: PackedStringArray = inner.split("|")
+	var card_type: String = parts[0].strip_edges() if not parts.is_empty() else ""
+	if card_type == "location":
+		if parts.size() != 6:
+			return {
+				"is_card": true,
+				"card": {},
+				"text": "",
+				"error": "invalid location card syntax, expected [card:location|activity_id|place_id|title|subtitle|price_text]",
+			}
+		return {
+			"is_card": true,
+			"card": {
+				"type": "location",
+				"activity_id": parts[1].strip_edges(),
+				"place_id": parts[2].strip_edges(),
+				"title": parts[3].strip_edges(),
+				"subtitle": parts[4].strip_edges(),
+				"price_text": parts[5].strip_edges(),
+				"target_app": "cityhop",
+				"footer": "在 CityHop 中查看",
+			},
+			"text": "",
+		}
 	if parts.size() < 3:
-		return {"is_card": true, "card": {}, "text": message_text, "error": "invalid card syntax, expected [card:type|title|url]"}
+		return {"is_card": true, "card": {}, "text": "", "error": "invalid card syntax, expected [card:type|title|url]"}
+	if card_type not in ["file", "link", "image"]:
+		return {"is_card": true, "card": {}, "text": "", "error": "unknown card type '%s'" % card_type}
 	var card: Dictionary = {
-		"type": parts[0].strip_edges(),
+		"type": card_type,
 		"title": parts[1].strip_edges(),
 		"url": parts[2].strip_edges(),
 	}
 	if parts.size() >= 4:
 		card["subtitle"] = parts[3].strip_edges()
-	return {"is_card": true, "card": card, "text": str(card["title"])}
+	return {"is_card": true, "card": card, "text": ""}
 
 
 static func _is_valid_id(value: String) -> bool:
@@ -517,10 +545,15 @@ class ConditionParser extends RefCounted:
 				break
 			index += 1
 		var raw: String = _source.substr(start, index - start)
+		var number_value: Variant
+		if has_dot:
+			number_value = raw.to_float()
+		else:
+			number_value = raw.to_int()
 		_tokens.append({
 			"type": "literal",
 			"text": raw,
-			"value": raw.to_float() if has_dot else raw.to_int(),
+			"value": number_value,
 		})
 		return index
 

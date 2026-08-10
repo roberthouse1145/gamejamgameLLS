@@ -14,6 +14,9 @@ class_name AppDefinition extends Resource
 ## 应用入口场景
 @export var entry_scene: PackedScene
 
+## Web 快捷应用入口。设置后复用浏览器窗口打开该地址，无需单独入口场景。
+@export var launch_url: String = ""
+
 ## 是否在桌面创建图标
 @export var show_on_desktop: bool = true
 

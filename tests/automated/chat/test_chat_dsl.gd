@@ -13,6 +13,7 @@ var _generation_prompt: String = ""
 
 func _ready() -> void:
 	_test_validation()
+	_test_location_card_flow()
 	_test_conditions()
 	_test_local_flow()
 	_test_elif_flow()
@@ -62,6 +63,45 @@ func _test_conditions() -> void:
 		}
 	)
 	_check(bool(result.get("ok", false)) and bool(result.get("value", false)), "boolean condition supports NOT, AND, OR and parentheses")
+
+
+func _test_location_card_flow() -> void:
+	_reset_events()
+	var manager: TopicManager = _create_manager()
+	var topic: ChatTopic = ChatTopicClass.new()
+	topic.topic_id = "location_card"
+	topic.channel_id = "location_card_channel"
+	topic.local_script = """player: 今天风挺大诶。
+player: [card:location|park_walk|riverside_park|沿河散步|汐见河滨公园|约会合计 ¥600]
+player: 要不要去河边走走？
+END invited"""
+
+	_check(manager.activate_topic(topic), "location card topic activates")
+	_check(
+		_messages.size() == 1 \
+			and _messages[0].get("text") == "今天风挺大诶。" \
+			and (_messages[0].get("card", {}) as Dictionary).is_empty(),
+		"text before the card remains an unchanged standalone message"
+	)
+	manager.advance_topic(topic.channel_id)
+	var location_card: Dictionary = {}
+	if _messages.size() > 1:
+		location_card = _messages[1].get("card", {}) as Dictionary
+	_check(
+		_messages.size() == 2 \
+			and str(_messages[1].get("text", "")).is_empty() \
+			and str(location_card.get("type", "")) == "location" \
+			and str(location_card.get("activity_id", "")) == "park_walk" \
+			and str(location_card.get("place_id", "")) == "riverside_park",
+		"location card appears exactly where the DSL places it"
+	)
+	manager.advance_topic(topic.channel_id)
+	_check(
+		_messages.size() == 3 and _messages[2].get("text") == "要不要去河边走走？",
+		"text after the card keeps its generated order"
+	)
+	manager.advance_topic(topic.channel_id)
+	manager.queue_free()
 
 
 func _test_local_flow() -> void:
@@ -214,8 +254,13 @@ func _reset_events() -> void:
 	_generation_prompt = ""
 
 
-func _on_message(_topic: ChatTopic, speaker_id: String, text: String, is_player: bool, _card: Dictionary) -> void:
-	_messages.append({"speaker": speaker_id, "text": text, "is_player": is_player})
+func _on_message(_topic: ChatTopic, speaker_id: String, text: String, is_player: bool, card: Dictionary) -> void:
+	_messages.append({
+		"speaker": speaker_id,
+		"text": text,
+		"is_player": is_player,
+		"card": card.duplicate(true),
+	})
 
 
 func _on_choices(_topic: ChatTopic, choices: Array) -> void:

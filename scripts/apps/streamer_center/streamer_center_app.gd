@@ -31,6 +31,7 @@ func _ready() -> void:
 		var button: Button = tab_buttons[tab_id]
 		button.pressed.connect(_show_tab.bind(tab_id))
 	GameState.fans_changed.connect(_on_profile_changed)
+	GameState.persona_changed.connect(_on_persona_changed)
 	_update_header()
 	_show_tab(TAB_OVERVIEW)
 
@@ -51,9 +52,21 @@ func _show_tab(tab_id: StringName) -> void:
 
 
 func _update_header() -> void:
-	header_account.text = GameState.streamer_name if not GameState.streamer_name.strip_edges().is_empty() else "未设置艺名"
+	var persona: StreamPersonaResource = _get_active_persona()
+	header_account.text = persona.channel_name if persona != null else "暂无频道"
 	header_day.text = "第 %d 天" % GameState.day
 
 
+func _get_active_persona() -> StreamPersonaResource:
+	var catalog: LiveStreamCatalog = CardLibraryManager.get_catalog()
+	if catalog == null:
+		return null
+	return catalog.get_persona(StringName(GameState.active_persona_id))
+
+
 func _on_profile_changed(_value: int) -> void:
+	_update_header()
+
+
+func _on_persona_changed(_old_persona_id: String, _new_persona_id: String) -> void:
 	_update_header()

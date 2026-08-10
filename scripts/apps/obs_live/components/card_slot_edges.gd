@@ -8,6 +8,7 @@ const OUTLINE_COLOR: Color = Color("#20283A")
 const HOVER_OUTLINE_COLOR: Color = Color("#6B9FEA")
 const SELECTED_OUTLINE_COLOR: Color = Color("#7568CB")
 const LOCKED_OUTLINE_COLOR: Color = Color("#8793A5")
+const OVER_BUDGET_OUTLINE_COLOR: Color = Color("#E5486D")
 const PATTERN_COLOR: Color = Color(0.72, 0.82, 0.93, 0.28)
 const DISCONNECTED_COLOR: Color = Color("#E65B72")
 const CONNECTED_COLOR: Color = Color("#42BFA0")
@@ -32,6 +33,7 @@ var face_texture: Texture2D = null
 var selected: bool = false
 var hovered: bool = false
 var locked: bool = false
+var over_budget: bool = false
 var glow_strength: float = 0.0
 
 
@@ -62,10 +64,22 @@ func set_connected_slots(left_connected: Array[int], right_connected: Array[int]
 	queue_redraw()
 
 
+func clear_connected_slots() -> void:
+	connected_left_slots.clear()
+	connected_right_slots.clear()
+	show_connection_state = false
+	queue_redraw()
+
+
 func set_interaction_state(is_selected: bool, is_hovered: bool, is_locked: bool) -> void:
 	selected = is_selected
 	hovered = is_hovered
 	locked = is_locked
+	queue_redraw()
+
+
+func set_over_budget(state: bool) -> void:
+	over_budget = state
 	queue_redraw()
 
 
@@ -241,6 +255,8 @@ func _draw_inner_pattern(left: float, right: float, top: float, bottom: float) -
 func _get_outline_color() -> Color:
 	if locked:
 		return LOCKED_OUTLINE_COLOR
+	if over_budget:
+		return OVER_BUDGET_OUTLINE_COLOR
 	if selected:
 		return SELECTED_OUTLINE_COLOR
 	if hovered:
@@ -251,6 +267,8 @@ func _get_outline_color() -> Color:
 func _get_outline_width() -> float:
 	if selected:
 		return 7.0
+	if over_budget:
+		return 6.0
 	if hovered:
 		return 5.0
 	return 4.0
@@ -273,5 +291,5 @@ func _arc_points(center: Vector2, radius: float, from_angle: float, to_angle: fl
 	return result
 
 
-func _get_connection_color(is_connected: bool) -> Color:
-	return CONNECTED_COLOR if is_connected else DISCONNECTED_COLOR
+func _get_connection_color(connected: bool) -> Color:
+	return CONNECTED_COLOR if connected else DISCONNECTED_COLOR

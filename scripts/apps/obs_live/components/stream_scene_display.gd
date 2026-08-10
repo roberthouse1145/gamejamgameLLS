@@ -6,25 +6,36 @@ class_name StreamSceneDisplay extends Control
 @onready var _background: TextureRect = %Background
 @onready var _avatar_root: Node3D = %AvatarRoot
 @onready var _camera: Camera3D = %AvatarCamera
+@onready var _avatar_viewport_container: SubViewportContainer = %AvatarViewportContainer
+@onready var _world_environment: WorldEnvironment = $AvatarViewportContainer/AvatarViewport/WorldEnvironment
+@onready var _key_light: DirectionalLight3D = $AvatarViewportContainer/AvatarViewport/KeyLight
+@onready var _rim_light: OmniLight3D = $AvatarViewportContainer/AvatarViewport/RimLight
 
 var _model_resource: StreamerModelResource = null
 var _avatar: Node3D = null
 var _current_expression: StringName = &""
 var _avatar_graph_ready: bool = false
+var _avatar_visible: bool = true
 
 
 func _ready() -> void:
 	_background.texture = background_texture
+	_apply_avatar_visibility()
 
 
 func setup(model_resource: StreamerModelResource) -> bool:
 	_clear_avatar()
 	_model_resource = model_resource
-	_background.texture = background_texture
 	if _model_resource == null or not _model_resource.is_valid():
 		return false
+	_apply_render_profile()
 	_camera.position = _model_resource.camera_position
 	_camera.fov = _model_resource.camera_fov
+	if _model_resource.camera_orthogonal:
+		_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+		_camera.size = _model_resource.camera_orthogonal_size
+	else:
+		_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 	_camera.look_at(_model_resource.camera_target)
 	_avatar = _model_resource.avatar_scene.instantiate() as Node3D
 	if _avatar == null:
@@ -37,7 +48,29 @@ func setup(model_resource: StreamerModelResource) -> bool:
 		_clear_avatar()
 		return false
 	_current_expression = &""
+	_apply_avatar_visibility()
 	return set_expression(_model_resource.default_expression, 0.0)
+
+
+func _apply_render_profile() -> void:
+	if _model_resource == null:
+		return
+	if _world_environment.environment != null:
+		var environment := _world_environment.environment.duplicate() as Environment
+		environment.ambient_light_color = _model_resource.ambient_light_color
+		environment.ambient_light_energy = _model_resource.ambient_light_energy
+		_world_environment.environment = environment
+	_key_light.light_color = _model_resource.key_light_color
+	_key_light.light_energy = _model_resource.key_light_energy
+	_key_light.rotation_degrees = _model_resource.key_light_rotation_degrees
+	_rim_light.light_color = _model_resource.rim_light_color
+	_rim_light.light_energy = _model_resource.rim_light_energy
+	var outline_material := _avatar_viewport_container.material as ShaderMaterial
+	if outline_material != null:
+		outline_material = outline_material.duplicate() as ShaderMaterial
+		outline_material.set_shader_parameter("outline_color", _model_resource.outline_color)
+		outline_material.set_shader_parameter("outline_width_px", _model_resource.outline_width_px)
+		_avatar_viewport_container.material = outline_material
 
 
 func wait_for_avatar_ready() -> void:
@@ -53,6 +86,11 @@ func set_background(texture: Texture2D) -> void:
 	background_texture = texture
 	if _background != null:
 		_background.texture = texture
+
+
+func set_avatar_visible(visible_value: bool) -> void:
+	_avatar_visible = visible_value
+	_apply_avatar_visibility()
 
 
 func set_expression(expression_name: StringName, duration: float = -1.0) -> bool:
@@ -110,6 +148,11 @@ func get_current_expression() -> StringName:
 
 func get_model_resource() -> StreamerModelResource:
 	return _model_resource
+
+
+func _apply_avatar_visibility() -> void:
+	if _avatar_viewport_container != null:
+		_avatar_viewport_container.visible = _avatar_visible
 
 
 func _clear_avatar() -> void:

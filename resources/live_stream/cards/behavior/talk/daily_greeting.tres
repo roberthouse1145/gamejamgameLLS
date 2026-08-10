@@ -20,3 +20,4 @@ display_name = "日常打招呼"
 description = "像平时聊天一样迎接观众。"
 icon = ExtResource("3")
 tags = Array[StringName]([&"talk"])
+prompt_fragment = "开场问候的走向：先向观众打招呼、报个到，再随口聊聊今天的安排或心情（可以结合本场素材内容），看看弹幕里有没有人先开口，接住一两句再自然地开始本场内容。语气像老熟人，随性自然。"
