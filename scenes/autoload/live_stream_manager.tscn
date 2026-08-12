@@ -1,6 +1,9 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://autoload/live_stream_manager.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/game/live_stream/live_stream_post_generator.tscn" id="2_post_generator"]
 
 [node name="LiveStreamManager" type="Node"]
 script = ExtResource("1_script")
+
+[node name="LiveStreamPostGenerator" parent="." instance=ExtResource("2_post_generator")]

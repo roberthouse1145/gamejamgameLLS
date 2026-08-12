@@ -99,7 +99,7 @@ signal game_ui_action_requested(action: String)
 @onready var choice_display: Control = %ChoiceDisplay
 ## 效果层容器 — 不受 Camera2D 影响
 @onready var effects_container: Control = %EffectsContainer
-@onready var audio_manager: Node = %AVGAudioManager
+@onready var audio_manager: Node = %AVGAudioAdapter
 ## 摄像机
 @onready var _camera: Camera2D = %Camera2D
 

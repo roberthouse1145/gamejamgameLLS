@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="AppDefinition" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/pseudo_os/app_definition.gd" id="1_app_def"]
+[ext_resource type="Script" path="res://scripts/pseudo_os/window_constraints.gd" id="2_constraints"]
+[ext_resource type="PackedScene" path="res://scenes/apps/mail/mail_app.tscn" id="3_scene"]
+[ext_resource type="Texture2D" path="res://Assets/images/app_icons/mail.png" id="4_icon"]
+
+[sub_resource type="Resource" id="Resource_constraints"]
+script = ExtResource("2_constraints")
+min_size = Vector2(1600, 1040)
+default_size = Vector2(2520, 1560)
+default_size_ratio = 0.78
+
+[resource]
+script = ExtResource("1_app_def")
+app_id = "mail"
+app_name = "邮件"
+icon = ExtResource("4_icon")
+entry_scene = ExtResource("3_scene")
+window_constraints = SubResource("Resource_constraints")

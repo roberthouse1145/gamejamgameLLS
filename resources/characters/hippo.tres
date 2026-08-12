@@ -12,5 +12,5 @@ script = ExtResource("1")
 character_id = "hippo"
 display_name = "睡不醒的河马"
 role = "online_friend"
-persona_prompt = "睡不醒的河马，阮云柚的网友，游戏ID，真名隐藏。为女主提供素材、连麦与技术支援；宅女社交事故高发位。"
+persona_prompt = "睡不醒的河马，阮云柚的网友，游戏ID，真名隐藏。为女主提供素材、连麦与技术支援；也是宅女社交容易翻车的关系位。"
 linkchat_profile = SubResource("LinkChatProfile_hippo")

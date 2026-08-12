@@ -18,8 +18,9 @@ func _ready() -> void:
 	director.register_action_handler("play_transit", _action_play_transit)
 	director.register_action_handler("play_avg", _action_play_avg)
 	director.register_action_handler("check_llm_available", _action_check_llm_available)
-	director.register_action_handler("publish_moment", _action_publish_moment)
-	director.register_action_handler("publish_character_moment", _action_publish_character_moment)
+	director.register_action_handler("publish_post", _action_publish_post)
+	director.register_action_handler("publish_character_post", _action_publish_character_post)
+	director.register_action_handler("deliver_mail", _action_deliver_mail)
 	director.register_action_handler("add_linkchat_friend", _action_add_linkchat_friend)
 	director.register_action_handler("remove_linkchat_friend", _action_remove_linkchat_friend)
 	# App 启动事件桥接为剧情等待条件：wait: app_launched + app_id 匹配
@@ -174,9 +175,9 @@ func _action_check_llm_available(action: Dictionary) -> bool:
 	return true
 
 
-## { "type": "publish_moment", "character_id": "lu_yuanyuan", "content": "...", "texture_path": "res://..." }
-func _action_publish_moment(action: Dictionary) -> bool:
-	var manager: Node = get_node_or_null("/root/LinkChatManager")
+## { "type": "publish_post", "account_id": "yunyou_streamer", "content": "..." }
+func _action_publish_post(action: Dictionary) -> bool:
+	var manager: Node = get_node_or_null("/root/SocialMediaManager")
 	if manager == null:
 		return false
 	var texture: Texture2D = null
@@ -184,21 +185,55 @@ func _action_publish_moment(action: Dictionary) -> bool:
 	if not texture_path.is_empty() and ResourceLoader.exists(texture_path):
 		texture = ResourceLoader.load(texture_path) as Texture2D
 	return manager.call(
-		"publish_moment",
-		str(action.get("character_id", "")),
+		"publish_post",
+		str(action.get("account_id", "")),
 		str(action.get("content", "")),
-		texture
+		texture,
+		str(action.get("linked_url", "")),
+		str(action.get("source_session_id", "")),
+		bool(action.get("present_as_new", true))
 	) != null
 
 
-## { "type": "publish_character_moment", "character_id": "lu_yuanyuan", "moment_id": "cafe_photo" }
-func _action_publish_character_moment(action: Dictionary) -> bool:
-	var manager: Node = get_node_or_null("/root/LinkChatManager")
+## { "type": "publish_character_post", "character_id": "lu_yuanyuan", "account_id": "yuanyuan_personal", "content_id": "..." }
+func _action_publish_character_post(action: Dictionary) -> bool:
+	var manager: Node = get_node_or_null("/root/SocialMediaManager")
 	return manager != null and manager.call(
-		"publish_character_moment",
+		"publish_character_post",
 		str(action.get("character_id", "")),
-		str(action.get("moment_id", ""))
+		str(action.get("account_id", "")),
+		str(action.get("content_id", "")),
+		str(action.get("source_session_id", "")),
+		bool(action.get("present_as_new", true))
 	) != null
+
+
+## { "type": "deliver_mail", "sender_name": "发件单位", "sender_address": "notice@example.test", "subject": "来信主题", "body": "..." }
+func _action_deliver_mail(action: Dictionary) -> bool:
+	var manager: Node = get_node_or_null("/root/MailManager")
+	if manager == null:
+		return false
+	var mail: Dictionary = manager.call(
+		"receive_mail",
+		str(action.get("sender_name", "")),
+		str(action.get("sender_address", "")),
+		str(action.get("subject", "")),
+		str(action.get("body", "")),
+		str(action.get("sent_at", "")),
+		str(action.get("source_session_id", ""))
+	)
+	if mail.is_empty():
+		return false
+	if bool(action.get("notify", true)):
+		var desktop: Node = get_tree().get_first_node_in_group("desktop")
+		if desktop != null and desktop.has_method("show_system_notification"):
+			desktop.show_system_notification(
+				str(mail.get("sender_name", "")),
+				"新邮件：%s" % str(mail.get("subject", "")),
+				"mail",
+				float(action.get("notification_duration", 5.0))
+			)
+	return true
 
 
 func _action_add_linkchat_friend(action: Dictionary) -> bool:

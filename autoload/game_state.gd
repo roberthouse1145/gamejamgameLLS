@@ -12,6 +12,7 @@ signal day_changed(value: int)
 signal time_slot_changed(value: int)
 signal streamer_progress_changed(level: int, exp: int, growth_points: int)
 signal skill_levels_changed(family: StringName, level: int)
+signal skill_experience_changed(family: StringName, experience: int, level: int)
 signal skill_nodes_changed()
 ## 当前人设切换（毕业转生，策划案 §4.10）后发出。
 signal persona_changed(old_persona_id: String, new_persona_id: String)
@@ -22,7 +23,7 @@ const ATTR_OTAKU_DESIRE: String = "otaku_desire"
 const ATTR_LONELINESS: String = "loneliness"
 
 ## 属性阈值（策划案 §4.2）：压力 >60 演出降质 / >80 摆烂 / 100 坏结局；
-## 宅欲 >70 演出打折 / >90 摆烂；孤独 >70 日记变丧 / >90 社交事故
+## 宅欲 >70 演出打折 / >90 摆烂；孤独 >70 日记变丧 / >90 关系状态恶化
 const ATTRIBUTE_THRESHOLDS: Dictionary = {
 	ATTR_STRESS: [60, 80, 100],
 	ATTR_OTAKU_DESIRE: [70, 90],
@@ -32,6 +33,22 @@ const ATTRIBUTE_THRESHOLDS: Dictionary = {
 const TIME_SLOT_MORNING: int = 0
 const TIME_SLOT_AFTERNOON: int = 1
 const TIME_SLOT_NIGHT: int = 2
+const GAME_TIME_PROMPT_PROVIDER_KEY: String = "current_game_time"
+const GAME_START_YEAR: int = 2026
+const GAME_START_MONTH: int = 8
+const GAME_START_DAY: int = 7
+const SECONDS_PER_DAY: int = 86_400
+const WEEKDAY_NAMES: Array[String] = [
+	"星期日",
+	"星期一",
+	"星期二",
+	"星期三",
+	"星期四",
+	"星期五",
+	"星期六",
+]
+const TIME_SLOT_NAMES: Array[String] = ["上午", "下午", "晚上"]
+const TIME_SLOT_HOURS: Array[int] = [9, 14, 20]
 
 const FAN_VECTOR_KEYS: Array[String] = ["r", "m", "w", "c", "b"]
 
@@ -42,6 +59,13 @@ const DEFAULT_SKILL_LEVELS: Dictionary = {
 	"song": 1,
 	"act": 1,
 	"tech": 1,
+}
+const DEFAULT_SKILL_EXPERIENCE: Dictionary = {
+	"game": 0,
+	"talk": 0,
+	"song": 0,
+	"act": 0,
+	"tech": 0,
 }
 
 ## 属性（0~100）：压力 / 宅欲 / 孤独
@@ -63,13 +87,13 @@ var outing_history: Array[Dictionary] = []
 ## day -> Array[character_id]。邀约失败只锁定当日该角色。
 var failed_date_invites: Dictionary = {}
 
-## 主播成长：直播产生 EXP，升级授予公共成长点，玩家再投资五条技能分支。
+## 中之人成长：素材提供领域熟练度；其总和推进主播等级并授予公共成长点。
 var streamer_level: int = 1
 var streamer_exp: int = 0
 var growth_points: int = 2
 var skill_levels: Dictionary = DEFAULT_SKILL_LEVELS.duplicate(true)
+var skill_experience: Dictionary = DEFAULT_SKILL_EXPERIENCE.duplicate(true)
 var unlocked_skill_ids: Array[StringName] = []
-
 ## 素材运行态：instance_id -> definition_id/depth/progress/freshness/use_count。
 var material_instances: Dictionary = {}
 var material_serial: int = 0
@@ -81,19 +105,21 @@ var active_persona_id: String = "persona_default"
 var graduated_personas: Array[String] = []
 ## 已提交直播的事务 ID，保证结算幂等。
 var completed_stream_sessions: Array[String] = []
-## 直播记录保存为可序列化快照；运行时由 StreamHistoryManager 转为 Resource。
+## 直播记录保存为可序列化快照；运行时由直播领域的 StreamHistoryStore 转为 Resource。
 var stream_history: Array[Dictionary] = []
 
 ## 关系：character_id -> {"favor": int, "trust": int, "dependence": int}
 var relationships: Dictionary = {}
 
-## LinkChat 运行态：好友关系与已发布朋友圈记录均进入存档。
+## LinkChat 运行态：好友关系与私聊消息进入存档。
 var linkchat_initialized: bool = false
 var linkchat_friend_ids: Array[String] = []
-var linkchat_moment_posts: Array[Dictionary] = []
-var linkchat_moment_serial: int = 0
 var linkchat_messages: Array[Dictionary] = []
 var linkchat_message_serial: int = 0
+
+## 叙事邮件运行态：邮件正文与已读状态进入存档。
+var mail_messages: Array[Dictionary] = []
+var mail_message_serial: int = 0
 
 ## 公开社交平台运行态：实际发布记录。账号与预制内容仍由角色资源拥有。
 var social_posts: Array[Dictionary] = []
@@ -103,6 +129,65 @@ var social_post_serial: int = 0
 var fan_vector: Dictionary = {"r": 100.0, "m": 0.0, "w": 0.0, "c": 0.0, "b": 0.0}
 var flame_value: float = 0.0
 var contract: Dictionary = {"debt": 0, "period_results": []}
+
+
+func _ready() -> void:
+	PromptManager.register_provider(
+		GAME_TIME_PROMPT_PROVIDER_KEY,
+		Callable(self, "get_game_time_prompt_context")
+	)
+
+
+func get_current_datetime() -> Dictionary:
+	return get_game_datetime_for(day, time_slot)
+
+
+func get_game_datetime_for(game_day_value: int, time_slot_value: int) -> Dictionary:
+	var game_day: int = maxi(game_day_value, 1)
+	var slot: int = clampi(time_slot_value, TIME_SLOT_MORNING, TIME_SLOT_NIGHT)
+	var start_unix: int = Time.get_unix_time_from_datetime_dict({
+		"year": GAME_START_YEAR,
+		"month": GAME_START_MONTH,
+		"day": GAME_START_DAY,
+		"hour": 0,
+		"minute": 0,
+		"second": 0,
+	})
+	var result: Dictionary = Time.get_datetime_dict_from_unix_time(
+		start_unix + (game_day - 1) * SECONDS_PER_DAY
+	)
+	result["hour"] = TIME_SLOT_HOURS[slot]
+	result["minute"] = 0
+	result["second"] = 0
+	result["game_day"] = game_day
+	result["time_slot"] = slot
+	result["time_slot_name"] = TIME_SLOT_NAMES[slot]
+	result["weekday_name"] = WEEKDAY_NAMES[clampi(int(result.get("weekday", 0)), 0, WEEKDAY_NAMES.size() - 1)]
+	return result
+
+
+func get_game_time_text() -> String:
+	return get_game_time_text_for(day, time_slot)
+
+
+func get_game_time_text_for(game_day: int, slot: int) -> String:
+	var value: Dictionary = get_game_datetime_for(game_day, slot)
+	return "%d年%d月%d日（%s）%02d:%02d · %s" % [
+		int(value.get("year", GAME_START_YEAR)),
+		int(value.get("month", GAME_START_MONTH)),
+		int(value.get("day", GAME_START_DAY)),
+		str(value.get("weekday_name", "")),
+		int(value.get("hour", 0)),
+		int(value.get("minute", 0)),
+		str(value.get("time_slot_name", "")),
+	]
+
+
+func get_game_time_prompt_context() -> String:
+	return "当前游戏时间：%s（游戏第%d天）。本次生成中的今天、现在、日期、星期和时段均以这个时间点为事实基准；当前行动发生在当天的当前时段。" % [
+		get_game_time_text(),
+		maxi(day, 1),
+	]
 
 
 func get_attribute(attr_name: String) -> int:
@@ -163,6 +248,13 @@ func get_skill_level(family: StringName) -> int:
 	return clampi(int(skill_levels.get(String(family), 1)), 1, 5)
 
 
+func get_skill_experience(family: StringName) -> int:
+	if family not in SKILL_FAMILIES:
+		push_error("GameState: unknown skill family '%s'" % String(family))
+		return 0
+	return maxi(int(skill_experience.get(String(family), 0)), 0)
+
+
 func set_skill_level(family: StringName, value: int) -> void:
 	if family not in SKILL_FAMILIES:
 		push_error("GameState: unknown skill family '%s'" % String(family))
@@ -205,6 +297,42 @@ func add_streamer_exp(amount: int, balance: LiveStreamBalance) -> int:
 		growth_points += gained_levels
 	streamer_progress_changed.emit(streamer_level, streamer_exp, growth_points)
 	return gained_levels
+
+
+func apply_skill_experience(rewards: Dictionary, balance: LiveStreamBalance) -> Dictionary:
+	var applied: Dictionary = {}
+	var level_gains: Dictionary = {}
+	var total_exp: int = 0
+	if balance == null:
+		return {
+			"applied": applied,
+			"level_gains": level_gains,
+			"total_exp": total_exp,
+			"streamer_levels_gained": 0,
+		}
+	for family: StringName in SKILL_FAMILIES:
+		var family_key := String(family)
+		var amount: int = maxi(int(rewards.get(family_key, 0)), 0)
+		if amount <= 0:
+			continue
+		var old_level: int = get_skill_level(family)
+		var new_experience: int = get_skill_experience(family) + amount
+		var new_level: int = balance.get_skill_level_for_exp(new_experience)
+		skill_experience[family_key] = new_experience
+		skill_levels[family_key] = new_level
+		applied[family_key] = amount
+		total_exp += amount
+		if new_level > old_level:
+			level_gains[family_key] = new_level - old_level
+			skill_levels_changed.emit(family, new_level)
+		skill_experience_changed.emit(family, new_experience, new_level)
+	var streamer_levels_gained: int = add_streamer_exp(total_exp, balance)
+	return {
+		"applied": applied,
+		"level_gains": level_gains,
+		"total_exp": total_exp,
+		"streamer_levels_gained": streamer_levels_gained,
+	}
 
 
 ## 用角色资源初值建档；已存在则不覆盖
@@ -315,6 +443,7 @@ func to_dict() -> Dictionary:
 		"streamer_exp": streamer_exp,
 		"growth_points": growth_points,
 		"skill_levels": skill_levels.duplicate(true),
+		"skill_experience": skill_experience.duplicate(true),
 		"unlocked_skill_ids": unlocked_skill_ids.duplicate(),
 		"material_instances": material_instances.duplicate(true),
 		"material_serial": material_serial,
@@ -326,10 +455,10 @@ func to_dict() -> Dictionary:
 		"relationships": relationships.duplicate(true),
 		"linkchat_initialized": linkchat_initialized,
 		"linkchat_friend_ids": linkchat_friend_ids.duplicate(),
-		"linkchat_moment_posts": linkchat_moment_posts.duplicate(true),
-		"linkchat_moment_serial": linkchat_moment_serial,
 		"linkchat_messages": linkchat_messages.duplicate(true),
 		"linkchat_message_serial": linkchat_message_serial,
+		"mail_messages": mail_messages.duplicate(true),
+		"mail_message_serial": mail_message_serial,
 		"social_posts": social_posts.duplicate(true),
 		"social_post_serial": social_post_serial,
 		"fan_vector": fan_vector.duplicate(true),
@@ -367,6 +496,11 @@ func from_dict(data: Dictionary) -> void:
 	streamer_exp = maxi(int(data.get("streamer_exp", 0)), 0)
 	growth_points = maxi(int(data.get("growth_points", 2)), 0)
 	skill_levels = DEFAULT_SKILL_LEVELS.duplicate(true)
+	skill_experience = DEFAULT_SKILL_EXPERIENCE.duplicate(true)
+	var loaded_experience: Variant = data.get("skill_experience", {})
+	if loaded_experience is Dictionary:
+		for family: StringName in SKILL_FAMILIES:
+			skill_experience[String(family)] = maxi(int((loaded_experience as Dictionary).get(String(family), 0)), 0)
 	var loaded_levels: Variant = data.get("skill_levels", {})
 	if loaded_levels is Dictionary:
 		for family: StringName in SKILL_FAMILIES:
@@ -403,16 +537,16 @@ func from_dict(data: Dictionary) -> void:
 		var normalized_character_id: String = str(character_id).strip_edges()
 		if not normalized_character_id.is_empty() and normalized_character_id not in linkchat_friend_ids:
 			linkchat_friend_ids.append(normalized_character_id)
-	linkchat_moment_posts.clear()
-	for post_value: Variant in data.get("linkchat_moment_posts", []):
-		if post_value is Dictionary:
-			linkchat_moment_posts.append((post_value as Dictionary).duplicate(true))
-	linkchat_moment_serial = maxi(int(data.get("linkchat_moment_serial", 0)), 0)
 	linkchat_messages.clear()
 	for message_value: Variant in data.get("linkchat_messages", []):
 		if message_value is Dictionary:
 			linkchat_messages.append((message_value as Dictionary).duplicate(true))
 	linkchat_message_serial = maxi(int(data.get("linkchat_message_serial", 0)), 0)
+	mail_messages.clear()
+	for mail_value: Variant in data.get("mail_messages", []):
+		if mail_value is Dictionary:
+			mail_messages.append((mail_value as Dictionary).duplicate(true))
+	mail_message_serial = maxi(int(data.get("mail_message_serial", 0)), 0)
 	social_posts.clear()
 	for social_post_value: Variant in data.get("social_posts", []):
 		if social_post_value is Dictionary:

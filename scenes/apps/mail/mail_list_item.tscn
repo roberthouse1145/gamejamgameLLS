@@ -1,0 +1,133 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/mail/mail_list_item.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="Style_normal"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.986, 0.992, 1, 1)
+border_width_bottom = 2
+border_color = Color(0.855, 0.894, 0.945, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_hover"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.933, 0.965, 1, 1)
+border_width_left = 5
+border_width_bottom = 2
+border_color = Color(0.463, 0.663, 0.941, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_pressed"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.878, 0.933, 1, 1)
+border_width_left = 7
+border_width_bottom = 2
+border_color = Color(0.353, 0.553, 0.835, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_focus"]
+content_margin_left = 0.0
+content_margin_top = 0.0
+content_margin_right = 0.0
+content_margin_bottom = 0.0
+bg_color = Color(0.933, 0.965, 1, 1)
+border_width_left = 4
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.353, 0.553, 0.835, 1)
+
+[node name="MailListItem" type="Button"]
+custom_minimum_size = Vector2(0, 180)
+layout_mode = 3
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 180.0
+grow_horizontal = 2
+mouse_default_cursor_shape = 2
+toggle_mode = true
+theme_override_styles/normal = SubResource("Style_normal")
+theme_override_styles/hover = SubResource("Style_hover")
+theme_override_styles/pressed = SubResource("Style_pressed")
+theme_override_styles/hover_pressed = SubResource("Style_pressed")
+theme_override_styles/focus = SubResource("Style_focus")
+script = ExtResource("1_script")
+
+[node name="ContentMargin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 30
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 28
+theme_override_constants/margin_bottom = 20
+
+[node name="Content" type="VBoxContainer" parent="ContentMargin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 7
+
+[node name="TopRow" type="HBoxContainer" parent="ContentMargin/Content"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 14
+
+[node name="UnreadBadge" type="Label" parent="ContentMargin/Content/TopRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(68, 36)
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.18, 0.38, 0.68, 1)
+theme_override_colors/font_outline_color = Color(0.86, 0.93, 1, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 21
+text = "未读"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SenderLabel" type="Label" parent="ContentMargin/Content/TopRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+theme_override_font_sizes/font_size = 31
+text = "发件人"
+text_overrun_behavior = 3
+
+[node name="DateLabel" type="Label" parent="ContentMargin/Content/TopRow"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.42, 0.48, 0.58, 1)
+theme_override_font_sizes/font_size = 23
+text = "时间"
+vertical_alignment = 1
+
+[node name="SubjectLabel" type="Label" parent="ContentMargin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_font_sizes/font_size = 29
+text = "主题"
+text_overrun_behavior = 3
+
+[node name="PreviewLabel" type="Label" parent="ContentMargin/Content"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.38, 0.44, 0.54, 1)
+theme_override_font_sizes/font_size = 25
+text = "正文预览"
+autowrap_mode = 3
+max_lines_visible = 2
+text_overrun_behavior = 3

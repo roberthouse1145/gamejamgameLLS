@@ -1,48 +1,19 @@
-[gd_resource type="Resource" script_class="LiveStreamCatalog" format=3 uid="uid://bcyoi8afmqq1o"]
+[gd_resource type="Resource" script_class="LiveStreamCatalog" load_steps=12 format=3 uid="uid://bcyoi8afmqq1o"]
 
-[ext_resource type="Script" uid="uid://csij3v8wgoofb" path="res://scripts/game/resources/live_stream/live_stream_catalog.gd" id="1"]
-[ext_resource type="Script" uid="uid://wvbgu88pwof3" path="res://scripts/game/resources/live_stream/behavior_card_resource.gd" id="1_lmjg0"]
-[ext_resource type="Resource" uid="uid://b6j4seq5x2l8c" path="res://resources/live_stream/cards/behavior/game/serious_game_opening.tres" id="2"]
-[ext_resource type="Resource" uid="uid://dl15odv6ib5dl" path="res://resources/live_stream/cards/behavior/game/hardcore_guide.tres" id="3"]
-[ext_resource type="Resource" uid="uid://ssu7npkhy0lr" path="res://resources/live_stream/cards/behavior/game/stuck_rage.tres" id="4"]
-[ext_resource type="Resource" uid="uid://ddbcn508pwdq3" path="res://resources/live_stream/cards/behavior/game/clear_reflection.tres" id="5"]
-[ext_resource type="Resource" uid="uid://fkjsi1b5771s" path="res://resources/live_stream/cards/behavior/talk/daily_greeting.tres" id="6"]
-[ext_resource type="Resource" uid="uid://bfm63eex513s0" path="res://resources/live_stream/cards/behavior/talk/passionate_rant.tres" id="7"]
-[ext_resource type="Resource" uid="uid://cklamr1tltimi" path="res://resources/live_stream/cards/behavior/talk/recovery.tres" id="8"]
-[ext_resource type="Resource" uid="uid://b0a58mfvbmb1f" path="res://resources/live_stream/cards/behavior/talk/goodnight.tres" id="9"]
-[ext_resource type="Resource" uid="uid://dk8d0qlhlm4fs" path="res://resources/live_stream/cards/behavior/song/warmup_humming.tres" id="10"]
-[ext_resource type="Resource" uid="uid://dqusrxkd2p158" path="res://resources/live_stream/cards/behavior/song/acapella.tres" id="11"]
-[ext_resource type="Resource" uid="uid://diyw2uckhuxr0" path="res://resources/live_stream/cards/behavior/song/asmr_whisper.tres" id="12"]
-[ext_resource type="Resource" uid="uid://biahhwbql4u4l" path="res://resources/live_stream/cards/behavior/song/encore.tres" id="13"]
-[ext_resource type="Resource" uid="uid://dy3hltps1fqkd" path="res://resources/live_stream/cards/behavior/act/sultry_greeting.tres" id="14"]
-[ext_resource type="Resource" uid="uid://bw4jgbx2wxfp" path="res://resources/live_stream/cards/behavior/act/cute_appeal.tres" id="15"]
-[ext_resource type="Resource" uid="uid://c7t6lwch7c8af" path="res://resources/live_stream/cards/behavior/act/plead.tres" id="16"]
-[ext_resource type="Resource" uid="uid://tcfwpt46430a" path="res://resources/live_stream/cards/behavior/act/instant_voice.tres" id="17"]
-[ext_resource type="Resource" uid="uid://ocbypx2c7bar" path="res://resources/live_stream/cards/behavior/tech/screen_share.tres" id="18"]
-[ext_resource type="Resource" uid="uid://ck72cxx50gsoi" path="res://resources/live_stream/cards/behavior/tech/comedy_effects.tres" id="19"]
-[ext_resource type="Resource" uid="uid://cr3qvth8fju7v" path="res://resources/live_stream/cards/behavior/tech/fake_disconnect.tres" id="20"]
-[ext_resource type="Resource" uid="uid://di2b4ta0kvkgv" path="res://resources/live_stream/cards/behavior/tech/next_preview.tres" id="21"]
-[ext_resource type="Resource" uid="uid://dghsdh3m0nq2g" path="res://resources/live_stream/cards/modifiers/polite_business.tres" id="22"]
-[ext_resource type="Resource" uid="uid://bk0ct5e48xikx" path="res://resources/live_stream/cards/modifiers/toxic_commentator.tres" id="23"]
-[ext_resource type="Script" uid="uid://dypbjcd0e7jpi" path="res://scripts/game/resources/live_stream/material_resource.gd" id="23_cp1xi"]
-[ext_resource type="Resource" uid="uid://c0uyptskpvho1" path="res://resources/live_stream/cards/modifiers/motherly_tone.tres" id="24"]
-[ext_resource type="Resource" uid="uid://bnbwouotqcxb8" path="res://resources/live_stream/cards/modifiers/seamless_transition.tres" id="25"]
-[ext_resource type="Resource" uid="uid://cjm5k81v2v0v0" path="res://resources/live_stream/materials/trash_hunter.tres" id="26"]
-[ext_resource type="Resource" uid="uid://b7dxfn7b0rqrn" path="res://resources/live_stream/materials/cozy_game.tres" id="27"]
-[ext_resource type="Resource" uid="uid://s2koa5fj3st2" path="res://resources/live_stream/materials/masterpiece_boss.tres" id="28"]
-[ext_resource type="Resource" uid="uid://b20e1rchkj78h" path="res://resources/live_stream/materials/season_anime_notes.tres" id="29"]
-[ext_resource type="Resource" uid="uid://c21jrenoypm34" path="res://resources/live_stream/materials/midnight_setlist.tres" id="30"]
-[ext_resource type="Script" uid="uid://nudgy3ptkhrl" path="res://scripts/game/resources/live_stream/modifier_card_resource.gd" id="30_8cmmd"]
-[ext_resource type="Resource" uid="uid://dwsl4ystkvb7s" path="res://resources/live_stream/materials/forum_hot_meme.tres" id="31"]
-[ext_resource type="Resource" path="res://resources/live_stream/personas/default_persona.tres" id="32"]
-[ext_resource type="Resource" path="res://resources/live_stream/cards/material/boss_fight.tres" id="33"]
-[ext_resource type="Script" uid="uid://ci5afkewd5muq" path="res://scripts/game/resources/live_stream/persona_resource.gd" id="35_cfwge"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/live_stream_catalog.gd" id="1_catalog"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/material_resource.gd" id="2_material"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/persona_resource.gd" id="3_persona"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/trash_hunter.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/cozy_game.tres" id="5"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/masterpiece_boss.tres" id="6"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/season_anime_notes.tres" id="7"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/midnight_setlist.tres" id="8"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/forum_hot_meme.tres" id="9"]
+[ext_resource type="Resource" path="res://resources/live_stream/materials/vibrator_challenge.tres" id="10"]
+[ext_resource type="Resource" path="res://resources/live_stream/personas/default_persona.tres" id="11"]
 
 [resource]
-script = ExtResource("1")
-allowed_tags = Array[StringName]([&"game", &"hardcore", &"rage_bait", &"story_rich", &"talk", &"rant", &"music", &"voice_acting", &"act", &"confession", &"tech", &"trash_game", &"boss_fight", &"high_difficulty", &"casual", &"masterpiece", &"moe", &"otaku_culture", &"hot_topic", &"gossip", &"persona"])
-behavior_cards = Array[ExtResource("1_lmjg0")]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8"), ExtResource("9"), ExtResource("10"), ExtResource("11"), ExtResource("12"), ExtResource("13"), ExtResource("14"), ExtResource("15"), ExtResource("16"), ExtResource("17"), ExtResource("18"), ExtResource("19"), ExtResource("20"), ExtResource("21")])
-material_behavior_cards = Array[ExtResource("1_lmjg0")]([ExtResource("33")])
-modifier_cards = Array[ExtResource("30_8cmmd")]([ExtResource("22"), ExtResource("23"), ExtResource("24"), ExtResource("25")])
-materials = Array[ExtResource("23_cp1xi")]([ExtResource("26"), ExtResource("27"), ExtResource("28"), ExtResource("29"), ExtResource("30"), ExtResource("31")])
-personas = Array[ExtResource("35_cfwge")]([ExtResource("32")])
+script = ExtResource("1_catalog")
+allowed_tags = Array[StringName]([&"persona"])
+materials = Array[ExtResource("2_material")]([ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8"), ExtResource("9"), ExtResource("10")])
+personas = Array[ExtResource("3_persona")]([ExtResource("11")])

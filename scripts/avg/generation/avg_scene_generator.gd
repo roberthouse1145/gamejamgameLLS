@@ -132,7 +132,14 @@ func _setup_repair_agent() -> void:
 
 func _build_prompt(session: Dictionary) -> String:
 	var builder := AVGScenePromptBuilderClass.create_for_session(session)
-	var base_prompt: String = str(builder.build_prompt_from_session(session)).strip_edges()
+	var type_prompt: String = str(builder.build_type_prompt_from_session(session)).strip_edges()
+	var setting_prompt: String = str(builder.build_setting_prompt_from_session(session)).strip_edges()
+	var runtime_prompt: String = str(builder.build_runtime_prompt_from_session(session)).strip_edges()
+	var prompt_blocks: PackedStringArray = []
+	for block: String in [type_prompt, setting_prompt, runtime_prompt]:
+		if not block.is_empty():
+			prompt_blocks.append(block)
+	var base_prompt: String = "\n\n".join(prompt_blocks).strip_edges()
 	if base_prompt.is_empty():
 		return ""
 
@@ -152,7 +159,9 @@ func _build_prompt(session: Dictionary) -> String:
 
 	var lore_payload: Dictionary = LoreSystemClass.resolve_avg_scene(session, base_prompt)
 	var ctx: Dictionary = {
-		preview_source_key: base_prompt,
+		"avg_scene_type_source": type_prompt,
+		"avg_scene_setting_source": setting_prompt,
+		preview_source_key: runtime_prompt,
 		preview_asset_key: _build_asset_prompt_block(),
 		"lore_facts": LoreSystemClass.build_prompt_block(lore_payload.get("facts", [])),
 		"lore_constraints": LoreSystemClass.build_prompt_block(lore_payload.get("constraints", [])),
@@ -179,8 +188,13 @@ func _request_generation(context: Dictionary) -> bool:
 		{"role": "system", "content": _build_system_prompt()},
 		{"role": "user", "content": prompt_text},
 	]
+	updated_context["request_started_msec"] = Time.get_ticks_msec()
 	var request_id: String = _writer_service.chat(messages, {
 		"temperature": 0.75,
+		"max_tokens": 4096,
+		"thinking": "disabled",
+		"enable_thinking": false,
+		"reasoning_effort": "",
 	})
 	if request_id.is_empty():
 		return false
@@ -195,7 +209,7 @@ func _request_generation(context: Dictionary) -> bool:
 
 
 func _build_system_prompt() -> String:
-	return "You are an AVG DSL writer. Output only AVG DSL V2 content with no markdown fences or explanations."
+	return "You are an AVG DSL V2 writer. Reason only when needed and stop after one brief decision pass. In private reasoning, do not restate or enumerate the request, count output units, draft dialogue/narration/DSL, compare alternatives, or restart planning. Write the complete scene only once in the final answer. The final answer must contain only parseable AVG DSL V2 and start immediately with a scene-opening command."
 
 
 func _on_writer_completed(request_id: String, response: Dictionary) -> void:
@@ -207,6 +221,8 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 
 	var raw_text: String = AIService.extract_content(response).strip_edges()
 	var reasoning_text: String = AIService.extract_reasoning_content(response).strip_edges()
+	var elapsed_seconds: float = float(Time.get_ticks_msec() - int(context.get("request_started_msec", Time.get_ticks_msec()))) / 1000.0
+	var reasoning_lines: int = 0 if reasoning_text.is_empty() else reasoning_text.split("\n").size()
 	if not reasoning_text.is_empty():
 		print("[AVGSceneGenerator] Writer reasoning: %s" % reasoning_text)
 	var sanitized_text: String = _strip_code_fences(raw_text)
@@ -219,7 +235,9 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 	])
 	if bool(validation.get("ok", false)):
 		_emit_scene_generated(str(context.get("session_id", "")), validation.get("commands", []), context.get("session", {}))
+		_print_writer_reasoning_metrics(elapsed_seconds, reasoning_lines, reasoning_text.length())
 		return
+	_print_writer_reasoning_metrics(elapsed_seconds, reasoning_lines, reasoning_text.length())
 
 	# 尝试使用 Repair Agent 修复（而非直接全量重试）
 	if _repair_agent != null and _repair_agent.is_available():
@@ -252,6 +270,14 @@ func _on_writer_completed(request_id: String, response: Dictionary) -> void:
 			return
 
 	scene_failed.emit(str(context.get("session_id", "")), str(validation.get("summary", "dsl_validation_failed")))
+
+
+func _print_writer_reasoning_metrics(elapsed_seconds: float, reasoning_lines: int, reasoning_chars: int) -> void:
+	print("[AVGSceneGenerator] Writer metrics: elapsed=%.2fs reasoning_lines=%d reasoning_chars=%d" % [
+		elapsed_seconds,
+		reasoning_lines,
+		reasoning_chars,
+	])
 
 
 func _on_repair_completed(session_id: String, repaired_dsl: String) -> void:

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StreamerSkillDomainResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/streamer_skill_domain_resource.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+family = &"tech"
+display_name = "杂项"
+level_prompts = PackedStringArray("只会使用基本直播功能，面对设备、软件或复杂企划时需要按既定步骤慢慢处理。", "能够独立完成常规直播设置，并使用简单的画面、音效和辅助功能支持节目。", "熟悉直播工具和现场流程，能够一边主持一边处理常见技术需求，让企划稳定执行。", "能够组合多种直播工具完成复杂企划，并迅速判断现场问题对节目流程的影响。", "对直播制作、设备与企划执行都非常熟练，能够把技术手段自然融入节目，并在复杂现场保持完整控制。")

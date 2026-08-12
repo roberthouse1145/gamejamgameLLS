@@ -1,20 +1,15 @@
 extends Node
-## LinkChat 账号、好友关系与朋友圈发布记录的运行时入口。
-## 角色资料和纯内容来自 Resource，好友与发布状态由 GameState 持久化。
+## LinkChat 账号、好友关系与私聊消息的运行时入口。
+## 角色资料来自 Resource，好友与消息状态由 GameState 持久化。
 
 signal friendship_changed(character_id: String, is_friend: bool)
 signal friends_reloaded()
-signal moment_published(post: MomentPostRecord)
-signal moment_like_changed(post_id: String, liked: bool, likes: int)
-signal moment_commented(post_id: String, comment: MomentCommentRecord)
-signal moments_reloaded()
 signal message_appended(message: Dictionary)
 signal messages_reloaded()
 
 const CHARACTER_CATALOG_PATH: String = "res://resources/characters/character_catalog.tres"
 
 var _catalog: CharacterCatalog = null
-var _posts: Array[MomentPostRecord] = []
 
 
 func _ready() -> void:
@@ -23,7 +18,6 @@ func _ready() -> void:
 	if game_state != null and game_state.has_signal("state_loaded") \
 		and not game_state.state_loaded.is_connected(_on_game_state_loaded):
 		game_state.state_loaded.connect(_on_game_state_loaded)
-	_reload_posts_from_game_state()
 	_ensure_initial_state()
 	call_deferred("_connect_topic_manager")
 
@@ -97,6 +91,8 @@ func append_message(
 		"content": normalized_content,
 		"attachment": attachment.duplicate(true),
 		"source_session_id": source_session_id.strip_edges(),
+		"game_day": int(game_state.get("day")),
+		"time_slot": int(game_state.get("time_slot")),
 		"created_at": int(Time.get_unix_time_from_system()),
 	}
 	game_state.linkchat_messages.append(message)
@@ -188,153 +184,17 @@ func get_thread_channel_ids() -> Array[String]:
 	return result
 
 
-func publish_moment(
-	character_id: String,
-	text_content: String,
-	texture_content: Texture2D = null
-) -> MomentPostRecord:
-	var content := MomentContent.new()
-	content.text_content = text_content
-	content.texture_content = texture_content
-	return publish_moment_content(character_id, content)
-
-
-func publish_character_moment(character_id: String, moment_id: String) -> MomentPostRecord:
-	var character: CharacterProfile = get_character(character_id)
-	if character == null or character.linkchat_profile == null:
-		return null
-	var content: MomentContent = character.linkchat_profile.get_moment_content(moment_id)
-	return publish_moment_content(character_id, content)
-
-
-func publish_moment_content(
-	character_id: String,
-	content: MomentContent
-) -> MomentPostRecord:
-	var character: CharacterProfile = get_character(character_id)
-	var game_state: Node = _get_game_state()
-	if character == null or character.linkchat_profile == null or content == null \
-		or content.is_empty() or game_state == null:
-		return null
-
-	game_state.linkchat_moment_serial += 1
-	var record := MomentPostRecord.new()
-	record.post_id = "moment_%06d" % game_state.linkchat_moment_serial
-	record.character_id = character_id
-	record.content = content.duplicate(true) as MomentContent
-	record.published_at = int(Time.get_unix_time_from_system())
-	_posts.push_front(record)
-	_sync_posts_to_game_state()
-	moment_published.emit(record)
-	return record
-
-
-func get_visible_moments() -> Array[MomentPostRecord]:
-	var result: Array[MomentPostRecord] = []
-	var player: CharacterProfile = get_player_character()
-	var player_id: String = player.character_id if player != null else ""
-	for post: MomentPostRecord in _posts:
-		if post != null and (post.character_id == player_id or is_friend(post.character_id)):
-			result.append(post)
-	return result
-
-
-func get_visible_moment_view_data() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for post: MomentPostRecord in get_visible_moments():
-		result.append(make_moment_view_data(post))
-	return result
-
-
-func make_moment_view_data(post: MomentPostRecord) -> Dictionary:
-	if post == null:
-		return {}
-	var character: CharacterProfile = get_character(post.character_id)
-	var profile: LinkChatProfile = character.linkchat_profile if character != null else null
-	return {
-		"id": post.post_id,
-		"character_id": post.character_id,
-		"author_name": profile.account_name if profile != null else post.character_id,
-		"avatar": profile.avatar if profile != null else null,
-		"content": post.content.text_content if post.content != null else "",
-		"image": post.content.texture_content if post.content != null else null,
-		"time": _format_post_time(post.published_at),
-		"liked": post.liked,
-		"likes": post.likes,
-		"comments": _make_comment_view_data(post.comments),
-	}
-
-
-func set_moment_liked(post_id: String, liked: bool) -> bool:
-	for post: MomentPostRecord in _posts:
-		if post == null or post.post_id != post_id:
-			continue
-		if post.liked == liked:
-			return true
-		post.liked = liked
-		post.likes = maxi(post.likes + (1 if liked else -1), 0)
-		_sync_posts_to_game_state()
-		moment_like_changed.emit(post_id, liked, post.likes)
-		return true
-	return false
-
-
-func add_moment_comment(
-	post_id: String,
-	character_id: String,
-	text_content: String
-) -> MomentCommentRecord:
-	var character: CharacterProfile = get_character(character_id)
-	var normalized_text: String = text_content.strip_edges()
-	if character == null or character.linkchat_profile == null or normalized_text.is_empty():
-		return null
-	for post: MomentPostRecord in _posts:
-		if post == null or post.post_id != post_id:
-			continue
-		var comment := MomentCommentRecord.new()
-		comment.comment_id = "%s_comment_%03d" % [post_id, post.comments.size() + 1]
-		comment.character_id = character_id
-		comment.text_content = normalized_text
-		comment.published_at = int(Time.get_unix_time_from_system())
-		post.comments.append(comment)
-		_sync_posts_to_game_state()
-		moment_commented.emit(post_id, comment)
-		return comment
-	return null
-
-
-func _make_comment_view_data(comments: Array[MomentCommentRecord]) -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for comment: MomentCommentRecord in comments:
-		if comment == null:
-			continue
-		var character: CharacterProfile = get_character(comment.character_id)
-		var profile: LinkChatProfile = character.linkchat_profile if character != null else null
-		result.append({
-			"id": comment.comment_id,
-			"character_id": comment.character_id,
-			"author_name": profile.account_name if profile != null else comment.character_id,
-			"content": comment.text_content,
-			"time": _format_post_time(comment.published_at),
-		})
-	return result
-
-
 func reset_runtime_state(seed_initial_friends: bool = true) -> void:
 	var game_state: Node = _get_game_state()
 	if game_state == null:
 		return
 	game_state.linkchat_initialized = not seed_initial_friends
 	game_state.linkchat_friend_ids.clear()
-	game_state.linkchat_moment_posts.clear()
-	game_state.linkchat_moment_serial = 0
 	game_state.linkchat_messages.clear()
 	game_state.linkchat_message_serial = 0
-	_posts.clear()
 	if seed_initial_friends:
 		_ensure_initial_state()
 	friends_reloaded.emit()
-	moments_reloaded.emit()
 	messages_reloaded.emit()
 
 
@@ -359,31 +219,9 @@ func _ensure_initial_state() -> void:
 	game_state.linkchat_initialized = true
 
 
-func _reload_posts_from_game_state() -> void:
-	_posts.clear()
-	var game_state: Node = _get_game_state()
-	if game_state == null:
-		return
-	for value: Variant in game_state.linkchat_moment_posts:
-		if value is Dictionary:
-			_posts.append(MomentPostRecord.from_dict(value))
-
-
-func _sync_posts_to_game_state() -> void:
-	var game_state: Node = _get_game_state()
-	if game_state == null:
-		return
-	game_state.linkchat_moment_posts.clear()
-	for post: MomentPostRecord in _posts:
-		if post != null:
-			game_state.linkchat_moment_posts.append(post.to_dict())
-
-
 func _on_game_state_loaded() -> void:
-	_reload_posts_from_game_state()
 	_ensure_initial_state()
 	friends_reloaded.emit()
-	moments_reloaded.emit()
 	messages_reloaded.emit()
 
 
@@ -412,20 +250,42 @@ func _on_topic_message_emitted(
 	if is_player:
 		var player: CharacterProfile = get_player_character()
 		sender_id = player.character_id if player != null else "player"
-	append_message(str(topic.channel_id), sender_id, text, card.duplicate(true), str(topic.topic_id))
+	append_message(str(topic.channel_id), sender_id, text, _resolve_card(card), str(topic.topic_id))
+
+
+## 运行时补全卡片展示数据：location 卡只携带 activity_id，展示字段由资源目录填充。
+func _resolve_card(card: Dictionary) -> Dictionary:
+	if str(card.get("type", "")) != "location":
+		return card.duplicate(true)
+	var outing_manager: Node = get_node_or_null("/root/OutingManager")
+	if outing_manager == null or not outing_manager.has_method("get_catalog"):
+		return card.duplicate(true)
+	var activity_id: String = str(card.get("activity_id", "")).strip_edges()
+	var catalog: Resource = outing_manager.call("get_catalog")
+	if catalog == null or not catalog.has_method("get_activity"):
+		return card.duplicate(true)
+	var activity: Resource = catalog.call("get_activity", activity_id)
+	if activity == null:
+		return card.duplicate(true)
+	var place_id: String = str(activity.get("place_id")).strip_edges()
+	var place: Resource = null
+	if catalog.has_method("get_place"):
+		place = catalog.call("get_place", place_id)
+	var date_cost: int = int(activity.get("date_cost"))
+	var cost_text: String = "免费"
+	if date_cost > 0:
+		cost_text = "约会合计 ¥%d" % date_cost
+	return {
+		"type": "location",
+		"activity_id": activity_id,
+		"place_id": place_id,
+		"title": str(activity.get("title")),
+		"subtitle": str(place.get("display_name") if place != null else place_id),
+		"price_text": cost_text,
+		"target_app": "cityhop",
+		"footer": "在 CityHop 中查看",
+	}
 
 
 func _get_game_state() -> Node:
 	return get_node_or_null("/root/GameState")
-
-
-func _format_post_time(unix_time: int) -> String:
-	if unix_time <= 0:
-		return ""
-	var value: Dictionary = Time.get_datetime_dict_from_unix_time(unix_time)
-	return "%02d-%02d %02d:%02d" % [
-		int(value.get("month", 0)),
-		int(value.get("day", 0)),
-		int(value.get("hour", 0)),
-		int(value.get("minute", 0)),
-	]

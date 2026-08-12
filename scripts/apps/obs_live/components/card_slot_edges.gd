@@ -13,6 +13,8 @@ const PATTERN_COLOR: Color = Color(0.72, 0.82, 0.93, 0.28)
 const DISCONNECTED_COLOR: Color = Color("#E65B72")
 const CONNECTED_COLOR: Color = Color("#42BFA0")
 const SLOT_COUNT: int = 4
+const SLOT_MIN: int = 1
+const SLOT_MAX: int = 4
 ## 卡面铺满卡体；标题/底栏浮在上层，不为此预留空白。
 const FACE_EDGE_INSET: float = 12.0
 const FACE_BOX_WIDTH_RATIO: float = 0.96
@@ -92,7 +94,7 @@ func has_right_tabs() -> bool:
 
 
 func get_slot_y(slot: int) -> float:
-	if slot < BehaviorCardResource.SLOT_MIN or slot > BehaviorCardResource.SLOT_MAX:
+	if slot < SLOT_MIN or slot > SLOT_MAX:
 		return -1.0
 	return size.y * (float(slot) - 0.5) / float(SLOT_COUNT)
 
@@ -276,7 +278,7 @@ func _get_outline_width() -> float:
 
 func _ordered_slots(slots: Array[int]) -> Array[int]:
 	var result: Array[int] = []
-	for slot: int in range(BehaviorCardResource.SLOT_MIN, BehaviorCardResource.SLOT_MAX + 1):
+	for slot: int in range(SLOT_MIN, SLOT_MAX + 1):
 		if slot in slots:
 			result.append(slot)
 	return result

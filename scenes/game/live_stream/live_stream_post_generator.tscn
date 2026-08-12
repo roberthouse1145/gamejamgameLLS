@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/live_stream/live_stream_post_generator.gd" id="1_script"]
+
+[node name="LiveStreamPostGenerator" type="Node"]
+script = ExtResource("1_script")

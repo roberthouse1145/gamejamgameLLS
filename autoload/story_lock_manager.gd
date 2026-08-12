@@ -108,9 +108,6 @@ func _normalize_config(config: Dictionary) -> Dictionary:
 func _emit_changed() -> void:
 	var snapshot: Dictionary = get_snapshot()
 	locks_changed.emit(snapshot)
-	var app_manager: Node = get_node_or_null("/root/AppManager")
-	if app_manager != null and app_manager.has_method("apply_story_locks"):
-		app_manager.call("apply_story_locks")
 
 
 func _string_array(value: Variant) -> Array[String]:

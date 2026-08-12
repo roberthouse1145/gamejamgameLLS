@@ -24,14 +24,6 @@ func find_skill(skill_id: StringName) -> StreamerSkill:
 	return null
 
 
-func find_skill_unlocking_card(card_id: StringName) -> StreamerSkill:
-	for skill_value in _raw_skills():
-		var skill: StreamerSkill = skill_value as StreamerSkill
-		if skill != null and card_id in skill.unlocked_card_ids:
-			return skill
-	return null
-
-
 func is_valid() -> bool:
 	var known_ids: Dictionary = {}
 	var indegrees: Dictionary = {}
@@ -95,10 +87,4 @@ func _skill_fields_valid(skill: StreamerSkill) -> bool:
 		return false
 	if String(skill.family).is_empty() or skill.level < 1:
 		return false
-	var effects: Variant = skill.get("rule_effects")
-	if effects == null:
-		return true
-	for effect_value in effects as Array:
-		if effect_value == null or String(effect_value.get("effect_id")).is_empty():
-			return false
 	return true

@@ -16,11 +16,13 @@ stage.set("CharacterA", emotions="neutral", outfits="default")
 
 ## 背景与屏幕
 
-- `bg.show("background_primary", fade_duration=0.4)`
+- `bg.show("background_primary", fade_duration=0.4, transition="dissolve")`
 - `screen.time_of_day("dusk", duration=0.6)`，时间值为 `day`、`dusk`、`night`
-- `screen.fade(direction="in", duration=0.35)`：从黑屏显示画面
-- `screen.fade(direction="out", duration=0.35)`：从画面进入黑屏
+- `screen.fade(direction="in", duration=0.35, transition="fade")`：从黑屏显示画面
+- `screen.fade(direction="out", duration=0.35, transition="wipe_right")`：从画面进入黑屏
 - `screen.flash(color="#FFFFFF", duration=0.15, intensity=0.8)`
+
+`bg.show` 与 `screen.fade` 的 `transition` 可选 `fade`、`dissolve`、`wipe_left`、`wipe_right`、`wipe_up`、`wipe_down`。
 
 场景中段的强转场使用完整配对：
 
@@ -32,26 +34,30 @@ screen.fade(direction="in", duration=0.4)
 
 ## 角色与舞台
 
-- `stage.set("CharacterA", "CharacterB")`：设置当前登台角色并自动排位
+- `stage.set("CharacterA", "CharacterB", duration=0.3, enter_effect="slide_from_left")`：设置当前登台角色并自动排位
 - `stage.set("CharacterA", emotions="happy", outfits="default")`
-- `stage.enter("CharacterB", emotions="neutral")`
-- `stage.exit("CharacterB")`
+- `stage.enter("CharacterB", emotions="neutral", duration=0.3, enter_effect="slide_from_right")`
+- `stage.exit("CharacterB", duration=0.3, exit_effect="slide_to_right")`
 - `stage.clear()`
 - `CharacterA.show(position="center", outfit="default", emotion="neutral", enter_effect="fade")`
 - `CharacterA.hide(fade_duration=0.3, exit_effect="fade")`
 - `CharacterA.move(target="left", duration=0.4)`
-- `CharacterA.flip()`
+- `CharacterA.move(target="0.48,0.58", duration=0.4, easing="ease_in_out")`：移动到自定义归一化坐标
+- `CharacterA.flip(flip="on")`：明确水平翻转
+- `CharacterA.flip(flip="off")`：恢复素材默认朝向
 - `CharacterA.expression = "happy"`
 - `CharacterA.outfit = "alternate"`
 - `CharacterA.change_outfit(outfit="alternate", emotion="happy")`
-- `CharacterA.effect("jump")`
-- `CharacterA.effect("bounce")`
-- `CharacterA.effect("shake", intensity="small")`
-- `CharacterA.effect("nod")`
+- `CharacterA.effect("jump", intensity="medium", duration=0.25)`
+- `CharacterA.effect("bounce", intensity="small", duration=0.3)`
+- `CharacterA.effect("shake", intensity="small", duration=0.25)`
+- `CharacterA.effect("nod", intensity="small", duration=0.25)`
 
-位置值为 `left`、`center`、`right`、`far_left`、`far_right`。入场效果为 `fade`、`slide_from_left`、`slide_from_right`、`slide_from_top`、`slide_from_bottom`、`pop_in`、`none`。退场效果使用对应的 `slide_to_*`、`fade`、`pop_out` 或 `none`。
+位置值为 `left`、`center`、`right`、`far_left`、`far_right`，也可以使用字符串形式的归一化坐标 `"x,y"`。双人标准位置为左侧 `0.35,0.50`、右侧 `0.65,0.50`；临时互动构图优先在 X `0.20–0.80`、Y `0.42–0.64` 范围内移动。X 增大表示向右，Y 增大表示立绘向下沉。入场效果为 `fade`、`slide_from_left`、`slide_from_right`、`slide_from_top`、`slide_from_bottom`、`pop_in`、`none`。退场效果使用对应的 `slide_to_*`、`fade`、`pop_out` 或 `none`。
 
-没有立绘资源的说话者只使用 `TextBlock(speaker="TextSpeaker")`，不加入 `stage.*`。
+舞台入场、离场、移动与角色动作会立即开始播放。下一拍需要等动作完成时，紧接一条与动作时长相配的 `time.wait(...)`。
+
+没有立绘资源的说话者使用本次剧情需求中的实际称呼，例如 `TextBlock(speaker="游客")`，并只作为文本身份出场。
 
 ## 镜头
 
@@ -82,7 +88,7 @@ screen.fade(direction="in", duration=0.4)
 > 同一说话者的第二行台词。
 ```
 
-旁白：
+无说话者文本块：
 
 ```text
 # => TextBlock()
@@ -115,6 +121,6 @@ screen.fade(direction="in", duration=0.4)
 
 1. 只包含本文列出的 DSL 语法。
 2. 所有资源标识来自资产清单。
-3. 已注册角色在说话前已经通过 `stage.*` 或角色 `show()` 登台。
+3. 有立绘且实际在场的角色通过 `stage.*` 或角色 `show()` 登台；只有文本身份的临时说话者直接使用台词块。
 4. 每个中途淡出都有后续淡入；场景末尾可以用淡出收尾。
-5. 默认使用线性叙事；场景需求明确包含分支时再使用 `ChoiceBlock`。
+5. 线性小事件从开场视觉命令开始并按顺序自然收尾；场景需求明确包含分支目标时使用 `ChoiceBlock` 与相应跳转。

@@ -7,3 +7,6 @@
 
 [node name="PlaytestInitializer" type="Node" parent="." index="5" unique_id=1291549906]
 script = ExtResource("2_bootstrap")
+
+[node name="NotificationCenter" parent="." index="6"]
+layout_mode = 1

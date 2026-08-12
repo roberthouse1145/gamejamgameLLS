@@ -1,6 +1,9 @@
 class_name StreamChat extends Control
 ## 直播页右侧弹幕栏。与播放器并列，不遮挡直播内容。
 
+signal screen_chat_toggled(enabled: bool)
+signal donation_animation_toggled(enabled: bool)
+
 const COLOR_PANEL: Color = Color("#FFFDFC")
 const COLOR_BORDER: Color = Color("#C8D5E5")
 const COLOR_HEADER: Color = Color("#F2F7FE")
@@ -9,6 +12,11 @@ const COLOR_TEXT: Color = Color("#20283A")
 const COLOR_SYSTEM: Color = Color("#8793A5")
 const COLOR_FAMILY: Color = Color("#4A76B9")
 const COLOR_LIVE: Color = Color("#E5486D")
+const COLOR_TOGGLE_ACTIVE_BG: Color = Color("#E8F2FF")
+const COLOR_TOGGLE_ACTIVE_BORDER: Color = Color("#7FA4D8")
+const COLOR_TOGGLE_INACTIVE_BG: Color = Color("#FFFFFF")
+const COLOR_TOGGLE_INACTIVE_BORDER: Color = Color("#D5E0EE")
+const COLOR_TOGGLE_INACTIVE_TEXT: Color = Color("#768196")
 
 const SC_COLORS: Array[Color] = [
 	Color("#4A90D9"),
@@ -22,10 +30,13 @@ const MAX_ENTRIES: int = 80
 var _entries_box: VBoxContainer = null
 var _scroll: ScrollContainer = null
 var _empty_label: Label = null
-var _sc_color_index: int = 0
+var _screen_chat_button: Button = null
+var _donation_animation_button: Button = null
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
+	_rng.randomize()
 	var card := PanelContainer.new()
 	card.set_anchors_preset(Control.PRESET_FULL_RECT)
 	card.add_theme_stylebox_override("panel", _make_style(COLOR_PANEL, COLOR_BORDER, 24))
@@ -116,45 +127,36 @@ func _ready() -> void:
 	var footer_row := HBoxContainer.new()
 	footer_row.add_theme_constant_override("separation", 14)
 	footer_margin.add_child(footer_row)
-	var input_shell := PanelContainer.new()
-	input_shell.custom_minimum_size.y = 56
-	input_shell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	input_shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	input_shell.add_theme_stylebox_override("panel", _make_ghost_input_style())
-	footer_row.add_child(input_shell)
-	var input_margin := MarginContainer.new()
-	input_margin.add_theme_constant_override("margin_left", 22)
-	input_margin.add_theme_constant_override("margin_right", 16)
-	input_shell.add_child(input_margin)
-	var input_row := HBoxContainer.new()
-	input_margin.add_child(input_row)
-	var input_line := ColorRect.new()
-	input_line.custom_minimum_size = Vector2(180, 6)
-	input_line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	input_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	input_line.color = Color("#D7E1EE")
-	input_row.add_child(input_line)
-	var input_spacer := Control.new()
-	input_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	input_row.add_child(input_spacer)
-	var input_dot := PanelContainer.new()
-	input_dot.custom_minimum_size = Vector2(20, 20)
-	input_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	input_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	input_dot.add_theme_stylebox_override("panel", _make_ghost_input_dot_style())
-	input_row.add_child(input_dot)
-	var send_shell := PanelContainer.new()
-	send_shell.custom_minimum_size = Vector2(56, 56)
-	send_shell.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	send_shell.add_theme_stylebox_override("panel", _make_ghost_send_style())
-	footer_row.add_child(send_shell)
-	var send_center := CenterContainer.new()
-	send_shell.add_child(send_center)
-	var send_dot := PanelContainer.new()
-	send_dot.custom_minimum_size = Vector2(18, 18)
-	send_dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	send_dot.add_theme_stylebox_override("panel", _make_ghost_send_dot_style())
-	send_center.add_child(send_dot)
+	var footer_spacer := Control.new()
+	footer_spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer_spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	footer_row.add_child(footer_spacer)
+	_screen_chat_button = _make_toggle_button("视频弹幕")
+	_screen_chat_button.toggled.connect(_on_screen_chat_toggled)
+	footer_row.add_child(_screen_chat_button)
+	_donation_animation_button = _make_toggle_button("打赏特效")
+	_donation_animation_button.toggled.connect(_on_donation_animation_toggled)
+	footer_row.add_child(_donation_animation_button)
+	set_reaction_settings(true, true)
+
+
+func set_reaction_settings(screen_chat_enabled: bool, donation_animation_enabled: bool) -> void:
+	if _screen_chat_button != null:
+		_screen_chat_button.set_pressed_no_signal(screen_chat_enabled)
+		_refresh_toggle_button(_screen_chat_button)
+	if _donation_animation_button != null:
+		_donation_animation_button.set_pressed_no_signal(donation_animation_enabled)
+		_refresh_toggle_button(_donation_animation_button)
+
+
+func _on_screen_chat_toggled(enabled: bool) -> void:
+	_refresh_toggle_button(_screen_chat_button)
+	screen_chat_toggled.emit(enabled)
+
+
+func _on_donation_animation_toggled(enabled: bool) -> void:
+	_refresh_toggle_button(_donation_animation_button)
+	donation_animation_toggled.emit(enabled)
 
 
 func clear() -> void:
@@ -163,7 +165,6 @@ func clear() -> void:
 	for child: Node in _entries_box.get_children():
 		_entries_box.remove_child(child)
 		child.queue_free()
-	_sc_color_index = 0
 	if _empty_label != null:
 		_empty_label.visible = true
 
@@ -193,8 +194,7 @@ func push_sc(entry: Dictionary) -> void:
 	if text.is_empty():
 		return
 	_show_content()
-	var color: Color = SC_COLORS[_sc_color_index % SC_COLORS.size()]
-	_sc_color_index += 1
+	var color: Color = _read_superchat_color(entry.get("color", null))
 
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -231,6 +231,12 @@ func handle_live_chat_event(event: Dictionary) -> void:
 		"sc":
 			push_sc(event)
 
+
+func _read_superchat_color(value: Variant) -> Color:
+	if value is Color:
+		return value
+	return SC_COLORS[_rng.randi_range(0, SC_COLORS.size() - 1)]
+
 func _add_entry(text: String) -> void:
 	if text.is_empty():
 		return
@@ -265,6 +271,61 @@ func _scroll_to_bottom() -> void:
 	await get_tree().process_frame
 	if is_instance_valid(_scroll):
 		_scroll.scroll_vertical = int(_scroll.get_v_scroll_bar().max_value)
+
+
+func _make_toggle_button(label_text: String) -> Button:
+	var button := Button.new()
+	button.toggle_mode = true
+	button.custom_minimum_size = Vector2(220.0, 56.0)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.focus_mode = Control.FOCUS_ALL
+	button.set_meta("label_text", label_text)
+	button.add_theme_font_size_override("font_size", 24)
+	return button
+
+
+func _refresh_toggle_button(button: Button) -> void:
+	if button == null:
+		return
+	var enabled: bool = button.button_pressed
+	var label_text: String = str(button.get_meta("label_text", ""))
+	button.text = "%s  %s" % [label_text, "开" if enabled else "关"]
+	button.tooltip_text = "%s已%s，点击%s" % [
+		label_text,
+		"开启" if enabled else "关闭",
+		"关闭" if enabled else "开启",
+	]
+	var text_color: Color = COLOR_FAMILY if enabled else COLOR_TOGGLE_INACTIVE_TEXT
+	button.add_theme_color_override("font_color", text_color)
+	button.add_theme_color_override("font_hover_color", text_color)
+	button.add_theme_color_override("font_pressed_color", COLOR_FAMILY)
+	button.add_theme_color_override("font_focus_color", text_color)
+	button.add_theme_stylebox_override("normal", _make_toggle_style(enabled, false, false))
+	button.add_theme_stylebox_override("hover", _make_toggle_style(enabled, true, false))
+	button.add_theme_stylebox_override("pressed", _make_toggle_style(true, false, false))
+	button.add_theme_stylebox_override("focus", _make_toggle_style(enabled, false, true))
+
+
+func _make_toggle_style(enabled: bool, hovered: bool, focused: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = COLOR_TOGGLE_ACTIVE_BG if enabled else COLOR_TOGGLE_INACTIVE_BG
+	style.border_color = COLOR_TOGGLE_ACTIVE_BORDER if enabled else COLOR_TOGGLE_INACTIVE_BORDER
+	if hovered:
+		style.bg_color = style.bg_color.lightened(0.025) if enabled else Color("#F5F8FC")
+	if focused:
+		style.border_color = COLOR_FAMILY
+	var border_width: int = 3 if focused else 2
+	style.border_width_left = border_width
+	style.border_width_top = border_width
+	style.border_width_right = border_width
+	style.border_width_bottom = border_width
+	style.corner_radius_top_left = 28
+	style.corner_radius_top_right = 28
+	style.corner_radius_bottom_left = 28
+	style.corner_radius_bottom_right = 28
+	style.content_margin_left = 16.0
+	style.content_margin_right = 16.0
+	return style
 
 
 func _make_style(bg_color: Color, border_color: Color, radius: int) -> StyleBoxFlat:
@@ -304,56 +365,6 @@ func _make_footer_style() -> StyleBoxFlat:
 	style.corner_radius_bottom_right = 24
 	style.border_width_top = 2
 	style.border_color = COLOR_BORDER
-	return style
-
-
-func _make_ghost_input_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#FFFFFF")
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = Color("#D5E0EE")
-	style.corner_radius_top_left = 28
-	style.corner_radius_top_right = 28
-	style.corner_radius_bottom_left = 28
-	style.corner_radius_bottom_right = 28
-	return style
-
-
-func _make_ghost_send_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#EEF4FD")
-	style.border_width_left = 2
-	style.border_width_top = 2
-	style.border_width_right = 2
-	style.border_width_bottom = 2
-	style.border_color = Color("#CEDCED")
-	style.corner_radius_top_left = 28
-	style.corner_radius_top_right = 28
-	style.corner_radius_bottom_left = 28
-	style.corner_radius_bottom_right = 28
-	return style
-
-
-func _make_ghost_input_dot_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#D7E1EE")
-	style.corner_radius_top_left = 10
-	style.corner_radius_top_right = 10
-	style.corner_radius_bottom_left = 10
-	style.corner_radius_bottom_right = 10
-	return style
-
-
-func _make_ghost_send_dot_style() -> StyleBoxFlat:
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#7FA4D8")
-	style.corner_radius_top_left = 9
-	style.corner_radius_top_right = 9
-	style.corner_radius_bottom_left = 9
-	style.corner_radius_bottom_right = 9
 	return style
 
 

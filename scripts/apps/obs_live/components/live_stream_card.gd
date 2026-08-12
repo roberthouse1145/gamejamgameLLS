@@ -1,9 +1,7 @@
 @tool
 class_name LiveStreamCardView extends Button
-## 直播内容卡统一展示层：行为 / 修饰 / 人设 / 素材共用同一卡框。
+## 直播素材与人设的统一卡框。
 
-const COST_ICON: Texture2D = preload("res://Assets/images/live_stream/cards/icons/stat_stress.svg")
-const RISK_ICON: Texture2D = preload("res://Assets/images/live_stream/cards/icons/stat_risk.svg")
 const TOOLTIP_DELAY: float = 0.35
 
 @export var content_resource: StreamContentResource = null:
@@ -43,9 +41,6 @@ const TOOLTIP_DELAY: float = 0.35
 @onready var slot_edges: CardSlotEdges = %SlotEdges
 
 var _hovered: bool = false
-var _connected_left_slots: Array[int] = []
-var _connected_right_slots: Array[int] = []
-var _show_connection_state: bool = false
 var _interaction: CardInteraction = null
 var _left_stat_override: String = ""
 var _right_stat_override: String = ""
@@ -53,7 +48,7 @@ var _tooltip_override: String = ""
 var _tooltip_text: String = ""
 var _tooltip_serial: int = 0
 
-## 拖拽负载；非空时本卡可被拖起。常用键：kind / card_id / id / from_slot / title。
+## 拖拽负载；非空时该素材视图可被拖起。常用键：kind / id / title。
 var drag_payload: Dictionary = {}:
 	set(value):
 		drag_payload = value
@@ -67,11 +62,6 @@ func get_card_payload() -> Dictionary:
 func set_card_shadow_strength(strength: float) -> void:
 	if slot_edges != null:
 		slot_edges.set_glow_strength(strength)
-
-
-func set_over_budget(state: bool) -> void:
-	if slot_edges != null:
-		slot_edges.set_over_budget(state)
 
 
 func _process(_delta: float) -> void:
@@ -95,30 +85,12 @@ func configure(
 	right_stat_text: String = "",
 	tooltip_override: String = ""
 ) -> void:
-	_connected_left_slots.clear()
-	_connected_right_slots.clear()
-	_show_connection_state = false
 	_left_stat_override = left_stat_text
 	_right_stat_override = right_stat_text
 	_tooltip_override = tooltip_override
 	content_resource = resource
 	selected = is_selected
 	locked = is_locked
-
-
-func configure_connection_state(left_connected: Array[int], right_connected: Array[int]) -> void:
-	_connected_left_slots.assign(left_connected)
-	_connected_right_slots.assign(right_connected)
-	_show_connection_state = true
-	if is_node_ready():
-		slot_edges.set_connected_slots(_connected_left_slots, _connected_right_slots)
-
-
-## 离开节目槽（拖回牌库）时清除接缝连接反馈。
-func clear_connection_state() -> void:
-	_show_connection_state = false
-	if is_node_ready() and slot_edges != null:
-		slot_edges.clear_connected_slots()
 
 
 func _render_card() -> void:
@@ -138,19 +110,7 @@ func _render_card() -> void:
 	title_label.text = content_resource.display_name
 	slot_edges.set_face_texture(CardFaceCatalog.face_for(content_resource))
 
-	if content_resource is BehaviorCardResource:
-		var behavior := content_resource as BehaviorCardResource
-		slot_edges.configure(behavior.left_slots, behavior.right_slots, true)
-		if _show_connection_state:
-			slot_edges.set_connected_slots(_connected_left_slots, _connected_right_slots)
-		_render_stat(left_stat, left_stat_icon, left_stat_value, COST_ICON, _stat_text(_left_stat_override, "%d" % behavior.budget_cost))
-		_render_stat(right_stat, right_stat_icon, right_stat_value, RISK_ICON, _stat_text(_right_stat_override, "%+.0f" % behavior.axes.risk))
-	elif content_resource is ModifierCardResource:
-		var modifier := content_resource as ModifierCardResource
-		slot_edges.configure(empty_slots, empty_slots, false)
-		_render_stat(left_stat, left_stat_icon, left_stat_value, COST_ICON, _stat_text(_left_stat_override, "%d" % modifier.budget_cost))
-		_render_stat(right_stat, right_stat_icon, right_stat_value, RISK_ICON, _stat_text(_right_stat_override, "+0"))
-	elif content_resource is StreamPersonaResource:
+	if content_resource is StreamPersonaResource:
 		slot_edges.configure(empty_slots, empty_slots, false)
 		_render_stat(left_stat, left_stat_icon, left_stat_value, null, _stat_text(_left_stat_override, "形象"))
 		_render_stat(right_stat, right_stat_icon, right_stat_value, null, _stat_text(_right_stat_override, "本场出镜"))
@@ -162,7 +122,7 @@ func _render_card() -> void:
 			left_stat_icon,
 			left_stat_value,
 			null,
-			_stat_text(_left_stat_override, "槽 %d" % material_res.program_slot_count)
+			_stat_text(_left_stat_override, material_res.get_material_type_label())
 		)
 		_render_stat(
 			right_stat,
@@ -237,32 +197,7 @@ func _render_stat(
 
 
 func _build_tooltip(resource: StreamContentResource) -> String:
-	if resource is LiveStreamCardResource:
-		var card := resource as LiveStreamCardResource
-		var lines: PackedStringArray = []
-		if not card.description.strip_edges().is_empty():
-			lines.append(card.description.strip_edges())
-		var summary: String = _get_effect_summary(card)
-		if not summary.is_empty():
-			lines.append(summary)
-		return "\n".join(lines)
 	return resource.description.strip_edges()
-
-
-func _get_effect_summary(card: LiveStreamCardResource) -> String:
-	if card is BehaviorCardResource:
-		var axes: StreamAxisValues = (card as BehaviorCardResource).axes
-		return "噱头%+.0f　质量%+.0f\n效果%+.0f　风险%+.0f" % [axes.hook, axes.quality, axes.impact, axes.risk]
-	var modifier: ModifierCardResource = card as ModifierCardResource
-	if modifier == null:
-		return ""
-	var values: StreamAxisValues = modifier.axis_multiplier_bonus
-	return "全场修正　噱头%+.0f%%　质量%+.0f%%　效果%+.0f%%　风险%+.0f%%" % [
-		values.hook * 100.0,
-		values.quality * 100.0,
-		values.impact * 100.0,
-		values.risk * 100.0,
-	]
 
 
 func _refresh_interaction_state() -> void:

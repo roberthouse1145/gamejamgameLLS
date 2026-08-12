@@ -1,0 +1,326 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/mail/mail_app.gd" id="1_script"]
+[ext_resource type="Theme" path="res://resources/themes/mail_light.tres" id="2_theme"]
+[ext_resource type="Texture2D" path="res://Assets/images/app_icons/mail.png" id="3_icon"]
+
+[sub_resource type="StyleBoxFlat" id="Style_topbar"]
+bg_color = Color(0.988, 0.994, 1, 1)
+border_width_bottom = 2
+border_color = Color(0.851, 0.886, 0.929, 1)
+shadow_color = Color(0.12, 0.18, 0.28, 0.08)
+shadow_size = 5
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="Style_inbox"]
+bg_color = Color(0.969, 0.98, 0.996, 1)
+border_width_right = 2
+border_color = Color(0.831, 0.875, 0.929, 1)
+shadow_color = Color(0.12, 0.18, 0.28, 0.07)
+shadow_size = 7
+shadow_offset = Vector2(3, 0)
+
+[sub_resource type="StyleBoxFlat" id="Style_reader"]
+bg_color = Color(0.976, 0.988, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_status"]
+content_margin_left = 22.0
+content_margin_top = 8.0
+content_margin_right = 22.0
+content_margin_bottom = 8.0
+bg_color = Color(0.898, 0.941, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.67, 0.788, 0.933, 1)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
+[sub_resource type="StyleBoxFlat" id="Style_letter"]
+content_margin_left = 56.0
+content_margin_top = 48.0
+content_margin_right = 56.0
+content_margin_bottom = 56.0
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.831, 0.875, 0.929, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+shadow_color = Color(0.12, 0.18, 0.28, 0.11)
+shadow_size = 12
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="Style_divider"]
+bg_color = Color(0.855, 0.894, 0.945, 1)
+
+[node name="MailApp" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.976, 0.988, 1, 1)
+
+[node name="AppLayout" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="TopBar" type="PanelContainer" parent="AppLayout"]
+custom_minimum_size = Vector2(0, 132)
+layout_mode = 2
+theme_override_styles/panel = SubResource("Style_topbar")
+
+[node name="TopMargin" type="MarginContainer" parent="AppLayout/TopBar"]
+layout_mode = 2
+theme_override_constants/margin_left = 38
+theme_override_constants/margin_top = 22
+theme_override_constants/margin_right = 42
+theme_override_constants/margin_bottom = 22
+
+[node name="TopRow" type="HBoxContainer" parent="AppLayout/TopBar/TopMargin"]
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="AppIcon" type="TextureRect" parent="AppLayout/TopBar/TopMargin/TopRow"]
+custom_minimum_size = Vector2(84, 84)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+texture = ExtResource("3_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="TitleStack" type="VBoxContainer" parent="AppLayout/TopBar/TopMargin/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 0
+
+[node name="AppTitle" type="Label" parent="AppLayout/TopBar/TopMargin/TopRow/TitleStack"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 46
+text = "邮件"
+
+[node name="AppSubtitle" type="Label" parent="AppLayout/TopBar/TopMargin/TopRow/TitleStack"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 26
+text = "收件箱"
+
+[node name="StatusPanel" type="PanelContainer" parent="AppLayout/TopBar/TopMargin/TopRow"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_styles/panel = SubResource("Style_status")
+
+[node name="UnreadStatus" type="Label" parent="AppLayout/TopBar/TopMargin/TopRow/StatusPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.38, 0.68, 1)
+theme_override_font_sizes/font_size = 26
+text = "暂无未读"
+
+[node name="Main" type="HBoxContainer" parent="AppLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 0
+
+[node name="InboxPanel" type="PanelContainer" parent="AppLayout/Main"]
+custom_minimum_size = Vector2(810, 0)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("Style_inbox")
+
+[node name="InboxLayout" type="VBoxContainer" parent="AppLayout/Main/InboxPanel"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="InboxHeaderMargin" type="MarginContainer" parent="AppLayout/Main/InboxPanel/InboxLayout"]
+layout_mode = 2
+theme_override_constants/margin_left = 34
+theme_override_constants/margin_top = 28
+theme_override_constants/margin_right = 30
+theme_override_constants/margin_bottom = 24
+
+[node name="InboxHeader" type="HBoxContainer" parent="AppLayout/Main/InboxPanel/InboxLayout/InboxHeaderMargin"]
+layout_mode = 2
+
+[node name="InboxTitle" type="Label" parent="AppLayout/Main/InboxPanel/InboxLayout/InboxHeaderMargin/InboxHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 36
+text = "收件箱"
+
+[node name="MessageCount" type="Label" parent="AppLayout/Main/InboxPanel/InboxLayout/InboxHeaderMargin/InboxHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 26
+text = "0 封"
+vertical_alignment = 1
+
+[node name="InboxDivider" type="Panel" parent="AppLayout/Main/InboxPanel/InboxLayout"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_divider")
+
+[node name="MailScroll" type="ScrollContainer" parent="AppLayout/Main/InboxPanel/InboxLayout"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="MailList" type="VBoxContainer" parent="AppLayout/Main/InboxPanel/InboxLayout/MailScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 0
+
+[node name="ReaderPanel" type="PanelContainer" parent="AppLayout/Main"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("Style_reader")
+
+[node name="ReaderStage" type="Control" parent="AppLayout/Main/ReaderPanel"]
+layout_mode = 2
+
+[node name="ReaderEmpty" type="CenterContainer" parent="AppLayout/Main/ReaderPanel/ReaderStage"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="EmptyStack" type="VBoxContainer" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderEmpty"]
+custom_minimum_size = Vector2(560, 0)
+layout_mode = 2
+theme_override_constants/separation = 24
+
+[node name="EmptyIcon" type="TextureRect" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderEmpty/EmptyStack"]
+self_modulate = Color(1, 1, 1, 0.24)
+custom_minimum_size = Vector2(158, 158)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+texture = ExtResource("3_icon")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="EmptyTitle" type="Label" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderEmpty/EmptyStack"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.345, 0.396, 0.478, 1)
+theme_override_font_sizes/font_size = 36
+text = "选择一封邮件"
+horizontal_alignment = 1
+
+[node name="EmptyHint" type="Label" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderEmpty/EmptyStack"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.51, 0.557, 0.627, 1)
+theme_override_font_sizes/font_size = 27
+text = "来信内容会显示在这里"
+horizontal_alignment = 1
+
+[node name="ReaderScroll" type="ScrollContainer" parent="AppLayout/Main/ReaderPanel/ReaderStage"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+horizontal_scroll_mode = 0
+
+[node name="ReaderOuterMargin" type="MarginContainer" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 52
+theme_override_constants/margin_top = 44
+theme_override_constants/margin_right = 52
+theme_override_constants/margin_bottom = 52
+
+[node name="Letter" type="PanelContainer" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("Style_letter")
+
+[node name="LetterContent" type="VBoxContainer" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="SubjectLabel" type="Label" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter/LetterContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 44
+text = "邮件主题"
+autowrap_mode = 3
+
+[node name="SenderLabel" type="Label" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter/LetterContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.247, 0.294, 0.384, 1)
+theme_override_font_sizes/font_size = 31
+text = "发件人"
+
+[node name="AddressLabel" type="Label" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter/LetterContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 26
+text = "sender@example.com"
+
+[node name="ReceivedLabel" type="Label" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter/LetterContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
+theme_override_font_sizes/font_size = 25
+text = "第1天 · 上午"
+
+[node name="LetterDivider" type="Panel" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter/LetterContent"]
+custom_minimum_size = Vector2(0, 2)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_divider")
+
+[node name="BodySpacer" type="Control" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter/LetterContent"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="BodyLabel" type="Label" parent="AppLayout/Main/ReaderPanel/ReaderStage/ReaderScroll/ReaderOuterMargin/Letter/LetterContent"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.157, 0.192, 0.263, 1)
+theme_override_constants/line_spacing = 13
+theme_override_font_sizes/font_size = 32
+text = "邮件正文"
+autowrap_mode = 3

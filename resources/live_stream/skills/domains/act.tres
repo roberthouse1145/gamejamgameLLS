@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StreamerSkillDomainResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/streamer_skill_domain_resource.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+family = &"act"
+display_name = "演出"
+level_prompts = PackedStringArray("对镜头表演和角色化表达还不熟练，做出夸张反应时容易紧张或显得刻意。", "开始掌握表情、语气和动作的配合，能够完成简单的角色化桥段与情绪表达。", "能够稳定使用声音、表情和动作塑造现场效果，也能根据观众反应调整表演强度。", "具备成熟的角色演绎与即兴能力，能够维持完整桥段，并自然处理反差、停顿和情绪变化。", "对镜头、角色和观众期待有高度控制力，能够把细微反应或高强度表演都转化为可信而有吸引力的现场。")

@@ -1,10 +1,9 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/apps/streamer_center/streamer_center_app.gd" id="1_script"]
 [ext_resource type="Theme" path="res://resources/themes/streamer_center_light.tres" id="2_theme"]
 [ext_resource type="Texture2D" path="res://Assets/images/app_icons/streamer_center_v3.png" id="3_icon"]
 [ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/overview_panel.tscn" id="4_overview"]
-[ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/card_library_panel.tscn" id="5_cards"]
 [ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/skill_tree_panel.tscn" id="6_skills"]
 [ext_resource type="PackedScene" path="res://scenes/apps/streamer_center/components/stream_history_panel.tscn" id="7_history"]
 
@@ -118,13 +117,6 @@ layout_mode = 2
 theme_type_variation = &"TabButtonSelected"
 text = "总览"
 
-[node name="CardsTab" type="Button" parent="Root/Navigation/NavigationMargin/Tabs"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(210, 72)
-layout_mode = 2
-theme_type_variation = &"TabButton"
-text = "卡牌库"
-
 [node name="SkillsTab" type="Button" parent="Root/Navigation/NavigationMargin/Tabs"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(210, 72)
@@ -145,11 +137,6 @@ size_flags_vertical = 3
 
 [node name="OverviewPanel" parent="Root/Content" instance=ExtResource("4_overview")]
 unique_name_in_owner = true
-layout_mode = 1
-
-[node name="CardLibraryPanel" parent="Root/Content" instance=ExtResource("5_cards")]
-unique_name_in_owner = true
-visible = false
 layout_mode = 1
 
 [node name="SkillTreePanel" parent="Root/Content" instance=ExtResource("6_skills")]

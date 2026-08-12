@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/live_stream/live_dsl_repair_agent.gd" id="1_script"]
+
+[node name="LiveDSLRepairAgent" type="Node"]
+script = ExtResource("1_script")

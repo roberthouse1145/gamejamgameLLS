@@ -1,43 +1,6 @@
 extends Node
 ## 独立 APP 验收入口的初始化器。场景根节点直接继承真实 Desktop，不经过 Main Game。
 
-const MOMENT_SEEDS: Array[Dictionary] = [
-	{
-		"character_id": "lu_yuanyuan",
-		"moment_id": "weekly_schedule",
-		"age_seconds": 3 * 60 * 60,
-		"comments": [
-			{"character_id": "ruan_yunyou", "content": "你的“安静”是不是指不让我关掉闹钟……"},
-		],
-	},
-	{
-		"character_id": "ruan_yunyou",
-		"moment_id": "late_night_anime",
-		"age_seconds": 2 * 60 * 60,
-		"comments": [
-			{"character_id": "lu_yuanyuan", "content": "明天的你让我转告：她并不理解。"},
-		],
-	},
-	{
-		"character_id": "lu_yuanyuan",
-		"moment_id": "cafe_meeting",
-		"age_seconds": 48 * 60,
-		"comments": [
-			{"character_id": "ruan_yunyou", "content": "我已经在路上了，真的。"},
-			{"character_id": "lu_yuanyuan", "content": "定位显示你还在家。"},
-		],
-	},
-	{
-		"character_id": "ruan_yunyou",
-		"moment_id": "rest_before_stream",
-		"age_seconds": 8 * 60,
-		"comments": [
-			{"character_id": "lu_yuanyuan", "content": "五分钟到了。"},
-			{"character_id": "ruan_yunyou", "content": "这是另一个时区的五分钟。"},
-		],
-	},
-]
-
 const SOCIAL_POST_SEEDS: Array[Dictionary] = [
 	{
 		"character_id": "lu_yuanyuan",
@@ -98,6 +61,10 @@ const SOCIAL_POST_SEEDS: Array[Dictionary] = [
 ]
 
 const PLAYTEST_INITIAL_MONEY: int = 5000
+const PLAYTEST_INITIAL_FANS: int = 1280
+const PLAYTEST_INITIAL_STRESS: int = 28
+const PLAYTEST_INITIAL_OTAKU_DESIRE: int = 46
+const PLAYTEST_INITIAL_LONELINESS: int = 34
 
 
 func _ready() -> void:
@@ -106,6 +73,10 @@ func _ready() -> void:
 
 func _initialize_playtest() -> void:
 	GameState.add_money(PLAYTEST_INITIAL_MONEY - GameState.money)
+	GameState.set_fans(PLAYTEST_INITIAL_FANS)
+	GameState.set_attribute(GameState.ATTR_STRESS, PLAYTEST_INITIAL_STRESS)
+	GameState.set_attribute(GameState.ATTR_OTAKU_DESIRE, PLAYTEST_INITIAL_OTAKU_DESIRE)
+	GameState.set_attribute(GameState.ATTR_LONELINESS, PLAYTEST_INITIAL_LONELINESS)
 	GameState.day = 1
 	GameState.time_slot = GameState.TIME_SLOT_MORNING
 	GameState.failed_date_invites.clear()
@@ -115,7 +86,26 @@ func _initialize_playtest() -> void:
 		return
 
 	linkchat_manager.reset_runtime_state(true)
-	_seed_moments(linkchat_manager)
+	var mail_manager: Node = get_node_or_null("/root/MailManager")
+	if mail_manager == null:
+		push_error("PlaytestAppDesktop: MailManager is unavailable")
+		return
+	mail_manager.reset_runtime_state()
+	var older_mail: Dictionary = mail_manager.receive_mail(
+		"系统邮件",
+		"service@example.test",
+		"服务状态通知",
+		"这是一封用于检查已读样式、正文行距与长文本换行的中性示例邮件。\n\n邮件阅读区应保持舒适的留白，并允许正文自然向下滚动。",
+		"第1天 · 08:30"
+	)
+	mail_manager.mark_read(str(older_mail.get("mail_id", "")))
+	mail_manager.receive_mail(
+		"匿名发件人",
+		"",
+		"留给你的消息",
+		"门边的信封里还有一张纸。等四周安静下来，再独自拆开。\n\n不要回复这封邮件。",
+		"第1天 · 09:10"
+	)
 	var social_manager: Node = get_node_or_null("/root/SocialMediaManager")
 	if social_manager == null:
 		push_error("PlaytestAppDesktop: SocialMediaManager is unavailable")
@@ -123,30 +113,6 @@ func _initialize_playtest() -> void:
 	social_manager.reset_runtime_state()
 	_seed_social_posts(social_manager)
 	print("[Playtest] APP desktop initialized; waiting for manual interaction")
-
-
-func _seed_moments(linkchat_manager: Node) -> void:
-	var now: int = int(Time.get_unix_time_from_system())
-	for moment_seed: Dictionary in MOMENT_SEEDS:
-		var post: MomentPostRecord = linkchat_manager.publish_character_moment(
-			str(moment_seed.get("character_id", "")),
-			str(moment_seed.get("moment_id", ""))
-		) as MomentPostRecord
-		if post == null:
-			push_error("PlaytestAppDesktop: failed to publish moment %s" % str(moment_seed.get("moment_id", "")))
-			continue
-		post.published_at = now - int(moment_seed.get("age_seconds", 0))
-		var comments: Variant = moment_seed.get("comments", [])
-		if comments is Array:
-			for comment_value: Variant in comments:
-				if not comment_value is Dictionary:
-					continue
-				var comment: Dictionary = comment_value
-				linkchat_manager.add_moment_comment(
-					post.post_id,
-					str(comment.get("character_id", "")),
-					str(comment.get("content", ""))
-				)
 
 
 func _seed_social_posts(social_manager: Node) -> void:

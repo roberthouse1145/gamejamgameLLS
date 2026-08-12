@@ -41,6 +41,20 @@ signal app_access_changed(mode: String, apps: Array[String])
 
 func _ready() -> void:
 	_register_all_apps()
+	call_deferred("_connect_story_lock_manager")
+
+
+func _connect_story_lock_manager() -> void:
+	var manager: Node = get_node_or_null("/root/StoryLockManager")
+	if manager == null or not manager.has_signal("locks_changed"):
+		return
+	if not manager.is_connected("locks_changed", _on_story_locks_changed):
+		manager.connect("locks_changed", _on_story_locks_changed)
+	apply_story_locks()
+
+
+func _on_story_locks_changed(_snapshot: Dictionary) -> void:
+	apply_story_locks()
 
 
 ## Register all app definitions on startup
@@ -51,6 +65,7 @@ func _register_all_apps() -> void:
 		"res://resources/apps/browser_app.tres",
 		"res://resources/apps/image_viewer_app.tres",
 		"res://resources/apps/linkchat_app.tres",
+		"res://resources/apps/mail_app.tres",
 		"res://resources/apps/cityhop_app.tres",
 		"res://resources/apps/linkposta_app.tres",
 		"res://resources/apps/streamer_center_app.tres",

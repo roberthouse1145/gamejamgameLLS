@@ -1,8 +1,7 @@
 extends Control
-## V-Stream 主播中心：长期状态、卡牌、成长与直播记录的统一入口。
+## V-Stream 主播中心：长期状态、成长与直播记录的统一入口。
 
 const TAB_OVERVIEW: StringName = &"overview"
-const TAB_CARDS: StringName = &"cards"
 const TAB_SKILLS: StringName = &"skills"
 const TAB_HISTORY: StringName = &"history"
 
@@ -11,14 +10,12 @@ const TAB_HISTORY: StringName = &"history"
 
 @onready var tab_buttons: Dictionary = {
 	TAB_OVERVIEW: %OverviewTab,
-	TAB_CARDS: %CardsTab,
 	TAB_SKILLS: %SkillsTab,
 	TAB_HISTORY: %HistoryTab,
 }
 
 @onready var tab_panels: Dictionary = {
 	TAB_OVERVIEW: %OverviewPanel,
-	TAB_CARDS: %CardLibraryPanel,
 	TAB_SKILLS: %SkillTreePanel,
 	TAB_HISTORY: %StreamHistoryPanel,
 }
@@ -58,7 +55,7 @@ func _update_header() -> void:
 
 
 func _get_active_persona() -> StreamPersonaResource:
-	var catalog: LiveStreamCatalog = CardLibraryManager.get_catalog()
+	var catalog: LiveStreamCatalog = LiveStreamManager.get_catalog()
 	if catalog == null:
 		return null
 	return catalog.get_persona(StringName(GameState.active_persona_id))

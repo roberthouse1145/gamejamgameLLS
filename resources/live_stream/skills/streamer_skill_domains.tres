@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="StreamerSkillDomainCatalog" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/streamer_skill_domain_catalog.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/streamer_skill_domain_resource.gd" id="2_domain"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/domains/game.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/domains/talk.tres" id="3"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/domains/song.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/domains/act.tres" id="5"]
+[ext_resource type="Resource" path="res://resources/live_stream/skills/domains/tech.tres" id="6"]
+
+[resource]
+script = ExtResource("1")
+domains = Array[ExtResource("2_domain")]([ExtResource("2"), ExtResource("3"), ExtResource("4"), ExtResource("5"), ExtResource("6")])

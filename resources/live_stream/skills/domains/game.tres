@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StreamerSkillDomainResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/streamer_skill_domain_resource.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+family = &"game"
+display_name = "游戏"
+level_prompts = PackedStringArray("刚开始积累游戏直播经验。常见基础操作能够完成；面对复杂挑战时只会带着一个局部猜测开场，至少经过两轮失败、观众提醒和重新观察，才能拼出可行方案。操作、读弹幕和讲解同时发生时容易顾此失彼，最终成功来自这段逐步学会的过程。", "已经熟悉常见游戏类型和操作习惯。难度不高的场面可以兼顾操作与交流；复杂机制通常先抓到明显线索，再通过一两次试错补全判断。", "具备稳定的操作、观察和机制分析能力。能够边行动边说明依据，常规失误后会较快调整；隐藏规则仍可能需要现场验证。", "能够迅速读懂复杂机制和高压局面，用成熟判断规划行动，同时把挑战转化为清晰的节目过程。已知机制通常一次执行成功，素材突然改变规则时会迅速修正。", "游戏理解、操作和临场判断都非常成熟。开场便把已知信息组织成有依据的完整打法，第一次交锋可靠执行并取得进展；弹幕用于质疑、讨论和玩梗，不负责补上主播缺失的关键解法。核心转折来自此前没有暴露的规则变化、误导设计或素材的突然变化；主播观察一次便解释变化、更新策略，并在下一次交锋中稳定兑现。")

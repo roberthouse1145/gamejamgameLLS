@@ -9,7 +9,7 @@ const TIME_SLOT_NAMES: Array[String] = ["上午", "下午", "晚上"]
 @onready var detail_title: Label = %DetailTitle
 @onready var detail_meta: Label = %DetailMeta
 @onready var detail_setup: Label = %DetailSetup
-@onready var detail_cards: Label = %DetailCards
+@onready var detail_approach: Label = %DetailCards
 @onready var heat_value: Label = %HeatValue
 @onready var revenue_value: Label = %RevenueValue
 @onready var fans_value: Label = %FansValue
@@ -21,12 +21,12 @@ var _selected_session_id: String = ""
 
 
 func _ready() -> void:
-	StreamHistoryManager.history_changed.connect(refresh)
+	LiveStreamManager.history_changed.connect(refresh)
 	refresh()
 
 
 func refresh() -> void:
-	_records = StreamHistoryManager.get_records()
+	_records = LiveStreamManager.get_history_records()
 	empty_state.visible = _records.is_empty()
 	history_body.visible = not _records.is_empty()
 	for child: Node in record_list.get_children():
@@ -54,11 +54,9 @@ func _render_record(record: StreamSessionRecord) -> void:
 	detail_title.text = record.title
 	detail_meta.text = "第 %d 天 · %s" % [record.day, _time_slot_name(record.time_slot)]
 	detail_setup.text = "形象：%s　　素材：%s" % [record.persona_name, record.material_name]
-	var card_names: Array[String] = []
-	for card_id: StringName in record.card_ids:
-		var card: LiveStreamCardResource = CardLibraryManager.get_card(card_id)
-		card_names.append(card.display_name if card != null else String(card_id))
-	detail_cards.text = "节目单：%s" % " → ".join(card_names)
+	detail_approach.text = "直播构思：%s" % (
+		record.approach_name if not record.approach_name.is_empty() else "未记录"
+	)
 	heat_value.text = str(record.heat)
 	revenue_value.text = "¥%d" % record.revenue
 	fans_value.text = "%+d" % record.fan_delta

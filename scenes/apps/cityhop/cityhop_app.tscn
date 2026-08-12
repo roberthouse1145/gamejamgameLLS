@@ -1,22 +1,26 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene format=3 uid="uid://c2xivgonfsll"]
 
-[ext_resource type="Script" path="res://scripts/apps/cityhop/cityhop_app.gd" id="1"]
-[ext_resource type="Texture2D" path="res://Assets/images/app_icons/cityhop.png" id="2"]
-[ext_resource type="Texture2D" path="res://Assets/images/cityhop/city_map.png" id="3"]
+[ext_resource type="Script" uid="uid://bys0fek2p4vg6" path="res://scripts/apps/cityhop/cityhop_app.gd" id="1"]
+[ext_resource type="Texture2D" uid="uid://ddppixpph57o5" path="res://Assets/images/app_icons/cityhop.png" id="2"]
+[ext_resource type="Texture2D" uid="uid://cv5egdtfqneq3" path="res://Assets/images/cityhop/city_map.png" id="3"]
 
 [sub_resource type="StyleBoxFlat" id="Style_page"]
 bg_color = Color(0.960784, 0.972549, 0.988235, 1)
 
 [sub_resource type="StyleBoxFlat" id="Style_header"]
-bg_color = Color(1, 1, 1, 0.96)
-border_width_bottom = 2
-border_color = Color(0.882353, 0.901961, 0.929412, 1)
 content_margin_left = 42.0
 content_margin_top = 22.0
 content_margin_right = 42.0
 content_margin_bottom = 22.0
+bg_color = Color(1, 1, 1, 0.96)
+border_width_bottom = 2
+border_color = Color(0.882353, 0.901961, 0.929412, 1)
 
 [sub_resource type="StyleBoxFlat" id="Style_search"]
+content_margin_left = 24.0
+content_margin_top = 12.0
+content_margin_right = 24.0
+content_margin_bottom = 12.0
 bg_color = Color(0.952941, 0.960784, 0.976471, 1)
 border_width_left = 2
 border_width_top = 2
@@ -27,12 +31,12 @@ corner_radius_top_left = 22
 corner_radius_top_right = 22
 corner_radius_bottom_right = 22
 corner_radius_bottom_left = 22
-content_margin_left = 24.0
-content_margin_top = 12.0
-content_margin_right = 24.0
-content_margin_bottom = 12.0
 
 [sub_resource type="StyleBoxFlat" id="Style_search_focus"]
+content_margin_left = 23.0
+content_margin_top = 11.0
+content_margin_right = 23.0
+content_margin_bottom = 11.0
 bg_color = Color(1, 1, 1, 1)
 border_width_left = 3
 border_width_top = 3
@@ -43,12 +47,12 @@ corner_radius_top_left = 22
 corner_radius_top_right = 22
 corner_radius_bottom_right = 22
 corner_radius_bottom_left = 22
-content_margin_left = 23.0
-content_margin_top = 11.0
-content_margin_right = 23.0
-content_margin_bottom = 11.0
 
 [sub_resource type="StyleBoxFlat" id="Style_panel"]
+content_margin_left = 30.0
+content_margin_top = 30.0
+content_margin_right = 30.0
+content_margin_bottom = 30.0
 bg_color = Color(1, 1, 1, 0.97)
 border_width_left = 2
 border_width_top = 2
@@ -59,28 +63,50 @@ corner_radius_top_left = 26
 corner_radius_top_right = 26
 corner_radius_bottom_right = 26
 corner_radius_bottom_left = 26
-content_margin_left = 30.0
-content_margin_top = 30.0
-content_margin_right = 30.0
-content_margin_bottom = 30.0
-
-[sub_resource type="StyleBoxFlat" id="Style_filter"]
-bg_color = Color(0.952941, 0.960784, 0.976471, 1)
-corner_radius_top_left = 24
-corner_radius_top_right = 24
-corner_radius_bottom_right = 24
-corner_radius_bottom_left = 24
-content_margin_left = 22.0
-content_margin_right = 22.0
 
 [sub_resource type="StyleBoxFlat" id="Style_filter_hover"]
+content_margin_left = 22.0
+content_margin_right = 22.0
 bg_color = Color(1, 0.941176, 0.94902, 1)
 corner_radius_top_left = 24
 corner_radius_top_right = 24
 corner_radius_bottom_right = 24
 corner_radius_bottom_left = 24
+
+[sub_resource type="StyleBoxFlat" id="Style_filter"]
 content_margin_left = 22.0
 content_margin_right = 22.0
+bg_color = Color(0.952941, 0.960784, 0.976471, 1)
+corner_radius_top_left = 24
+corner_radius_top_right = 24
+corner_radius_bottom_right = 24
+corner_radius_bottom_left = 24
+
+[sub_resource type="StyleBoxFlat" id="Style_map"]
+bg_color = Color(0.898039, 0.933333, 0.956863, 1)
+corner_radius_top_left = 28
+corner_radius_top_right = 28
+corner_radius_bottom_right = 28
+corner_radius_bottom_left = 28
+
+[sub_resource type="StyleBoxFlat" id="Style_detail_drawer"]
+content_margin_left = 30.0
+content_margin_top = 30.0
+content_margin_right = 30.0
+content_margin_bottom = 30.0
+bg_color = Color(1, 1, 1, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.882353, 0.901961, 0.929412, 1)
+corner_radius_top_left = 26
+corner_radius_top_right = 26
+corner_radius_bottom_right = 26
+corner_radius_bottom_left = 26
+shadow_color = Color(0.0705882, 0.101961, 0.164706, 0.2)
+shadow_size = 18
+shadow_offset = Vector2(-6, 4)
 
 [sub_resource type="StyleBoxFlat" id="Style_primary"]
 bg_color = Color(0.964706, 0.25098, 0.333333, 1)
@@ -108,14 +134,39 @@ corner_radius_top_right = 22
 corner_radius_bottom_right = 22
 corner_radius_bottom_left = 22
 
-[sub_resource type="StyleBoxFlat" id="Style_map"]
-bg_color = Color(0.898039, 0.933333, 0.956863, 1)
-corner_radius_top_left = 28
-corner_radius_top_right = 28
-corner_radius_bottom_right = 28
-corner_radius_bottom_left = 28
+[sub_resource type="StyleBoxFlat" id="Style_action_notice"]
+content_margin_left = 22.0
+content_margin_top = 16.0
+content_margin_right = 22.0
+content_margin_bottom = 16.0
+bg_color = Color(1, 0.968627, 0.92549, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.941176, 0.815686, 0.686275, 1)
+corner_radius_top_left = 18
+corner_radius_top_right = 18
+corner_radius_bottom_right = 18
+corner_radius_bottom_left = 18
+
+[sub_resource type="StyleBoxFlat" id="Style_action_disabled"]
+bg_color = Color(0.968627, 0.976471, 0.988235, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.835294, 0.862745, 0.909804, 1)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
 
 [sub_resource type="StyleBoxFlat" id="Style_modal"]
+content_margin_left = 42.0
+content_margin_top = 38.0
+content_margin_right = 42.0
+content_margin_bottom = 38.0
 bg_color = Color(1, 1, 1, 1)
 border_width_left = 2
 border_width_top = 2
@@ -126,12 +177,9 @@ corner_radius_top_left = 30
 corner_radius_top_right = 30
 corner_radius_bottom_right = 30
 corner_radius_bottom_left = 30
-content_margin_left = 42.0
-content_margin_top = 38.0
-content_margin_right = 42.0
-content_margin_bottom = 38.0
 
-[node name="CityHopApp" type="Control"]
+[node name="CityHopApp" type="Control" unique_id=229569968]
+clip_contents = true
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -140,7 +188,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1")
 
-[node name="PageBackground" type="Panel" parent="."]
+[node name="PageBackground" type="Panel" parent="." unique_id=366839823]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -149,7 +197,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("Style_page")
 
-[node name="Page" type="VBoxContainer" parent="."]
+[node name="Page" type="VBoxContainer" parent="." unique_id=676844629]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -158,38 +206,38 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="Header" type="PanelContainer" parent="Page"]
+[node name="Header" type="PanelContainer" parent="Page" unique_id=44820596]
 custom_minimum_size = Vector2(0, 126)
 layout_mode = 2
 theme_override_styles/panel = SubResource("Style_header")
 
-[node name="HeaderRow" type="HBoxContainer" parent="Page/Header"]
+[node name="HeaderRow" type="HBoxContainer" parent="Page/Header" unique_id=911558375]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="BrandIcon" type="TextureRect" parent="Page/Header/HeaderRow"]
+[node name="BrandIcon" type="TextureRect" parent="Page/Header/HeaderRow" unique_id=1281618173]
 custom_minimum_size = Vector2(76, 76)
 layout_mode = 2
 texture = ExtResource("2")
 expand_mode = 1
 stretch_mode = 5
 
-[node name="BrandBox" type="VBoxContainer" parent="Page/Header/HeaderRow"]
+[node name="BrandBox" type="VBoxContainer" parent="Page/Header/HeaderRow" unique_id=983211406]
 layout_mode = 2
 
-[node name="Brand" type="Label" parent="Page/Header/HeaderRow/BrandBox"]
+[node name="Brand" type="Label" parent="Page/Header/HeaderRow/BrandBox" unique_id=245206541]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0941176, 0.133333, 0.219608, 1)
 theme_override_font_sizes/font_size = 38
 text = "CityHop"
 
-[node name="BrandSubtitle" type="Label" parent="Page/Header/HeaderRow/BrandBox"]
+[node name="BrandSubtitle" type="Label" parent="Page/Header/HeaderRow/BrandBox" unique_id=1234380615]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.407843, 0.454902, 0.541176, 1)
 theme_override_font_sizes/font_size = 23
 text = "发现今天可以去的地方"
 
-[node name="SearchInput" type="LineEdit" parent="Page/Header/HeaderRow"]
+[node name="SearchInput" type="LineEdit" parent="Page/Header/HeaderRow" unique_id=1256409289]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(900, 76)
 layout_mode = 2
@@ -200,23 +248,23 @@ theme_override_colors/caret_color = Color(0.964706, 0.25098, 0.333333, 1)
 theme_override_colors/selection_color = Color(1, 0.8, 0.831373, 1)
 theme_override_font_sizes/font_size = 29
 theme_override_styles/normal = SubResource("Style_search")
-theme_override_styles/focus = SubResource("Style_search_focus")
 theme_override_styles/read_only = SubResource("Style_search")
+theme_override_styles/focus = SubResource("Style_search_focus")
 placeholder_text = "搜索地点、活动"
 clear_button_enabled = true
 
-[node name="HeaderSpacer" type="Control" parent="Page/Header/HeaderRow"]
+[node name="HeaderSpacer" type="Control" parent="Page/Header/HeaderRow" unique_id=18843652]
 layout_mode = 2
 size_flags_horizontal = 3
 
-[node name="DayLabel" type="Label" parent="Page/Header/HeaderRow"]
+[node name="DayLabel" type="Label" parent="Page/Header/HeaderRow" unique_id=1806469236]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0941176, 0.133333, 0.219608, 1)
 theme_override_font_sizes/font_size = 29
 text = "第 1 天 · 上午"
 
-[node name="MoneyLabel" type="Label" parent="Page/Header/HeaderRow"]
+[node name="MoneyLabel" type="Label" parent="Page/Header/HeaderRow" unique_id=748147803]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(230, 0)
 layout_mode = 2
@@ -225,7 +273,7 @@ theme_override_font_sizes/font_size = 32
 text = "¥ 0"
 horizontal_alignment = 2
 
-[node name="ContentMargin" type="MarginContainer" parent="Page"]
+[node name="ContentMargin" type="MarginContainer" parent="Page" unique_id=1756077222]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/margin_left = 30
@@ -233,30 +281,35 @@ theme_override_constants/margin_top = 30
 theme_override_constants/margin_right = 30
 theme_override_constants/margin_bottom = 30
 
-[node name="Content" type="HBoxContainer" parent="Page/ContentMargin"]
+[node name="Content" type="Control" parent="Page/ContentMargin" unique_id=265993235]
+unique_name_in_owner = true
+clip_contents = true
 layout_mode = 2
-theme_override_constants/separation = 28
 
-[node name="Sidebar" type="PanelContainer" parent="Page/ContentMargin/Content"]
+[node name="Sidebar" type="PanelContainer" parent="Page/ContentMargin/Content" unique_id=1168526782]
 custom_minimum_size = Vector2(860, 0)
-layout_mode = 2
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_right = 860.0
+grow_vertical = 2
 theme_override_styles/panel = SubResource("Style_panel")
 
-[node name="SidebarBox" type="VBoxContainer" parent="Page/ContentMargin/Content/Sidebar"]
+[node name="SidebarBox" type="VBoxContainer" parent="Page/ContentMargin/Content/Sidebar" unique_id=1880622372]
 layout_mode = 2
 theme_override_constants/separation = 22
 
-[node name="DiscoverTitle" type="Label" parent="Page/ContentMargin/Content/Sidebar/SidebarBox"]
+[node name="DiscoverTitle" type="Label" parent="Page/ContentMargin/Content/Sidebar/SidebarBox" unique_id=1894452267]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0941176, 0.133333, 0.219608, 1)
 theme_override_font_sizes/font_size = 43
 text = "附近值得去"
 
-[node name="Filters" type="HBoxContainer" parent="Page/ContentMargin/Content/Sidebar/SidebarBox"]
+[node name="Filters" type="HBoxContainer" parent="Page/ContentMargin/Content/Sidebar/SidebarBox" unique_id=1080935341]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="AllFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters"]
+[node name="AllFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters" unique_id=1437543137]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 66)
 layout_mode = 2
@@ -265,7 +318,7 @@ theme_override_styles/normal = SubResource("Style_filter_hover")
 theme_override_styles/hover = SubResource("Style_filter_hover")
 text = "全部"
 
-[node name="NowFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters"]
+[node name="NowFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters" unique_id=1607750961]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 66)
 layout_mode = 2
@@ -274,7 +327,7 @@ theme_override_styles/normal = SubResource("Style_filter")
 theme_override_styles/hover = SubResource("Style_filter_hover")
 text = "现在可去"
 
-[node name="FreeFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters"]
+[node name="FreeFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters" unique_id=1676924832]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 66)
 layout_mode = 2
@@ -283,7 +336,7 @@ theme_override_styles/normal = SubResource("Style_filter")
 theme_override_styles/hover = SubResource("Style_filter_hover")
 text = "免费"
 
-[node name="DateFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters"]
+[node name="DateFilter" type="Button" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/Filters" unique_id=1045075970]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 66)
 layout_mode = 2
@@ -292,34 +345,45 @@ theme_override_styles/normal = SubResource("Style_filter")
 theme_override_styles/hover = SubResource("Style_filter_hover")
 text = "适合约会"
 
-[node name="ActivityScroll" type="ScrollContainer" parent="Page/ContentMargin/Content/Sidebar/SidebarBox"]
+[node name="ActivityScroll" type="ScrollContainer" parent="Page/ContentMargin/Content/Sidebar/SidebarBox" unique_id=919680353]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="ActivityList" type="VBoxContainer" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/ActivityScroll"]
+[node name="ActivityList" type="VBoxContainer" parent="Page/ContentMargin/Content/Sidebar/SidebarBox/ActivityScroll" unique_id=2088514723]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 16
 
-[node name="StatusLabel" type="Label" parent="Page/ContentMargin/Content/Sidebar/SidebarBox"]
+[node name="StatusLabel" type="Label" parent="Page/ContentMargin/Content/Sidebar/SidebarBox" unique_id=1119871514]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.407843, 0.454902, 0.541176, 1)
 theme_override_font_sizes/font_size = 25
-text = "选择一个活动查看详情"
+text = "选择活动，或拖动地图探索"
 
-[node name="MapFrame" type="PanelContainer" parent="Page/ContentMargin/Content"]
-layout_mode = 2
-size_flags_horizontal = 3
+[node name="MapFrame" type="PanelContainer" parent="Page/ContentMargin/Content" unique_id=496317541]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 888.0
+grow_horizontal = 2
+grow_vertical = 2
 theme_override_styles/panel = SubResource("Style_map")
 
-[node name="MapCanvas" type="Control" parent="Page/ContentMargin/Content/MapFrame"]
+[node name="MapCanvas" type="Control" parent="Page/ContentMargin/Content/MapFrame" unique_id=1666931121]
+unique_name_in_owner = true
 clip_contents = true
 layout_mode = 2
 
-[node name="MapTexture" type="TextureRect" parent="Page/ContentMargin/Content/MapFrame/MapCanvas"]
+[node name="MapContent" type="Control" parent="Page/ContentMargin/Content/MapFrame/MapCanvas" unique_id=1684167973]
+unique_name_in_owner = true
+anchors_preset = 0
+mouse_filter = 2
+
+[node name="MapTexture" type="TextureRect" parent="Page/ContentMargin/Content/MapFrame/MapCanvas/MapContent" unique_id=615903067]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -327,21 +391,22 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 texture = ExtResource("3")
 expand_mode = 1
 stretch_mode = 6
 
-[node name="MapTint" type="ColorRect" parent="Page/ContentMargin/Content/MapFrame/MapCanvas"]
-mouse_filter = 2
+[node name="MapTint" type="ColorRect" parent="Page/ContentMargin/Content/MapFrame/MapCanvas/MapContent" unique_id=1316133222]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 color = Color(1, 1, 1, 0.08)
 
-[node name="PinLayer" type="Control" parent="Page/ContentMargin/Content/MapFrame/MapCanvas"]
+[node name="PinLayer" type="Control" parent="Page/ContentMargin/Content/MapFrame/MapCanvas/MapContent" unique_id=865454178]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -349,31 +414,48 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 
-[node name="DetailPanel" type="PanelContainer" parent="Page/ContentMargin/Content"]
+[node name="DetailPanel" type="PanelContainer" parent="Page/ContentMargin/Content" unique_id=1041888104]
+unique_name_in_owner = true
+visible = false
 custom_minimum_size = Vector2(820, 0)
-layout_mode = 2
-theme_override_styles/panel = SubResource("Style_panel")
+layout_mode = 1
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 820.0
+offset_top = 18.0
+offset_right = 1640.0
+offset_bottom = -18.0
+grow_vertical = 2
+theme_override_styles/panel = SubResource("Style_detail_drawer")
 
-[node name="DetailBox" type="VBoxContainer" parent="Page/ContentMargin/Content/DetailPanel"]
+[node name="DetailScroll" type="ScrollContainer" parent="Page/ContentMargin/Content/DetailPanel"]
+unique_name_in_owner = true
 layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="DetailBox" type="VBoxContainer" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll" unique_id=600914621]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 22
 
-[node name="DetailCover" type="TextureRect" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="DetailCover" type="TextureRect" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=85126793]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 420)
 layout_mode = 2
 expand_mode = 1
 stretch_mode = 6
 
-[node name="DetailKind" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="DetailKind" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=387010216]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.843137, 0.247059, 0.329412, 1)
 theme_override_font_sizes/font_size = 26
 text = "地点"
 
-[node name="DetailTitle" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="DetailTitle" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=1607083465]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0941176, 0.133333, 0.219608, 1)
@@ -381,14 +463,14 @@ theme_override_font_sizes/font_size = 46
 text = "活动名称"
 autowrap_mode = 2
 
-[node name="DetailMeta" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="DetailMeta" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=1217847783]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.407843, 0.454902, 0.541176, 1)
 theme_override_font_sizes/font_size = 27
 text = "地点信息"
 
-[node name="DetailDescription" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="DetailDescription" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=223473691]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0941176, 0.133333, 0.219608, 1)
@@ -396,41 +478,51 @@ theme_override_font_sizes/font_size = 30
 text = "活动介绍"
 autowrap_mode = 2
 
-[node name="DetailTags" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(0.843137, 0.247059, 0.329412, 1)
-theme_override_font_sizes/font_size = 25
-text = "标签"
-autowrap_mode = 2
-
-[node name="DetailSpacer" type="Control" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="DetailSpacer" type="Control" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=1478802896]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="SoloButton" type="Button" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="ActionStatusPanel" type="PanelContainer" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_action_notice")
+
+[node name="ActionStatusLabel" type="Label" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox/ActionStatusPanel"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.498039, 0.282353, 0.156863, 1)
+theme_override_font_sizes/font_size = 25
+text = "暂不可用"
+autowrap_mode = 2
+
+[node name="SoloButton" type="Button" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=744931124]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 94)
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_disabled_color = Color(0.4, 0.439216, 0.521569, 1)
 theme_override_font_sizes/font_size = 31
 theme_override_styles/normal = SubResource("Style_primary")
-theme_override_styles/hover = SubResource("Style_primary_hover")
 theme_override_styles/pressed = SubResource("Style_primary_hover")
+theme_override_styles/hover = SubResource("Style_primary_hover")
+theme_override_styles/disabled = SubResource("Style_action_disabled")
 text = "一个人去"
 
-[node name="DateButton" type="Button" parent="Page/ContentMargin/Content/DetailPanel/DetailBox"]
+[node name="DateButton" type="Button" parent="Page/ContentMargin/Content/DetailPanel/DetailScroll/DetailBox" unique_id=1068268563]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 94)
 layout_mode = 2
+theme_override_colors/font_disabled_color = Color(0.4, 0.439216, 0.521569, 1)
 theme_override_font_sizes/font_size = 31
 theme_override_styles/normal = SubResource("Style_secondary")
-theme_override_styles/hover = SubResource("Style_filter_hover")
 theme_override_styles/pressed = SubResource("Style_filter_hover")
+theme_override_styles/hover = SubResource("Style_filter_hover")
+theme_override_styles/disabled = SubResource("Style_action_disabled")
 text = "邀请好友"
 
-[node name="FriendOverlay" type="Control" parent="."]
+[node name="FriendOverlay" type="Control" parent="." unique_id=2144663796]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -441,7 +533,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
-[node name="Dim" type="ColorRect" parent="FriendOverlay"]
+[node name="Dim" type="ColorRect" parent="FriendOverlay" unique_id=1052593513]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -450,7 +542,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.0470588, 0.0705882, 0.12549, 0.58)
 
-[node name="Center" type="CenterContainer" parent="FriendOverlay"]
+[node name="Center" type="CenterContainer" parent="FriendOverlay" unique_id=1799945789]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -458,42 +550,42 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Modal" type="PanelContainer" parent="FriendOverlay/Center"]
+[node name="Modal" type="PanelContainer" parent="FriendOverlay/Center" unique_id=89448487]
 custom_minimum_size = Vector2(1080, 720)
 layout_mode = 2
 theme_override_styles/panel = SubResource("Style_modal")
 
-[node name="Box" type="VBoxContainer" parent="FriendOverlay/Center/Modal"]
+[node name="Box" type="VBoxContainer" parent="FriendOverlay/Center/Modal" unique_id=1180285329]
 layout_mode = 2
 theme_override_constants/separation = 24
 
-[node name="Title" type="Label" parent="FriendOverlay/Center/Modal/Box"]
+[node name="Title" type="Label" parent="FriendOverlay/Center/Modal/Box" unique_id=375006639]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.0941176, 0.133333, 0.219608, 1)
 theme_override_font_sizes/font_size = 44
 text = "邀请哪位好友？"
 
-[node name="FriendCaption" type="Label" parent="FriendOverlay/Center/Modal/Box"]
+[node name="FriendCaption" type="Label" parent="FriendOverlay/Center/Modal/Box" unique_id=90496087]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.407843, 0.454902, 0.541176, 1)
 theme_override_font_sizes/font_size = 27
 text = "选择一位好友，地点卡会通过 LinkChat 发送。"
 
-[node name="FriendScroll" type="ScrollContainer" parent="FriendOverlay/Center/Modal/Box"]
+[node name="FriendScroll" type="ScrollContainer" parent="FriendOverlay/Center/Modal/Box" unique_id=1482310511]
 custom_minimum_size = Vector2(0, 390)
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="FriendList" type="VBoxContainer" parent="FriendOverlay/Center/Modal/Box/FriendScroll"]
+[node name="FriendList" type="VBoxContainer" parent="FriendOverlay/Center/Modal/Box/FriendScroll" unique_id=1759808155]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 theme_override_constants/separation = 14
 
-[node name="FriendCloseButton" type="Button" parent="FriendOverlay/Center/Modal/Box"]
+[node name="FriendCloseButton" type="Button" parent="FriendOverlay/Center/Modal/Box" unique_id=1000975192]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 82)
 layout_mode = 2
@@ -502,7 +594,7 @@ theme_override_styles/normal = SubResource("Style_filter")
 theme_override_styles/hover = SubResource("Style_filter_hover")
 text = "返回"
 
-[node name="FailureOverlay" type="Control" parent="."]
+[node name="FailureOverlay" type="Control" parent="." unique_id=427821385]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1
@@ -513,7 +605,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 1
 
-[node name="Dim" type="ColorRect" parent="FailureOverlay"]
+[node name="Dim" type="ColorRect" parent="FailureOverlay" unique_id=2114171734]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -522,7 +614,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.0470588, 0.0705882, 0.12549, 0.68)
 
-[node name="Center" type="CenterContainer" parent="FailureOverlay"]
+[node name="Center" type="CenterContainer" parent="FailureOverlay" unique_id=2096528763]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -530,23 +622,23 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Modal" type="PanelContainer" parent="FailureOverlay/Center"]
+[node name="Modal" type="PanelContainer" parent="FailureOverlay/Center" unique_id=265304064]
 custom_minimum_size = Vector2(1120, 610)
 layout_mode = 2
 theme_override_styles/panel = SubResource("Style_modal")
 
-[node name="Box" type="VBoxContainer" parent="FailureOverlay/Center/Modal"]
+[node name="Box" type="VBoxContainer" parent="FailureOverlay/Center/Modal" unique_id=1649042024]
 layout_mode = 2
 theme_override_constants/separation = 26
 
-[node name="FailureStageLabel" type="Label" parent="FailureOverlay/Center/Modal/Box"]
+[node name="FailureStageLabel" type="Label" parent="FailureOverlay/Center/Modal/Box" unique_id=135687275]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.843137, 0.247059, 0.329412, 1)
 theme_override_font_sizes/font_size = 45
-text = "剧情生成失败"
+text = "行程暂时中断"
 
-[node name="FailureErrorLabel" type="Label" parent="FailureOverlay/Center/Modal/Box"]
+[node name="FailureErrorLabel" type="Label" parent="FailureOverlay/Center/Modal/Box" unique_id=352376011]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3
@@ -555,14 +647,14 @@ theme_override_font_sizes/font_size = 29
 text = "错误信息"
 autowrap_mode = 2
 
-[node name="FailureHint" type="Label" parent="FailureOverlay/Center/Modal/Box"]
+[node name="FailureHint" type="Label" parent="FailureOverlay/Center/Modal/Box" unique_id=247341226]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.407843, 0.454902, 0.541176, 1)
 theme_override_font_sizes/font_size = 25
-text = "重试会继续同一次邀约和同一个判定结果，不会重新投骰或重复扣费。"
+text = "重试会继续同一次行程和同一个结果，不会重复扣费或消耗时段。"
 autowrap_mode = 2
 
-[node name="RetryButton" type="Button" parent="FailureOverlay/Center/Modal/Box"]
+[node name="RetryButton" type="Button" parent="FailureOverlay/Center/Modal/Box" unique_id=582543333]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 94)
 layout_mode = 2
@@ -570,6 +662,6 @@ theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 31
 theme_override_styles/normal = SubResource("Style_primary")
-theme_override_styles/hover = SubResource("Style_primary_hover")
 theme_override_styles/pressed = SubResource("Style_primary_hover")
-text = "重试生成"
+theme_override_styles/hover = SubResource("Style_primary_hover")
+text = "继续行程"

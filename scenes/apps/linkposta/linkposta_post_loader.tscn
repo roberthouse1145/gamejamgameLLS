@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/apps/linkposta/linkposta_post_loader.gd" id="1_loader"]
+
+[node name="LinkPostaPostLoader" type="Control"]
+custom_minimum_size = Vector2(84, 84)
+mouse_filter = 2
+script = ExtResource("1_loader")

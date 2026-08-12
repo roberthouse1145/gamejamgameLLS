@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="OutingActivity" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/outing_activity.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+activity_id = "weekend_concert_02"
+place_id = "echo_live_hall"
+title = "周末小型音乐会"
+description = "三组独立乐队的联合演出。场地不大，入场后很难躲在人群最后面。"
+story_hook = "座位底下留着一张点歌卡，歌曲、日期和座位号都写得很清楚，唯独演出者的名字并不存在于今晚的节目单。"
+available_slots = Array[int]([1, 2])
+duration_slots = 1
+solo_cost = 1800
+date_cost = 3600
+supports_solo = true
+supports_date = true
+base_acceptance = 44
+relationship_favor_gain = 7
+relationship_trust_gain = 3
+stress_delta = -6
+loneliness_delta = -15

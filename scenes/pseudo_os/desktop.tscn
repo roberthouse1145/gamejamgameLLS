@@ -2,7 +2,11 @@
 
 [ext_resource type="Script" uid="uid://djmswiwtuvins" path="res://scripts/pseudo_os/desktop.gd" id="1_desktop"]
 [ext_resource type="PackedScene" path="res://scenes/pseudo_os/taskbar.tscn" id="2_taskbar"]
-[ext_resource type="Script" uid="uid://cj7vw10kldnec" path="res://scripts/pseudo_os/wallpaper_manager.gd" id="4_wallpaper"]
+[ext_resource type="PackedScene" path="res://scenes/ui/time_status_bar.tscn" id="3_time_status"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/desktop/wallpaper_morning.png" id="4_wallpaper_morning"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/desktop/wallpaper_afternoon.png" id="5_wallpaper_afternoon"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/desktop/wallpaper_night.png" id="6_wallpaper_night"]
+[ext_resource type="PackedScene" path="res://scenes/pseudo_os/desktop_notification_center.tscn" id="7_notifications"]
 
 [node name="Desktop" type="Control" unique_id=1384137066]
 layout_mode = 3
@@ -12,7 +16,10 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_desktop")
-desktop_app_ids = PackedStringArray("linkchat", "linkposta", "browser", "cityhop", "streamer_center", "obs_live")
+wallpaper_morning = ExtResource("4_wallpaper_morning")
+wallpaper_afternoon = ExtResource("5_wallpaper_afternoon")
+wallpaper_night = ExtResource("6_wallpaper_night")
+desktop_app_ids = PackedStringArray("linkchat", "mail", "linkposta", "browser", "cityhop", "streamer_center", "obs_live")
 
 [node name="Background" type="ColorRect" parent="." unique_id=792729528]
 unique_name_in_owner = true
@@ -24,7 +31,7 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.33, 0.55, 0.78, 1)
 
-[node name="WallpaperManager" type="Control" parent="." unique_id=1601872340]
+[node name="WallpaperBottom" type="TextureRect" parent="."]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -33,7 +40,21 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-script = ExtResource("4_wallpaper")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="WallpaperTop" type="TextureRect" parent="."]
+modulate = Color(1, 1, 1, 0)
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
 
 [node name="IconGrid" type="Control" parent="." unique_id=901524449]
 unique_name_in_owner = true
@@ -56,6 +77,21 @@ offset_bottom = -114.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="TimeStatusBar" parent="WindowContainer" instance=ExtResource("3_time_status")]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -956.0
+offset_top = 36.0
+offset_right = -36.0
+offset_bottom = 856.0
+grow_horizontal = 0
+
+[node name="NotificationCenter" parent="." instance=ExtResource("7_notifications")]
+unique_name_in_owner = true
 
 [node name="Taskbar" parent="." unique_id=1220207645 instance=ExtResource("2_taskbar")]
 unique_name_in_owner = true

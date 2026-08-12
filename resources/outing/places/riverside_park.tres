@@ -14,4 +14,3 @@ map_position = Vector2(0.29, 0.66)
 cover = ExtResource("2")
 rating = 4.6
 review_count = 328
-tags = Array[String](["outdoor", "quiet", "photo", "free"])

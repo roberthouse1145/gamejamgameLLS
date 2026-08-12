@@ -33,9 +33,7 @@ StoryDirector="*res://autoload/story_director.gd"
 BrowserManager="*res://autoload/browser_manager.gd"
 TransitManager="*res://autoload/transit_manager.gd"
 LiveStreamManager="*res://scenes/autoload/live_stream_manager.tscn"
-CardLibraryManager="*res://scenes/autoload/card_library_manager.tscn"
 SkillTreeManager="*res://scenes/autoload/skill_tree_manager.tscn"
-StreamHistoryManager="*res://scenes/autoload/stream_history_manager.tscn"
 MaterialInventoryManager="*res://scenes/autoload/material_inventory_manager.tscn"
 TooltipLayer="*res://autoload/tooltip_layer.gd"
 MCPScreenshot="*res://addons/godot_mcp/mcp_screenshot_service.gd"
@@ -46,6 +44,8 @@ SocialMediaManager="*res://autoload/social_media_manager.gd"
 StoryLockManager="*res://autoload/story_lock_manager.gd"
 OutingManager="*res://autoload/outing_manager.gd"
 ActionTransactionManager="*res://autoload/action_transaction_manager.gd"
+PlayerConfig="*res://scenes/autoload/player_config.tscn"
+MailManager="*res://scenes/autoload/mail_manager.tscn"
 
 [display]
 
@@ -67,6 +67,6 @@ theme/custom_font="res://Assets/fonts/AlibabaHealthFont2.0CN-85B.ttf"
 
 [rendering]
 
-textures/canvas_textures/default_texture_filter=0
+textures/canvas_textures/default_texture_filter=2
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"

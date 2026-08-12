@@ -4,7 +4,7 @@
 [ext_resource type="PackedScene" path="res://scenes/avg_runtime/character_display.tscn" id="2_char"]
 [ext_resource type="PackedScene" path="res://scenes/avg_runtime/dialog_box.tscn" id="3_dialog"]
 [ext_resource type="PackedScene" path="res://scenes/avg_runtime/choice_display.tscn" id="4_choice"]
-[ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_audio_manager.tscn" id="5_audio"]
+[ext_resource type="PackedScene" path="res://scenes/avg_runtime/avg_audio_adapter.tscn" id="5_audio"]
 
 [node name="AVGSceneRunner" type="Control"]
 layout_mode = 3
@@ -77,5 +77,5 @@ anchors_preset = 0
 size = Vector2(3840, 2160)
 mouse_filter = 2
 
-[node name="AVGAudioManager" parent="." instance=ExtResource("5_audio")]
+[node name="AVGAudioAdapter" parent="." instance=ExtResource("5_audio")]
 unique_name_in_owner = true

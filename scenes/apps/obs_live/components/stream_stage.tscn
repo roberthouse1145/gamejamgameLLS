@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/rounded_avatar.tscn" id="3_avatar"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/live_show_player.tscn" id="7_player"]
 [ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/entrance_overlay.tscn" id="9_entrance"]
+[ext_resource type="PackedScene" path="res://scenes/apps/obs_live/components/live_reaction_overlay.tscn" id="10_reactions"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_live_badge"]
 content_margin_left = 18.0
@@ -118,7 +119,7 @@ unique_name_in_owner = true
 [node name="LiveTitle" type="Label" parent="." unique_id=330513754]
 unique_name_in_owner = true
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 theme_override_colors/font_color = Color(0.102, 0.133, 0.22, 1)
 theme_override_font_sizes/font_size = 48
 text = "直播标题"
@@ -129,7 +130,7 @@ unique_name_in_owner = true
 custom_minimum_size = Vector2(0, 0)
 clip_contents = true
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 size_flags_vertical = 4
 
 [node name="VideoBackground" type="ColorRect" parent="VideoFrame" unique_id=570509609]
@@ -166,6 +167,9 @@ size = Vector2i(2, 2)
 render_target_update_mode = 4
 
 [node name="StreamSceneDisplay" parent="VideoFrame/CameraClip/PreviewContainer/PreviewViewport" unique_id=764299732 instance=ExtResource("2_stream_display")]
+unique_name_in_owner = true
+
+[node name="LiveReactionOverlay" parent="VideoFrame" instance=ExtResource("10_reactions")]
 unique_name_in_owner = true
 
 [node name="VideoOverlay" type="MarginContainer" parent="VideoFrame" unique_id=912126322]
@@ -298,7 +302,7 @@ grow_vertical = 2
 
 [node name="ChannelRow" type="HBoxContainer" parent="." unique_id=1561052783]
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 3
 theme_override_constants/separation = 18
 
 [node name="AvatarRect" parent="ChannelRow" unique_id=1631035539 instance=ExtResource("3_avatar")]

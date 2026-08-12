@@ -112,13 +112,8 @@ func _on_show_finished() -> void:
 
 
 func _report_show_finished() -> void:
-	var settlement: Control = _app.get_node_or_null("%SettlementPanel") if _app != null else null
-	var settlement_visible: bool = settlement != null and settlement.visible
-	print("[Playtest] scene_ended chat_events=%d settlement_visible=%s" % [
-		_chat_event_count,
-		str(settlement_visible),
-	])
-	_set_state("播放结束，结算已显示" if settlement_visible else "播放结束")
+	print("[Playtest] scene_ended chat_events=%d auto_closing=1" % _chat_event_count)
+	_set_state("播放结束，直播姬将在 1 秒后自动关闭")
 
 
 func _set_state(text: String) -> void:

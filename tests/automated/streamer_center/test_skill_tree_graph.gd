@@ -21,11 +21,11 @@ func _ready() -> void:
 	assert(manager.can_unlock(&"game_lv3"))
 	assert(manager.can_unlock(&"game_content_lv3"))
 	assert(manager.unlock_skill(&"game_lv3"))
-	assert(GameState.get_skill_level(&"game") == 3)
+	assert(GameState.get_skill_level(&"game") == 1, "growth nodes must not replace activity proficiency")
 	assert(not manager.can_unlock(&"game_content_lv3"), "growth point cost still applies independently per node")
 	manager.grant_skill_points(1)
 	assert(manager.unlock_skill(&"game_content_lv3"), "both branches must remain independently investable")
-	assert(GameState.get_skill_level(&"game") == 4, "each authored branch contribution should affect the derived ability level")
+	assert(GameState.get_skill_level(&"game") == 1, "parallel growth branches must remain independent from proficiency")
 
 	var saved_state: Dictionary = manager.get_run_state()
 	manager.reset_to_defaults()
@@ -35,7 +35,7 @@ func _ready() -> void:
 	manager.load_run_state(saved_state)
 	assert(manager.is_unlocked(&"game_lv3"))
 	assert(manager.is_unlocked(&"game_content_lv3"))
-	assert(GameState.get_skill_level(&"game") == 4)
+	assert(GameState.get_skill_level(&"game") == 1)
 	print("SKILL_TREE_GRAPH_TEST_PASS")
 
 

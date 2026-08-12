@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StreamerSkillDomainResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/streamer_skill_domain_resource.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+family = &"talk"
+display_name = "杂谈"
+level_prompts = PackedStringArray("还不擅长长时间独自维持话题，需要依靠眼前素材和观众回应继续说下去。", "能够围绕熟悉的话题展开交流，也开始会接住弹幕，但话题切换和节奏控制仍比较直接。", "能够稳定组织话题、接梗和回应观众，让聊天自然延伸，并在冷场前找到新的切入点。", "善于控制谈话节奏和观众情绪，能从细节中发展新话题，也能从突发问题中顺畅恢复。", "拥有成熟的主持与即兴交流能力，能同时维持主题、互动和节目节奏，把普通话题发展成有记忆点的现场。")

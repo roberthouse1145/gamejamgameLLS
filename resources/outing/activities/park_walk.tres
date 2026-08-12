@@ -1,25 +1,14 @@
-[gd_resource type="Resource" script_class="OutingActivity" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="OutingActivity" format=3 uid="uid://dtsgfx76bbgpa"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/outing_activity.gd" id="1"]
+[ext_resource type="Script" uid="uid://bl8s8b2gp8khn" path="res://scripts/game/resources/outing_activity.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
 activity_id = "park_walk"
 place_id = "riverside_park"
-listing_kind = "place"
 title = "沿河散步"
 description = "顺着河岸慢慢走一圈。没有必须完成的安排，也不需要赶时间。"
-available_slots = Array[int]([0, 1, 2])
-duration_slots = 1
-solo_cost = 0
 date_cost = 600
-supports_solo = true
-supports_date = true
-tags = Array[String](["outdoor", "quiet", "photo", "free"])
 base_acceptance = 58
-relationship_favor_gain = 4
-relationship_trust_gain = 2
 stress_delta = -10
 loneliness_delta = -12
-solo_scene_prompt = "阮云柚独自去汐见河滨公园散步。故事自然、生活化，围绕她短暂离开房间后对城市和自身状态的观察展开。"
-date_scene_prompt = "阮云柚与受邀角色在汐见河滨公园进行一次轻松的朋友约会。围绕沿河散步、短暂停留和自然交谈展开，不制造超出当前关系的亲密事实。"

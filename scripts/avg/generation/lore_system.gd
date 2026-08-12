@@ -33,6 +33,7 @@ static func resolve_avg_scene(session: Dictionary, pre_resolved_prompt: String =
 		"prompt",
 		"context",
 		"setting_context",
+		"runtime_context",
 		"constraints",
 		"story_guidance_prompt",
 	]:

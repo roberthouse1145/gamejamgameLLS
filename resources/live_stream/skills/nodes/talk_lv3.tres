@@ -1,14 +1,7 @@
 [gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://xrd2yuli5ehu"]
 
 [ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
-[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
 [ext_resource type="Texture2D" uid="uid://c6bmn87ogu8h7" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="3"]
-
-[sub_resource type="Resource" id="Effect"]
-script = ExtResource("2")
-effect_id = &"empty_fill_rescue"
-value = 1.0
-display_text = "每场把第一次空接提升为正常功效"
 
 [resource]
 script = ExtResource("1")
@@ -16,8 +9,7 @@ skill_id = &"talk_lv3"
 level = 3
 ability_level_bonus = 1
 display_name = "救场王"
-description = "每场第一次空接可被话术救回正常功效。"
+description = "面对冷场或突发话题，也能自然接住并继续推进。"
 icon = ExtResource("3")
 point_cost = 1
 required_skill_ids = Array[StringName]([&"talk_lv2"])
-rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

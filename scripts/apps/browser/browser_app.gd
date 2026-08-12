@@ -205,12 +205,12 @@ func _start_surf(keyword: String) -> void:
 
 	var bm: Node = get_node_or_null("/root/BrowserManager")
 	if bm == null:
-		_set_tab_error(tab, "BrowserManager 不存在")
+		_set_tab_error(tab, "浏览服务暂时不可用")
 		return
 
 	var request_id: String = bm.surf(query)
 	if request_id.is_empty():
-		_set_tab_error(tab, "冲浪请求创建失败")
+		_set_tab_error(tab, "暂时无法连接这个站点")
 		return
 	_request_to_tab[request_id] = tab.tab_id
 	tab.request_id = request_id
@@ -258,12 +258,12 @@ func _open_page(url: String, design_prompt: String = "", reuse_tab_id: String = 
 
 	var bm: Node = get_node_or_null("/root/BrowserManager")
 	if bm == null:
-		_set_tab_error(tab, "BrowserManager 不存在")
+		_set_tab_error(tab, "浏览服务暂时不可用")
 		return
 
 	var request_id: String = bm.open_page(target_url, design_prompt, page_context)
 	if request_id.is_empty():
-		_set_tab_error(tab, "网页请求创建失败")
+		_set_tab_error(tab, "暂时无法打开这个页面")
 		return
 	_request_to_tab[request_id] = tab.tab_id
 	tab.request_id = request_id
@@ -511,7 +511,7 @@ func _advance_loading_phase() -> void:
 		_loading_phase_label.text = phases[_loading_phase_index % phases.size()]
 	if _loading_dots_label != null and is_instance_valid(_loading_dots_label):
 		var dots := ".".repeat(1 + (_loading_phase_index % 3))
-		_loading_dots_label.text = "页面正在生成%s" % dots
+		_loading_dots_label.text = "页面加载中%s" % dots
 	_loading_phase_index += 1
 
 
@@ -761,7 +761,7 @@ func _close_tab(tab_id: String) -> void:
 		return
 
 	if tab.state == BrowserTabDataClass.TabState.LOADING:
-		_set_status("页面正在生成，先等结果再关闭。")
+		_set_status("页面仍在加载，先等它打开再关闭。")
 		_switch_tab(tab_id)
 		return
 
@@ -856,7 +856,8 @@ func _on_page_failed(request_id: String, _url: String, error: String) -> void:
 	if tab == null:
 		return
 	_request_to_tab.erase(request_id)
-	_set_tab_error(tab, error)
+	push_warning("Browser page failed: %s" % error)
+	_set_tab_error(tab, "这个页面暂时无法打开")
 
 
 func _on_url_open_requested(url: String, design_prompt: String, page_context: String) -> void:
@@ -899,7 +900,8 @@ func _on_surf_failed(request_id: String, _keyword: String, error: String) -> voi
 	_request_to_tab.erase(request_id)
 	var tab = _find_tab_by_id(tab_id)
 	if tab != null:
-		_set_tab_error(tab, error)
+		push_warning("Browser surf failed: %s" % error)
+		_set_tab_error(tab, "没有找到可以打开的页面")
 
 
 # ── 统一页面动作路由 ──────────────────────────────────
@@ -1033,7 +1035,7 @@ func _render_history_page() -> void:
 	var T := BrowserThemeClass
 	var bm: Node = get_node_or_null("/root/BrowserManager")
 	if bm == null:
-		_render_error("BrowserManager 不存在")
+		_render_error("浏览服务暂时不可用")
 		return
 
 	var current = _find_tab_by_id(_current_tab_id)

@@ -27,7 +27,7 @@ func setup(key: Variant, kinds: Array, text: String, slot_size: Vector2 = CardDi
 	_fit_puzzle()
 
 
-## 兼容旧 API：放入已生成的卡牌视图。
+## 放入已生成的素材视图。
 func set_content(content: Control) -> void:
 	if _slot_edges == null:
 		_build_puzzle_chrome()

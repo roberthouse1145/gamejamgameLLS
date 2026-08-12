@@ -12,6 +12,8 @@ func _ready() -> void:
 	_test_relationship()
 	_test_fan_vector_normalize()
 	_test_fans_signal()
+	_test_game_time()
+	_test_time_prompt_provider()
 	_test_serialization_roundtrip()
 	print("[TestGameState] 结果: %d 通过, %d 失败" % [_passed, _failed])
 
@@ -96,13 +98,55 @@ func _test_fans_signal() -> void:
 	GameState.fans_changed.disconnect(callback)
 
 
+func _test_game_time() -> void:
+	GameState.day = 1
+	GameState.time_slot = GameState.TIME_SLOT_MORNING
+	var first_day: Dictionary = GameState.get_current_datetime()
+	_check(
+		int(first_day.get("year", 0)) == 2026 \
+			and int(first_day.get("month", 0)) == 8 \
+			and int(first_day.get("day", 0)) == 7 \
+			and str(first_day.get("weekday_name", "")) == "星期五" \
+			and int(first_day.get("hour", -1)) == 9,
+		"游戏第 1 天上午映射为 2026 年 8 月 7 日星期五 09:00"
+	)
+	var next_day: Dictionary = GameState.get_game_datetime_for(2, GameState.TIME_SLOT_NIGHT)
+	_check(
+		int(next_day.get("day", 0)) == 8 \
+			and str(next_day.get("weekday_name", "")) == "星期六" \
+			and int(next_day.get("hour", -1)) == 20,
+		"跨日后日期与星期同步推进，晚上固定为 20:00"
+	)
+
+
+func _test_time_prompt_provider() -> void:
+	GameState.day = 3
+	GameState.time_slot = GameState.TIME_SLOT_AFTERNOON
+	var resolved: String = PromptManager.resolve_template("{{current_game_time}}")
+	_check(
+		resolved.contains("2026年8月9日") \
+			and resolved.contains("星期日") \
+			and resolved.contains("14:00") \
+			and resolved.contains("游戏第3天"),
+		"GameState 为 Prompt Provider 提供当前游戏时间"
+	)
+	var chat_prompt: String = PromptManager.resolve_with_vars("chat_dsl_generator", {
+		"topic_prompt": "测试聊天目标",
+		"allowed_speakers": "player",
+		"allowed_variable_paths": "",
+		"runtime_context": "{}",
+	})
+	_check(chat_prompt.contains(resolved), "所有 Chat LLM 请求统一包含 GameState 时间")
+
+
 func _test_serialization_roundtrip() -> void:
 	GameState.set_attribute(GameState.ATTR_LONELINESS, 42)
 	GameState.add_money(880)
 	GameState.set_fans(12458)
 	GameState.flame_value = 12.5
 	GameState.contract = {"debt": 500000, "period_results": [true, false]}
-
+	GameState.day = 4
+	GameState.time_slot = GameState.TIME_SLOT_NIGHT
 	var snapshot: Dictionary = GameState.to_dict()
 	GameState.set_attribute(GameState.ATTR_LONELINESS, 0)
 	GameState.add_money(-880)
@@ -112,4 +156,8 @@ func _test_serialization_roundtrip() -> void:
 	_check(GameState.loneliness == 42 and GameState.money == 880
 		and GameState.fans == 12458
 		and GameState.contract["debt"] == 500000, "序列化往返还原数值")
+	_check(
+		GameState.get_game_time_text().contains("2026年8月10日（星期一）20:00"),
+		"存档恢复 day 与 time_slot 后可重建完全相同的精确时间"
+	)
 	_check(JSON.stringify(GameState.to_dict()) == JSON.stringify(snapshot), "序列化往返一致")

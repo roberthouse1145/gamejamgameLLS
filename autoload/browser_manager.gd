@@ -6,6 +6,7 @@ const AIConfigManagerClass = preload("res://scripts/llm/ai_config_manager.gd")
 const PageMarkParserClass = preload("res://scripts/apps/browser/page_mark_parser.gd")
 const WebPageResourceClass = preload("res://scripts/apps/browser/web_page_resource.gd")
 const WebPageIndexClass = preload("res://scripts/apps/browser/web_page_index.gd")
+const BrowserHistoryStoreClass = preload("res://scripts/apps/browser/browser_history_store.gd")
 
 const PAGES_INDEX_PATH: String = "res://resources/data/browser_pages/index.tres"
 const HISTORY_PATH: String = "user://browser/history.json"
@@ -32,8 +33,7 @@ var _request_counter: int = 0
 var _premade_pages: Dictionary = {}
 var _page_cache: Dictionary = {}
 var _search_cache: Dictionary = {}
-var _history_entries: Array[Dictionary] = []
-var _history_counter: int = 0
+var _history_store = BrowserHistoryStoreClass.new(HISTORY_PATH)
 var _browser_state: Dictionary = {}
 var _page_providers: Dictionary = {}
 
@@ -41,7 +41,8 @@ var _page_providers: Dictionary = {}
 func _ready() -> void:
 	_setup_ai_service()
 	_load_premade_pages()
-	_load_history()
+	_history_store.persist_history = persist_history
+	_history_store.load_from_disk()
 
 
 func search(keyword: String) -> String:
@@ -179,31 +180,23 @@ func has_page_provider_for(url: String) -> bool:
 
 
 func get_history_entries(limit: int = 0) -> Array:
-	var result: Array = _history_entries.duplicate(true)
-	result.reverse()
-	if limit > 0 and result.size() > limit:
-		result.resize(limit)
-	return result
+	return _history_store.get_entries(limit)
 
 
 func get_history_entry(entry_id: String) -> Dictionary:
-	for entry: Dictionary in _history_entries:
-		if str(entry.get("entry_id", "")) == entry_id:
-			return entry.duplicate(true)
-	return {}
+	return _history_store.get_entry(entry_id)
 
 
 func register_generated_page_entry(action_id: String, payload: Dictionary, entry_prefix: String = "browser") -> Dictionary:
-	var entry: Dictionary = _create_history_entry(
+	_history_store.persist_history = persist_history
+	var entry: Dictionary = _history_store.add_entry(
 		str(payload.get("url", "")),
 		str(payload.get("title", action_id)),
 		_dictionary_value(payload.get("page", {})),
 		entry_prefix
 	)
-	_history_entries.append(entry)
-	_save_history()
 	browser_history_updated.emit()
-	return entry.duplicate(true)
+	return entry
 
 
 func get_cached_search(keyword: String) -> Array:
@@ -253,30 +246,24 @@ func has_pending_surf_requests() -> bool:
 
 
 func get_surf_blocking_reason() -> String:
-	return "网页生成中" if has_pending_surf_requests() else ""
+	return "网页加载中" if has_pending_surf_requests() else ""
 
 
 func get_run_state() -> Dictionary:
-	return {
+	var state: Dictionary = {
 		"browser_state": _browser_state.duplicate(true),
 		"page_cache": _page_cache.duplicate(true),
 		"search_cache": _search_cache.duplicate(true),
-		"history_entries": _history_entries.duplicate(true),
-		"history_counter": _history_counter,
 	}
+	state.merge(_history_store.get_run_state(), true)
+	return state
 
 
 func load_run_state(data: Dictionary) -> bool:
 	_browser_state = _dictionary_value(data.get("browser_state", {}))
 	_page_cache = _dictionary_value(data.get("page_cache", {}))
 	_search_cache = _dictionary_value(data.get("search_cache", {}))
-	_history_entries.clear()
-	var history_value: Variant = data.get("history_entries", [])
-	if history_value is Array:
-		for entry_value: Variant in history_value:
-			if entry_value is Dictionary:
-				_history_entries.append(entry_value.duplicate(true))
-	_history_counter = int(data.get("history_counter", _history_entries.size()))
+	_history_store.load_run_state(data)
 	browser_history_updated.emit()
 	return true
 
@@ -286,9 +273,8 @@ func reset_runtime_state(clear_persistent_history: bool = false) -> void:
 	clear_cache()
 	_browser_state.clear()
 	if clear_persistent_history:
-		_history_entries.clear()
-		_history_counter = 0
-		_save_history()
+		_history_store.persist_history = persist_history
+		_history_store.clear(true)
 		browser_history_updated.emit()
 
 
@@ -554,53 +540,9 @@ func _build_premade_page_payload(page: Resource) -> Dictionary:
 
 
 func _record_history(url: String, title: String, page: Dictionary) -> void:
-	var entry: Dictionary = _create_history_entry(url, title, page)
-	_history_entries.append(entry)
-	_save_history()
+	_history_store.persist_history = persist_history
+	_history_store.add_entry(url, title, page)
 	browser_history_updated.emit()
-
-
-func _create_history_entry(url: String, title: String, page: Dictionary, prefix: String = "browser") -> Dictionary:
-	_history_counter += 1
-	return {
-		"entry_id": "%s_%04d" % [prefix, _history_counter],
-		"title": title,
-		"url": url,
-		"summary": title,
-		"timestamp": int(Time.get_unix_time_from_system()),
-		"page_snapshot": page.duplicate(true),
-	}
-
-
-func _load_history() -> void:
-	if not FileAccess.file_exists(HISTORY_PATH):
-		return
-	var file: FileAccess = FileAccess.open(HISTORY_PATH, FileAccess.READ)
-	if file == null:
-		return
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	if not parsed is Dictionary:
-		return
-	_history_counter = int(parsed.get("next_id", 0))
-	var entries_value: Variant = parsed.get("entries", [])
-	if entries_value is Array:
-		for entry_value: Variant in entries_value:
-			if entry_value is Dictionary:
-				_history_entries.append(entry_value.duplicate(true))
-
-
-func _save_history() -> void:
-	if not persist_history:
-		return
-	var directory: String = HISTORY_PATH.get_base_dir()
-	if not DirAccess.dir_exists_absolute(directory):
-		DirAccess.make_dir_recursive_absolute(directory)
-	var file: FileAccess = FileAccess.open(HISTORY_PATH, FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(JSON.stringify({"next_id": _history_counter, "entries": _history_entries}, "  "))
-	file.close()
 
 
 func _next_request_id(prefix: String) -> String:

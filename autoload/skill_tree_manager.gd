@@ -87,7 +87,6 @@ func unlock_skill(skill_id: StringName) -> bool:
 	var skill: StreamerSkill = get_skill(skill_id)
 	GameState.set_growth_points(GameState.growth_points - skill.point_cost)
 	GameState.add_unlocked_skill_id(skill.skill_id)
-	_refresh_family_levels()
 	skill_unlocked.emit(skill)
 	skill_points_changed.emit(GameState.growth_points)
 	skill_tree_changed.emit()
@@ -102,21 +101,8 @@ func grant_skill_points(amount: int) -> void:
 	skill_tree_changed.emit()
 
 
-func find_skill_unlocking_card(card_id: StringName) -> StreamerSkill:
-	return _skill_tree.find_skill_unlocking_card(card_id)
-
-
-func get_rule_effects(family: StringName) -> Array[StreamSpecialEffect]:
-	var result: Array[StreamSpecialEffect] = []
-	for skill: StreamerSkill in get_skills():
-		if skill.family == family and is_unlocked(skill.skill_id):
-			result.append_array(skill.rule_effects)
-	return result
-
-
 func reset_to_defaults() -> void:
 	GameState.set_unlocked_skill_ids(_skill_tree.initially_unlocked_skill_ids)
-	_refresh_family_levels()
 	GameState.set_growth_points(_skill_tree.starting_skill_points)
 	skill_points_changed.emit(GameState.growth_points)
 	skill_tree_changed.emit()
@@ -137,7 +123,6 @@ func load_run_state(data: Dictionary) -> void:
 		if _skill_tree.find_skill(normalized_id) != null and normalized_id not in loaded_ids:
 			loaded_ids.append(normalized_id)
 	GameState.set_unlocked_skill_ids(_normalize_unlocked_ids(loaded_ids))
-	_refresh_family_levels()
 	skill_points_changed.emit(GameState.growth_points)
 	skill_tree_changed.emit()
 
@@ -166,7 +151,6 @@ func _hydrate_skill_tree(source: Resource) -> StreamerSkillTree:
 
 func _ensure_state() -> void:
 	GameState.set_unlocked_skill_ids(_normalize_unlocked_ids(GameState.unlocked_skill_ids))
-	_refresh_family_levels()
 
 
 func _normalize_unlocked_ids(candidate_ids: Array[StringName]) -> Array[StringName]:
@@ -189,18 +173,6 @@ func _normalize_unlocked_ids(candidate_ids: Array[StringName]) -> Array[StringNa
 				normalized_ids.append(skill.skill_id)
 				changed = true
 	return normalized_ids
-
-
-func _refresh_family_levels() -> void:
-	var levels: Dictionary = GameState.DEFAULT_SKILL_LEVELS.duplicate(true)
-	for skill: StreamerSkill in get_skills():
-		if skill.skill_id not in GameState.unlocked_skill_ids:
-			continue
-		if skill.family in GameState.SKILL_FAMILIES:
-			var family_key := String(skill.family)
-			levels[family_key] = clampi(int(levels[family_key]) + skill.ability_level_bonus, 1, 5)
-	for family: StringName in GameState.SKILL_FAMILIES:
-		GameState.set_skill_level(family, int(levels[String(family)]))
 
 
 func _on_progress_changed(_level: int, _exp: int, points: int) -> void:

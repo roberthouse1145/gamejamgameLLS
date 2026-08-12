@@ -1,5 +1,5 @@
 extends Node
-## 时段与金钱的原子提交入口。调用方先 reserve，内容准备成功后再 commit。
+## 时段与金钱的原子提交入口。调用方先 reserve，完整动作链成功结束后再 commit。
 
 signal transaction_reserved(transaction_id: String, snapshot: Dictionary)
 signal transaction_committed(transaction_id: String, snapshot: Dictionary)
@@ -47,7 +47,8 @@ func commit(transaction_id: String) -> bool:
 	var money_cost: int = int(snapshot.get("money_cost", 0))
 	if not _can_prepare(owner_id, money_cost):
 		return false
-	GameState.add_money(-money_cost)
+	if money_cost != 0:
+		GameState.add_money(-money_cost)
 	_advance_time(int(snapshot.get("time_slots", 0)))
 	GameState.completed_action_transactions.append(normalized_id)
 	GameState.action_transaction_history.append(snapshot.duplicate(true))

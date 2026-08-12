@@ -36,64 +36,9 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 0
 
-[node name="NavStrip" type="PanelContainer" parent="HBoxContainer" unique_id=336192427]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(162, 0)
-layout_mode = 2
-
-[node name="NavVBox" type="VBoxContainer" parent="HBoxContainer/NavStrip" unique_id=657193466]
-layout_mode = 2
-theme_override_constants/separation = 6
-
-[node name="NavHeader" type="MarginContainer" parent="HBoxContainer/NavStrip/NavVBox" unique_id=313197521]
-layout_mode = 2
-theme_override_constants/margin_top = 18
-theme_override_constants/margin_bottom = 6
-
-[node name="NavAvatar" parent="HBoxContainer/NavStrip/NavVBox/NavHeader" unique_id=1634125355 instance=ExtResource("5_avatar")]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(144, 144)
-layout_mode = 2
-size_flags_horizontal = 4
-
-[node name="NavChatBtn" type="Button" parent="HBoxContainer/NavStrip/NavVBox" unique_id=1245599108]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(126, 126)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 27
-text = "聊天"
-
-[node name="NavMomentsBtn" type="Button" parent="HBoxContainer/NavStrip/NavVBox" unique_id=1202819727]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(126, 126)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 27
-text = "朋友圈"
-
-[node name="NavSpacer" type="Control" parent="HBoxContainer/NavStrip/NavVBox" unique_id=1867099159]
-layout_mode = 2
-size_flags_vertical = 3
-
-[node name="NavSettingsBtn" type="Button" parent="HBoxContainer/NavStrip/NavVBox" unique_id=1981423886]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(126, 126)
-layout_mode = 2
-size_flags_horizontal = 4
-theme_override_font_sizes/font_size = 27
-text = "设置"
-
-[node name="NavBottom" type="MarginContainer" parent="HBoxContainer/NavStrip/NavVBox" unique_id=732776975]
-layout_mode = 2
-theme_override_constants/margin_bottom = 18
-
-[node name="NavBorder" type="VSeparator" parent="HBoxContainer" unique_id=64683728]
-layout_mode = 2
-
 [node name="Sidebar" type="PanelContainer" parent="HBoxContainer" unique_id=551938674]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(750, 0)
+custom_minimum_size = Vector2(720, 0)
 layout_mode = 2
 
 [node name="SidebarVBox" type="VBoxContainer" parent="HBoxContainer/Sidebar" unique_id=1668963739]
@@ -102,27 +47,51 @@ theme_override_constants/separation = 0
 
 [node name="SidebarHeader" type="MarginContainer" parent="HBoxContainer/Sidebar/SidebarVBox" unique_id=1257036749]
 layout_mode = 2
-theme_override_constants/margin_left = 42
-theme_override_constants/margin_top = 33
-theme_override_constants/margin_right = 42
-theme_override_constants/margin_bottom = 27
+theme_override_constants/margin_left = 36
+theme_override_constants/margin_top = 30
+theme_override_constants/margin_right = 36
+theme_override_constants/margin_bottom = 24
 
-[node name="SidebarHeading" type="VBoxContainer" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader"]
+[node name="SidebarHeaderVBox" type="VBoxContainer" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader"]
 layout_mode = 2
-theme_override_constants/separation = 6
+theme_override_constants/separation = 24
 
-[node name="AppTitle" type="Label" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeading" unique_id=1699870571]
+[node name="PlayerIdentity" type="HBoxContainer" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeaderVBox"]
+layout_mode = 2
+theme_override_constants/separation = 21
+
+[node name="PlayerAvatar" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeaderVBox/PlayerIdentity" instance=ExtResource("5_avatar")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(108, 108)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+
+[node name="PlayerText" type="VBoxContainer" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeaderVBox/PlayerIdentity"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+theme_override_constants/separation = 3
+
+[node name="PlayerCaption" type="Label" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeaderVBox/PlayerIdentity/PlayerText"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 45
-text = "LinkChat"
+theme_override_font_sizes/font_size = 24
+text = "我的账号"
 
-[node name="ContactCaption" type="Label" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeading"]
+[node name="PlayerName" type="Label" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeaderVBox/PlayerIdentity/PlayerText"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "我"
+text_overrun_behavior = 3
+
+[node name="ContactCaption" type="Label" parent="HBoxContainer/Sidebar/SidebarVBox/SidebarHeader/SidebarHeaderVBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.407, 0.451, 0.541, 1)
 theme_override_font_sizes/font_size = 27
-text = "最近联系人"
+text = "联系人"
 
 [node name="SidebarSep" type="HSeparator" parent="HBoxContainer/Sidebar/SidebarVBox" unique_id=1390829982]
 layout_mode = 2
@@ -138,10 +107,6 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 6
-
-[node name="SidebarBorder" type="VSeparator" parent="HBoxContainer" unique_id=1302020505]
-unique_name_in_owner = true
-layout_mode = 2
 
 [node name="ChatArea" type="VBoxContainer" parent="HBoxContainer" unique_id=1584853022]
 layout_mode = 2
@@ -217,12 +182,6 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 9
-
-[node name="MomentsContainer" type="VBoxContainer" parent="HBoxContainer/ChatArea" unique_id=1618242931]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-size_flags_vertical = 3
 
 [node name="InputArea" type="PanelContainer" parent="HBoxContainer/ChatArea" unique_id=846980533]
 unique_name_in_owner = true

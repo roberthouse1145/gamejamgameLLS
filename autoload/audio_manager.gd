@@ -3,6 +3,7 @@
 ##   - SFX 音效池（支持并发播放，互不打断）
 ##   - BGM 管理（循环播放、交叉淡入淡出切换；非原生 loop 的流会自动重播）
 ##   - 音量控制（分 SFX / BGM 两轨）
+##   - 单一语音播放器（对白会替换上一条语音）
 ##   - key-based 音效注册（集中管理路径，避免到处 load()）
 ##
 ## 用法：
@@ -17,6 +18,7 @@ extends Node
 # ==================== 信号 ====================
 signal bgm_changed(stream: AudioStream)
 signal bgm_finished(stream: AudioStream)
+signal voice_changed(stream: AudioStream)
 
 # ==================== SFX 音效池大小 ====================
 const SFX_POOL_SIZE: int = 8
@@ -25,14 +27,11 @@ const SFX_POOL_SIZE: int = 8
 var sfx_volume_db: float = 0.0:
 	set(v):
 		sfx_volume_db = v
-		for player in _sfx_pool:
-			player.volume_db = v
 
 var bgm_volume_db: float = 0.0:
 	set(v):
 		bgm_volume_db = v
-		_bgm_player_a.volume_db = v
-		_bgm_player_b.volume_db = v
+		_refresh_bgm_player_volumes()
 
 # ==================== 已注册的 SFX 表 ====================
 ## 在这里集中维护所有音效的路径映射
@@ -54,6 +53,10 @@ var _bgm_player_a: AudioStreamPlayer
 var _bgm_player_b: AudioStreamPlayer
 var _bgm_active_player: AudioStreamPlayer  # 当前主播放器
 var _bgm_current_stream: AudioStream = null
+var _bgm_content_volume_db: float = 0.0
+
+## 对白使用单独播放器，但仍由全局音频系统统一持有。
+var _voice_player: AudioStreamPlayer
 
 ## 当前正在进行的 BGM 淡变 tween
 var _bgm_tween: Tween = null
@@ -84,6 +87,10 @@ func _ready() -> void:
 
 	_bgm_active_player = _bgm_player_a
 
+	_voice_player = AudioStreamPlayer.new()
+	_voice_player.bus = "SFX"
+	add_child(_voice_player)
+
 
 # ==================== SFX 接口 ====================
 
@@ -105,14 +112,14 @@ func play_sfx_key(key: String) -> void:
 
 
 ## 直接传入 AudioStream 播放（单次）
-func play_sfx(stream: AudioStream) -> void:
+func play_sfx(stream: AudioStream, volume: float = 1.0) -> void:
 	if stream == null:
 		return
 	# 从池中轮询一个空闲播放器（若全忙则抢占最旧的）
 	var player: AudioStreamPlayer = _sfx_pool[_sfx_pool_index]
 	_sfx_pool_index = (_sfx_pool_index + 1) % SFX_POOL_SIZE
 	player.stream = stream
-	player.volume_db = sfx_volume_db
+	player.volume_db = sfx_volume_db + linear_to_db(clampf(volume, 0.0, 1.0))
 	player.play()
 
 
@@ -120,13 +127,16 @@ func play_sfx(stream: AudioStream) -> void:
 
 ## 播放背景音乐（默认循环）
 ## crossfade_time: 交叉淡入淡出时长（秒），0 = 立即切换
-func play_bgm(stream: AudioStream, crossfade_time: float = 1.0) -> void:
+func play_bgm(stream: AudioStream, crossfade_time: float = 1.0, volume: float = 1.0) -> void:
 	if stream == null:
 		return
+	var target_content_volume_db: float = linear_to_db(clampf(volume, 0.0, 1.0))
 	if _bgm_current_stream == stream and _bgm_active_player.playing:
-		return  # 已在播放，跳过
+		set_bgm_content_volume(volume, crossfade_time)
+		return
 
 	_bgm_current_stream = stream
+	_bgm_content_volume_db = target_content_volume_db
 	bgm_changed.emit(stream)
 
 	if _bgm_tween and _bgm_tween.is_valid():
@@ -148,13 +158,13 @@ func play_bgm(stream: AudioStream, crossfade_time: float = 1.0) -> void:
 	_bgm_active_player = incoming
 
 	if crossfade_time <= 0.0:
-		incoming.volume_db = bgm_volume_db
+		incoming.volume_db = _get_bgm_target_db()
 		outgoing.stop()
 		outgoing.volume_db = bgm_volume_db
 		return
 
 	_bgm_tween = create_tween().set_parallel(true)
-	_bgm_tween.tween_property(incoming, "volume_db", bgm_volume_db, crossfade_time)
+	_bgm_tween.tween_property(incoming, "volume_db", _get_bgm_target_db(), crossfade_time)
 	_bgm_tween.tween_property(outgoing, "volume_db", -80.0, crossfade_time)
 	_bgm_tween.chain().tween_callback(func() -> void:
 		outgoing.stop()
@@ -179,9 +189,22 @@ func stop_bgm(fade_time: float = 0.5) -> void:
 	_bgm_tween.tween_property(_bgm_active_player, "volume_db", -80.0, fade_time)
 	_bgm_tween.tween_callback(func() -> void:
 		_bgm_active_player.stop()
-		_bgm_active_player.volume_db = bgm_volume_db
+		_bgm_active_player.volume_db = _get_bgm_target_db()
 		_bgm_current_stream = null
 	)
+
+
+func set_bgm_content_volume(volume: float, fade_time: float = 0.0) -> void:
+	_bgm_content_volume_db = linear_to_db(clampf(volume, 0.0, 1.0))
+	if _bgm_active_player == null:
+		return
+	if _bgm_tween != null and _bgm_tween.is_valid():
+		_bgm_tween.kill()
+	if fade_time <= 0.0:
+		_bgm_active_player.volume_db = _get_bgm_target_db()
+		return
+	_bgm_tween = create_tween()
+	_bgm_tween.tween_property(_bgm_active_player, "volume_db", _get_bgm_target_db(), fade_time)
 
 
 ## 暂停 / 恢复 BGM
@@ -220,6 +243,37 @@ func is_bgm_playing() -> bool:
 	return _bgm_active_player.playing and not _bgm_active_player.stream_paused
 
 
+func play_voice(stream: AudioStream, volume: float = 1.0) -> void:
+	if stream == null or _voice_player == null:
+		return
+	_voice_player.stream = stream
+	_voice_player.volume_db = sfx_volume_db + linear_to_db(clampf(volume, 0.0, 1.0))
+	_voice_player.play()
+	voice_changed.emit(stream)
+
+
+func stop_voice() -> void:
+	if _voice_player != null:
+		_voice_player.stop()
+
+
+func _get_bgm_target_db() -> float:
+	return bgm_volume_db + _bgm_content_volume_db
+
+
+func _refresh_bgm_player_volumes() -> void:
+	if _bgm_player_a == null or _bgm_player_b == null:
+		return
+	if _bgm_player_a == _bgm_active_player and _bgm_player_a.playing:
+		_bgm_player_a.volume_db = _get_bgm_target_db()
+	elif not _bgm_player_a.playing:
+		_bgm_player_a.volume_db = bgm_volume_db
+	if _bgm_player_b == _bgm_active_player and _bgm_player_b.playing:
+		_bgm_player_b.volume_db = _get_bgm_target_db()
+	elif not _bgm_player_b.playing:
+		_bgm_player_b.volume_db = bgm_volume_db
+
+
 ## 动态注册新的音效 key（运行时也可调用）
 func register_sfx(key: String, path: String) -> void:
 	_sfx_registry[key] = path
@@ -246,7 +300,7 @@ func _on_bgm_player_finished(player: AudioStreamPlayer) -> void:
 	# 非原生 loop 的 BGM：自动重头播放，保持循环语义
 	if finished_stream != null and not _stream_loops_natively(finished_stream):
 		player.stream = finished_stream
-		player.volume_db = bgm_volume_db
+		player.volume_db = _get_bgm_target_db()
 		player.play()
 		return
 	_bgm_current_stream = null

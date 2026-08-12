@@ -1,16 +1,12 @@
 extends Node
-## 质量验收 lab：预置素材卡与事件卡，真实 LLM 生成整场直播 DSL，生成成功后自动打开直播姬播放，供人工检查效果。
-## 修改配置只需改 MATERIAL_ID / CARD_IDS / SNAPSHOT 三处。
+## 质量验收 lab：预置素材与直播构思，真实 LLM 生成整场直播 DSL，生成成功后自动打开直播姬播放。
 
 const CATALOG: LiveStreamCatalog = preload("res://resources/live_stream/catalogs/vertical_slice_catalog.tres")
 const BALANCE: LiveStreamBalance = preload("res://resources/live_stream/balance/vertical_slice_balance.tres")
 const LIVE_SHOW_GENERATOR_SCRIPT = preload("res://scripts/game/live_stream/live_show_generator.gd")
 const OBS_APP_PATH: String = "res://resources/apps/obs_live_app.tres"
 
-## 预置素材卡（content_id）。
 const MATERIAL_ID: StringName = &"material_cozy_game"
-## 预置事件卡（行为卡）节目单，按演出顺序。
-const CARD_IDS: Array[StringName] = [&"talk_daily_greeting", &"game_hardcore_guide", &"game_clear_reflection"]
 ## 预置主播状态快照。
 const SNAPSHOT: Dictionary = {
 	"skill_levels": {"game": 2, "talk": 2, "song": 1, "act": 1, "tech": 1},
@@ -33,12 +29,6 @@ func _ready() -> void:
 	if material == null:
 		print("LAB_SHOW_QUALITY_DONE ok=0 error=missing_material id=%s" % MATERIAL_ID)
 		return
-	var card_ids: Array[StringName] = []
-	for card_id: StringName in CARD_IDS:
-		if CATALOG.get_card(card_id) == null:
-			print("LAB_SHOW_QUALITY_DONE ok=0 error=missing_card id=%s" % card_id)
-			return
-		card_ids.append(card_id)
 	var persona: StreamPersonaResource = CATALOG.get_persona(&"persona_default")
 	if persona == null:
 		print("LAB_SHOW_QUALITY_DONE ok=0 error=missing_persona")
@@ -47,7 +37,7 @@ func _ready() -> void:
 	_plan.session_id = &"lab_show_quality"
 	_plan.title = material.display_name
 	_plan.persona_id = persona.content_id
-	_plan.behavior_card_ids = card_ids
+	_plan.approach = {"approach_id": "cozy_audience", "approach_type": "audience_interaction", "display_name": "今天去哪儿听弹幕的", "display_description": "把岛上行程交给观众选择。", "director_prompt": "用弹幕投票决定至少一个岛上去向，并让该选择带来具体发现或结果，随后自然收束。"}
 	_plan.rng_seed = 20260809
 	_plan.state_snapshot = SNAPSHOT.duplicate(true)
 	_plan.state_snapshot["material_instance"] = {"definition_id": String(MATERIAL_ID)}
@@ -55,11 +45,12 @@ func _ready() -> void:
 	_model = persona.model
 	_generator = LIVE_SHOW_GENERATOR_SCRIPT.new()
 	_generator.llm_enabled = true
+	_generator.summary_enabled = false
 	add_child(_generator)
 	_generator.setup(_plan, _result, CATALOG, _model)
 	_generator.show_ready.connect(_on_ready)
 	_generator.generation_failed.connect(_on_failed)
-	print("LAB_SHOW_QUALITY_START material=%s cards=%s" % [MATERIAL_ID, CARD_IDS])
+	print("LAB_SHOW_QUALITY_START material=%s approach=audience_interaction" % MATERIAL_ID)
 	_generator.generate()
 
 

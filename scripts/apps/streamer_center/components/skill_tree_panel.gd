@@ -48,12 +48,7 @@ func _render_detail() -> void:
 	detail_icon.texture = skill.icon
 	detail_name.text = skill.display_name
 	detail_description.text = skill.description
-	var reward_names: Array[String] = []
-	for card_id: StringName in skill.unlocked_card_ids:
-		var card: LiveStreamCardResource = CardLibraryManager.get_card(card_id)
-		if card != null:
-			reward_names.append(card.display_name)
-	reward_label.text = "解锁卡牌：%s" % "、".join(reward_names) if not reward_names.is_empty() else "提升主播基础能力"
+	reward_label.text = "提升主播基础能力"
 	status_label.text = SkillTreeManager.get_unlock_reason(skill.skill_id)
 	unlock_button.visible = true
 	unlock_button.disabled = not SkillTreeManager.can_unlock(skill.skill_id)

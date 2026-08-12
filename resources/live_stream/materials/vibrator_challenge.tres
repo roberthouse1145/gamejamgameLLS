@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="LiveStreamMaterialResource" format=3 uid="uid://c1lu16p04rj0d"]
+
+[ext_resource type="Script" uid="uid://dypbjcd0e7jpi" path="res://scripts/game/resources/live_stream/material_resource.gd" id="1"]
+[ext_resource type="Script" uid="uid://jmvhm65g2xaf" path="res://scripts/game/resources/live_stream/stream_family_values.gd" id="2"]
+[ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="3"]
+[ext_resource type="Texture2D" uid="uid://c4u8u05tmwf58" path="res://Assets/images/live_stream/cards/icons/family_act.svg" id="4"]
+[ext_resource type="Script" uid="uid://chb1bho5156y1" path="res://scripts/game/resources/live_stream/stream_skill_experience.gd" id="6_skill_exp"]
+
+[sub_resource type="Resource" id="Affinity"]
+script = ExtResource("2")
+game = 0.5
+talk = 1.6
+song = 0.6
+act = 1.5
+tech = 0.6
+
+[sub_resource type="Resource" id="Axes"]
+script = ExtResource("3")
+hook = 2.0
+impact = 1.0
+
+[sub_resource type="Resource" id="SkillExp"]
+script = ExtResource("6_skill_exp")
+talk = 40
+act = 30
+
+[resource]
+script = ExtResource("1")
+base_popularity = 150.0
+activities = Array[StringName]([&"discuss", &"react", &"voice_performance"])
+skill_exp_rewards = SubResource("SkillExp")
+affinity = SubResource("Affinity")
+axes = SubResource("Axes")
+content_id = &"material_vibrator_challenge"
+display_name = "跳蛋挑战"
+description = "在不被发现的情况下，边控制自己边跟粉丝正常闲聊。"
+icon = ExtResource("4")
+prompt_fragment = "一场由主播主动发起的秘密挑战：跳蛋已经开启，观众毫不知情。主播必须用完全正常的闲聊、回应和接梗维持直播，观众持续抛出日常话题、起哄和追问，主播一边控制声音与表情，一边不漏破绽地接住。破功的临界点由本场演出能力与状态决定：能力足够时能长时间稳住，只在关键瞬间漏出一点气息或停顿；能力不足时破绽逐渐累积，最终被敏锐的弹幕抓住或当场露馅。是否暴露、如何圆场由现场走向决定，不提前预设结局。"

@@ -3,9 +3,8 @@
 [ext_resource type="Script" uid="uid://dypbjcd0e7jpi" path="res://scripts/game/resources/live_stream/material_resource.gd" id="1"]
 [ext_resource type="Script" uid="uid://jmvhm65g2xaf" path="res://scripts/game/resources/live_stream/stream_family_values.gd" id="2"]
 [ext_resource type="Script" uid="uid://dy7v8t54nl5o0" path="res://scripts/game/resources/live_stream/stream_axis_values.gd" id="3"]
-[ext_resource type="Script" uid="uid://djx54f2qtchlq" path="res://scripts/game/resources/live_stream/stream_tag_effect.gd" id="3_2xgos"]
 [ext_resource type="Texture2D" uid="uid://c6bmn87ogu8h7" path="res://Assets/images/live_stream/cards/icons/family_talk.svg" id="4"]
-[ext_resource type="Script" uid="uid://b0wgs72067lck" path="res://scripts/game/resources/live_stream/material_locked_card.gd" id="5_mx6k8"]
+[ext_resource type="Script" uid="uid://chb1bho5156y1" path="res://scripts/game/resources/live_stream/stream_skill_experience.gd" id="6_skill_exp"]
 
 [sub_resource type="Resource" id="Affinity"]
 script = ExtResource("2")
@@ -18,15 +17,21 @@ tech = 1.2
 [sub_resource type="Resource" id="Axes"]
 script = ExtResource("3")
 hook = 2.0
-risk = 1.0
+
+[sub_resource type="Resource" id="SkillExp"]
+script = ExtResource("6_skill_exp")
+talk = 45
+tech = 15
 
 [resource]
 script = ExtResource("1")
 base_popularity = 180.0
+activities = Array[StringName]([&"discuss", &"inspect_visual", &"react", &"debate"])
+skill_exp_rewards = SubResource("SkillExp")
 affinity = SubResource("Affinity")
 axes = SubResource("Axes")
 content_id = &"material_forum_hot_meme"
 display_name = "论坛热梗截屏"
 description = "刚刚发酵起来的话题，过了今晚就没味了。"
 icon = ExtResource("4")
-tags = Array[StringName]([&"hot_topic", &"gossip", &"rant", &"rage_bait"])
+prompt_fragment = "一组刚开始流传的论坛截屏，围绕某位匿名用户把普通失误包装成神秘内幕的帖子。截屏包含互相矛盾的回复、被裁掉一半的上下文和迅速衍生的玩梗版本，适合现场看图、辨认细节、站队和验证说法。"

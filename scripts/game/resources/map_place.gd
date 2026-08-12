@@ -10,7 +10,6 @@ class_name MapPlace extends Resource
 @export var cover: Texture2D = null
 @export_range(0.0, 5.0, 0.1) var rating: float = 0.0
 @export var review_count: int = 0
-@export var tags: Array[String] = []
 
 
 func is_valid() -> bool:

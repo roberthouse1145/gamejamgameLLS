@@ -1,0 +1,34 @@
+[gd_resource type="Theme" load_steps=4 format=3]
+
+[sub_resource type="StyleBoxEmpty" id="Style_empty"]
+
+[sub_resource type="StyleBoxFlat" id="Style_scroll_grabber"]
+bg_color = Color(0.61, 0.69, 0.8, 0.48)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+expand_margin_left = 2.0
+expand_margin_right = 2.0
+
+[sub_resource type="StyleBoxFlat" id="Style_scroll_grabber_hover"]
+bg_color = Color(0.43, 0.57, 0.76, 0.7)
+corner_radius_top_left = 7
+corner_radius_top_right = 7
+corner_radius_bottom_right = 7
+corner_radius_bottom_left = 7
+expand_margin_left = 3.0
+expand_margin_right = 3.0
+
+[resource]
+Label/colors/font_color = Color(0.12549, 0.156863, 0.227451, 1)
+Label/font_sizes/font_size = 28
+Button/colors/font_color = Color(0.12549, 0.156863, 0.227451, 1)
+Button/colors/font_hover_color = Color(0.12549, 0.156863, 0.227451, 1)
+Button/colors/font_pressed_color = Color(0.12549, 0.156863, 0.227451, 1)
+Button/styles/focus = SubResource("Style_empty")
+VScrollBar/styles/grabber = SubResource("Style_scroll_grabber")
+VScrollBar/styles/grabber_highlight = SubResource("Style_scroll_grabber_hover")
+VScrollBar/styles/grabber_pressed = SubResource("Style_scroll_grabber_hover")
+VScrollBar/styles/scroll = SubResource("Style_empty")
+VScrollBar/styles/scroll_focus = SubResource("Style_empty")

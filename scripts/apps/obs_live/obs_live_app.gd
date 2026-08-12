@@ -1,6 +1,5 @@
 extends Control
-## V-Stream 直播姬：开播向导（纯卡牌操作台，无左侧静态预监）→ 入场 → 演出 → 结算。
-## Step0 左右分栏；Step1 主区+右侧预计结算面板；Step2 确认单。
+## V-Stream 直播姬：选素材 → 选临时直播构思 → 确认开播 → 演出 → LinkPosta。
 
 const CARD_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/live_stream_card.tscn")
 const DROP_SLOT_SCENE: PackedScene = preload("res://scenes/apps/obs_live/components/card_drop_slot.tscn")
@@ -20,10 +19,17 @@ const COLOR_FAMILY: Color = Color("#3A5FA8")
 const COLOR_OK: Color = Color("#3FA37A")
 const COLOR_DASHBOARD_BG: Color = Color("#EAF1FA")
 
-enum AppState { WIZARD, ENTRANCE, LIVE, SETTLEMENT }
+enum AppState { WIZARD, ENTRANCE, LIVE, FINISHING }
 
 const OBS_APP_ID: String = "obs_live"
-const POST_STREAM_REST_SECONDS: float = 0.85
+const POST_STREAM_REST_SECONDS: float = 1.0
+const SKILL_FAMILY_LABELS: Dictionary = {
+	"game": "游戏",
+	"talk": "杂谈",
+	"song": "歌唱",
+	"act": "演出",
+	"tech": "杂项",
+}
 
 @onready var wizard_root: VBoxContainer = %WizardRoot
 @onready var wizard_tab_bar: WizardTabBar = %WizardTabBar
@@ -36,7 +42,6 @@ const POST_STREAM_REST_SECONDS: float = 0.85
 @onready var stream_stage: StreamStage = %StreamStage
 @onready var stream_chat: StreamChat = %StreamChat
 @onready var entrance_overlay: EntranceOverlay = %StreamStage.entrance_overlay
-@onready var settlement_panel: SettlementPanel = %SettlementPanel
 
 var live_title: Label:
 	get: return stream_stage.live_title if stream_stage != null else null
@@ -56,7 +61,6 @@ var skip_button: Button:
 	get: return stream_stage.skip_button if stream_stage != null else null
 
 var _manager: Node = null
-var _card_library_manager: Node = null
 var _state: int = AppState.WIZARD
 var _max_step_reached: int = 0
 var _generator: Node = null
@@ -68,17 +72,8 @@ var _deck: CardDeck = null
 var _live_show: Dictionary = {}
 var _generation_failed: bool = false
 
-## 拖放增量更新状态：节目槽 / 接缝提示 / 修饰槽 / 预计结算网格的运行时引用。
-var _suppress_render: bool = false
-var _program_slots: Array[CardDropSlot] = []
-var _modifier_slots: Array[CardDropSlot] = []
-var _seam_labels: Array[Label] = []
-var _metrics_grid: GridContainer = null
-
-
 func _ready() -> void:
 	_manager = get_node_or_null("/root/LiveStreamManager")
-	_card_library_manager = get_node_or_null("/root/CardLibraryManager")
 	_setup_drag_system()
 	back_button.pressed.connect(_on_back_pressed)
 	next_button.pressed.connect(_on_next_pressed)
@@ -86,18 +81,18 @@ func _ready() -> void:
 	fast_button.pressed.connect(_on_fast_pressed)
 	skip_button.pressed.connect(_on_skip_pressed)
 	entrance_overlay.entrance_finished.connect(_on_entrance_finished)
-	settlement_panel.finish_pressed.connect(_on_settlement_finish)
-	settlement_panel.crisis_choice_made.connect(_on_crisis_choice_made)
 	stream_stage.show_finished.connect(_on_show_finished)
 	stream_stage.live_chat_event.connect(_on_live_chat_event)
+	stream_chat.screen_chat_toggled.connect(_on_screen_chat_toggled)
+	stream_chat.donation_animation_toggled.connect(_on_donation_animation_toggled)
+	_apply_live_reaction_preferences()
 	_apply_primary_button_style(next_button)
-	if _manager == null or _card_library_manager == null:
+	if _manager == null:
 		_render_manager_error()
 		return
 	_manager.step_changed.connect(_on_manager_step_changed)
 	_manager.draft_changed.connect(_on_manager_draft_changed)
 	_manager.catalogs_changed.connect(_on_catalogs_changed)
-	_card_library_manager.library_changed.connect(_on_catalogs_changed)
 	if _manager.load_saved_run_state():
 		_max_step_reached = maxi(_max_step_reached, int(_manager.get_current_step()))
 	_render()
@@ -122,8 +117,8 @@ func _update_channel_info() -> void:
 	var persona: StreamPersonaResource = null
 	if _manager != null and _live_plan != null:
 		persona = _manager.get_persona(_live_plan.persona_id)
-	if persona == null and _card_library_manager != null and _card_library_manager.has_method("get_catalog"):
-		var catalog = _card_library_manager.get_catalog()
+	if persona == null and _manager != null and _manager.has_method("get_catalog"):
+		var catalog = _manager.get_catalog()
 		if catalog != null and catalog.has_method("get_persona"):
 			persona = catalog.get_persona(_live_plan.persona_id)
 	if persona != null:
@@ -156,10 +151,6 @@ func _clear_desk() -> void:
 	if _drag_controller != null:
 		_drag_controller.clear_containers_except()
 	_deck = null
-	_program_slots.clear()
-	_modifier_slots.clear()
-	_seam_labels.clear()
-	_metrics_grid = null
 	for child: Node in desk_host.get_children():
 		desk_host.remove_child(child)
 		child.queue_free()
@@ -234,7 +225,7 @@ func _build_setup_step() -> void:
 	var left_body: VBoxContainer = left_panel.get_meta("body")
 	left_body.add_theme_constant_override("separation", 12)
 
-	left_body.add_child(_make_desk_heading("1", "本场标题", "占位为素材名，开播时按人设与节目单生成"))
+	left_body.add_child(_make_desk_heading("1", "本场标题", "开播后会按素材和选定构思自然拟定"))
 	var title_info := _make_label(
 		"📌　%s" % str(draft.get("title", "")),
 		24,
@@ -260,7 +251,7 @@ func _build_setup_step() -> void:
 	persona_info.custom_minimum_size.y = 36
 	left_body.add_child(persona_info)
 
-	left_body.add_child(_make_desk_heading("3", "素材装载", "从右侧卡库拖入，或点击卡牌直接装载"))
+	left_body.add_child(_make_desk_heading("3", "选择素材", "选一份今晚想播的内容"))
 	var slot_row := HBoxContainer.new()
 	slot_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	slot_row.add_theme_constant_override("separation", 20)
@@ -317,16 +308,16 @@ func _make_material_card(
 ) -> LiveStreamCardView:
 	var card: LiveStreamCardView = CARD_SCENE.instantiate()
 	var instance_id := StringName(str(instance.get("instance_id", "")))
-	var tooltip: String = "一次性素材 · 播一场烧一张\n节目 %d 槽　·　锁定 %d 张" % [
-		material_resource.program_slot_count,
-		material_resource.locked_cards.size(),
-	]
+	var tooltip: String = "一次性素材 · 播一场消耗一份\n%s" % material_resource.description
+	var skill_rewards: String = _format_skill_exp_rewards(material_resource.skill_exp_rewards)
+	if not skill_rewards.is_empty():
+		tooltip += "\n熟练度：%s" % skill_rewards
 	card.configure(
 		material_resource,
 		selected,
 		false,
-		"槽 %d" % material_resource.program_slot_count,
-		"锁 %d 张" % material_resource.locked_cards.size(),
+		material_resource.get_material_type_label(),
+		"一次性",
 		tooltip
 	)
 	if draggable:
@@ -338,288 +329,86 @@ func _make_material_card(
 	return card
 
 
+func _format_skill_exp_rewards(rewards: StreamSkillExperience) -> String:
+	if rewards == null:
+		return ""
+	var parts: Array[String] = []
+	for family: StringName in GameState.SKILL_FAMILIES:
+		var amount: int = rewards.get_value(family)
+		if amount > 0:
+			parts.append("%s +%d" % [SKILL_FAMILY_LABELS.get(String(family), String(family)), amount])
+	return " · ".join(parts)
+
+
 func _build_script_step() -> void:
 	var draft: Dictionary = _manager.get_draft()
-	var selected_slots: Array = draft.get("behavior_slots", [])
-	var selected_modifiers: Array = draft.get("modifier_slots", [])
-	var material_instance_id := StringName(str(draft.get("material_instance_id", "")))
-	var compatible_cards: Array[BehaviorCardResource] = _card_library_manager.get_compatible_behavior_cards(material_instance_id, false)
-	var budget_used: int = _manager.get_budget_used()
-	var budget_limit: int = _manager.get_budget_limit()
-	var preview: StreamSettlementResult = _manager.get_preview_result()
-
-	var outer_vbox := VBoxContainer.new()
-	outer_vbox.add_theme_constant_override("separation", 16)
-	outer_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outer_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_attach_desk_root(outer_vbox)
-
-	# --- 1. 上半部分：节目编排 (左) + 预计结算 (右) ---
-	var top_panel := _make_desk_panel()
-	top_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	outer_vbox.add_child(top_panel)
-	var top_body: VBoxContainer = top_panel.get_meta("body")
-	top_body.add_theme_constant_override("separation", 12)
-
-	top_body.add_child(_make_desk_heading("●", "节目编排", "把行为卡拖入节目槽，拼出本场的接口链"))
-
-	var top_split := HBoxContainer.new()
-	top_split.add_theme_constant_override("separation", 24)
-	top_split.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	top_body.add_child(top_split)
-
-	# 节目槽滚动区
-	var slot_scroll := ScrollContainer.new()
-	slot_scroll.custom_minimum_size.y = CardDisplayMetrics.FULL_SIZE.y + 56.0
-	slot_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	slot_scroll.size_flags_stretch_ratio = 3.0
-	slot_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	slot_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	top_split.add_child(slot_scroll)
-	var slot_row := HBoxContainer.new()
-	slot_row.add_theme_constant_override("separation", 16)
-	slot_scroll.add_child(slot_row)
-	var over_budget: bool = budget_used > budget_limit
-	for slot_index: int in range(selected_slots.size()):
-		slot_row.add_child(_make_program_slot(selected_slots, slot_index, over_budget))
-
-	# 预计结算仪表盘卡片 (右上角)
-	var result_panel := _make_desk_panel(COLOR_DASHBOARD_BG)
-	result_panel.custom_minimum_size.x = 280
-	result_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	result_panel.size_flags_stretch_ratio = 1.0
-	top_split.add_child(result_panel)
-	var result_body: VBoxContainer = result_panel.get_meta("body")
-	result_body.add_theme_constant_override("separation", 8)
-	result_body.add_child(_make_label("预计结算", 20, COLOR_FAMILY))
-
-	var metrics_grid := GridContainer.new()
-	metrics_grid.columns = 2
-	metrics_grid.add_theme_constant_override("h_separation", 14)
-	metrics_grid.add_theme_constant_override("v_separation", 14)
-	result_body.add_child(metrics_grid)
-	_metrics_grid = metrics_grid
-	_build_metrics_grid(metrics_grid, budget_used, budget_limit, preview)
-
-	# --- 2. 修饰槽（如果有） ---
-	if selected_modifiers.size() > 0:
-		var mod_panel := _make_desk_panel()
-		mod_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		mod_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		outer_vbox.add_child(mod_panel)
-		var mod_body: VBoxContainer = mod_panel.get_meta("body")
-		mod_body.add_child(_make_label("修饰槽", 20, COLOR_FAMILY))
-		var modifier_scroll := ScrollContainer.new()
-		modifier_scroll.custom_minimum_size.y = CardDisplayMetrics.FULL_SIZE.y + 16.0
-		modifier_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		modifier_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-		modifier_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-		mod_body.add_child(modifier_scroll)
-		var modifier_row := HBoxContainer.new()
-		modifier_row.add_theme_constant_override("separation", 16)
-		modifier_scroll.add_child(modifier_row)
-		for modifier_index: int in range(selected_modifiers.size()):
-			modifier_row.add_child(_make_modifier_slot(selected_modifiers, modifier_index))
-
-	# --- 3. 下半部分：卡牌库 Panel ---
-	var bottom_panel := _make_desk_panel()
-	bottom_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bottom_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer_vbox.add_child(bottom_panel)
-	var bottom_body: VBoxContainer = bottom_panel.get_meta("body")
-	bottom_body.add_theme_constant_override("separation", 12)
-
-	bottom_body.add_child(_make_label("行为卡库（%d 张兼容）" % compatible_cards.size(), 22, COLOR_FAMILY))
-	var library_scroll := _make_card_library_scroll()
-	bottom_body.add_child(library_scroll)
-	var deck := _populate_card_deck(["behavior", "modifier", "program_card"])
-	library_scroll.add_child(deck)
-	_add_hand_cards(compatible_cards, selected_slots, false, &"behavior")
-
-	var incompatible: Array[BehaviorCardResource] = _get_incompatible_behavior_cards()
-	if not incompatible.is_empty():
-		bottom_body.add_child(_make_incompatible_section(incompatible))
-
-	if selected_modifiers.size() > 0:
-		var modifiers: Array[LiveStreamCardResource] = []
-		for modifier: ModifierCardResource in _card_library_manager.get_modifier_cards():
-			modifiers.append(modifier)
-		_add_hand_cards(modifiers, selected_modifiers, false, &"modifier")
-
-
-func _make_program_slot(slots: Array, slot_index: int, over_budget: bool) -> Control:
-	var slot_locked: bool = _manager.is_behavior_slot_locked(slot_index)
-	var card_id: String = str(slots[slot_index])
-	var card: LiveStreamCardResource = _card_library_manager.get_card(StringName(card_id))
-	var slot: CardDropSlot = DROP_SLOT_SCENE.instantiate()
-	var accepts: Array = []
-	if not slot_locked:
-		accepts.append("behavior")
-		accepts.append("program_card")
-	var placeholder: String = "%02d\n素材题面" % (slot_index + 1) if slot_locked else "%02d\n拖入行为卡" % (slot_index + 1)
-	slot.setup(slot_index, accepts, placeholder)
-	slot.locked = slot_locked
-	slot.set_accept_filter(func(_incoming: Control, payload: Dictionary) -> bool:
-		var kind: String = String(payload.get("kind", ""))
-		if kind == "behavior":
-			return not slot.has_card()
-		return kind == "program_card"
-	)
-	_register_slot(slot)
-	_program_slots.append(slot)
-	var seam_label := _make_seam_label(slots, slot_index)
-	_seam_labels.append(seam_label)
-	if card == null:
-		slot.set_over_budget(over_budget and not slot_locked)
-		return _wrap_program_slot(slot, seam_label)
-	var card_view: LiveStreamCardView = CARD_SCENE.instantiate()
-	card_view.configure(card, true, slot_locked)
-	var state: Dictionary = _connection_state_of(slots, slot_index)
-	card_view.configure_connection_state(state["left"] as Array[int], state["right"] as Array[int])
-	card_view.set_over_budget(over_budget and not slot_locked)
-	if not slot_locked:
-		card_view.drag_payload = {
-			"kind": "program_card",
-			"card_id": card_id,
-			"from_slot": slot_index,
-			"title": card.display_name,
-		}
-		_reconnect_pressed(card_view, _on_behavior_slot_clear.bind(slot_index))
-	_bind_card(card_view)
-	slot.set_content(card_view)
-	return _wrap_program_slot(slot, seam_label)
-
-
-## 槽卡左右接缝的连接状态（构建与拖放增量刷新共用）。
-func _connection_state_of(slots: Array, slot_index: int) -> Dictionary:
-	var left_connected: Array[int] = []
-	var right_connected: Array[int] = []
-	var card_id: String = str(slots[slot_index])
-	var card: BehaviorCardResource = _card_library_manager.get_card(StringName(card_id)) as BehaviorCardResource
-	if card == null:
-		return {"left": left_connected, "right": right_connected}
-	if slot_index > 0:
-		var previous_card: BehaviorCardResource = _find_neighbor_behavior(slots, slot_index, -1)
-		if previous_card != null:
-			left_connected = BehaviorCardResource.intersect_slots(previous_card.right_slots, card.left_slots)
-		else:
-			left_connected.assign(card.left_slots)
-	if slot_index + 1 < slots.size():
-		var next_card: BehaviorCardResource = _find_neighbor_behavior(slots, slot_index, 1)
-		if next_card != null:
-			right_connected = BehaviorCardResource.intersect_slots(card.right_slots, next_card.left_slots)
-		else:
-			right_connected.assign(card.right_slots)
-	return {"left": left_connected, "right": right_connected}
-
-
-## 先断开卡上所有 pressed 连接再连新目标（实例在容器间流动时需要换绑）。
-func _reconnect_pressed(card: LiveStreamCardView, callable: Callable) -> void:
-	for connection: Dictionary in card.pressed.get_connections():
-		card.pressed.disconnect(connection["callable"])
-	card.pressed.connect(callable)
-
-
-func _wrap_program_slot(slot: CardDropSlot, seam_label: Label) -> VBoxContainer:
-	var wrapper := VBoxContainer.new()
-	wrapper.add_theme_constant_override("separation", 8)
-	slot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	wrapper.add_child(slot)
-	wrapper.add_child(seam_label)
-	return wrapper
-
-
-## 节目槽下方的接缝提示：填充率档位 / 空接风险 / 空槽惩罚（策划 §10.2 第 2 步）。
-func _make_seam_label(slots: Array, slot_index: int) -> Label:
-	var label := Label.new()
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.custom_minimum_size.y = 32
-	label.add_theme_font_size_override("font_size", 20)
-	_apply_seam_label(label, slots, slot_index)
-	return label
-
-
-func _apply_seam_label(label: Label, slots: Array, slot_index: int) -> void:
-	var card_id: String = str(slots[slot_index])
-	if card_id.is_empty():
-		label.text = "空槽 ×0.9"
-		label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_attach_desk_root(scroll)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 18)
+	scroll.add_child(body)
+	body.add_child(_make_desk_heading("2", "今晚怎么播", "从她整理出的构思里选一个"))
+	var material: LiveStreamMaterialResource = _manager.get_material_definition()
+	if material != null:
+		body.add_child(_make_label("素材　%s" % material.display_name, 22, COLOR_TEXT_SECONDARY))
+	var approach_state: String = str(draft.get("approach_state", "idle"))
+	var approaches: Array[Dictionary] = _manager.get_approaches()
+	if approaches.is_empty():
+		var waiting_panel := _make_desk_panel(COLOR_SURFACE_ALT)
+		waiting_panel.custom_minimum_size.y = 180
+		body.add_child(waiting_panel)
+		var waiting_body: VBoxContainer = waiting_panel.get_meta("body")
+		waiting_body.alignment = BoxContainer.ALIGNMENT_CENTER
+		waiting_body.add_child(_make_label("她正在整理今晚从哪里讲起……", 25, COLOR_TEXT))
+		waiting_body.add_child(_make_label("先把素材翻一翻，很快就好。", 19, COLOR_TEXT_MUTED))
 		return
-	var card: BehaviorCardResource = _card_library_manager.get_card(StringName(card_id)) as BehaviorCardResource
-	var previous_index: int = _find_previous_occupied_slot(slots, slot_index)
-	if card == null:
-		label.text = ""
-		return
-	if previous_index < 0:
-		label.text = "开场卡 · 无需填充"
-		label.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
-		return
-	if card.left_slots.is_empty():
-		label.text = ""
-		return
-	var previous_card: BehaviorCardResource = _card_library_manager.get_card(
-		StringName(str(slots[previous_index]))
-	) as BehaviorCardResource
-	if previous_card == null:
-		label.text = ""
-		return
-	var connected: Array[int] = BehaviorCardResource.intersect_slots(previous_card.right_slots, card.left_slots)
-	var fill_ratio: float = float(connected.size()) / float(card.left_slots.size())
-	var multiplier: float = _card_library_manager.get_balance().get_fill_multiplier(fill_ratio)
-	if is_zero_approx(fill_ratio):
-		label.text = "空接 ×%.1f　·　风险 +10%%" % multiplier
-		label.add_theme_color_override("font_color", COLOR_ACCENT)
-	elif fill_ratio >= 1.0:
-		label.text = "满填充 ×%.1f" % multiplier
-		label.add_theme_color_override("font_color", COLOR_OK)
-	elif fill_ratio >= 0.5:
-		label.text = "填充 ×%.1f" % multiplier
-		label.add_theme_color_override("font_color", COLOR_TEXT_SECONDARY)
-	else:
-		label.text = "部分填充 ×%.1f" % multiplier
-		label.add_theme_color_override("font_color", COLOR_TEXT_SECONDARY)
+	var selected_id: String = str(draft.get("selected_approach_id", ""))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_child(row)
+	for approach: Dictionary in approaches:
+		row.add_child(_make_approach_choice(approach, str(approach.get("approach_id", "")) == selected_id))
 
 
-func _find_previous_occupied_slot(slots: Array, origin: int) -> int:
-	for index: int in range(origin - 1, -1, -1):
-		if not str(slots[index]).is_empty():
-			return index
-	return -1
-
-
-func _make_modifier_slot(modifier_slots: Array, modifier_index: int) -> CardDropSlot:
-	var card_id: String = str(modifier_slots[modifier_index])
-	var card: LiveStreamCardResource = _card_library_manager.get_card(StringName(card_id))
-	var slot: CardDropSlot = DROP_SLOT_SCENE.instantiate()
-	var modifier_kinds: Array[String] = ["modifier"]
-	slot.setup(modifier_index, modifier_kinds, "修饰槽 %d\n拖入修饰卡" % (modifier_index + 1))
-	slot.set_accept_filter(func(_incoming: Control, _payload: Dictionary) -> bool:
-		return not slot.has_card()
-	)
-	_register_slot(slot)
-	_modifier_slots.append(slot)
-	if card != null:
-		var card_view: LiveStreamCardView = CARD_SCENE.instantiate()
-		card_view.configure(card, true)
-		card_view.drag_payload = {
-			"kind": "modifier",
-			"card_id": String(card.content_id),
-			"from_slot": modifier_index,
-			"title": card.display_name,
-		}
-		_reconnect_pressed(card_view, _on_modifier_slot_clear.bind(modifier_index))
-		_bind_card(card_view)
-		slot.set_content(card_view)
-	return slot
+func _make_approach_choice(approach: Dictionary, selected: bool) -> Button:
+	var approach_type := StringName(str(approach.get("approach_type", "")))
+	var profile: Dictionary = LiveStreamBalance.new().get_approach_profile(approach_type)
+	var button := Button.new()
+	button.custom_minimum_size = Vector2(260, 260)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	button.text = "%s\n\n%s\n\n%s" % [
+		str(approach.get("display_name", "")),
+		str(approach.get("display_description", "")),
+		str(profile.get("player_hint", "")),
+	]
+	button.add_theme_font_size_override("font_size", 21)
+	button.add_theme_color_override("font_color", COLOR_TEXT)
+	button.add_theme_color_override("font_hover_color", COLOR_TEXT)
+	button.add_theme_color_override("font_pressed_color", COLOR_TEXT)
+	button.add_theme_color_override("font_focus_color", COLOR_TEXT)
+	var base_color: Color = Color("#FFF0F4") if selected else COLOR_SURFACE
+	var border_color: Color = COLOR_ACCENT if selected else COLOR_BORDER
+	button.add_theme_stylebox_override("normal", _make_style(base_color, border_color, 16, selected))
+	button.add_theme_stylebox_override("hover", _make_style(Color("#FFF6F8"), COLOR_ACCENT, 16, true))
+	button.add_theme_stylebox_override("pressed", _make_style(Color("#FFE8EF"), COLOR_ACCENT_HOVER, 16))
+	button.add_theme_stylebox_override("focus", _make_style(base_color, COLOR_ACCENT, 16))
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.pressed.connect(_on_approach_selected.bind(approach_type, StringName(str(approach.get("approach_id", "")))))
+	return button
 
 
 func _build_confirm_step() -> void:
 	var draft: Dictionary = _manager.get_draft()
 	var persona: StreamPersonaResource = _manager.get_active_persona()
 	var selected_material: LiveStreamMaterialResource = _manager.get_material_definition()
-	var selected_slots: Array = draft.get("behavior_slots", [])
-	var selected_modifiers: Array = draft.get("modifier_slots", [])
+	var selected_approach: Dictionary = _manager.get_selected_approach()
 
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -646,49 +435,34 @@ func _build_confirm_step() -> void:
 		COLOR_TEXT_SECONDARY
 	))
 
-	var preview_scroll := ScrollContainer.new()
-	preview_scroll.custom_minimum_size.y = CardDisplayMetrics.FULL_SIZE.y + 24.0
-	preview_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preview_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	preview_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	body.add_child(preview_scroll)
-	var preview_row := HBoxContainer.new()
-	preview_row.add_theme_constant_override("separation", 14)
-	preview_scroll.add_child(preview_row)
-	for index: int in range(selected_slots.size()):
-		var card: LiveStreamCardResource = _card_library_manager.get_card(StringName(str(selected_slots[index])))
-		if card == null:
-			continue
-		var card_view: LiveStreamCardView = CARD_SCENE.instantiate()
-		card_view.configure(card, false, _manager.is_behavior_slot_locked(index))
-		preview_row.add_child(_wrap_sized_card(card_view, CardDisplayMetrics.FULL_SIZE))
-	for modifier_id: Variant in selected_modifiers:
-		var modifier: ModifierCardResource = _card_library_manager.get_card(StringName(str(modifier_id))) as ModifierCardResource
-		if modifier == null:
-			continue
-		var modifier_view: LiveStreamCardView = CARD_SCENE.instantiate()
-		modifier_view.configure(modifier, false)
-		preview_row.add_child(_wrap_sized_card(modifier_view, CardDisplayMetrics.FULL_SIZE))
+	var approach_panel := _make_desk_panel(Color("#FFF6F8"))
+	body.add_child(approach_panel)
+	var approach_body: VBoxContainer = approach_panel.get_meta("body")
+	approach_body.add_child(_make_label("直播构思", 20, COLOR_ACCENT))
+	approach_body.add_child(_make_label(
+		str(selected_approach.get("display_name", "—")), 26, COLOR_TEXT
+	))
+	approach_body.add_child(_make_label(
+		str(selected_approach.get("display_description", "")), 20, COLOR_TEXT_SECONDARY
+	))
 
 	var preview: StreamSettlementResult = _manager.get_preview_result()
 	var preview_panel := _make_desk_panel(COLOR_SURFACE_ALT)
 	body.add_child(preview_panel)
 	var preview_body: VBoxContainer = preview_panel.get_meta("body")
 	preview_body.add_child(_make_label("预结算", 24, COLOR_FAMILY))
-	var risk: float = preview.accident_probability if preview != null else 0.0
 	preview_body.add_child(_make_label(
-		"峰值在线 %d　·　涨粉 %d　·　收益 ¥%d　·　事故风险 %.0f%%" % [
+		"峰值在线 %d　·　涨粉 %d　·　收益 ¥%d" % [
 			preview.peak_viewers if preview != null else 0,
 			preview.fan_delta if preview != null else 0,
 			preview.revenue if preview != null else 0,
-			risk * 100.0,
 		],
 		24,
 		COLOR_TEXT
 	))
 	if preview != null:
 		preview_body.add_child(_make_label(
-			"压力 %+.0f　·　主播 EXP +%d" % [preview.stress_delta, preview.streamer_exp_gain],
+			"压力 %+.0f　·　熟练度 +%d" % [preview.stress_delta, preview.streamer_exp_gain],
 			20,
 			COLOR_TEXT_MUTED
 		))
@@ -696,96 +470,11 @@ func _build_confirm_step() -> void:
 	var confirm_button := Button.new()
 	confirm_button.custom_minimum_size = Vector2(520, 80)
 	confirm_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	confirm_button.text = "节目单已提交" if _manager.is_broadcast_pending() else "确认开播（占用 1 时段）"
+	confirm_button.text = "直播已提交" if _manager.is_broadcast_pending() else "确认开播（占用 1 时段）"
 	confirm_button.disabled = _manager.is_broadcast_pending()
 	_apply_primary_button_style(confirm_button)
 	confirm_button.pressed.connect(_on_confirm_broadcast)
 	body.add_child(confirm_button)
-
-
-func _add_hand_cards(
-	cards: Array,
-	selected_ids: Array,
-	force_locked: bool,
-	select_kind: StringName = &""
-) -> void:
-	for card_value: Variant in cards:
-		var card: LiveStreamCardResource = card_value as LiveStreamCardResource
-		if card == null:
-			continue
-		if String(card.content_id) in selected_ids:
-			continue
-		var is_locked: bool = force_locked or not _card_library_manager.is_card_unlocked(card.content_id)
-		var card_view: LiveStreamCardView = CARD_SCENE.instantiate()
-		card_view.configure(card, false, is_locked)
-		if not is_locked:
-			if select_kind == &"behavior":
-				card_view.drag_payload = {
-					"kind": "behavior",
-					"card_id": String(card.content_id),
-					"title": card.display_name,
-				}
-				card_view.pressed.connect(_on_behavior_card_selected.bind(card.content_id))
-			elif select_kind == &"modifier":
-				card_view.drag_payload = {
-					"kind": "modifier",
-					"card_id": String(card.content_id),
-					"title": card.display_name,
-				}
-				card_view.pressed.connect(_on_modifier_card_selected.bind(card.content_id))
-		_bind_card(card_view)
-		_deck.add_card(card_view)
-
-
-## 已解锁但不兼容当前素材的行为卡（策划 §10.2 第 2 步：折叠在不兼容区）。
-func _get_incompatible_behavior_cards() -> Array[BehaviorCardResource]:
-	var result: Array[BehaviorCardResource] = []
-	var material_instance_id := StringName(str(_manager.get_draft().get("material_instance_id", "")))
-	var selected_material: LiveStreamMaterialResource = _manager.get_material_definition(material_instance_id)
-	if selected_material == null:
-		return result
-	for card: BehaviorCardResource in _card_library_manager.get_behavior_cards():
-		if not _card_library_manager.is_card_unlocked(card.content_id):
-			continue
-		if _card_library_manager.get_catalog().is_material_behavior_card(card.content_id):
-			continue
-		if not card.is_compatible_with(selected_material.tags):
-			result.append(card)
-	return result
-
-
-func _make_incompatible_section(cards: Array[BehaviorCardResource]) -> Control:
-	var section := VBoxContainer.new()
-	section.add_theme_constant_override("separation", 8)
-	var toggle := Button.new()
-	toggle.toggle_mode = true
-	toggle.flat = true
-	toggle.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	toggle.text = "▸ 不兼容（%d 张）" % cards.size()
-	toggle.add_theme_font_size_override("font_size", 20)
-	toggle.add_theme_color_override("font_color", COLOR_TEXT_MUTED)
-	toggle.add_theme_color_override("font_hover_color", COLOR_TEXT_SECONDARY)
-	section.add_child(toggle)
-	var scroll := ScrollContainer.new()
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.custom_minimum_size.y = CardDisplayMetrics.hand_size().y + 24.0
-	scroll.visible = false
-	section.add_child(scroll)
-	var flow := HBoxContainer.new()
-	flow.add_theme_constant_override("separation", 12)
-	scroll.add_child(flow)
-	for card: BehaviorCardResource in cards:
-		var card_view: LiveStreamCardView = CARD_SCENE.instantiate()
-		card_view.configure(card, false, false)
-		card_view.unavailable = true
-		card_view.override_tooltip("本场素材不兼容\n无法编入节目单")
-		flow.add_child(_wrap_sized_card(card_view, CardDisplayMetrics.hand_size()))
-	toggle.toggled.connect(func(is_on: bool) -> void:
-		scroll.visible = is_on
-		toggle.text = ("▾" if is_on else "▸") + " 不兼容（%d 张）" % cards.size()
-	)
-	return section
 
 
 func _bind_card(card: Control) -> void:
@@ -803,188 +492,10 @@ func _register_slot(slot: CardSlot) -> void:
 func _on_card_move_committed(_card: Control, payload: Dictionary, _source: Node, target: Node) -> void:
 	if _manager == null:
 		return
-	# manager 方法是同步 emit draft_changed 的，必须在调用前就声明"本次由增量更新接管"。
-	_suppress_render = true
-	var ok: bool = false
-	var kind: String = String(payload.get("kind", ""))
-	if target is CardDeck:
-		# 槽卡拖回牌库 = 从槽位取下（牌库内重排的负载没有 from_slot，直接放行）。
-		var from_slot: int = int(payload.get("from_slot", -1))
-		if from_slot < 0:
-			_suppress_render = false
-			return
-		match kind:
-			"program_card":
-				ok = _manager.clear_behavior_slot(from_slot)
-			"modifier":
-				ok = _manager.clear_modifier_slot(from_slot)
-		if not ok:
-			_suppress_render = false
-			_render()
-			return
-		_after_slot_card_removed(_card, kind)
-		return
-	if not (target is CardSlot):
-		_suppress_render = false
-		return
-	var slot := target as CardSlot
-	match kind:
-		"material":
-			ok = bool(_manager.select_material(StringName(str(payload.get("id", "")))))
-		"behavior":
-			ok = bool(_manager.place_behavior_card_at(StringName(str(payload.get("card_id", ""))), int(slot.slot_key)))
-		"program_card":
-			var from_slot: int = int(payload.get("from_slot", -1))
-			var to_slot: int = int(slot.slot_key)
-			if from_slot == to_slot:
-				_suppress_render = false
-				return
-			var slots: Array = _manager.get_draft().get("behavior_slots", [])
-			if to_slot < slots.size() and str(slots[to_slot]).is_empty():
-				ok = bool(_manager.move_behavior_card(from_slot, to_slot))
-			else:
-				ok = bool(_manager.place_behavior_card_at(StringName(str(payload.get("card_id", ""))), to_slot))
-		"modifier":
-			var modifier_from_slot: int = int(payload.get("from_slot", -1))
-			if modifier_from_slot >= 0 and modifier_from_slot != int(slot.slot_key):
-				ok = bool(_manager.move_modifier_card(modifier_from_slot, int(slot.slot_key)))
-			else:
-				ok = bool(_manager.select_modifier_card(StringName(str(payload.get("card_id", "")))))
-	if not ok:
-		_suppress_render = false
+	if not target is CardSlot or String(payload.get("kind", "")) != "material":
 		_render()
 		return
-	# 素材走全量重建（低频路径）；行为卡与修饰卡走增量更新。
-	if kind == "material":
-		_suppress_render = false
-		_render()
-		return
-	_after_program_card_placed(_card, kind, slot)
-
-
-## 拖放落点增量更新：给流动的卡实例换绑定（payload / pressed / 接缝态）。
-func _after_program_card_placed(card: Control, kind: String, slot: CardSlot) -> void:
-	var card_view := card as LiveStreamCardView
-	if card_view == null or _manager.get_current_step() != 1:
-		_suppress_render = false
-		_render()
-		return
-	var slot_index: int = int(slot.slot_key)
-	match kind:
-		"behavior":
-			var card_id: String = String(card_view.drag_payload.get("card_id", ""))
-			card_view.drag_payload = {
-				"kind": "program_card",
-				"card_id": card_id,
-				"from_slot": slot_index,
-				"title": card_view.content_resource.display_name if card_view.content_resource != null else "",
-			}
-			_reconnect_pressed(card_view, _on_behavior_slot_clear.bind(slot_index))
-		"program_card":
-			var from_slot: int = int(card_view.drag_payload.get("from_slot", -1))
-			if from_slot != slot_index:
-				card_view.drag_payload["from_slot"] = slot_index
-				_reconnect_pressed(card_view, _on_behavior_slot_clear.bind(slot_index))
-		"modifier":
-			var modifier_id: String = String(card_view.drag_payload.get("card_id", ""))
-			card_view.drag_payload = {
-				"kind": "modifier",
-				"card_id": modifier_id,
-				"from_slot": slot_index,
-				"title": card_view.content_resource.display_name if card_view.content_resource != null else "",
-			}
-			_reconnect_pressed(card_view, _on_modifier_slot_clear.bind(slot_index))
-	var slots: Array = _manager.get_draft().get("behavior_slots", [])
-	if kind == "behavior" or kind == "program_card":
-		var state: Dictionary = _connection_state_of(slots, slot_index)
-		card_view.configure_connection_state(state["left"] as Array[int], state["right"] as Array[int])
-	else:
-		card_view.clear_connection_state()
-	card_view.selected = true
-	_refresh_program_view()
-
-
-## 槽卡拖回牌库：恢复牌库身份（payload / pressed / 无接缝态）。
-func _after_slot_card_removed(card: Control, kind: String) -> void:
-	var card_view := card as LiveStreamCardView
-	if card_view == null or _manager.get_current_step() != 1:
-		_suppress_render = false
-		_render()
-		return
-	if kind == "program_card":
-		var card_id: String = String(card_view.drag_payload.get("card_id", ""))
-		card_view.drag_payload = {
-			"kind": "behavior",
-			"card_id": card_id,
-			"title": card_view.content_resource.display_name if card_view.content_resource != null else "",
-		}
-		_reconnect_pressed(card_view, _on_behavior_card_selected.bind(StringName(card_id)))
-		card_view.clear_connection_state()
-	else:
-		var modifier_id: String = String(card_view.drag_payload.get("card_id", ""))
-		card_view.drag_payload = {
-			"kind": "modifier",
-			"card_id": modifier_id,
-			"title": card_view.content_resource.display_name if card_view.content_resource != null else "",
-		}
-		_reconnect_pressed(card_view, _on_modifier_card_selected.bind(StringName(modifier_id)))
-		card_view.clear_connection_state()
-	card_view.selected = false
-	_refresh_program_view()
-
-
-## 拖放增量刷新：接缝提示 / 超支红框 / 预计结算 / 底部按钮状态。
-func _refresh_program_view() -> void:
-	_refresh_seam_labels()
-	_refresh_program_slots_over_budget()
-	_refresh_preview_panel()
-	_update_footer(int(_manager.get_current_step()))
-
-
-func _refresh_seam_labels() -> void:
-	var slots: Array = _manager.get_draft().get("behavior_slots", [])
-	for index: int in range(_seam_labels.size()):
-		if not is_instance_valid(_seam_labels[index]):
-			continue
-		_apply_seam_label(_seam_labels[index], slots, index)
-
-
-func _refresh_program_slots_over_budget() -> void:
-	var over: bool = _manager.get_budget_used() > _manager.get_budget_limit()
-	for slot: CardDropSlot in _program_slots:
-		if not is_instance_valid(slot):
-			continue
-		var applies: bool = over and not slot.locked
-		slot.set_over_budget(applies)
-		if slot.has_card() and slot.get_card() is LiveStreamCardView:
-			(slot.get_card() as LiveStreamCardView).set_over_budget(applies)
-
-
-func _refresh_preview_panel() -> void:
-	if _metrics_grid == null or not is_instance_valid(_metrics_grid):
-		return
-	for child: Node in _metrics_grid.get_children():
-		child.queue_free()
-	_build_metrics_grid(
-		_metrics_grid,
-		_manager.get_budget_used(),
-		_manager.get_budget_limit(),
-		_manager.get_preview_result()
-	)
-
-
-func _wrap_sized_card(card: Control, target_size: Vector2) -> Control:
-	var wrapper := Control.new()
-	wrapper.custom_minimum_size = target_size
-	wrapper.size = wrapper.custom_minimum_size
-	wrapper.mouse_filter = Control.MOUSE_FILTER_PASS
-	card.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	card.position = Vector2.ZERO
-	card.custom_minimum_size = target_size
-	card.size = target_size
-	card.pivot_offset = card.size * 0.5
-	wrapper.add_child(card)
-	return wrapper
+	_manager.select_material(StringName(str(payload.get("id", ""))))
 
 
 func _make_desk_panel(bg_color: Color = COLOR_SURFACE) -> PanelContainer:
@@ -1061,21 +572,6 @@ func _make_dashboard_metric_card(label_text: String, value_text: String, value_c
 	return card
 
 
-## 预计结算网格内容（构建与拖放增量刷新共用）。
-func _build_metrics_grid(grid: GridContainer, budget_used: int, budget_limit: int, preview: StreamSettlementResult) -> void:
-	var budget_color: Color = COLOR_ACCENT if budget_used > budget_limit else COLOR_FAMILY
-	grid.add_child(_make_dashboard_metric_card("演出预算", "%d / %d" % [budget_used, budget_limit], budget_color))
-	if preview == null:
-		grid.add_child(_make_dashboard_metric_card("预计结算", "放入行为卡后自动估算", COLOR_TEXT_MUTED))
-		return
-	grid.add_child(_make_dashboard_metric_card("峰值在线", "%d" % preview.peak_viewers, COLOR_TEXT))
-	grid.add_child(_make_dashboard_metric_card("涨粉", "%d" % preview.fan_delta, COLOR_TEXT))
-	grid.add_child(_make_dashboard_metric_card("收益", "¥%d" % preview.revenue, COLOR_TEXT))
-	grid.add_child(_make_dashboard_metric_card("事故风险", "%.0f%%" % (preview.accident_probability * 100.0), COLOR_ACCENT))
-	grid.add_child(_make_dashboard_metric_card("压力", "%+.0f" % preview.stress_delta, COLOR_TEXT_SECONDARY))
-	grid.add_child(_make_dashboard_metric_card("EXP", "+%d" % preview.streamer_exp_gain, COLOR_OK))
-
-
 func _make_label(text_value: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text_value
@@ -1121,16 +617,6 @@ func _apply_primary_button_style(button: Button) -> void:
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 
-func _find_neighbor_behavior(slots: Array, origin_index: int, direction: int) -> BehaviorCardResource:
-	var index: int = origin_index + direction
-	while index >= 0 and index < slots.size():
-		var card: BehaviorCardResource = _card_library_manager.get_card(StringName(str(slots[index]))) as BehaviorCardResource
-		if card != null:
-			return card
-		index += direction
-	return null
-
-
 func _update_footer(step: int) -> void:
 	back_button.visible = step > 0
 	back_button.disabled = step <= 0 or _manager.is_broadcast_pending()
@@ -1171,12 +657,13 @@ func _enter_entrance(plan: StreamPlanSnapshot) -> void:
 	_generator.setup(
 		plan,
 		_live_result,
-		_card_library_manager.get_catalog(),
+		_manager.get_catalog(),
 		stream_stage.get_model_resource()
 	)
 	_generator.show_ready.connect(_on_show_ready)
 	_generator.generation_failed.connect(_on_generation_failed)
 	_generator.title_ready.connect(_on_stream_title_ready)
+	_generator.summary_ready.connect(_on_stream_summary_ready)
 	_generator.generate()
 
 
@@ -1189,7 +676,6 @@ func play_test_show(dsl_text: String, plan: StreamPlanSnapshot = null, result: S
 	_live_show.clear()
 	wizard_root.visible = false
 	live_root.visible = true
-	settlement_panel.visible = false
 	stream_chat.clear()
 	live_title.text = _live_plan.title
 	stream_stage.set_elapsed_text("00:00")
@@ -1218,7 +704,7 @@ func play_test_show(dsl_text: String, plan: StreamPlanSnapshot = null, result: S
 	_generator.setup(
 		_live_plan,
 		_live_result,
-		_card_library_manager.get_catalog() if _card_library_manager != null else null,
+		_manager.get_catalog() if _manager != null else null,
 		stream_stage.get_model_resource()
 	)
 	var compiled: Dictionary = _generator.compile_dsl(dsl_text, _live_plan.title)
@@ -1232,8 +718,16 @@ func play_test_show(dsl_text: String, plan: StreamPlanSnapshot = null, result: S
 func _on_show_ready(show_data: Dictionary) -> void:
 	_generation_failed = false
 	_live_show = show_data
+	if _manager != null and _manager.has_method("prefetch_stream_post"):
+		_manager.prefetch_stream_post(_live_plan, show_data)
 	if _state == AppState.LIVE and not stream_stage.is_playing():
 		_begin_live_performance()
+
+
+func _on_stream_summary_ready(session_id: StringName, summary: String) -> void:
+	if summary.is_empty() or _manager == null or not _manager.has_method("set_pending_stream_summary"):
+		return
+	_manager.set_pending_stream_summary(session_id, summary)
 
 
 func _on_generation_failed(reason: String) -> void:
@@ -1286,6 +780,28 @@ func _on_live_chat_event(event: Dictionary) -> void:
 	stream_chat.handle_live_chat_event(event)
 
 
+func _apply_live_reaction_preferences() -> void:
+	var screen_chat_enabled: bool = PlayerConfig.is_screen_chat_enabled()
+	var donation_animation_enabled: bool = PlayerConfig.is_donation_animation_enabled()
+	stream_stage.set_screen_chat_enabled(screen_chat_enabled)
+	stream_stage.set_donation_animation_enabled(donation_animation_enabled)
+	stream_chat.set_reaction_settings(screen_chat_enabled, donation_animation_enabled)
+
+
+func _on_screen_chat_toggled(enabled: bool) -> void:
+	stream_stage.set_screen_chat_enabled(enabled)
+	var error: Error = PlayerConfig.set_screen_chat_enabled(enabled)
+	if error != OK:
+		push_warning("OBSLiveApp: failed to persist screen-chat preference (%s)" % error_string(error))
+
+
+func _on_donation_animation_toggled(enabled: bool) -> void:
+	stream_stage.set_donation_animation_enabled(enabled)
+	var error: Error = PlayerConfig.set_donation_animation_enabled(enabled)
+	if error != OK:
+		push_warning("OBSLiveApp: failed to persist donation-animation preference (%s)" % error_string(error))
+
+
 func _on_fast_pressed() -> void:
 	var enabled: bool = fast_button.text == "快进"
 	stream_stage.set_fast_forward(enabled)
@@ -1297,61 +813,27 @@ func _on_skip_pressed() -> void:
 
 
 func _on_show_finished() -> void:
-	if _state == AppState.SETTLEMENT:
+	if _state == AppState.FINISHING:
 		return
-	_state = AppState.SETTLEMENT
+	_state = AppState.FINISHING
 	AudioManager.play_sfx_key("stream_end")
 	fast_button.disabled = true
 	skip_button.disabled = true
 	if stream_stage != null:
 		stream_stage.show_resting()
 	await get_tree().create_timer(POST_STREAM_REST_SECONDS).timeout
-	if _state != AppState.SETTLEMENT or _live_result == null:
+	if _state != AppState.FINISHING or _live_plan == null:
 		return
-	settlement_panel.show_result(_live_plan, _live_result)
-
-
-## 下播舆情（策划 §7.5）：4 个选项影响压力与粉丝构成。数值为基准，待测试。
-func _on_crisis_choice_made(choice_id: String) -> void:
-	match choice_id:
-		"respond":
-			GameState.adjust_attribute(GameState.ATTR_STRESS, 6)
-			_shift_fan_vector({"b": -2.0, "r": 2.0})
-		"cold":
-			GameState.adjust_attribute(GameState.ATTR_STRESS, 2)
-			_shift_fan_vector({"b": 1.0})
-		"ignore":
-			GameState.adjust_attribute(GameState.ATTR_STRESS, -2)
-			_shift_fan_vector({"b": 3.0})
-		"apologize":
-			GameState.adjust_attribute(GameState.ATTR_STRESS, 8)
-			_shift_fan_vector({"b": -4.0, "r": -2.0})
-
-
-func _shift_fan_vector(delta: Dictionary) -> void:
-	var vector: Dictionary = (
-		_live_result.resulting_fan_vector.duplicate(true)
-		if _live_result != null and not _live_result.resulting_fan_vector.is_empty()
-		else GameState.fan_vector.duplicate(true)
+	var completed_session_id: StringName = _live_plan.session_id
+	var needs_post_settlement: bool = (
+		_manager != null and bool(_manager.call("is_broadcast_pending"))
 	)
-	for key: String in delta:
-		vector[key] = maxf(float(vector.get(key, 0.0)) + float(delta[key]), 0.0)
-	if _live_result != null:
-		_live_result.resulting_fan_vector = vector
-	else:
-		GameState.set_fan_vector(vector)
-
-
-func _on_settlement_finish() -> void:
-	if _live_plan != null and _manager != null and _manager.has_method("commit_broadcast"):
-		# playtest 假 session 可能未 pending，忽略失败
-		_manager.commit_broadcast(_live_plan.session_id)
 	_cleanup_live_session()
-	if _manager != null and _manager.has_method("reset_draft"):
-		_manager.reset_draft()
 	var app_manager: Node = get_node_or_null("/root/AppManager")
 	if app_manager != null:
 		app_manager.close_app(OBS_APP_ID)
+	if needs_post_settlement and _manager.has_method("begin_post_settlement"):
+		_manager.call_deferred("begin_post_settlement", completed_session_id)
 
 
 func _cleanup_live_session() -> void:
@@ -1364,7 +846,6 @@ func _cleanup_live_session() -> void:
 	_generation_failed = false
 	_state = AppState.WIZARD
 	live_root.visible = false
-	settlement_panel.visible = false
 	wizard_root.visible = true
 
 
@@ -1393,8 +874,8 @@ func _make_demo_result(plan: StreamPlanSnapshot) -> StreamSettlementResult:
 	result.revenue = 320
 	result.sponsor_payout = 80
 	result.sponsor_satisfied = true
-	result.accident_occurred = false
 	result.stress_delta = -2
+	result.skill_exp_gains = {"talk": 18}
 	result.streamer_exp_gain = 18
 	result.resulting_fan_vector = {
 		"r": 58.0,
@@ -1403,7 +884,7 @@ func _make_demo_result(plan: StreamPlanSnapshot) -> StreamSettlementResult:
 		"c": 10.0,
 		"b": 2.0,
 	}
-	result.axes = {"hook": 1.0, "quality": 0.8, "impact": 0.6, "risk": 0.1}
+	result.axes = {"hook": 1.0, "quality": 0.8, "impact": 0.6}
 	return result
 
 
@@ -1413,20 +894,8 @@ func _on_material_selected(material_instance_id: StringName) -> void:
 	_manager.select_material(material_instance_id)
 
 
-func _on_behavior_card_selected(card_id: StringName) -> void:
-	_manager.select_behavior_card(card_id)
-
-
-func _on_behavior_slot_clear(slot_index: int) -> void:
-	_manager.clear_behavior_slot(slot_index)
-
-
-func _on_modifier_card_selected(card_id: StringName) -> void:
-	_manager.select_modifier_card(card_id)
-
-
-func _on_modifier_slot_clear(slot_index: int) -> void:
-	_manager.clear_modifier_slot(slot_index)
+func _on_approach_selected(_approach_type: StringName, approach_id: StringName) -> void:
+	_manager.select_approach(approach_id)
 
 
 func _on_back_pressed() -> void:
@@ -1455,10 +924,6 @@ func _on_manager_step_changed(step: int) -> void:
 
 
 func _on_manager_draft_changed(_draft: Dictionary) -> void:
-	if _suppress_render:
-		# 拖放路径已由增量更新同步 UI，跳过全量重建。
-		_suppress_render = false
-		return
 	_render()
 
 

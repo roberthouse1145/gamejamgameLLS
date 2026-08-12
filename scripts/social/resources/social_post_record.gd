@@ -3,6 +3,7 @@ class_name SocialPostRecord extends Resource
 
 @export var post_id: String = ""
 @export var author_account_id: String = ""
+@export var source_session_id: String = ""
 @export var content: PostContent = null
 @export var published_at: int = 0
 @export var liked: bool = false
@@ -23,6 +24,7 @@ func to_dict() -> Dictionary:
 	return {
 		"post_id": post_id,
 		"author_account_id": author_account_id,
+		"source_session_id": source_session_id,
 		"content_id": content.content_id if content != null else "",
 		"text_content": content.text_content if content != null else "",
 		"texture_path": texture_path,
@@ -40,6 +42,7 @@ static func from_dict(data: Dictionary) -> SocialPostRecord:
 	var record := SocialPostRecord.new()
 	record.post_id = str(data.get("post_id", ""))
 	record.author_account_id = str(data.get("author_account_id", ""))
+	record.source_session_id = str(data.get("source_session_id", ""))
 	record.published_at = int(data.get("published_at", 0))
 	record.liked = bool(data.get("liked", false))
 	record.likes = maxi(int(data.get("likes", 0)), 0)

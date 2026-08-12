@@ -1,14 +1,7 @@
 [gd_resource type="Resource" script_class="StreamerSkill" format=3 uid="uid://brdwvhftujqqs"]
 
 [ext_resource type="Script" uid="uid://44gfdoo5axwq" path="res://scripts/game/resources/streamer_skill.gd" id="1"]
-[ext_resource type="Script" uid="uid://wx1cq2gpnh16" path="res://scripts/game/resources/live_stream/stream_special_effect.gd" id="2"]
 [ext_resource type="Texture2D" uid="uid://1bnmak5lk0e6" path="res://Assets/images/live_stream/cards/icons/family_song.svg" id="3"]
-
-[sub_resource type="Resource" id="Effect"]
-script = ExtResource("2")
-effect_id = &"song_material_depth_bonus"
-value = 1.0
-display_text = "歌单素材含量 +1"
 
 [resource]
 script = ExtResource("1")
@@ -21,5 +14,3 @@ description = "能够驾驭更长、更安静的声音企划。"
 icon = ExtResource("3")
 point_cost = 1
 required_skill_ids = Array[StringName]([&"song_lv2"])
-unlocked_card_ids = Array[StringName]([&"song_asmr_whisper"])
-rule_effects = Array[ExtResource("2")]([SubResource("Effect")])

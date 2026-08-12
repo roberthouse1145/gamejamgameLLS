@@ -8,25 +8,53 @@ url = "browser://notice"
 title = "PixelNet - 服务公告"
 icon_path = "res://Assets/images/browser_ui/site_icon_pixelnet.png"
 hint = "PixelNet 浏览服务公告。"
-content = "::: col fill sep=24
-::: row fill bg=#16304F pad=24
-::: col fill sep=4
+content = "::: col fill sep=0 bg=#F4F7FA
+::: section bg=#16304F pad=18 max_width=2100
+::: row fill sep=28
+::: col fill sep=2
 ## [PixelNet](color:#FFFFFF)
 #### [SERVICE CENTER](color:#AFC3DC)
 :::
-[返回首页](url:browser://welcome color=#D7E6F7)
+[首页](url:browser://welcome color=#D7E6F7 size=25)
+[服务公告](color=#FFFFFF size=25)
+[安全中心](color=#D7E6F7 size=25)
 :::
-::: card fill bg=#FFFFFF border=#D5DFEC corner_radius=16 pad=30 sep=14
-#### [服务公告 · 2026 年 08 月 04 日](color:#708198)
+:::
+::: section bg=#E7EDF4 pad=48 max_width=1500
+::: col fill sep=8
+#### [PixelNet 服务中心 / 服务公告](color:#60758C)
+# 服务公告
+了解浏览服务状态、安全提示与维护安排。
+:::
+:::
+::: section bg=#FFFFFF pad=58 max_width=1500
+::: col fill sep=18
+#### [2026 年 08 月 04 日　服务运行公告](color:#708198)
 # 浏览服务运行正常
-PixelNet 当前各项网页访问与历史记录服务均运行正常。为保护账户安全，请勿在来源不明的页面中提交个人身份信息或支付凭据。
+PixelNet 当前网页访问与历史记录服务均运行正常。
+
+为保护账户安全，请勿在来源不明的页面中提交个人身份信息或支付凭据。
 ---
 ## 安全浏览提示
-- 提交表单前，请确认地址栏中的站点名称与页面用途一致
-- 涉及合同、支付或身份信息时，请完整阅读页面条款
-- 如页面长时间无响应，可关闭标签页后重新访问
+### 提交信息前核对地址
+请确认地址栏中的站点名称与页面用途一致。
+
+### 仔细阅读重要页面
+涉及合同、支付或身份信息时，请完整阅读页面条款后再操作。
+
+### 页面异常时重新访问
+如页面长时间无响应，可关闭当前标签页后重新访问。
+
+[返回 PixelNet 首页](url:browser://welcome color=#2F6699)
 :::
-[返回 PixelNet 首页](url:browser://welcome color=#3F73C8)
+:::
+::: section bg=#16304F pad=32 max_width=2100
+::: col fill sep=5
+[center][PixelNet 浏览服务中心](color:#D7E6F7)[/center]
+[center][服务状态　隐私政策　使用条款](color:#AFC3DC)[/center]
+[center][Copyright © 2026 PixelNet](color:#8098B4)[/center]
+:::
+:::
 :::"
 searchable = true
 search_keywords = PackedStringArray("公告", "浏览器", "帮助", "notice")

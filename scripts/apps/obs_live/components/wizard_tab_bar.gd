@@ -3,7 +3,7 @@ class_name WizardTabBar extends HBoxContainer
 
 signal tab_pressed(step: int)
 
-const TAB_TITLES: Array[String] = ["素材", "剧本编排", "确认开播"]
+const TAB_TITLES: Array[String] = ["素材", "直播构思", "确认开播"]
 
 const COLOR_CURRENT_BG: Color = Color("#496BB9")
 const COLOR_DONE_BG: Color = Color("#E8F0FB")

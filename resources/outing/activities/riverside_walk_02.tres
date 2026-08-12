@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="OutingActivity" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/outing_activity.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+activity_id = "riverside_walk_02"
+place_id = "riverside_park"
+title = "沿河散步"
+description = "顺着河岸慢慢走一圈。没有必须完成的安排，也不需要赶时间。"
+story_hook = "河堤上的一叠速写忽然被风吹散，其中一张画着阮云柚刚刚经过的位置，却没有留下署名。"
+available_slots = Array[int]([0, 1, 2])
+duration_slots = 1
+solo_cost = 0
+date_cost = 600
+supports_solo = true
+supports_date = true
+base_acceptance = 58
+relationship_favor_gain = 4
+relationship_trust_gain = 2
+stress_delta = -10
+loneliness_delta = -12

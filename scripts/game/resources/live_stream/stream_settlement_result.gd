@@ -8,13 +8,12 @@ class_name StreamSettlementResult extends Resource
 @export var revenue: int = 0
 @export var sponsor_payout: int = 0
 @export var sponsor_satisfied: bool = true
-@export var accident_probability: float = 0.0
-@export var accident_occurred: bool = false
 @export var stress_delta: int = 0
+@export var skill_exp_gains: Dictionary = {}
+## 本场各领域熟练度之和，同时用于推进中之人总等级。
 @export var streamer_exp_gain: int = 0
 @export var resulting_fan_vector: Dictionary = {}
 @export var material_use: Dictionary = {}
-@export var interface_trace: Array[Dictionary] = []
 
 
 func to_dict() -> Dictionary:
@@ -26,11 +25,9 @@ func to_dict() -> Dictionary:
 		"revenue": revenue,
 		"sponsor_payout": sponsor_payout,
 		"sponsor_satisfied": sponsor_satisfied,
-		"accident_probability": accident_probability,
-		"accident_occurred": accident_occurred,
 		"stress_delta": stress_delta,
+		"skill_exp_gains": skill_exp_gains.duplicate(true),
 		"streamer_exp_gain": streamer_exp_gain,
 		"resulting_fan_vector": resulting_fan_vector.duplicate(true),
 		"material_use": material_use.duplicate(true),
-		"interface_trace": interface_trace.duplicate(true),
 	}

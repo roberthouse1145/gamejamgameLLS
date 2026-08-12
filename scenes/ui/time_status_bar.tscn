@@ -1,0 +1,535 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/pseudo_os/window.tscn" id="1_window"]
+[ext_resource type="Script" path="res://scripts/ui/time_status_bar.gd" id="2_script"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/time_status/time_morning.png" id="3_morning"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/time_status/status_stress.png" id="4_stress"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/time_status/status_otaku_desire.png" id="5_otaku"]
+[ext_resource type="Texture2D" path="res://Assets/images/ui/time_status/status_loneliness.png" id="6_loneliness"]
+
+[sub_resource type="StyleBoxFlat" id="Style_content"]
+bg_color = Color(1, 0.976, 0.937, 1)
+
+[sub_resource type="StyleBoxFlat" id="Style_day_ticket"]
+bg_color = Color(1, 0.91, 0.59, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.055, 0.105, 0.235, 1)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+shadow_color = Color(0.055, 0.105, 0.235, 0.14)
+shadow_size = 6
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="Style_time_frame"]
+bg_color = Color(1, 1, 1, 1)
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(0.055, 0.105, 0.235, 1)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+shadow_color = Color(0.055, 0.105, 0.235, 0.16)
+shadow_size = 6
+shadow_offset = Vector2(0, 5)
+
+[sub_resource type="StyleBoxFlat" id="Style_time_badge"]
+bg_color = Color(0.035, 0.075, 0.18, 0.92)
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[sub_resource type="StyleBoxFlat" id="Style_dot"]
+bg_color = Color(1, 1, 1, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="Shader" id="Shader_time_round_clip"]
+code = "shader_type canvas_item;\n\nuniform vec2 rect_size = vec2(600.0, 188.0);\nuniform float corner_radius_px : hint_range(0.0, 96.0) = 23.0;\n\nvarying vec2 local_position;\n\nvoid vertex() {\n\tlocal_position = VERTEX;\n}\n\nfloat rounded_rect_distance(vec2 point, vec2 size, float radius) {\n\tvec2 half_size = size * 0.5;\n\tvec2 distance_to_corner = abs(point - half_size) - (half_size - vec2(radius));\n\treturn length(max(distance_to_corner, vec2(0.0))) + min(max(distance_to_corner.x, distance_to_corner.y), 0.0) - radius;\n}\n\nvoid fragment() {\n\tvec4 sampled_color = texture(TEXTURE, UV);\n\tfloat safe_radius = min(corner_radius_px, min(rect_size.x, rect_size.y) * 0.5);\n\tfloat distance = rounded_rect_distance(local_position, rect_size, safe_radius);\n\tfloat antialias_width = max(fwidth(distance), 0.75);\n\tsampled_color.a *= 1.0 - smoothstep(-antialias_width, antialias_width, distance);\n\tCOLOR = sampled_color;\n}\n"
+
+[sub_resource type="ShaderMaterial" id="Material_time_round_clip"]
+shader = SubResource("Shader_time_round_clip")
+
+[sub_resource type="StyleBoxFlat" id="Style_fans"]
+bg_color = Color(0.78, 0.96, 0.97, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.055, 0.105, 0.235, 1)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+
+[sub_resource type="StyleBoxFlat" id="Style_money"]
+bg_color = Color(1, 0.88, 0.68, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.055, 0.105, 0.235, 1)
+corner_radius_top_left = 22
+corner_radius_top_right = 22
+corner_radius_bottom_right = 22
+corner_radius_bottom_left = 22
+
+[sub_resource type="StyleBoxFlat" id="Style_status_panel"]
+bg_color = Color(1, 0.988, 0.956, 1)
+border_width_left = 3
+border_width_top = 3
+border_width_right = 3
+border_width_bottom = 3
+border_color = Color(0.055, 0.105, 0.235, 1)
+corner_radius_top_left = 25
+corner_radius_top_right = 25
+corner_radius_bottom_right = 25
+corner_radius_bottom_left = 25
+shadow_color = Color(0.055, 0.105, 0.235, 0.12)
+shadow_size = 5
+shadow_offset = Vector2(0, 4)
+
+[node name="TimeStatusBar" instance=ExtResource("1_window")]
+custom_minimum_size = Vector2(920, 820)
+offset_right = 920.0
+offset_bottom = 820.0
+window_title = "今日状态"
+min_size = Vector2(920, 820)
+max_size = Vector2(920, 820)
+resizable = false
+script = ExtResource("2_script")
+
+[node name="ContentBackdrop" type="Panel" parent="ContentContainer" index="0"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_content")
+
+[node name="ContentMargin" type="MarginContainer" parent="ContentContainer" index="1"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 26
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 26
+theme_override_constants/margin_bottom = 24
+
+[node name="Layout" type="VBoxContainer" parent="ContentContainer/ContentMargin" index="0"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="HeroRow" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout" index="0"]
+custom_minimum_size = Vector2(0, 196)
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="DayTicket" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow" index="0"]
+custom_minimum_size = Vector2(246, 196)
+layout_mode = 2
+theme_override_styles/panel = SubResource("Style_day_ticket")
+
+[node name="Margin" type="MarginContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow/DayTicket" index="0"]
+layout_mode = 2
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 18
+
+[node name="Content" type="VBoxContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow/DayTicket/Margin" index="0"]
+layout_mode = 2
+theme_override_constants/separation = -2
+
+[node name="Eyebrow" type="Label" parent="ContentContainer/ContentMargin/Layout/HeroRow/DayTicket/Margin/Content" index="0"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.33, 0.25, 0.12, 1)
+theme_override_font_sizes/font_size = 22
+text = "TODAY"
+
+[node name="DayLabel" type="Label" parent="ContentContainer/ContentMargin/Layout/HeroRow/DayTicket/Margin/Content" index="1"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.055, 0.105, 0.235, 1)
+theme_override_font_sizes/font_size = 51
+text = "第 1 天"
+vertical_alignment = 1
+
+[node name="Tagline" type="Label" parent="ContentContainer/ContentMargin/Layout/HeroRow/DayTicket/Margin/Content" index="2"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.42, 0.31, 0.14, 1)
+theme_override_font_sizes/font_size = 21
+text = "今天也要好好活着"
+
+[node name="TimeFrame" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow" index="1"]
+custom_minimum_size = Vector2(0, 196)
+clip_contents = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("Style_time_frame")
+
+[node name="TimeCanvas" type="Control" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame" index="0"]
+clip_contents = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TimeImageCurrent" type="TextureRect" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas" index="0"]
+unique_name_in_owner = true
+material = SubResource("Material_time_round_clip")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_morning")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="TimeImageNext" type="TextureRect" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas" index="1"]
+unique_name_in_owner = true
+material = SubResource("Material_time_round_clip")
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = ExtResource("3_morning")
+expand_mode = 1
+stretch_mode = 6
+
+[node name="TimeSlotBadge" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas" index="2"]
+layout_mode = 1
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 16.0
+offset_top = -61.0
+offset_right = 132.0
+offset_bottom = -15.0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_time_badge")
+
+[node name="TimeSlotLabel" type="Label" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas/TimeSlotBadge" index="0"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 25
+text = "上午"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TimeDots" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas" index="3"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -83.0
+offset_top = -42.0
+offset_right = -17.0
+offset_bottom = -18.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+theme_override_constants/separation = 10
+
+[node name="MorningDot" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas/TimeDots" index="0"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_dot")
+
+[node name="AfternoonDot" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas/TimeDots" index="1"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_dot")
+
+[node name="NightDot" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/HeroRow/TimeFrame/TimeCanvas/TimeDots" index="2"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(14, 14)
+layout_mode = 2
+mouse_filter = 2
+theme_override_styles/panel = SubResource("Style_dot")
+
+[node name="ResourceRow" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout" index="1"]
+custom_minimum_size = Vector2(0, 102)
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="FansCard" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow" index="0"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("Style_fans")
+
+[node name="Margin" type="MarginContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow/FansCard" index="0"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 13
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 13
+
+[node name="Content" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow/FansCard/Margin" index="0"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Mark" type="Label" parent="ContentContainer/ContentMargin/Layout/ResourceRow/FansCard/Margin/Content" index="0"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.055, 0.105, 0.235, 1)
+theme_override_font_sizes/font_size = 38
+text = "+"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Text" type="VBoxContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow/FansCard/Margin/Content" index="1"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = -5
+
+[node name="Caption" type="Label" parent="ContentContainer/ContentMargin/Layout/ResourceRow/FansCard/Margin/Content/Text" index="0"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.18, 0.35, 0.43, 1)
+theme_override_font_sizes/font_size = 21
+text = "粉丝"
+
+[node name="FansValue" type="Label" parent="ContentContainer/ContentMargin/Layout/ResourceRow/FansCard/Margin/Content/Text" index="1"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.055, 0.105, 0.235, 1)
+theme_override_font_sizes/font_size = 36
+text = "0"
+
+[node name="MoneyCard" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow" index="1"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("Style_money")
+
+[node name="Margin" type="MarginContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow/MoneyCard" index="0"]
+layout_mode = 2
+theme_override_constants/margin_left = 22
+theme_override_constants/margin_top = 13
+theme_override_constants/margin_right = 22
+theme_override_constants/margin_bottom = 13
+
+[node name="Content" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow/MoneyCard/Margin" index="0"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Mark" type="Label" parent="ContentContainer/ContentMargin/Layout/ResourceRow/MoneyCard/Margin/Content" index="0"]
+custom_minimum_size = Vector2(48, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.36, 0.23, 0.08, 1)
+theme_override_font_sizes/font_size = 35
+text = "¥"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Text" type="VBoxContainer" parent="ContentContainer/ContentMargin/Layout/ResourceRow/MoneyCard/Margin/Content" index="1"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = -5
+
+[node name="Caption" type="Label" parent="ContentContainer/ContentMargin/Layout/ResourceRow/MoneyCard/Margin/Content/Text" index="0"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.46, 0.32, 0.13, 1)
+theme_override_font_sizes/font_size = 21
+text = "资金"
+
+[node name="MoneyValue" type="Label" parent="ContentContainer/ContentMargin/Layout/ResourceRow/MoneyCard/Margin/Content/Text" index="1"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.055, 0.105, 0.235, 1)
+theme_override_font_sizes/font_size = 36
+text = "0"
+
+[node name="StatusHeader" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout" index="2"]
+custom_minimum_size = Vector2(0, 42)
+layout_mode = 2
+
+[node name="Title" type="Label" parent="ContentContainer/ContentMargin/Layout/StatusHeader" index="0"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.055, 0.06, 0.08, 1)
+theme_override_font_sizes/font_size = 31
+text = "柚柚状态"
+vertical_alignment = 1
+
+[node name="StatusPanel" type="PanelContainer" parent="ContentContainer/ContentMargin/Layout" index="3"]
+custom_minimum_size = Vector2(0, 294)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_styles/panel = SubResource("Style_status_panel")
+
+[node name="Margin" type="MarginContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel" index="0"]
+layout_mode = 2
+theme_override_constants/margin_left = 18
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 18
+theme_override_constants/margin_bottom = 12
+
+[node name="StatusItems" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin" index="0"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="Stress" type="VBoxContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems" index="0"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="StressIcon" type="TextureRect" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Stress" index="0"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 220)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+mouse_filter = 2
+texture = ExtResource("4_stress")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Caption" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Stress" index="1"]
+layout_mode = 2
+theme_override_constants/separation = 7
+alignment = 1
+
+[node name="Label" type="Label" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Stress/Caption" index="0"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.055, 0.06, 0.08, 1)
+theme_override_font_sizes/font_size = 28
+text = "压力"
+
+[node name="ValueAnchor" type="Control" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Stress/Caption" index="1"]
+custom_minimum_size = Vector2(72, 40)
+layout_mode = 2
+
+[node name="StressValue" type="Label" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Stress/Caption/ValueAnchor" index="0"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.055, 0.06, 0.08, 1)
+theme_override_font_sizes/font_size = 30
+text = "0%"
+vertical_alignment = 1
+
+[node name="OtakuDesire" type="VBoxContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems" index="1"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="OtakuDesireIcon" type="TextureRect" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/OtakuDesire" index="0"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 220)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+mouse_filter = 2
+texture = ExtResource("5_otaku")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Caption" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/OtakuDesire" index="1"]
+layout_mode = 2
+theme_override_constants/separation = 7
+alignment = 1
+
+[node name="Label" type="Label" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/OtakuDesire/Caption" index="0"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.055, 0.06, 0.08, 1)
+theme_override_font_sizes/font_size = 28
+text = "宅欲"
+
+[node name="ValueAnchor" type="Control" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/OtakuDesire/Caption" index="1"]
+custom_minimum_size = Vector2(72, 40)
+layout_mode = 2
+
+[node name="OtakuDesireValue" type="Label" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/OtakuDesire/Caption/ValueAnchor" index="0"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.055, 0.06, 0.08, 1)
+theme_override_font_sizes/font_size = 30
+text = "0%"
+vertical_alignment = 1
+
+[node name="Loneliness" type="VBoxContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems" index="2"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/separation = 5
+alignment = 1
+
+[node name="LonelinessIcon" type="TextureRect" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Loneliness" index="0"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 220)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 3
+mouse_filter = 2
+texture = ExtResource("6_loneliness")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Caption" type="HBoxContainer" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Loneliness" index="1"]
+layout_mode = 2
+theme_override_constants/separation = 7
+alignment = 1
+
+[node name="Label" type="Label" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Loneliness/Caption" index="0"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.055, 0.06, 0.08, 1)
+theme_override_font_sizes/font_size = 28
+text = "孤独"
+
+[node name="ValueAnchor" type="Control" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Loneliness/Caption" index="1"]
+custom_minimum_size = Vector2(72, 40)
+layout_mode = 2
+
+[node name="LonelinessValue" type="Label" parent="ContentContainer/ContentMargin/Layout/StatusPanel/Margin/StatusItems/Loneliness/Caption/ValueAnchor" index="0"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_colors/font_color = Color(0.055, 0.06, 0.08, 1)
+theme_override_font_sizes/font_size = 30
+text = "0%"
+vertical_alignment = 1
+
+[editable path="ContentContainer"]

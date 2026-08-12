@@ -1,5 +1,6 @@
 class_name StreamPersonaResource extends StreamContentResource
 ## 一张人设卡就是一套完整直播账号：频道身份、皮套、休息画面与声音配置共同切换。
+## 人设正文存放在 prompts/live_stream/personas/*.md；继承的 prompt_fragment 仅保存 PromptManager 模板引用。
 
 @export var model: StreamerModelResource = null
 

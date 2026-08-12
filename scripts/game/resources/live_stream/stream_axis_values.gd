@@ -1,12 +1,11 @@
 class_name StreamAxisValues extends Resource
-## 四轴数值。行为卡使用加法值，修饰卡使用倍率增量。
+## 三轴数值：噱头、质量与效果。
 
-const KEYS: Array[StringName] = [&"hook", &"quality", &"impact", &"risk"]
+const KEYS: Array[StringName] = [&"hook", &"quality", &"impact"]
 
 @export var hook: float = 0.0
 @export var quality: float = 0.0
 @export var impact: float = 0.0
-@export var risk: float = 0.0
 
 
 func get_value(axis_key: StringName) -> float:
@@ -17,8 +16,6 @@ func get_value(axis_key: StringName) -> float:
 			return quality
 		&"impact":
 			return impact
-		&"risk":
-			return risk
 	return 0.0
 
 
@@ -27,5 +24,4 @@ func to_dict() -> Dictionary:
 		"hook": hook,
 		"quality": quality,
 		"impact": impact,
-		"risk": risk,
 	}

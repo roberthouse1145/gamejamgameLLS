@@ -1,18 +1,10 @@
 你要根据本次聊天目标与上下文，编写一份可直接执行的完整 Chat DSL。
 
-聊天目标：
-{{topic_prompt}}
-
-可用发言者标识：
-{{allowed_speakers}}
-
-可用只读变量路径：
-{{allowed_variable_paths}}
-
-当前上下文：
-{{runtime_context}}
+{{jailbreak_prompt}}
 
 {{dsl_generation_pacing}}
+
+{{chat_moe_tone}}
 
 ## 即时聊天写作目标
 
@@ -33,6 +25,7 @@
 
 ```text
 speaker_id: 消息正文
+speaker_id: [card:location|活动ID]
 speaker_id: [card:file|文件标题|browser://页面地址|副标题]
 speaker_id: [card:link|链接标题|browser://页面地址|说明]
 speaker_id: [card:image|图片标题|res://图片资源路径|说明]
@@ -51,7 +44,7 @@ END result_id
 
 条件可使用 `== != > >= < <= AND OR NOT ( )`，变量只从可用只读变量路径中选择。每个 `CHOICE` 至少提供一个不带条件的 `OPTION`。`LABEL` 位于顶层。`JUMP` 与 `OPTION` 指向已声明的标签。剧本至少包含一个 `END`。
 
-卡片整条占用一个消息气泡。图片卡片只使用聊天目标或当前上下文明确提供的 `res://` 图片资源路径。
+地点卡片整条占用一个消息气泡，只写 `[card:location|活动ID]`，展示内容（标题、地点、价格）由系统自动填充。图片卡片只使用聊天目标或当前上下文明确提供的 `res://` 图片资源路径。
 
 `player` 代表玩家一侧已经由剧本写定的消息，聊天界面会将其显示在右侧。其他发言者显示在左侧。玩家只观看这些消息；只有 `CHOICE` 会要求玩家选择固定选项。
 
@@ -60,11 +53,33 @@ END result_id
 ```text
 LABEL start
 friend: 到楼下了吗？
-friend: 我在门口。
-player: 刚下楼。
-friend: 行。
-friend: 给你留着门。
+friend: 我在门口，等你半天啦
+player: 刚下楼！马上！
+friend: 慢慢来慢慢来，不催你
+player: 到了到了！你在哪呢
+friend: 前面树底下，举着奶茶那个就是我
+friend: 给你带的，刚出的新品
+player: 哇！爱了！
 END viewed
 ```
 
 输出前检查每条消息的长度和信息量，把超过 40 个汉字或包含多个独立意思的内容拆成连续气泡，同时删除重复作用的气泡。只输出完整 Chat DSL，不添加代码围栏或说明文字。
+
+## 本次聊天任务
+
+游戏时间：
+{{current_game_time}}
+
+聊天目标：
+{{topic_prompt}}
+
+可用发言者标识：
+{{allowed_speakers}}
+
+可用只读变量路径：
+{{allowed_variable_paths}}
+
+当前上下文：
+{{runtime_context}}
+
+{{chat_reasoning_requirement}}

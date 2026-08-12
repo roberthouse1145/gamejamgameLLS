@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="StreamerSkillDomainResource" format=3]
+
+[ext_resource type="Script" path="res://scripts/game/resources/live_stream/streamer_skill_domain_resource.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+family = &"song"
+display_name = "歌唱"
+level_prompts = PackedStringArray("具备基础演唱能力，但音准、气息和面对观众演唱时的稳定性仍在练习中。", "能够完成熟悉曲目，开始掌握气息和节奏，也能在较放松的段落中加入简单的情感表达。", "演唱状态较稳定，能够处理常见的音域与情绪变化，并在歌曲之间自然维持直播交流。", "对声音、气息和情感表达有成熟控制，能够驾驭有难度的曲目与长时间演唱。", "拥有鲜明而稳定的演唱表现力，能精确控制技术与情绪，并根据现场氛围调整声音和表达。")

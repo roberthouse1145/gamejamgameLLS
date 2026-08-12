@@ -1,27 +1,19 @@
-[gd_resource type="Resource" script_class="OutingActivity" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="OutingActivity" format=3 uid="uid://bb4d6mmeik57i"]
 
-[ext_resource type="Script" path="res://scripts/game/resources/outing_activity.gd" id="1"]
+[ext_resource type="Script" uid="uid://bl8s8b2gp8khn" path="res://scripts/game/resources/outing_activity.gd" id="1"]
 
 [resource]
 script = ExtResource("1")
 activity_id = "weekend_concert"
 place_id = "echo_live_hall"
-listing_kind = "event"
 title = "周末小型音乐会"
 description = "三组独立乐队的联合演出。场地不大，入场后很难躲在人群最后面。"
 available_slots = Array[int]([1, 2])
-available_from_day = 1
 available_until_day = 30
-duration_slots = 1
 solo_cost = 1800
 date_cost = 3600
-supports_solo = true
-supports_date = true
-tags = Array[String](["indoor", "music", "night", "crowded"])
 base_acceptance = 44
 relationship_favor_gain = 7
 relationship_trust_gain = 3
 stress_delta = -6
 loneliness_delta = -15
-solo_scene_prompt = "阮云柚独自前往 ECHO LIVE HALL 观看周末小型音乐会。表现现场的距离感、音乐氛围，以及她一个人置身人群时的真实反应。"
-date_scene_prompt = "阮云柚与受邀角色前往 ECHO LIVE HALL 观看周末小型音乐会。故事围绕入场、观看演出和演出后的短暂交流展开，角色行为符合当前关系。"

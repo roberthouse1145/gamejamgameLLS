@@ -293,30 +293,25 @@ static func _validate_condition(expression: String, line_number: int, allowed_pa
 
 static func _parse_card_message(message_text: String) -> Dictionary:
 	## 附件/链接卡片语法：[card:type|title|url] 或 [card:type|title|url|subtitle]
+	## 地点卡片语法：[card:location|activity_id]，展示字段由运行时从资源目录填充。
 	if not message_text.begins_with("[card:") or not message_text.ends_with("]"):
 		return {"is_card": false}
 	var inner: String = message_text.trim_prefix("[card:").trim_suffix("]")
 	var parts: PackedStringArray = inner.split("|")
 	var card_type: String = parts[0].strip_edges() if not parts.is_empty() else ""
 	if card_type == "location":
-		if parts.size() != 6:
+		if parts.size() != 2 or parts[1].strip_edges().is_empty():
 			return {
 				"is_card": true,
 				"card": {},
 				"text": "",
-				"error": "invalid location card syntax, expected [card:location|activity_id|place_id|title|subtitle|price_text]",
+				"error": "invalid location card syntax, expected [card:location|activity_id]",
 			}
 		return {
 			"is_card": true,
 			"card": {
 				"type": "location",
 				"activity_id": parts[1].strip_edges(),
-				"place_id": parts[2].strip_edges(),
-				"title": parts[3].strip_edges(),
-				"subtitle": parts[4].strip_edges(),
-				"price_text": parts[5].strip_edges(),
-				"target_app": "cityhop",
-				"footer": "在 CityHop 中查看",
 			},
 			"text": "",
 		}

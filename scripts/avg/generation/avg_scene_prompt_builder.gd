@@ -8,6 +8,33 @@ static func create_for_session(_session: Dictionary) -> AVGScenePromptBuilder:
 func build_prompt_from_session(session: Dictionary) -> String:
 	if session.is_empty():
 		return ""
+	var sections: PackedStringArray = []
+	for block: String in [
+		build_type_prompt_from_session(session),
+		build_setting_prompt_from_session(session),
+		build_runtime_prompt_from_session(session),
+	]:
+		if not block.is_empty():
+			sections.append(block)
+	return "\n\n".join(sections).strip_edges()
+
+
+func build_type_prompt_from_session(session: Dictionary) -> String:
+	var sections: PackedStringArray = []
+	_append_optional_section(sections, "演出约束", session.get("constraints", ""))
+	_append_optional_section(sections, "导演指导", session.get("story_guidance_prompt", ""))
+	return "\n\n".join(sections).strip_edges()
+
+
+func build_setting_prompt_from_session(session: Dictionary) -> String:
+	var sections: PackedStringArray = []
+	_append_optional_section(sections, "角色设定", session.get("setting_context", ""))
+	return "\n\n".join(sections).strip_edges()
+
+
+func build_runtime_prompt_from_session(session: Dictionary) -> String:
+	if session.is_empty():
+		return ""
 
 	var scene_brief := _first_text(session, [
 		"scene_prompt",
@@ -19,15 +46,14 @@ func build_prompt_from_session(session: Dictionary) -> String:
 		return ""
 
 	var sections: PackedStringArray = []
+	_append_optional_section(sections, "补充上下文", session.get("context", ""))
+
 	var title := str(session.get("title", "")).strip_edges()
 	if not title.is_empty():
 		sections.append("## 场景标题\n%s" % title)
 	sections.append("## 场景需求\n%s" % scene_brief)
 
-	_append_optional_section(sections, "补充上下文", session.get("context", ""))
-	_append_optional_section(sections, "角色与世界设定", session.get("setting_context", ""))
-	_append_optional_section(sections, "演出约束", session.get("constraints", ""))
-	_append_optional_section(sections, "导演指导", session.get("story_guidance_prompt", ""))
+	_append_optional_section(sections, "本次运行上下文", session.get("runtime_context", ""))
 	return "\n\n".join(sections).strip_edges()
 
 

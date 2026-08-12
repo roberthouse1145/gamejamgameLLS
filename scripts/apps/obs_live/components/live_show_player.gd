@@ -4,9 +4,13 @@ class_name LiveShowPlayer extends Node
 signal chat_event(event: Dictionary)
 signal finished()
 
-const TYPEWRITER_CHARACTERS_PER_SECOND: float = 16.0
+const TYPEWRITER_CHARACTERS_PER_SECOND: float = 22.0
 const FAST_MULTIPLIER: float = 4.0
-const FAST_HOLD_SECONDS: float = 0.4
+const FAST_HOLD_SECONDS: float = 0.2
+const NORMAL_HOLD_BASE_SECONDS: float = 0.45
+const NORMAL_HOLD_SECONDS_PER_CHARACTER: float = 0.018
+const NORMAL_HOLD_MIN_SECONDS: float = 0.65
+const NORMAL_HOLD_MAX_SECONDS: float = 1.4
 const SHORT_PAUSE_PUNCTUATION: String = "，,、：:；;"
 const LONG_PAUSE_PUNCTUATION: String = "。.!！?？…"
 const SILENT_PUNCTUATION: String = "，,、：:；;。.!！?？…“”‘’\"'（）()【】[]《》〈〉—-"
@@ -18,8 +22,8 @@ const MESSAGE_INTERVAL_JITTER_MIN: float = 0.7
 const MESSAGE_INTERVAL_JITTER_MAX: float = 1.3
 
 @export_group("Typewriter")
-@export_range(0.0, 1.0, 0.01) var short_punctuation_pause: float = 0.16
-@export_range(0.0, 1.5, 0.01) var long_punctuation_pause: float = 0.34
+@export_range(0.0, 1.0, 0.01) var short_punctuation_pause: float = 0.07
+@export_range(0.0, 1.5, 0.01) var long_punctuation_pause: float = 0.16
 
 var _display: StreamSceneDisplay = null
 var _subtitle_panel: Control = null
@@ -170,7 +174,11 @@ func _play_say(op: Dictionary, run_id: int) -> void:
 		return
 	_subtitle_label.visible_characters = -1
 
-	var hold_seconds: float = clampf(1.2 + float(text.length()) * 0.05, 1.5, 4.0)
+	var hold_seconds: float = clampf(
+		NORMAL_HOLD_BASE_SECONDS + float(text.length()) * NORMAL_HOLD_SECONDS_PER_CHARACTER,
+		NORMAL_HOLD_MIN_SECONDS,
+		NORMAL_HOLD_MAX_SECONDS
+	)
 	var elapsed: float = 0.0
 	while run_id == _run_id:
 		await get_tree().process_frame

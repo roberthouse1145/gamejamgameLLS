@@ -166,6 +166,9 @@ func attempt_repair(
 	var request_id: String = _repair_service.chat_with_tools(messages, [], "auto", {
 		"temperature": 0.2,
 		"auto_execute": true,
+		"thinking": "disabled",
+		"enable_thinking": false,
+		"reasoning_effort": "",
 	})
 
 	if request_id.is_empty():

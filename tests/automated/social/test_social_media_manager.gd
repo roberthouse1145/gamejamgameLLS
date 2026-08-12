@@ -1,6 +1,8 @@
 extends Node
 ## 公开社交平台稳定契约：角色多身份、纯内容发布、存档记录与动态网页提供者。
 
+const PostDSLParserClass = preload("res://scripts/social/post_dsl_parser.gd")
+
 var _passed: int = 0
 var _failed: int = 0
 
@@ -8,10 +10,93 @@ var _failed: int = 0
 func _ready() -> void:
 	await get_tree().process_frame
 	var original_state: Dictionary = GameState.to_dict()
+	_test_post_dsl()
 	_test_accounts_and_publish()
+	_test_generated_post_package()
 	await _test_browser_provider()
 	GameState.from_dict(original_state)
 	print("[TestSocialMediaManager] 结果: %d 通过, %d 失败" % [_passed, _failed])
+
+
+func _test_post_dsl() -> void:
+	var parser: RefCounted = PostDSLParserClass.new()
+	var result: Dictionary = parser.call("parse", """```text
+POST account_a
+TEXT
+她写道：\"今天很好。\"
+JSON 样式符号也会原样保留：{\"key\": \"value\"}
+END_TEXT
+MEDIA NONE
+REACH NORMAL
+COMMENT yuanyuan_personal
+她今天看起来确实很开心。
+END_COMMENT
+COMMENT 星屑收集员
+下次也想去看看。
+END_COMMENT
+END_POST
+```
+
+```text
+POST account_b
+TEXT
+配图描述也使用独立块。
+END_TEXT
+MEDIA GENERATE
+IMAGE_PROMPT
+河岸晨光，两个人的背影，写实摄影风格。
+END_IMAGE_PROMPT
+REACH HIGH
+COMMENT 河岸摄影部
+这个光线一定很好看。
+END_COMMENT
+END_POST
+```
+
+```postdsl
+POST account_c
+TEXT
+已有素材使用明确引用。
+END_TEXT
+MEDIA ASSET res://provided/outing_photo.png
+REACH LOW
+COMMENT account_a
+照片收到了。
+END_COMMENT
+END_POST
+```""") as Dictionary
+	var posts: Array[Dictionary] = []
+	posts.assign(result.get("posts", []))
+	_check(bool(result.get("success", false)) and posts.size() == 3, "Post DSL 可解析多账号发布块")
+	_check(
+		posts.size() >= 1 and str(posts[0].get("text", "")).contains("{\"key\": \"value\"}"),
+		"正文中的引号与类 JSON 符号无需转义即可保留"
+	)
+	_check(
+		posts.size() >= 2 \
+			and posts[1].get("media_mode") == PostDSLParserClass.MEDIA_GENERATE \
+			and not str(posts[1].get("image_prompt", "")).is_empty(),
+		"Post DSL 为美术生成提示词保留独立媒体块"
+	)
+	_check(
+		posts.size() >= 3 \
+			and posts[2].get("media_mode") == PostDSLParserClass.MEDIA_ASSET \
+			and posts[2].get("asset_ref") == "res://provided/outing_photo.png",
+		"Post DSL 可携带已提供素材的明确引用"
+	)
+	var first_comments: Array[Dictionary] = []
+	if not posts.is_empty():
+		first_comments.assign(posts[0].get("comments", []))
+	_check(
+		posts.size() >= 1 and posts[0].get("reach") == PostDSLParserClass.REACH_NORMAL,
+		"Post DSL 保留模型选择的传播档位"
+	)
+	_check(
+		first_comments.size() == 2 \
+			and first_comments[0].get("author_ref") == "yuanyuan_personal" \
+			and first_comments[1].get("author_ref") == "星屑收集员",
+		"COMMENT 统一保留注册账号 ID 或粉丝显示名称"
+	)
 
 
 func _test_accounts_and_publish() -> void:
@@ -58,9 +143,21 @@ func _test_accounts_and_publish() -> void:
 	var post: SocialPostRecord = SocialMediaManager.publish_character_post(
 		"ruan_yunyou",
 		"yunyou_streamer",
-		"first_stream_notice"
+		"first_stream_notice",
+		"test_outing_session",
+		true
 	)
 	_check(post != null and post.author_account_id == "yunyou_streamer", "游戏行为可按角色、账号和内容 ID 发帖")
+	_check(post != null and post.source_session_id == "test_outing_session", "帖子保留来源会话用于发布幂等")
+	var pending_presentations: Array[Dictionary] = SocialMediaManager.consume_pending_post_presentations()
+	_check(pending_presentations.size() == 1, "新帖发布可交给页面消费展示动画")
+	var completed_presentations: Array[String] = []
+	var capture_presentation_complete := func(completed_post: SocialPostRecord) -> void:
+		completed_presentations.append(completed_post.post_id)
+	SocialMediaManager.post_presentation_completed.connect(capture_presentation_complete)
+	SocialMediaManager.complete_post_presentation(post.post_id)
+	SocialMediaManager.post_presentation_completed.disconnect(capture_presentation_complete)
+	_check(completed_presentations == [post.post_id], "页面可在新帖淡入后确认展示完成")
 	_check(post != null and post.content != null and post.content.content_id == "first_stream_notice", "纯内容模板不承担作者资料")
 	var view_data: Dictionary = SocialMediaManager.get_post_view_data(post.post_id if post != null else "")
 	_check(view_data.get("display_name") == "白星眠", "主播身份使用人设卡的频道名")
@@ -119,6 +216,52 @@ func _test_accounts_and_publish() -> void:
 	_check(
 		saved_replies.size() == 3 and saved_replies[1].get("author_display_name") == "星屑收集员",
 		"路人身份快照随回复进入存档"
+	)
+
+
+func _test_generated_post_package() -> void:
+	SocialMediaManager.reset_runtime_state()
+	GameState.set_fans(1200)
+	var published_records: Array[SocialPostRecord] = []
+	var capture_generated_post := func(value: SocialPostRecord) -> void:
+		published_records.append(value)
+	SocialMediaManager.post_published.connect(capture_generated_post)
+	var comments: Array[Dictionary] = [
+		{
+			"author_ref": "yuanyuan_personal",
+			"text": "今晚记得早点休息。",
+		},
+		{
+			"author_ref": "星屑收集员",
+			"text": "明晚直播间见！",
+		},
+	]
+	var post: SocialPostRecord = SocialMediaManager.publish_generated_post(
+		"yunyou_streamer",
+		"今天休息得很好，明晚直播间见。",
+		PostDSLParserClass.REACH_NORMAL,
+		comments,
+		"generated_post_contract",
+		true
+	)
+	SocialMediaManager.post_published.disconnect(capture_generated_post)
+	_check(
+		post != null and published_records.size() == 1 \
+			and published_records[0].reply_items.size() == 2 \
+			and published_records[0].replies >= published_records[0].reply_items.size(),
+		"生成帖子在发布信号发出前已原子写入互动指标与展示评论"
+	)
+	var registered_reply: SocialPostReplyRecord = post.reply_items[0] if post != null and post.reply_items.size() >= 1 else null
+	var ambient_reply: SocialPostReplyRecord = post.reply_items[1] if post != null and post.reply_items.size() >= 2 else null
+	_check(
+		registered_reply != null and registered_reply.author_account_id == "yuanyuan_personal",
+		"COMMENT 命中账号 ID 时使用正式社交账号回复"
+	)
+	_check(
+		ambient_reply != null and ambient_reply.author_account_id.is_empty() \
+			and ambient_reply.author_display_name == "星屑收集员" \
+			and ambient_reply.author_handle.begins_with("@"),
+		"COMMENT 未命中账号 ID 时以原文作为粉丝名称并生成稳定 handle"
 	)
 
 

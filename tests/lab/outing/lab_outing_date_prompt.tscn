@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://bdbk5hmywy2yy"]
+
+[ext_resource type="Script" uid="uid://dv4rh2fxg88mn" path="res://tests/lab/outing/lab_outing_date_prompt.gd" id="1_script"]
+
+[node name="LabOutingDatePrompt" type="Node" unique_id=32926824]
+script = ExtResource("1_script")

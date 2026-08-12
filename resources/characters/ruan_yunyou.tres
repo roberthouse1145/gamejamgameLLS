@@ -1,11 +1,9 @@
-[gd_resource type="Resource" script_class="CharacterProfile" load_steps=14 format=3]
+[gd_resource type="Resource" script_class="CharacterProfile" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/resources/character_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/avg/characters/ruan_yunyou.tres" id="2_avg"]
 [ext_resource type="Texture2D" path="res://Assets/images/characters/ruan_yunyou/avatar_linkchat.png" id="3_avatar"]
 [ext_resource type="Script" path="res://scripts/apps/linkchat/resources/linkchat_profile.gd" id="4_linkchat"]
-[ext_resource type="Resource" path="res://resources/characters/moments/ruan_yunyou/rest_before_stream.tres" id="5_rest"]
-[ext_resource type="Resource" path="res://resources/characters/moments/ruan_yunyou/late_night_anime.tres" id="6_anime"]
 [ext_resource type="Script" path="res://scripts/social/resources/social_account_profile.gd" id="7_social"]
 [ext_resource type="Resource" path="res://resources/characters/social_posts/ruan_yunyou/first_stream_notice.tres" id="8_stream_post"]
 [ext_resource type="Resource" path="res://resources/characters/social_posts/ruan_yunyou/desk_cleanup.tres" id="9_personal_post"]
@@ -15,7 +13,6 @@
 script = ExtResource("4_linkchat")
 account_name = "柚柚"
 avatar = ExtResource("3_avatar")
-moment_contents = Array[Resource]([ExtResource("5_rest"), ExtResource("6_anime")])
 
 [sub_resource type="Resource" id="SocialAccount_streamer"]
 script = ExtResource("7_social")

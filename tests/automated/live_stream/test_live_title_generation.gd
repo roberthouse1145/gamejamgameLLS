@@ -36,6 +36,9 @@ func _ready() -> void:
 		not bool(generator._validate_title("长".repeat(49)).get("success", true)),
 		"overlong title must fail instead of being truncated"
 	)
+	assert(bool(generator._validate_summary("第一行事实。\n第二行事实。").get("success", false)))
+	assert(not bool(generator._validate_summary("第一行。\n第二行。\n第三行。").get("success", true)))
+	assert(not bool(generator._validate_summary("长".repeat(141)).get("success", true)))
 
 	var invalid_plan := StreamPlanSnapshot.new()
 	invalid_plan.title = "保留原题"

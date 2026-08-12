@@ -3,6 +3,8 @@ extends Node
 ## 玩家界面不暴露发布操作；剧情与行为系统通过 publish_* 接口触发角色发帖。
 
 signal post_published(post: SocialPostRecord)
+signal post_presentation_requested(post: SocialPostRecord)
+signal post_presentation_completed(post: SocialPostRecord)
 signal post_like_changed(post_id: String, liked: bool, likes: int)
 signal post_reply_added(post_id: String, reply: SocialPostReplyRecord)
 signal posts_reloaded()
@@ -13,9 +15,18 @@ const LINKPOSTA_HOME_URL: String = "https://linkposta.net/"
 const LINKPOSTA_ICON_PATH: String = "res://Assets/images/app_icons/linkposta.png"
 const LINKPOSTA_SCENE_PATH: String = "res://scenes/apps/linkposta/linkposta_page.tscn"
 const AMBIENT_AVATAR: Texture2D = preload("res://Assets/images/ui/linkposta/default_user_avatar.svg")
+const GENERATED_REACH_MULTIPLIERS: Dictionary = {
+	"low": 0.45,
+	"normal": 0.85,
+	"high": 1.55,
+}
+const GENERATED_PLAYER_STREAMER_AUDIENCE_FLOOR: int = 36
+const GENERATED_NPC_STREAMER_AUDIENCE: int = 2400
+const GENERATED_PERSONAL_AUDIENCE: int = 140
 
 var _catalog: CharacterCatalog = null
 var _posts: Array[SocialPostRecord] = []
+var _pending_post_presentations: Array[String] = []
 
 
 func _ready() -> void:
@@ -43,23 +54,59 @@ func get_character_for_account(account_id: String) -> CharacterProfile:
 	return _catalog.get_character_for_social_account(account_id) if _catalog != null else null
 
 
+func get_active_player_streamer_account() -> SocialAccountProfile:
+	var player: CharacterProfile = _catalog.get_player_character() if _catalog != null else null
+	return _get_active_player_streamer_account(player)
+
+
+func get_character_account(character_id: String, identity_type: String) -> SocialAccountProfile:
+	var character: CharacterProfile = _catalog.get_character(character_id) if _catalog != null else null
+	if character == null:
+		return null
+	for account: SocialAccountProfile in character.social_accounts:
+		if account != null and account.platform_id == "linkposta" and account.identity_type == identity_type:
+			return account
+	return null
+
+
 func publish_post(
 	account_id: String,
 	text_content: String,
 	texture_content: Texture2D = null,
-	linked_url: String = ""
+	linked_url: String = "",
+	source_session_id: String = "",
+	present_as_new: bool = false
 ) -> SocialPostRecord:
 	var content := PostContent.new()
 	content.text_content = text_content
 	content.texture_content = texture_content
 	content.linked_url = linked_url
-	return publish_post_content(account_id, content)
+	return publish_post_content(account_id, content, source_session_id, present_as_new)
+
+
+func publish_generated_post(
+	account_id: String,
+	text_content: String,
+	reach: String,
+	comments: Array[Dictionary],
+	source_session_id: String = "",
+	present_as_new: bool = false
+) -> SocialPostRecord:
+	var content := PostContent.new()
+	content.text_content = text_content
+	var record: SocialPostRecord = _create_post_record(account_id, content, source_session_id)
+	if record == null:
+		return null
+	_apply_generated_interactions(record, reach, comments)
+	return _commit_post_record(record, present_as_new)
 
 
 func publish_character_post(
 	character_id: String,
 	account_id: String,
-	content_id: String
+	content_id: String,
+	source_session_id: String = "",
+	present_as_new: bool = false
 ) -> SocialPostRecord:
 	var character: CharacterProfile = _catalog.get_character(character_id) if _catalog != null else null
 	if character == null:
@@ -67,12 +114,28 @@ func publish_character_post(
 	var account: SocialAccountProfile = character.get_social_account(account_id)
 	if account == null:
 		return null
-	return publish_post_content(account_id, account.get_post_content(content_id))
+	return publish_post_content(
+		account_id,
+		account.get_post_content(content_id),
+		source_session_id,
+		present_as_new
+	)
 
 
 func publish_post_content(
 	account_id: String,
-	content: PostContent
+	content: PostContent,
+	source_session_id: String = "",
+	present_as_new: bool = false
+) -> SocialPostRecord:
+	var record: SocialPostRecord = _create_post_record(account_id, content, source_session_id)
+	return _commit_post_record(record, present_as_new) if record != null else null
+
+
+func _create_post_record(
+	account_id: String,
+	content: PostContent,
+	source_session_id: String
 ) -> SocialPostRecord:
 	var account: SocialAccountProfile = get_account(account_id)
 	var game_state: Node = _get_game_state()
@@ -82,12 +145,113 @@ func publish_post_content(
 	var record := SocialPostRecord.new()
 	record.post_id = "social_%06d" % game_state.social_post_serial
 	record.author_account_id = account_id
+	record.source_session_id = source_session_id.strip_edges()
 	record.content = content.duplicate(true) as PostContent
 	record.published_at = int(Time.get_unix_time_from_system())
+	return record
+
+
+func _commit_post_record(record: SocialPostRecord, present_as_new: bool) -> SocialPostRecord:
+	if record == null:
+		return null
 	_posts.push_front(record)
+	if present_as_new:
+		_pending_post_presentations.append(record.post_id)
 	_sync_posts_to_game_state()
 	post_published.emit(record)
+	if present_as_new:
+		post_presentation_requested.emit(record)
 	return record
+
+
+func _apply_generated_interactions(
+	record: SocialPostRecord,
+	reach: String,
+	comments: Array[Dictionary]
+) -> void:
+	var account: SocialAccountProfile = get_account(record.author_account_id)
+	if account == null:
+		return
+	_append_generated_comments(record, comments)
+	var metrics: Dictionary = _build_generated_metrics(
+		account,
+		reach,
+		record.source_session_id if not record.source_session_id.is_empty() else record.post_id,
+		record.reply_items.size()
+	)
+	record.likes = maxi(int(metrics.get("likes", 0)), 0)
+	record.reposts = maxi(int(metrics.get("reposts", 0)), 0)
+	record.replies = maxi(int(metrics.get("replies", 0)), record.reply_items.size())
+
+
+func _append_generated_comments(record: SocialPostRecord, comments: Array[Dictionary]) -> void:
+	var identity_seed: String = record.source_session_id if not record.source_session_id.is_empty() else record.post_id
+	for comment: Dictionary in comments:
+		var author_ref: String = str(comment.get("author_ref", "")).strip_edges()
+		var text_content: String = str(comment.get("text", "")).strip_edges()
+		if author_ref.is_empty() or text_content.is_empty():
+			continue
+		var reply := SocialPostReplyRecord.new()
+		reply.reply_id = "%s_reply_%03d" % [record.post_id, record.reply_items.size() + 1]
+		var author_account: SocialAccountProfile = get_account(author_ref)
+		if author_account != null:
+			reply.author_account_id = author_ref
+		else:
+			reply.author_display_name = author_ref
+			reply.author_handle = _generated_ambient_handle(identity_seed, author_ref)
+		reply.text_content = text_content
+		reply.published_at = record.published_at
+		record.reply_items.append(reply)
+
+
+func _build_generated_metrics(
+	account: SocialAccountProfile,
+	reach: String,
+	seed_key: String,
+	visible_comment_count: int
+) -> Dictionary:
+	var game_state: Node = _get_game_state()
+	var audience_size: int = GENERATED_PERSONAL_AUDIENCE
+	var like_rate: float = 0.16
+	var repost_rate: float = 0.012
+	var reply_rate: float = 0.035
+	if account.identity_type == SocialAccountProfile.IDENTITY_STREAMER:
+		var active_streamer: SocialAccountProfile = get_active_player_streamer_account()
+		if active_streamer != null and active_streamer.account_id == account.account_id and game_state != null:
+			audience_size = maxi(int(game_state.get("fans")), GENERATED_PLAYER_STREAMER_AUDIENCE_FLOOR)
+		else:
+			audience_size = GENERATED_NPC_STREAMER_AUDIENCE
+		like_rate = 0.11
+		repost_rate = 0.026
+		reply_rate = 0.018
+
+	var normalized_reach: String = reach.strip_edges().to_lower()
+	var reach_multiplier: float = float(GENERATED_REACH_MULTIPLIERS.get(normalized_reach, 0.85))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(("%s|%s" % [seed_key, account.account_id]).hash()) & 0x7fffffff
+	var impressions: int = maxi(
+		int(round(float(audience_size) * reach_multiplier * rng.randf_range(0.88, 1.14))),
+		visible_comment_count
+	)
+	var likes: int = maxi(
+		int(round(float(impressions) * like_rate * rng.randf_range(0.82, 1.18))),
+		visible_comment_count * 2
+	)
+	var reposts: int = maxi(int(round(float(impressions) * repost_rate * rng.randf_range(0.75, 1.25))), 0)
+	var replies: int = maxi(
+		int(round(float(impressions) * reply_rate * rng.randf_range(0.82, 1.22))),
+		visible_comment_count
+	)
+	return {
+		"likes": likes,
+		"reposts": reposts,
+		"replies": replies,
+	}
+
+
+func _generated_ambient_handle(seed_key: String, display_name: String) -> String:
+	var stable_value: int = int(("%s|%s" % [seed_key, display_name]).hash()) & 0x7fffffff
+	return "@lp_%06d" % (stable_value % 1000000)
 
 
 func get_posts() -> Array[SocialPostRecord]:
@@ -99,6 +263,50 @@ func get_post(post_id: String) -> SocialPostRecord:
 		if post != null and post.post_id == post_id:
 			return post
 	return null
+
+
+func has_source_session_post(account_id: String, source_session_id: String) -> bool:
+	var normalized_session_id: String = source_session_id.strip_edges()
+	if normalized_session_id.is_empty():
+		return false
+	for post: SocialPostRecord in _posts:
+		if post != null and post.author_account_id == account_id \
+			and post.source_session_id == normalized_session_id:
+			return true
+	return false
+
+
+func is_post_presentation_pending(post_id: String) -> bool:
+	return post_id in _pending_post_presentations
+
+
+func get_pending_post_presentation_ids() -> Array[String]:
+	return _pending_post_presentations.duplicate()
+
+
+func consume_pending_post_presentations() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for post_id: String in _pending_post_presentations:
+		var view_data: Dictionary = get_post_view_data(post_id)
+		if not view_data.is_empty():
+			result.append(view_data)
+	_pending_post_presentations.clear()
+	return result
+
+
+func consume_post_presentation(post_id: String) -> Dictionary:
+	if post_id not in _pending_post_presentations:
+		return {}
+	_pending_post_presentations.erase(post_id)
+	return get_post_view_data(post_id)
+
+
+func complete_post_presentation(post_id: String) -> bool:
+	var post: SocialPostRecord = get_post(post_id)
+	if post == null:
+		return false
+	post_presentation_completed.emit(post)
+	return true
 
 
 func get_feed_view_data(account_id: String = "") -> Array[Dictionary]:
@@ -438,6 +646,7 @@ func reset_runtime_state() -> void:
 	game_state.social_posts.clear()
 	game_state.social_post_serial = 0
 	_posts.clear()
+	_pending_post_presentations.clear()
 	posts_reloaded.emit()
 
 
@@ -490,6 +699,7 @@ func _load_catalog() -> void:
 
 func _reload_posts_from_game_state() -> void:
 	_posts.clear()
+	_pending_post_presentations.clear()
 	var game_state: Node = _get_game_state()
 	if game_state == null:
 		return

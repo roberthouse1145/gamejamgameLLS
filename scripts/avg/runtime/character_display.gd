@@ -898,7 +898,10 @@ func _play_show_effect(character_id: String, sprite: TextureRect, target_pos: Ve
 		_active_tweens.erase(visibility_key)
 		if is_instance_valid(sprite):
 			sprite.position = target_pos
-			sprite.scale = target_scale
+			# A flip/scale command may run while the non-blocking enter tween is active.
+			# Finish from the latest authoritative character state instead of restoring
+			# the scale captured when show_character() started.
+			_apply_character_state_scale(character_id, sprite)
 			sprite.modulate.a = target_alpha
 		character_shown.emit(character_id)
 	)
@@ -965,6 +968,17 @@ func _get_or_create_sprite(character_id: String) -> TextureRect:
 	sprite_container.add_child(sprite)
 	_active_characters[character_id] = sprite
 	return sprite
+
+
+func _apply_character_state_scale(character_id: String, sprite: TextureRect) -> void:
+	if not is_instance_valid(sprite):
+		return
+	var state: Dictionary = _character_state.get(character_id, {})
+	var char_scale: float = float(state.get("scale_factor", 1.0))
+	var is_flipped: bool = bool(state.get("flip", false))
+	var sx: float = -char_scale if is_flipped else char_scale
+	sprite.pivot_offset = sprite.size / 2.0
+	sprite.scale = Vector2(sx, char_scale)
 
 
 func _apply_texture_preserve_center(sprite: TextureRect, texture: Texture2D, character_id: String = "") -> void:

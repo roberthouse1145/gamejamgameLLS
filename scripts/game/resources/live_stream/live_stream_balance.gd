@@ -1,23 +1,70 @@
 class_name LiveStreamBalance extends Resource
 ## 首轮纵切的集中平衡参数。
 
+const APPROACH_TYPES: Array[StringName] = [
+	&"analysis",
+	&"challenge",
+	&"audience_interaction",
+	&"performance",
+	&"personal_story",
+	&"production",
+]
+
+const APPROACH_PROFILES: Dictionary = {
+	"analysis": {
+		"label": "深入拆解",
+		"player_hint": "更重内容理解与讲解",
+		"axes": {"hook": 1.0, "quality": 3.0, "impact": 1.4},
+		"stress": 2.0,
+		"fan_bias": {"c": 1.0},
+		"support_families": [&"talk"],
+	},
+	"challenge": {
+		"label": "目标挑战",
+		"player_hint": "更重过程张力与结果",
+		"axes": {"hook": 3.0, "quality": 1.5, "impact": 2.0},
+		"stress": 5.0,
+		"fan_bias": {"r": 2.0, "b": 0.5},
+		"support_families": [&"game"],
+	},
+	"audience_interaction": {
+		"label": "弹幕共创",
+		"player_hint": "更重观众参与与临场反应",
+		"axes": {"hook": 2.5, "quality": 1.5, "impact": 3.0},
+		"stress": 3.0,
+		"fan_bias": {"r": 1.0, "c": 2.0},
+		"support_families": [&"talk", &"act"],
+	},
+	"performance": {
+		"label": "舞台表现",
+		"player_hint": "更重歌声、声线与演出完成度",
+		"axes": {"hook": 2.0, "quality": 2.5, "impact": 3.2},
+		"stress": 4.0,
+		"fan_bias": {"c": 2.0},
+		"support_families": [&"song", &"act"],
+	},
+	"personal_story": {
+		"label": "个人切入",
+		"player_hint": "更重情绪连接与人物表达",
+		"axes": {"hook": 1.2, "quality": 2.6, "impact": 3.4},
+		"stress": 3.0,
+		"fan_bias": {"r": -0.5, "c": 3.0},
+		"support_families": [&"talk", &"act"],
+	},
+	"production": {
+		"label": "企划制作",
+		"player_hint": "更重节目结构与制作感",
+		"axes": {"hook": 2.2, "quality": 3.0, "impact": 2.0},
+		"stress": 4.0,
+		"fan_bias": {"r": 1.0, "c": 1.0},
+		"support_families": [&"tech", &"talk"],
+	},
+}
+
 @export var level_exp_thresholds: PackedInt32Array = PackedInt32Array([0, 100, 250, 450, 700, 1000, 1400, 1900, 2500, 3200])
-@export var performance_budgets: PackedInt32Array = PackedInt32Array([10, 11, 12, 13, 14, 16, 17, 18, 19, 20])
-@export var modifier_slot_levels: PackedInt32Array = PackedInt32Array([3, 8])
-@export var tier_unlock_levels: PackedInt32Array = PackedInt32Array([1, 4, 7])
+@export var skill_exp_thresholds: PackedInt32Array = PackedInt32Array([0, 100, 300, 600, 1000])
 @export var skill_node_costs: PackedInt32Array = PackedInt32Array([0, 1, 1, 2, 3])
 @export_range(0.0, 1.0, 0.01) var skill_bonus_per_level: float = 0.15
-@export_range(0, 100, 1) var stream_exp_reward: int = 50
-@export_range(0, 100, 1) var high_stress_threshold: int = 80
-@export_range(0, 20, 1) var high_stress_budget_penalty: int = 3
-@export var left_width_multipliers: PackedFloat32Array = PackedFloat32Array([0.85, 1.0, 1.2, 1.35])
-@export_range(0.0, 2.0, 0.05) var full_fill_multiplier: float = 1.2
-@export_range(0.0, 2.0, 0.05) var half_fill_multiplier: float = 1.0
-@export_range(0.0, 2.0, 0.05) var partial_fill_multiplier: float = 0.9
-@export_range(0.0, 2.0, 0.05) var empty_fill_multiplier: float = 0.8
-@export_range(0.0, 1.0, 0.01) var empty_fill_risk_bonus: float = 0.10
-@export_range(0.0, 2.0, 0.05) var full_chain_multiplier: float = 1.1
-@export_range(0.0, 1.0, 0.05) var empty_program_slot_multiplier: float = 0.9
 
 
 func get_level_for_exp(total_exp: int) -> int:
@@ -28,41 +75,18 @@ func get_level_for_exp(total_exp: int) -> int:
 	return clampi(resolved_level, 1, level_exp_thresholds.size())
 
 
-func get_budget(streamer_level: int, stress: int = 0) -> int:
-	var index: int = clampi(streamer_level, 1, performance_budgets.size()) - 1
-	var result: int = performance_budgets[index]
-	if stress >= high_stress_threshold:
-		result -= high_stress_budget_penalty
-	return maxi(result, 0)
+func get_skill_level_for_exp(total_exp: int) -> int:
+	var resolved_level: int = 1
+	for index: int in range(skill_exp_thresholds.size()):
+		if total_exp >= skill_exp_thresholds[index]:
+			resolved_level = index + 1
+	return clampi(resolved_level, 1, skill_exp_thresholds.size())
 
 
-func get_modifier_slot_count(streamer_level: int) -> int:
-	var result: int = 0
-	for required_level: int in modifier_slot_levels:
-		if streamer_level >= required_level:
-			result += 1
-	return result
-
-
-func get_tier_unlock_level(tier: int) -> int:
-	return tier_unlock_levels[clampi(tier, 1, tier_unlock_levels.size()) - 1]
+func get_approach_profile(approach_type: StringName) -> Dictionary:
+	var profile: Variant = APPROACH_PROFILES.get(String(approach_type), {})
+	return (profile as Dictionary).duplicate(true)
 
 
 func get_skill_node_cost(level: int) -> int:
 	return skill_node_costs[clampi(level, 1, skill_node_costs.size()) - 1]
-
-
-func get_left_width_multiplier(width: int) -> float:
-	if width <= 0:
-		return 1.0
-	return left_width_multipliers[clampi(width, 1, left_width_multipliers.size()) - 1]
-
-
-func get_fill_multiplier(fill_ratio: float) -> float:
-	if fill_ratio >= 1.0:
-		return full_fill_multiplier
-	if fill_ratio >= 0.5:
-		return half_fill_multiplier
-	if fill_ratio > 0.0:
-		return partial_fill_multiplier
-	return empty_fill_multiplier

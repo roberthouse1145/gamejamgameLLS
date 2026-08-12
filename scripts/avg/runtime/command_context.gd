@@ -34,7 +34,7 @@ var character_display: Node = null
 ## Reference to the ChoiceDisplay
 var choice_display: Control = null
 
-## Reference to the AVGAudioManager
+## Reference to the AVGAudioAdapter
 var audio_manager: Node = null
 
 ## Reference to the background display node

@@ -37,6 +37,11 @@ const DEFAULT_ALLOWED_EASINGS: Array[String] = [
 	"ease_in_out",
 ]
 const MAX_STAGE_CHARACTERS: int = 5
+const RESERVED_SPEAKER_PLACEHOLDERS: Array[String] = [
+	"textspeaker",
+	"charactera",
+	"characterb",
+]
 
 
 func validate_commands(commands: Array, game_data: Resource, options: Dictionary = {}) -> Dictionary:
@@ -78,6 +83,8 @@ func validate_commands(commands: Array, game_data: Resource, options: Dictionary
 				_validate_change_expression(index, params, character_map, errors)
 			"CHANGE_OUTFIT":
 				_validate_change_outfit(index, params, character_map, errors)
+			"FLIP_CHARACTER":
+				_validate_flip_character(index, params, character_map, errors)
 			"CHANGE_BACKGROUND":
 				_validate_asset_ref(index, params, "texture_path", "background", ["backgrounds", "images", "textures"], errors)
 			"SHOW_IMAGE":
@@ -114,11 +121,14 @@ func validate_commands(commands: Array, game_data: Resource, options: Dictionary
 
 
 func _validate_dialogue(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
-	var emotion: String = _normalize_token(params.get("emotion", ""))
-	if emotion.is_empty():
-		return
 	var speaker: String = _normalize_token(params.get("speaker", ""))
 	if speaker.is_empty():
+		return
+	if RESERVED_SPEAKER_PLACEHOLDERS.has(speaker.to_lower()):
+		errors.append("DIALOGUE %d uses reserved speaker placeholder: %s" % [index + 1, speaker])
+		return
+	var emotion: String = _normalize_token(params.get("emotion", ""))
+	if emotion.is_empty():
 		return
 	var character_entry: Dictionary = _resolve_character_entry(character_map, speaker)
 	if character_entry.is_empty():
@@ -127,6 +137,16 @@ func _validate_dialogue(index: int, params: Dictionary, character_map: Dictionar
 	var emotions: Array[String] = character_entry.get("emotions", [])
 	if not emotions.has(emotion):
 		errors.append(_format_missing_emotion_error("DIALOGUE", index, character_label, emotion, emotions))
+
+
+func _validate_flip_character(index: int, params: Dictionary, character_map: Dictionary, errors: Array[String]) -> void:
+	_validate_character_reference(index, params, character_map, "character_id", "FLIP_CHARACTER", errors)
+	var flip_mode: String = _normalize_token(params.get("flip", "toggle")).to_lower()
+	if not ["toggle", "on", "off"].has(flip_mode):
+		errors.append("FLIP_CHARACTER %d uses unsupported flip mode: %s" % [index + 1, flip_mode])
+	var duration: float = float(params.get("duration", 0.0))
+	if duration < 0.0:
+		errors.append("FLIP_CHARACTER %d duration must be non-negative" % (index + 1))
 
 
 func _validate_show_character(index: int, params: Dictionary, character_map: Dictionary, allowed_positions: Array[String], errors: Array[String]) -> void:

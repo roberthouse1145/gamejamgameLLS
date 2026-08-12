@@ -1,8 +1,0 @@
-[gd_scene load_steps=2 format=3]
-
-[ext_resource type="Script" path="res://scripts/apps/streamer_center/components/card_flow_container.gd" id="1_script"]
-
-[node name="CardFlowContainer" type="Container"]
-custom_minimum_size = Vector2(440, 600)
-size_flags_horizontal = 3
-script = ExtResource("1_script")

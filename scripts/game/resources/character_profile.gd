@@ -19,9 +19,6 @@ const ROLE_CLOSE_FRIEND: String = "close_friend"
 @export var is_named_fan: bool = false
 ## 是否允许作为约会外出对象。默认关闭，避免仅因有角色资料就进入候选列表。
 @export var datable: bool = false
-## 外出偏好标签只参与确定性判定，不交给 LLM 决定结果。
-@export var outing_preference_tags: Array[String] = []
-@export var outing_avoid_tags: Array[String] = []
 @export_range(-50, 50, 1) var base_date_acceptance_modifier: int = 0
 ## LLM 人物卡片段，作为状态快照的一部分注入。
 @export_multiline var persona_prompt: String = ""

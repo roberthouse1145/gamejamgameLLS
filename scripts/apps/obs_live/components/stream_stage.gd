@@ -2,6 +2,13 @@ class_name StreamStage extends VBoxContainer
 ## 直播观看区。StreamScene 的显示与播放均独立于 AVGScene。
 
 const DESIGN_RESOLUTION: Vector2 = Vector2(3840, 2160)
+const SUPERCHAT_COLORS: Array[Color] = [
+	Color("#3F8FE8"),
+	Color("#7A62D3"),
+	Color("#D45A92"),
+	Color("#E06A3F"),
+	Color("#C89B32"),
+]
 
 signal show_finished()
 signal live_chat_event(event: Dictionary)
@@ -17,11 +24,11 @@ signal live_chat_event(event: Dictionary)
 @onready var room_status: Label = %RoomStatus
 
 @onready var _video_frame: Control = %VideoFrame
-@onready var _channel_row: Control = $ChannelRow
 @onready var _camera_clip: Control = %CameraClip
 @onready var _preview_container: SubViewportContainer = %PreviewContainer
 @onready var _stream_display: StreamSceneDisplay = %StreamSceneDisplay
 @onready var _show_player: LiveShowPlayer = %LiveShowPlayer
+@onready var _reaction_overlay: LiveReactionOverlay = %LiveReactionOverlay
 @onready var _subtitle_panel: PanelContainer = %SubtitlePanel
 @onready var _subtitle_label: Label = %SubtitleLabel
 @onready var _live_dot: Label = %LiveDot
@@ -38,6 +45,9 @@ var _playing: bool = false
 var _persona: StreamPersonaResource = null
 var _room_theme: StreamRoomThemeResource = null
 var _resting: bool = true
+var _screen_chat_enabled: bool = true
+var _donation_animation_enabled: bool = true
+var _reaction_rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
@@ -45,6 +55,8 @@ func _ready() -> void:
 	_show_player.setup(_stream_display, _subtitle_panel, _subtitle_label)
 	_show_player.chat_event.connect(_on_live_chat_event)
 	_show_player.finished.connect(_on_player_finished)
+	_reaction_overlay.set_screen_chat_enabled(_screen_chat_enabled)
+	_reaction_overlay.set_donation_animation_enabled(_donation_animation_enabled)
 	_start_live_dot_pulse()
 	resized.connect(_update_video_height)
 	call_deferred("_update_video_height")
@@ -66,6 +78,8 @@ func show_resting() -> void:
 	_stream_display.set_avatar_visible(false)
 	if _subtitle_panel != null:
 		_subtitle_panel.visible = false
+	if _reaction_overlay != null:
+		_reaction_overlay.clear()
 	if room_status != null:
 		room_status.text = "等待开播"
 
@@ -112,6 +126,8 @@ func play_show(show_data: Dictionary, seed_value: int = 1) -> bool:
 	if _persona == null or _persona.model == null or ops.is_empty():
 		return false
 	_show_player.stop()
+	_reaction_rng.seed = seed_value ^ 0x5C01A7
+	_reaction_overlay.reset(seed_value)
 	show_live()
 	if not _stream_display.setup(_persona.model):
 		return false
@@ -129,6 +145,26 @@ func _start_show_after_avatar_ready(ops: Array, seed_value: int) -> void:
 
 func set_fast_forward(enabled: bool) -> void:
 	_show_player.set_fast_forward(enabled)
+
+
+func set_screen_chat_enabled(enabled: bool) -> void:
+	_screen_chat_enabled = enabled
+	if _reaction_overlay != null:
+		_reaction_overlay.set_screen_chat_enabled(enabled)
+
+
+func is_screen_chat_enabled() -> bool:
+	return _screen_chat_enabled
+
+
+func set_donation_animation_enabled(enabled: bool) -> void:
+	_donation_animation_enabled = enabled
+	if _reaction_overlay != null:
+		_reaction_overlay.set_donation_animation_enabled(enabled)
+
+
+func is_donation_animation_enabled() -> bool:
+	return _donation_animation_enabled
 
 
 func skip() -> void:
@@ -149,8 +185,8 @@ func _format_subscribers() -> String:
 	return "%d 位订阅者" % fans
 
 
-## 视频区自适应容器：高度取 min(可用高度, 容器宽 × 9/16)，宽度 = 高 × 16/9。
-## 高度只依赖 StreamStage 自身布局结果，不依赖 VideoFrame 尺寸，无布局循环。
+## 视频区使用父容器已经分配给舞台的宽度，再按 16:9 计算高度。
+## 宽度不能由高度反推后写回最小尺寸，否则会与右侧弹幕栏形成横向溢出循环。
 func _update_video_height() -> void:
 	var container_width: float = size.x
 	var stage_height: float = size.y
@@ -166,13 +202,11 @@ func _update_video_height() -> void:
 		if child != _video_frame:
 			fixed_height += control.size.y
 	fixed_height += (control_count - 1) * get_theme_constant("separation")
-	var available_height: float = stage_height - fixed_height
+	var available_height: float = maxf(stage_height - fixed_height, 0.0)
 	var height: float = minf(available_height, container_width * 9.0 / 16.0)
 	if height < 2.0:
 		return
-	_video_frame.custom_minimum_size = Vector2(height * 16.0 / 9.0, height)
-	live_title.custom_minimum_size.x = _video_frame.custom_minimum_size.x
-	_channel_row.custom_minimum_size.x = _video_frame.custom_minimum_size.x
+	_video_frame.custom_minimum_size = Vector2(0.0, height)
 
 
 func _layout_preview() -> void:
@@ -197,7 +231,13 @@ func _start_live_dot_pulse() -> void:
 
 
 func _on_live_chat_event(event: Dictionary) -> void:
-	live_chat_event.emit(event)
+	var display_event: Dictionary = event.duplicate(true)
+	if str(display_event.get("kind", "")) == "sc":
+		display_event["color"] = SUPERCHAT_COLORS[
+			_reaction_rng.randi_range(0, SUPERCHAT_COLORS.size() - 1)
+		]
+	_reaction_overlay.handle_live_chat_event(display_event)
+	live_chat_event.emit(display_event)
 
 
 func _on_player_finished() -> void:

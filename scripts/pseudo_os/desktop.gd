@@ -5,6 +5,7 @@ class_name Desktop extends Control
 
 # Preload WindowManager class
 const WindowManagerClass = preload("res://scripts/pseudo_os/window_manager.gd")
+const GameStateScript = preload("res://autoload/game_state.gd")
 
 # Preload DesktopIcon scene and class
 const DesktopIconScene = preload("res://scenes/pseudo_os/desktop_icon.tscn")
@@ -12,7 +13,6 @@ const DesktopIconClass = preload("res://scripts/pseudo_os/desktop_icon.gd")
 
 # Preload Taskbar class
 const TaskbarClass = preload("res://scripts/pseudo_os/taskbar.gd")
-const UIIconLibraryClass = preload("res://scripts/ui/ui_icon_library.gd")
 
 # Start menu & system panels
 const StartMenuScene = preload("res://scenes/pseudo_os/start_menu.tscn")
@@ -22,25 +22,28 @@ const QuitConfirmPanelScene = preload("res://scenes/pseudo_os/quit_confirm_panel
 # Signals
 signal desktop_ready
 signal icon_double_clicked(app_id: String)
+signal wallpaper_changed(texture: Texture2D)
 
 # Desktop components (set via unique names in scene)
 @onready var background: Control = %Background
+@onready var wallpaper_bottom: TextureRect = %WallpaperBottom
+@onready var wallpaper_top: TextureRect = %WallpaperTop
 @onready var icon_grid: Control = %IconGrid
 @onready var window_container: Control = %WindowContainer
 @onready var taskbar: Control = %Taskbar
+@onready var notification_center: Control = %NotificationCenter
 
 # WindowManager instance
 var window_manager: Node = null
 
 # Reference to AppManager autoload (accessed via scene tree)
 var _app_manager: Node = null
+var _game_state: Node = null
 
 # Desktop icon tracking
 var desktop_icons: Dictionary = {} # app_id -> DesktopIcon node
 var _selected_desktop_icon_id: String = ""
 var _desktop_icon_visibility_overrides: Dictionary = {} # app_id -> bool
-var _desktop_notifications: Dictionary = {} # notification_id -> Control
-var _notification_stack: VBoxContainer = null
 
 # Start menu
 var _start_menu: Control = null
@@ -49,12 +52,17 @@ var _quit_confirm_window: Control = null
 
 # Desktop settings
 @export var background_color: Color = Color(0.1, 0.3, 0.5)
-@export var background_texture: Texture2D = null
+@export var wallpaper_morning: Texture2D = null
+@export var wallpaper_afternoon: Texture2D = null
+@export var wallpaper_night: Texture2D = null
+@export_range(0.0, 5.0, 0.05) var wallpaper_crossfade_duration: float = 1.2
 @export var icon_spacing: Vector2 = Vector2(312, 368)
 @export var icon_margin: Vector2 = Vector2(56, 56)
 @export var desktop_app_ids: PackedStringArray = PackedStringArray()
 
 const GROUP_NAME: String = "desktop"
+
+var _wallpaper_tween: Tween = null
 
 
 ## 获取当前唯一 Desktop 实例（通过 group 查找，与节点路径无关）
@@ -69,16 +77,17 @@ func _ready() -> void:
 	add_to_group(GROUP_NAME)
 	# Get AppManager autoload reference
 	_app_manager = get_node_or_null("/root/AppManager")
+	_game_state = get_node_or_null("/root/GameState")
 	
 	# Create WindowManager
 	_setup_window_manager()
 	
 	# Setup AppManager reference
 	_setup_app_manager()
-	_setup_notification_layer()
 	
 	# Setup background
 	_setup_background()
+	_setup_time_wallpaper()
 	
 	# Create desktop icons for registered apps
 	_create_desktop_icons()
@@ -239,27 +248,6 @@ func _setup_app_manager() -> void:
 		push_error("Desktop: AppManager autoload not found")
 
 
-func _setup_notification_layer() -> void:
-	_notification_stack = VBoxContainer.new()
-	_notification_stack.name = "NotificationStack"
-	_notification_stack.anchor_left = 1.0
-	_notification_stack.anchor_top = 1.0
-	_notification_stack.anchor_right = 1.0
-	_notification_stack.anchor_bottom = 1.0
-	# 3840x2160: 右下角更靠内，底部避开 taskbar 与时钟区域
-	_notification_stack.offset_left = -960.0
-	_notification_stack.offset_top = -720.0
-	_notification_stack.offset_right = -60.0
-	_notification_stack.offset_bottom = -180.0
-	_notification_stack.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_notification_stack.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_notification_stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_notification_stack.alignment = BoxContainer.ALIGNMENT_END
-	_notification_stack.add_theme_constant_override("separation", 24)
-	_notification_stack.z_index = 100
-	add_child(_notification_stack)
-
-
 ## Setup the desktop background
 func _setup_background() -> void:
 	if not background:
@@ -270,9 +258,47 @@ func _setup_background() -> void:
 	if background is ColorRect:
 		background.color = background_color
 	
-	# If background is a TextureRect and we have a texture, set it
-	if background is TextureRect and background_texture:
-		background.texture = background_texture
+
+
+func _setup_time_wallpaper() -> void:
+	if wallpaper_bottom == null or wallpaper_top == null:
+		push_warning("Desktop: Wallpaper layers not found")
+		return
+	if _game_state == null:
+		push_warning("Desktop: GameState autoload not found")
+		return
+
+	wallpaper_bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wallpaper_top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_set_time_slot_wallpaper(int(_game_state.get("time_slot")), false)
+
+	if not _game_state.is_connected("time_slot_changed", _on_time_slot_changed):
+		_game_state.connect("time_slot_changed", _on_time_slot_changed)
+	if not _game_state.is_connected("state_loaded", _on_game_state_loaded):
+		_game_state.connect("state_loaded", _on_game_state_loaded)
+
+
+func _on_time_slot_changed(time_slot: int) -> void:
+	_set_time_slot_wallpaper(time_slot, true)
+
+
+func _on_game_state_loaded() -> void:
+	_set_time_slot_wallpaper(int(_game_state.get("time_slot")), false)
+
+
+func _set_time_slot_wallpaper(time_slot: int, animated: bool) -> void:
+	var texture: Texture2D = _get_wallpaper_for_time_slot(time_slot)
+	set_background_texture(texture, animated)
+
+
+func _get_wallpaper_for_time_slot(time_slot: int) -> Texture2D:
+	match time_slot:
+		GameStateScript.TIME_SLOT_AFTERNOON:
+			return wallpaper_afternoon
+		GameStateScript.TIME_SLOT_NIGHT:
+			return wallpaper_night
+		_:
+			return wallpaper_morning
 
 
 ## Create desktop icons for all registered apps
@@ -513,12 +539,44 @@ func set_background_color(color: Color) -> void:
 		background.color = color
 
 
-## Set the desktop background texture
-## @param texture: The new background texture
-func set_background_texture(texture: Texture2D) -> void:
-	background_texture = texture
-	if background is TextureRect:
-		background.texture = texture
+## Set the desktop wallpaper. Desktop owns both the wallpaper state and its transition.
+func set_background_texture(texture: Texture2D, animated: bool = true) -> void:
+	if texture == null or wallpaper_bottom == null or wallpaper_top == null:
+		return
+
+	if _wallpaper_tween != null and _wallpaper_tween.is_valid():
+		_wallpaper_tween.kill()
+		wallpaper_bottom.texture = wallpaper_top.texture
+		wallpaper_bottom.modulate.a = 1.0
+		wallpaper_top.modulate.a = 0.0
+
+	if not animated or wallpaper_bottom.texture == null or wallpaper_crossfade_duration <= 0.0:
+		wallpaper_bottom.texture = texture
+		wallpaper_bottom.modulate.a = 1.0
+		wallpaper_top.texture = null
+		wallpaper_top.modulate.a = 0.0
+		wallpaper_changed.emit(texture)
+		return
+
+	wallpaper_top.texture = texture
+	wallpaper_top.modulate.a = 0.0
+	_wallpaper_tween = create_tween()
+	_wallpaper_tween.tween_property(
+		wallpaper_top,
+		"modulate:a",
+		1.0,
+		wallpaper_crossfade_duration
+	).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_wallpaper_tween.tween_callback(_finish_wallpaper_crossfade.bind(texture))
+
+
+func _finish_wallpaper_crossfade(texture: Texture2D) -> void:
+	wallpaper_bottom.texture = texture
+	wallpaper_bottom.modulate.a = 1.0
+	wallpaper_top.texture = null
+	wallpaper_top.modulate.a = 0.0
+	_wallpaper_tween = null
+	wallpaper_changed.emit(texture)
 
 
 ## Get the WindowManager instance
@@ -621,153 +679,7 @@ func _refresh_icon_access_state() -> void:
 			icon.set_accessible(accessible)
 
 
-func _expire_notification(notification_id: String) -> void:
-	var toast: Control = _desktop_notifications.get(notification_id)
-	if toast == null or not is_instance_valid(toast):
-		_desktop_notifications.erase(notification_id)
-		return
-
-	var fade_out := create_tween()
-	toast.set_meta("_fade_tween", fade_out)
-	fade_out.tween_property(toast, "modulate:a", 0.0, 0.18)
-	fade_out.tween_callback(func() -> void: _remove_notification(notification_id))
-
-
-func _remove_notification(notification_id: String) -> void:
-	if not _desktop_notifications.has(notification_id):
-		return
-
-	var toast: Control = _desktop_notifications[notification_id]
-	_desktop_notifications.erase(notification_id)
-	if toast != null and is_instance_valid(toast):
-		toast.queue_free()
-
-
 ## 显示桌面右下角系统通知（Windows 风格提醒）
 func show_system_notification(title: String, body: String, icon_token: String = "warning", duration: float = 5.0) -> void:
-	if _notification_stack == null:
-		return
-
-	var notification_id := "system:%d" % (title + body).hash()
-	_remove_notification(notification_id)
-
-	var toast := PanelContainer.new()
-	toast.custom_minimum_size = Vector2(0, 190)
-	toast.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	toast.mouse_filter = Control.MOUSE_FILTER_STOP
-	toast.modulate.a = 0.0
-
-	var panel_style := StyleBoxFlat.new()
-	panel_style.bg_color = Color("#F7FAFF")
-	panel_style.corner_radius_top_left = 24
-	panel_style.corner_radius_top_right = 24
-	panel_style.corner_radius_bottom_left = 24
-	panel_style.corner_radius_bottom_right = 24
-	panel_style.border_width_left = 2
-	panel_style.border_width_top = 2
-	panel_style.border_width_right = 2
-	panel_style.border_width_bottom = 2
-	panel_style.border_color = Color("#D6DFEE")
-	panel_style.shadow_size = 16
-	panel_style.shadow_color = Color(0, 0, 0, 0.14)
-	panel_style.shadow_offset = Vector2(0, 6)
-	toast.add_theme_stylebox_override("panel", panel_style)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 32)
-	margin.add_theme_constant_override("margin_top", 28)
-	margin.add_theme_constant_override("margin_right", 32)
-	margin.add_theme_constant_override("margin_bottom", 28)
-	toast.add_child(margin)
-
-	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 26)
-	margin.add_child(hbox)
-
-	# 左侧图标：优先从 AppManager 读取应用注册图标。
-	var icon_panel := PanelContainer.new()
-	icon_panel.custom_minimum_size = Vector2(108, 108)
-	icon_panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var icon_style := StyleBoxFlat.new()
-	icon_style.bg_color = Color("#E7EEFC")
-	icon_style.corner_radius_top_left = 27
-	icon_style.corner_radius_top_right = 27
-	icon_style.corner_radius_bottom_left = 27
-	icon_style.corner_radius_bottom_right = 27
-	icon_panel.add_theme_stylebox_override("panel", icon_style)
-	var icon_texture: Texture2D = null
-	var is_app_icon := false
-	if _app_manager != null and _app_manager.has_method("get_app_definition"):
-		var app_definition: Resource = _app_manager.get_app_definition(icon_token)
-		if app_definition != null and "icon" in app_definition:
-			var registered_icon: Variant = app_definition.get("icon")
-			if registered_icon is Texture2D:
-				icon_texture = registered_icon as Texture2D
-				is_app_icon = true
-	if icon_texture == null:
-		icon_texture = UIIconLibraryClass.get_icon(icon_token)
-	if icon_texture != null:
-		var notification_icon_margin := MarginContainer.new()
-		notification_icon_margin.add_theme_constant_override("margin_left", 12)
-		notification_icon_margin.add_theme_constant_override("margin_top", 12)
-		notification_icon_margin.add_theme_constant_override("margin_right", 12)
-		notification_icon_margin.add_theme_constant_override("margin_bottom", 12)
-		icon_panel.add_child(notification_icon_margin)
-		var icon_rect := TextureRect.new()
-		icon_rect.texture = icon_texture
-		icon_rect.custom_minimum_size = Vector2(84, 84)
-		icon_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		if not is_app_icon:
-			icon_rect.modulate = _get_notification_icon_color(icon_token)
-		notification_icon_margin.add_child(icon_rect)
-		hbox.add_child(icon_panel)
-
-	# 右侧文字
-	var text_vbox := VBoxContainer.new()
-	text_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	text_vbox.add_theme_constant_override("separation", 10)
-	hbox.add_child(text_vbox)
-
-	var title_label := Label.new()
-	title_label.text = title
-	title_label.add_theme_font_size_override("font_size", 34)
-	title_label.add_theme_color_override("font_color", Color("#1E2738"))
-	text_vbox.add_child(title_label)
-
-	var body_label := Label.new()
-	body_label.text = body
-	body_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	body_label.add_theme_font_size_override("font_size", 29)
-	body_label.add_theme_color_override("font_color", Color("#56627A"))
-	text_vbox.add_child(body_label)
-
-	# 点击关闭
-	toast.gui_input.connect(func(event: InputEvent) -> void:
-		if event is InputEventMouseButton and (event as InputEventMouseButton).pressed:
-			_remove_notification(notification_id)
-	)
-
-	_notification_stack.add_child(toast)
-	_notification_stack.move_child(toast, 0)
-	_desktop_notifications[notification_id] = toast
-
-	var fade_in := create_tween()
-	fade_in.tween_property(toast, "modulate:a", 1.0, 0.18)
-
-	var timer := Timer.new()
-	timer.one_shot = true
-	timer.wait_time = duration
-	timer.timeout.connect(_expire_notification.bind(notification_id))
-	toast.add_child(timer)
-	timer.start()
-
-
-func _get_notification_icon_color(icon_token: String) -> Color:
-	match icon_token.strip_edges().to_lower():
-		"warning":
-			return Color("#C47A00")
-		"power":
-			return Color("#D64545")
-		_:
-			return Color("#4569C7")
+	if notification_center != null and notification_center.has_method("show_notification"):
+		notification_center.call("show_notification", title, body, icon_token, duration)

@@ -1,11 +1,9 @@
-[gd_resource type="Resource" script_class="CharacterProfile" load_steps=13 format=3]
+[gd_resource type="Resource" script_class="CharacterProfile" load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/resources/character_profile.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/avg/characters/lu_yuanyuan.tres" id="2_avg"]
 [ext_resource type="Texture2D" path="res://Assets/images/characters/lu_yuanyuan/avatar_linkchat.png" id="3_avatar"]
 [ext_resource type="Script" path="res://scripts/apps/linkchat/resources/linkchat_profile.gd" id="4_linkchat"]
-[ext_resource type="Resource" path="res://resources/characters/moments/lu_yuanyuan/cafe_meeting.tres" id="5_cafe"]
-[ext_resource type="Resource" path="res://resources/characters/moments/lu_yuanyuan/weekly_schedule.tres" id="6_schedule"]
 [ext_resource type="Script" path="res://scripts/social/resources/social_account_profile.gd" id="7_social"]
 [ext_resource type="Resource" path="res://resources/characters/social_posts/lu_yuanyuan/collab_notice.tres" id="8_stream_post"]
 [ext_resource type="Resource" path="res://resources/characters/social_posts/lu_yuanyuan/someone_started.tres" id="9_personal_post"]
@@ -15,7 +13,6 @@ script = ExtResource("4_linkchat")
 account_name = "鸢鸢"
 avatar = ExtResource("3_avatar")
 initially_friend = true
-moment_contents = Array[Resource]([ExtResource("5_cafe"), ExtResource("6_schedule")])
 
 [sub_resource type="Resource" id="SocialAccount_streamer"]
 script = ExtResource("7_social")
@@ -44,8 +41,6 @@ character_id = "lu_yuanyuan"
 display_name = "陆鸢鸢"
 role = "childhood_friend"
 datable = true
-outing_preference_tags = Array[String](["music", "night", "cafe"])
-outing_avoid_tags = Array[String](["crowded"])
 base_date_acceptance_modifier = 12
 address_to_heroine = "柚柚"
 persona_prompt = "{{characters/lu_yuanyuan_prompt}}"

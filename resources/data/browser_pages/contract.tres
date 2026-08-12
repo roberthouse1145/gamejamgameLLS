@@ -8,20 +8,49 @@ url = "browser://contract"
 title = "虚拟演艺人员电子入驻协议 - XM-TALENT-2026.07"
 icon_path = "res://Assets/images/browser_ui/site_icon_xingmang.png"
 hint = "星茫网络虚拟演艺人员电子入驻协议全文。"
-content = "::: col fill sep=22
-::: row fill bg=#142D4C pad=24
-::: col fill sep=3
-## [星茫网络](color:#FFFFFF)
-#### [XINGMANG NETWORK · LEGAL CENTER](color:#ABC2DD)
+content = "::: col fill sep=0 bg=#EEF2F6
+::: section bg=#102A43 pad=16 max_width=2100
+::: row fill sep=28
+[法务与合规中心](color=#DCE8F4)
+::: col fill :::
+[候选人服务中心](color=#B8CADD)
+[服务热线 400-826-0714](color=#B8CADD)
 :::
-[返回入驻登记](url:browser://signup color=#D5E4F5)
 :::
-::: card fill bg=#FFFFFF border=#D3DEEA corner_radius=12 pad=34 sep=15
-[协议编号：XM-TALENT-2026.07](color:#77869A)
+::: section bg=#FFFFFF pad=30 max_width=2100
+::: row fill sep=24
+![星茫网络](image:src=res://Assets/images/browser_ui/site_icon_xingmang.png width=72 height=72)
+::: col fill sep=1
+## [星茫网络](color:#173A5E)
+#### [XINGMANG NETWORK](color:#74859A)
+:::
+[返回入驻登记](url:browser://signup color=#2F6699 size=26)
+:::
+:::
+::: section bg=#E8EFF6 pad=44 max_width=1500
+::: col fill sep=8
+#### [候选人中心 / 协议文件](color:#60758C)
 # 虚拟演艺人员电子入驻协议
-[甲方：星茫网络文化科技有限公司](color:#50647C)
-[乙方：阮云柚](color:#50647C)
----
+[协议编号 XM-TALENT-2026.07　发布日期 2026 年 07 月 28 日](color:#60758C)
+:::
+:::
+::: section bg=#FFFFFF pad=58 max_width=1500
+::: col fill sep=18
+::: table cols=2
+::: cell bg=#F3F6F9 pad=18
+#### [甲方](color:#65768A)
+:::
+::: cell pad=18
+星茫网络文化科技有限公司
+:::
+::: cell bg=#F3F6F9 pad=18
+#### [乙方](color:#65768A)
+:::
+::: cell pad=18
+阮云柚
+:::
+:::
+
 ### 第一条 · 合作内容
 甲方为乙方提供虚拟形象使用、账号运营、直播技术及内容经纪服务；乙方以甲方确认的虚拟演艺身份开展直播、录播及相关宣传活动。
 
@@ -52,11 +81,23 @@ content = "::: col fill sep=22
 ### 第十条 · 生效
 乙方在入驻登记页勾选同意并点击确认提交后，本协议立即生效，与纸质签署文件具有同等效力。
 :::
-::: card fill bg=#F7F9FC border=#D8E1EB corner_radius=12 pad=24 sep=8
-[当前协议版本](color:#7C899A)
-XM-TALENT-2026.07 · 发布日期 2026 年 07 月 28 日
 :::
-[center]星茫网络法务与合规中心[/center]
+::: section bg=#E8EFF6 pad=28 max_width=1500
+::: row fill sep=20
+[当前协议版本](color:#60758C)
+XM-TALENT-2026.07
+::: col fill :::
+[发布日期](color:#60758C)
+2026 年 07 月 28 日
+:::
+:::
+::: section bg=#102A43 pad=34 max_width=2100
+::: col fill sep=6
+[center][星茫网络法务与合规中心](color:#DCE7F1)[/center]
+[center][候选人服务专线 400-826-0714　legal@xingmang.cn](color:#AFC1D3)[/center]
+[center][Copyright © 2026 XINGMANG NETWORK　京ICP备20260826号-1](color:#879CB0)[/center]
+:::
+:::
 :::"
 searchable = false
 linked_urls = PackedStringArray("browser://signup")

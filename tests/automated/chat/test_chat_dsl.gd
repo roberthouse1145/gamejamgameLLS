@@ -72,7 +72,7 @@ func _test_location_card_flow() -> void:
 	topic.topic_id = "location_card"
 	topic.channel_id = "location_card_channel"
 	topic.local_script = """player: 今天风挺大诶。
-player: [card:location|park_walk|riverside_park|沿河散步|汐见河滨公园|约会合计 ¥600]
+player: [card:location|test_activity]
 player: 要不要去河边走走？
 END invited"""
 
@@ -91,9 +91,8 @@ END invited"""
 		_messages.size() == 2 \
 			and str(_messages[1].get("text", "")).is_empty() \
 			and str(location_card.get("type", "")) == "location" \
-			and str(location_card.get("activity_id", "")) == "park_walk" \
-			and str(location_card.get("place_id", "")) == "riverside_park",
-		"location card appears exactly where the DSL places it"
+			and str(location_card.get("activity_id", "")) == "test_activity",
+		"location card carries only the activity id; display fields are filled by the runtime"
 	)
 	manager.advance_topic(topic.channel_id)
 	_check(

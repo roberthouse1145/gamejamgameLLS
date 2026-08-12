@@ -4,9 +4,6 @@ class_name LinkChatApp extends Control
 const LCTheme = preload("res://scripts/apps/linkchat/style/linkchat_theme.gd")
 const MessageBubbleClass = preload("res://scripts/apps/linkchat/components/message_bubble.gd")
 const ContactItemScene = preload("res://scenes/apps/linkchat/contact_item.tscn")
-const MomentsPanelScene = preload("res://scenes/apps/linkchat/moments_panel.tscn")
-
-enum NavPage {CHAT, MOMENTS}
 
 ## 消息自动推进节奏：短消息至少停留 MIN_ADVANCE_DELAY，长消息按字数加时；玩家点击可立即继续
 const MIN_ADVANCE_DELAY: float = 1.2
@@ -14,16 +11,12 @@ const ADVANCE_CHAR_SECONDS: float = 0.06
 const MAX_ADVANCE_DELAY: float = 6.0
 
 @onready var background: ColorRect = $Background
-@onready var nav_strip: PanelContainer = %NavStrip
-@onready var nav_avatar: RoundedAvatar = %NavAvatar
-@onready var nav_chat_btn: Button = %NavChatBtn
-@onready var nav_moments_btn: Button = %NavMomentsBtn
-@onready var nav_settings_btn: Button = %NavSettingsBtn
 @onready var sidebar: PanelContainer = %Sidebar
-@onready var app_title: Label = %AppTitle
+@onready var player_avatar: RoundedAvatar = %PlayerAvatar
+@onready var player_caption: Label = %PlayerCaption
+@onready var player_name: Label = %PlayerName
 @onready var contact_caption: Label = %ContactCaption
 @onready var contact_list: VBoxContainer = %ContactList
-@onready var sidebar_border: VSeparator = %SidebarBorder
 @onready var chat_header: PanelContainer = %ChatHeader
 @onready var channel_title: Label = %ChannelTitle
 @onready var channel_subtitle: Label = %ChannelSubtitle
@@ -38,7 +31,6 @@ const MAX_ADVANCE_DELAY: float = 6.0
 @onready var input_hbox: HBoxContainer = %InputHBox
 @onready var batch_indicator: Label = %BatchIndicator
 @onready var typing_indicator: Label = %TypingIndicator
-@onready var moments_container: VBoxContainer = %MomentsContainer
 
 var _topic_manager: Node = null
 var _linkchat_manager: Node = null
@@ -46,8 +38,6 @@ var _player_character: CharacterProfile = null
 var _current_channel_id: String = ""
 var _advance_generation: int = 0
 var _contact_items: Dictionary = {}
-var _moments_panel: LinkChatMomentsPanel = null
-var _current_page: NavPage = NavPage.CHAT
 
 
 func _ready() -> void:
@@ -55,14 +45,12 @@ func _ready() -> void:
 	_apply_original_theme()
 	_setup_original_layout()
 	_render_friend_contacts()
-	_setup_navigation()
 	_connect_topic_manager()
 	_connect_click_to_advance()
 
 
 func open_topic_channel(channel_id: String) -> void:
 	_current_channel_id = channel_id
-	_show_page(NavPage.CHAT)
 	_render_contact(channel_id)
 	_render_thread(channel_id)
 
@@ -92,12 +80,6 @@ func _connect_linkchat_manager() -> void:
 		_linkchat_manager.friendship_changed.connect(_on_friendship_changed)
 	if not _linkchat_manager.friends_reloaded.is_connected(_on_friends_reloaded):
 		_linkchat_manager.friends_reloaded.connect(_on_friends_reloaded)
-	if not _linkchat_manager.moment_published.is_connected(_on_moment_published):
-		_linkchat_manager.moment_published.connect(_on_moment_published)
-	if not _linkchat_manager.moment_commented.is_connected(_on_moment_commented):
-		_linkchat_manager.moment_commented.connect(_on_moment_commented)
-	if not _linkchat_manager.moments_reloaded.is_connected(_on_moments_reloaded):
-		_linkchat_manager.moments_reloaded.connect(_on_moments_reloaded)
 	if not _linkchat_manager.message_appended.is_connected(_on_message_appended):
 		_linkchat_manager.message_appended.connect(_on_message_appended)
 	if not _linkchat_manager.messages_reloaded.is_connected(_on_messages_reloaded):
@@ -106,22 +88,14 @@ func _connect_linkchat_manager() -> void:
 
 func _apply_original_theme() -> void:
 	background.color = LCTheme.COLOR_BG_MAIN
-	nav_strip.add_theme_stylebox_override("panel", LCTheme.get_nav_strip_style())
-	nav_avatar.set_avatar(
+	player_avatar.set_avatar(
 		_character_avatar(_player_character),
 		_character_name(_player_character, "我")
 	)
-	for button: Button in [nav_chat_btn, nav_moments_btn, nav_settings_btn]:
-		button.flat = false
-		button.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
-		button.add_theme_color_override("font_hover_color", LCTheme.COLOR_TEXT_PRIMARY)
-		button.add_theme_stylebox_override("normal", LCTheme.get_nav_button_style(false))
-		button.add_theme_stylebox_override("hover", LCTheme.get_nav_button_style(true))
-		button.add_theme_stylebox_override("pressed", LCTheme.get_nav_button_style(true))
-		button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-
+	player_name.text = _character_name(_player_character, "我")
 	sidebar.add_theme_stylebox_override("panel", LCTheme.get_sidebar_bg_style())
-	app_title.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
+	player_caption.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
+	player_name.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
 	contact_caption.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_SECONDARY)
 	chat_header.add_theme_stylebox_override("panel", LCTheme.get_chat_header_style())
 	channel_title.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY)
@@ -147,9 +121,6 @@ func _apply_original_theme() -> void:
 
 
 func _setup_original_layout() -> void:
-	nav_moments_btn.visible = true
-	nav_settings_btn.visible = false
-	_show_page(NavPage.CHAT)
 	channel_title.text = "LinkChat"
 	channel_subtitle.text = "等待会话"
 	topic_info.text = "等待新消息"
@@ -160,50 +131,6 @@ func _setup_original_layout() -> void:
 	input_hbox.visible = true
 	typing_indicator.visible = false
 	batch_indicator.visible = false
-
-
-func _setup_navigation() -> void:
-	if not nav_chat_btn.pressed.is_connected(_on_chat_nav_pressed):
-		nav_chat_btn.pressed.connect(_on_chat_nav_pressed)
-	if not nav_moments_btn.pressed.is_connected(_on_moments_nav_pressed):
-		nav_moments_btn.pressed.connect(_on_moments_nav_pressed)
-	_moments_panel = MomentsPanelScene.instantiate() as LinkChatMomentsPanel
-	_moments_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_moments_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_moments_panel.set_posts(_visible_moment_view_data())
-	_moments_panel.post_liked.connect(_on_moment_like_requested)
-	_moments_panel.image_open_requested.connect(_on_moment_image_open_requested)
-	moments_container.add_child(_moments_panel)
-	_update_nav_highlight()
-
-
-func _on_chat_nav_pressed() -> void:
-	_show_page(NavPage.CHAT)
-
-
-func _on_moments_nav_pressed() -> void:
-	_show_page(NavPage.MOMENTS)
-
-
-func _show_page(page: NavPage) -> void:
-	_current_page = page
-	var showing_chat: bool = page == NavPage.CHAT
-	sidebar.visible = showing_chat
-	sidebar_border.visible = showing_chat
-	message_stage.visible = showing_chat
-	chat_header.visible = showing_chat
-	input_area.visible = showing_chat
-	moments_container.visible = not showing_chat
-	_update_nav_highlight()
-
-
-func _update_nav_highlight() -> void:
-	var chat_active: bool = _current_page == NavPage.CHAT
-	nav_chat_btn.add_theme_stylebox_override("normal", LCTheme.get_nav_button_style(chat_active))
-	nav_moments_btn.add_theme_stylebox_override("normal", LCTheme.get_nav_button_style(not chat_active))
-	nav_chat_btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY if chat_active else LCTheme.COLOR_TEXT_SECONDARY)
-	nav_moments_btn.add_theme_color_override("font_color", LCTheme.COLOR_TEXT_PRIMARY if not chat_active else LCTheme.COLOR_TEXT_SECONDARY)
-
 
 func _render_empty_contact() -> void:
 	for child: Node in contact_list.get_children():
@@ -436,59 +363,12 @@ func _character_avatar(character: CharacterProfile) -> Texture2D:
 	return character.linkchat_profile.avatar
 
 
-func _visible_moment_view_data() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	if _linkchat_manager == null:
-		return result
-	var value: Variant = _linkchat_manager.call("get_visible_moment_view_data")
-	if value is Array:
-		for post_value: Variant in value:
-			if post_value is Dictionary:
-				result.append(post_value)
-	return result
-
-
-func _refresh_moments() -> void:
-	if _moments_panel != null:
-		_moments_panel.set_posts(_visible_moment_view_data())
-
-
 func _on_friendship_changed(_character_id: String, _is_friend: bool) -> void:
 	_render_friend_contacts()
-	_refresh_moments()
 
 
 func _on_friends_reloaded() -> void:
 	_render_friend_contacts()
-
-
-func _on_moment_published(_post: MomentPostRecord) -> void:
-	_refresh_moments()
-
-
-func _on_moment_commented(_post_id: String, _comment: MomentCommentRecord) -> void:
-	_refresh_moments()
-
-
-func _on_moments_reloaded() -> void:
-	_refresh_moments()
-
-
-func _on_moment_like_requested(post_id: String, liked: bool) -> void:
-	if _linkchat_manager != null:
-		_linkchat_manager.call("set_moment_liked", post_id, liked)
-
-
-func _on_moment_image_open_requested(texture: Texture2D, image_title: String) -> void:
-	var app_manager: Node = get_node_or_null("/root/AppManager")
-	if app_manager == null or not app_manager.has_method("focus_app"):
-		return
-	var window: Control = app_manager.call("focus_app", "image_viewer", true) as Control
-	if window == null:
-		return
-	var viewer: Node = window.get("content") as Node
-	if viewer != null and viewer.has_method("open_texture"):
-		viewer.call_deferred("open_texture", texture, image_title)
 
 
 ## 等待推进期间，玩家点击消息区域或气泡可立即继续

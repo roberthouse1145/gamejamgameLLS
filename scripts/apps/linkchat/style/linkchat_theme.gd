@@ -4,7 +4,6 @@ class_name LinkChatTheme
 ## LinkChat 专属样式工厂
 
 # --- 背景色 ---
-const COLOR_BG_NAV = Color("#EDEEF0") # 最左导航条，偏深灰
 const COLOR_BG_SIDEBAR = Color("#FAFBFC") # 频道列表，偏白
 const COLOR_BG_MAIN = Color("#F8FBFF")
 const COLOR_BG_HEADER = Color("#FCFDFF")
@@ -139,36 +138,6 @@ static func get_sidebar_bg_style() -> StyleBoxFlat:
 	s.shadow_color = Color(0.12, 0.18, 0.28, 0.08)
 	s.shadow_size = 7
 	s.shadow_offset = Vector2(3, 0)
-	return s
-
-
-static func get_nav_strip_style() -> StyleBoxFlat:
-	var s := rounded_flat(Color("#EAF1FA"), 0)
-	s.border_width_right = 2
-	s.border_color = Color("#CCD9E9")
-	return s
-
-
-static func get_nav_button_style(active: bool) -> StyleBoxFlat:
-	if not active:
-		return rounded_flat(Color.TRANSPARENT, 18)
-	var s := rounded_flat(Color("#FFFFFF"), 18, Color("#B9CCE5"), 2, Color(0.1, 0.17, 0.28, 0.14), 7)
-	s.shadow_offset = Vector2(0, 3)
-	return s
-
-
-static func get_moment_card_style() -> StyleBoxFlat:
-	var s := rounded_flat(Color("#FFFFFF"), 27, Color("#CFDAE8"), 2, Color(0.1, 0.16, 0.26, 0.14), 10)
-	s.shadow_offset = Vector2(0, 5)
-	return s
-
-
-static func get_moment_comment_panel_style() -> StyleBoxFlat:
-	var s := rounded_flat(Color("#F4F7FB"), RADIUS_MD, Color("#D8E3F0"), 2)
-	s.content_margin_left = 24
-	s.content_margin_top = 18
-	s.content_margin_right = 24
-	s.content_margin_bottom = 18
 	return s
 
 

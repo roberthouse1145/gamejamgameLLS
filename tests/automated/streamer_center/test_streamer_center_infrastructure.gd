@@ -1,46 +1,39 @@
 extends Node
-## v0.7 主播中心：主卡池、素材专属题面、五系成长与存档往返。
+## 主播中心：素材库存、五系成长与存档往返。
 
 
 func _ready() -> void:
-	var card_library: Node = get_node_or_null("/root/CardLibraryManager")
+	var live_stream_manager: Node = get_node_or_null("/root/LiveStreamManager")
 	var skill_tree: Node = get_node_or_null("/root/SkillTreeManager")
 	var material_inventory: Node = get_node_or_null("/root/MaterialInventoryManager")
-	assert(card_library != null and skill_tree != null and material_inventory != null)
+	assert(live_stream_manager != null and skill_tree != null and material_inventory != null)
 
 	GameState.streamer_level = 1
 	GameState.streamer_exp = 0
 	GameState.skill_levels = GameState.DEFAULT_SKILL_LEVELS.duplicate(true)
+	GameState.skill_experience = GameState.DEFAULT_SKILL_EXPERIENCE.duplicate(true)
 	skill_tree.reset_to_defaults()
 	material_inventory.reset_to_defaults()
 
-	var catalog: LiveStreamCatalog = card_library.get_catalog()
-	assert(catalog.validate_content(20, 4).is_empty(), "vertical slice content audit should pass")
-	assert(card_library.get_behavior_cards().size() == 20)
-	assert(card_library.get_modifier_cards().size() == 4)
-	assert(card_library.get_total_count() == 24)
-	assert(catalog.material_behavior_cards.size() == 1, "material-exclusive cards must stay outside the player card pool")
+	var catalog: LiveStreamCatalog = live_stream_manager.get_catalog()
+	assert(catalog.validate_content().is_empty(), "vertical slice content audit should pass")
+	assert(catalog.materials.size() == 7)
 	assert(skill_tree.get_skills().size() == 20, "five authored trunks should each expose a real fork")
 	assert(skill_tree.get_skill_points() == 2)
-	var balance: LiveStreamBalance = card_library.get_balance()
-	assert(catalog.get_material(&"material_trash_hunter").program_slot_count == 4)
-	assert(catalog.get_material(&"material_forum_hot_meme").program_slot_count == 2)
-	assert(balance.get_modifier_slot_count(2) == 0 and balance.get_modifier_slot_count(3) == 1)
-	assert(balance.get_modifier_slot_count(8) == 2)
-	assert(balance.get_budget(1, 79) == 10 and balance.get_budget(1, 80) == 7)
+	var balance: LiveStreamBalance = live_stream_manager.get_balance()
+	assert(not balance.get_approach_profile(&"analysis").is_empty())
+	assert(not balance.get_approach_profile(&"challenge").is_empty())
 
 	assert(not skill_tree.can_unlock(&"game_lv3"), "a branch cannot skip its authored prerequisite")
 	assert(skill_tree.unlock_skill(&"game_lv2"))
-	assert(GameState.get_skill_level(&"game") == 2)
+	assert(GameState.get_skill_level(&"game") == 1, "skill-tree spending must not replace activity proficiency")
 	assert(skill_tree.get_skill_points() == 1)
-	assert(not card_library.is_card_unlocked(&"talk_recovery"), "Tier 2 also requires streamer Lv4")
-	GameState.streamer_level = 4
-	assert(card_library.is_card_unlocked(&"talk_recovery"), "tier and skill gates should both be satisfied")
-	GameState.streamer_level = 1
-	GameState.streamer_exp = 50
+	assert(skill_tree.unlock_skill(&"act_lv2"))
 	var points_before_level: int = GameState.growth_points
-	assert(GameState.add_streamer_exp(50, balance) == 1)
+	var growth: Dictionary = GameState.apply_skill_experience({"game": 100}, balance)
+	assert(int(growth.get("streamer_levels_gained", 0)) == 1)
 	assert(GameState.streamer_level == 2 and GameState.growth_points == points_before_level + 1)
+	assert(GameState.get_skill_level(&"game") == 2)
 
 	var duplicate_a: StringName = material_inventory.grant_material(&"material_trash_hunter")
 	var duplicate_b: StringName = material_inventory.grant_material(&"material_trash_hunter")
@@ -55,9 +48,11 @@ func _ready() -> void:
 
 	var saved_state: Dictionary = GameState.to_dict()
 	GameState.skill_levels = GameState.DEFAULT_SKILL_LEVELS.duplicate(true)
+	GameState.skill_experience = GameState.DEFAULT_SKILL_EXPERIENCE.duplicate(true)
 	GameState.material_instances.clear()
 	GameState.from_dict(saved_state)
 	assert(GameState.get_skill_level(&"game") == 2)
+	assert(GameState.get_skill_experience(&"game") == 100)
 	assert(not material_inventory.get_instance(duplicate_b).is_empty())
 	assert(AppManager.is_app_registered("streamer_center"))
 

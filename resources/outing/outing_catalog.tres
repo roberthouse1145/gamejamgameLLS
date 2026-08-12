@@ -1,12 +1,16 @@
-[gd_resource type="Resource" script_class="OutingCatalog" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="OutingCatalog" load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/game/resources/outing_catalog.gd" id="1"]
 [ext_resource type="Resource" path="res://resources/outing/places/riverside_park.tres" id="2"]
 [ext_resource type="Resource" path="res://resources/outing/places/echo_live_hall.tres" id="3"]
-[ext_resource type="Resource" path="res://resources/outing/activities/park_walk.tres" id="4"]
-[ext_resource type="Resource" path="res://resources/outing/activities/weekend_concert.tres" id="5"]
+[ext_resource type="Resource" path="res://resources/outing/activities/riverside_walk_01.tres" id="4"]
+[ext_resource type="Resource" path="res://resources/outing/activities/riverside_walk_02.tres" id="5"]
+[ext_resource type="Resource" path="res://resources/outing/activities/riverside_walk_03.tres" id="6"]
+[ext_resource type="Resource" path="res://resources/outing/activities/weekend_concert_01.tres" id="7"]
+[ext_resource type="Resource" path="res://resources/outing/activities/weekend_concert_02.tres" id="8"]
+[ext_resource type="Resource" path="res://resources/outing/activities/weekend_concert_03.tres" id="9"]
 
 [resource]
 script = ExtResource("1")
 places = Array[Resource]([ExtResource("2"), ExtResource("3")])
-activities = Array[Resource]([ExtResource("4"), ExtResource("5")])
+activities = Array[Resource]([ExtResource("4"), ExtResource("5"), ExtResource("6"), ExtResource("7"), ExtResource("8"), ExtResource("9")])

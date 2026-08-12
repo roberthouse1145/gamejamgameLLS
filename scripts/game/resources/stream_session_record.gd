@@ -5,9 +5,11 @@ class_name StreamSessionRecord extends Resource
 @export var day: int = 1
 @export var time_slot: int = 0
 @export var title: String = ""
+@export var persona_id: StringName = &""
 @export var persona_name: String = ""
 @export var material_name: String = ""
-@export var card_ids: Array[StringName] = []
+@export var approach_name: String = ""
+@export var approach_type: StringName = &""
 @export var heat: int = 0
 @export var revenue: int = 0
 @export var fan_delta: int = 0
@@ -17,17 +19,16 @@ class_name StreamSessionRecord extends Resource
 
 
 func to_dict() -> Dictionary:
-	var serialized_card_ids: Array[String] = []
-	for card_id: StringName in card_ids:
-		serialized_card_ids.append(String(card_id))
 	return {
 		"session_id": session_id,
 		"day": day,
 		"time_slot": time_slot,
 		"title": title,
+		"persona_id": String(persona_id),
 		"persona_name": persona_name,
 		"material_name": material_name,
-		"card_ids": serialized_card_ids,
+		"approach_name": approach_name,
+		"approach_type": String(approach_type),
 		"heat": heat,
 		"revenue": revenue,
 		"fan_delta": fan_delta,
@@ -43,10 +44,11 @@ static func from_dict(data: Dictionary) -> StreamSessionRecord:
 	record.day = int(data.get("day", 1))
 	record.time_slot = int(data.get("time_slot", 0))
 	record.title = str(data.get("title", ""))
+	record.persona_id = StringName(str(data.get("persona_id", "")))
 	record.persona_name = str(data.get("persona_name", ""))
 	record.material_name = str(data.get("material_name", ""))
-	for card_id: Variant in data.get("card_ids", []):
-		record.card_ids.append(StringName(str(card_id)))
+	record.approach_name = str(data.get("approach_name", ""))
+	record.approach_type = StringName(str(data.get("approach_type", "")))
 	record.heat = int(data.get("heat", 0))
 	record.revenue = int(data.get("revenue", 0))
 	record.fan_delta = int(data.get("fan_delta", 0))

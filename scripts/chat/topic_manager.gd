@@ -347,7 +347,11 @@ func _request_llm_generation(entry: Dictionary, resolved_prompt: String) -> bool
 	if not _llm_available or _llm_service == null or resolved_prompt.strip_edges().is_empty():
 		print("[TopicManager] LLM generation skipped: available=%s prompt_len=%d" % [str(_llm_available), resolved_prompt.length()])
 		return false
-	var request_id: String = _llm_service.chat_simple(resolved_prompt)
+	var request_id: String = _llm_service.chat_simple(
+		resolved_prompt,
+		_build_llm_system_prompt(),
+		{"max_tokens": 2048}
+	)
 	if request_id.is_empty():
 		print("[TopicManager] LLM generation failed to create request for channel '%s'" % topic.channel_id)
 		return false
@@ -357,6 +361,10 @@ func _request_llm_generation(entry: Dictionary, resolved_prompt: String) -> bool
 	}
 	print("[TopicManager] LLM request sent: request_id=%s channel=%s prompt_len=%d" % [request_id, topic.channel_id, resolved_prompt.length()])
 	return true
+
+
+func _build_llm_system_prompt() -> String:
+	return "You are a Chat DSL writer. Reasoning consists of exactly four physical lines, one for each label in the single Chat Reasoning decision record at the end of the user prompt. Keep every label on one compact line. End reasoning immediately after the acceptance line, then generate the final answer. The final answer contains only complete Chat DSL with no markdown fences or explanations."
 
 
 func _on_llm_request_completed(request_id: String, response: Dictionary) -> void:
@@ -370,6 +378,14 @@ func _on_llm_request_completed(request_id: String, response: Dictionary) -> void
 	if entry.is_empty():
 		return
 	var generated_script: String = AIServiceClass.extract_content(response).strip_edges()
+	var reasoning_text: String = AIServiceClass.extract_reasoning_content(response).strip_edges()
+	if not reasoning_text.is_empty():
+		print("[TopicManager] LLM reasoning metrics: request_id=%s channel=%s lines=%d chars=%d" % [
+			request_id,
+			channel_id,
+			reasoning_text.split("\n").size(),
+			reasoning_text.length(),
+		])
 	print("[TopicManager] LLM response received: request_id=%s channel=%s script_len=%d" % [request_id, channel_id, generated_script.length()])
 	_store_generated_script(entry, generated_script)
 

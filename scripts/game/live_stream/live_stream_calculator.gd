@@ -15,83 +15,27 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 	if material == null or persona == null:
 		return result
 
-	var axes: Dictionary = {"hook": 0.0, "quality": 0.0, "impact": 0.0, "risk": 0.0}
+	var axes: Dictionary = {"hook": 0.0, "quality": 0.0, "impact": 0.0}
 	var fan_bias: Dictionary = {"r": 0.0, "m": 0.0, "w": 0.0, "c": 0.0, "b": 0.0}
 	var stress_delta: float = 0.0
-	var behavior_cards: Array[BehaviorCardResource] = []
-	var behavior_slot_indices: Array[int] = []
-	for slot_index: int in range(plan.behavior_card_ids.size()):
-		var card_id: StringName = plan.behavior_card_ids[slot_index]
-		var behavior_card: BehaviorCardResource = catalog.get_card(card_id) as BehaviorCardResource
-		if behavior_card != null:
-			behavior_cards.append(behavior_card)
-			behavior_slot_indices.append(slot_index)
-	var empty_program_slot_count: int = plan.behavior_card_ids.size() - behavior_cards.size()
-	var empty_fill_rescue_available: bool = _get_skill_level(plan, &"talk") >= 3
-	var seamless_transition: bool = _has_effect(plan.modifier_card_ids, catalog, &"seam_penalty_half")
-	var full_chain_active: bool = behavior_cards.size() > 1 and _are_all_seams_full(behavior_cards)
-	var global_modifiers: Array[ModifierCardResource] = []
-	for modifier_id: StringName in plan.modifier_card_ids:
-		var modifier: ModifierCardResource = catalog.get_card(modifier_id) as ModifierCardResource
-		if modifier != null:
-			global_modifiers.append(modifier)
-			stress_delta += modifier.stress_cost
-			_accumulate_fan_bias(fan_bias, modifier.fan_bias)
-
-	for card_index: int in range(behavior_cards.size()):
-		var card: BehaviorCardResource = behavior_cards[card_index]
-		var connected_slots: Array[int] = []
-		var fill_ratio: float = 1.0
-		var fill_multiplier: float = 1.0
-		var seam_risk_bonus: float = 0.0
-		if card_index > 0 and not card.left_slots.is_empty():
-			var previous_card: BehaviorCardResource = behavior_cards[card_index - 1]
-			connected_slots = BehaviorCardResource.intersect_slots(previous_card.right_slots, card.left_slots)
-			fill_ratio = float(connected_slots.size()) / float(card.left_slots.size())
-			fill_multiplier = balance.get_fill_multiplier(fill_ratio)
-			if is_zero_approx(fill_ratio):
-				if empty_fill_rescue_available:
-					empty_fill_rescue_available = false
-					fill_multiplier = balance.half_fill_multiplier
-				elif seamless_transition:
-					fill_multiplier = balance.partial_fill_multiplier
-					seam_risk_bonus = balance.empty_fill_risk_bonus * 0.5
-				else:
-					seam_risk_bonus = balance.empty_fill_risk_bonus
-		var skill_level: int = _get_skill_level(plan, card.family)
-		var skill_multiplier: float = 1.0 + balance.skill_bonus_per_level * float(maxi(skill_level - 1, 0))
-		var width_multiplier: float = balance.get_left_width_multiplier(card.get_left_width())
-		var chain_multiplier: float = balance.full_chain_multiplier if full_chain_active else 1.0
-		var base_multiplier: float = skill_multiplier * material.affinity.get_value(card.family)
-		base_multiplier *= width_multiplier * fill_multiplier * chain_multiplier
-		for axis_key: StringName in StreamAxisValues.KEYS:
-			var value: float = card.axes.get_value(axis_key) * base_multiplier
-			value *= _get_material_axis_multiplier(card, material, axis_key)
-			value *= _get_card_modifier_multiplier(card, global_modifiers, axis_key)
-			axes[String(axis_key)] = float(axes[String(axis_key)]) + value
-		axes["risk"] = float(axes["risk"]) + seam_risk_bonus * 10.0
-		stress_delta += card.stress_cost
-		_accumulate_fan_bias(fan_bias, card.fan_bias)
-		result.interface_trace.append({
-			"card_id": String(card.content_id),
-			"slot_index": behavior_slot_indices[card_index],
-			"left_slots": card.left_slots.duplicate(),
-			"right_slots": card.right_slots.duplicate(),
-			"connected_slots": connected_slots.duplicate(),
-			"fill_ratio": fill_ratio,
-			"fill_multiplier": fill_multiplier,
-			"width_multiplier": width_multiplier,
-		})
+	var approach_type := StringName(str(plan.approach.get("approach_type", "")))
+	var approach_profile: Dictionary = balance.get_approach_profile(approach_type)
+	if approach_profile.is_empty():
+		return result
+	var approach_multiplier: float = _get_approach_skill_multiplier(
+		plan, material, approach_profile, balance
+	)
+	_accumulate_axes(axes, approach_profile.get("axes", {}), approach_multiplier)
+	stress_delta += float(approach_profile.get("stress", 0.0))
+	_accumulate_fan_bias(fan_bias, approach_profile.get("fan_bias", {}))
 
 	for axis_key: StringName in StreamAxisValues.KEYS:
 		axes[String(axis_key)] = float(axes[String(axis_key)]) + material.axes.get_value(axis_key)
-		axes[String(axis_key)] *= _get_global_modifier_multiplier(global_modifiers, axis_key)
 
 	_apply_private_state_penalties(axes, plan.state_snapshot)
 
 	var fans: int = maxi(int(plan.state_snapshot.get("fans", 0)), 0)
 	var base_audience: float = material.base_popularity + float(fans) * 0.08
-	base_audience *= pow(balance.empty_program_slot_multiplier, empty_program_slot_count)
 	result.peak_viewers = maxi(int(round(base_audience * maxf(0.2, 1.0 + float(axes["hook"]) * 0.12))), 1)
 	var passerby_ratio: float = clampf(float((plan.state_snapshot.get("fan_vector", {}) as Dictionary).get("r", 100.0)) / 100.0, 0.05, 1.0)
 	result.fan_delta = maxi(int(round(float(result.peak_viewers) * maxf(0.0, 0.03 + float(axes["quality"]) * 0.01) * passerby_ratio)), 0)
@@ -103,23 +47,16 @@ func calculate(plan: StreamPlanSnapshot, catalog: LiveStreamCatalog, balance: Li
 		- 0.5 * float(fan_vector.get("b", 0.0))
 	) / 100.0
 	result.revenue = maxi(int(round(float(result.peak_viewers) * maxf(float(axes["impact"]), 0.0) * 0.08 * maxf(monetization_weight, 0.1))), 0)
-	var stress: int = clampi(int(plan.state_snapshot.get("stress", 0)), 0, 100)
-	result.accident_probability = clampf(0.01 + maxf(float(axes["risk"]), 0.0) * 0.03 + float(stress) * 0.001, 0.0, 0.95)
-	var rng := RandomNumberGenerator.new()
-	rng.seed = plan.rng_seed
-	result.accident_occurred = rng.randf() < result.accident_probability
-	if result.accident_occurred:
-		fan_bias["b"] = float(fan_bias["b"]) + 5.0
-		fan_bias["r"] = float(fan_bias["r"]) - 5.0
 	if material.material_type == LiveStreamMaterialResource.TYPE_SPONSOR and material.sponsor_terms != null:
-		result.sponsor_satisfied = float(axes["quality"]) >= material.sponsor_terms.quality_floor and not result.accident_occurred
+		result.sponsor_satisfied = float(axes["quality"]) >= material.sponsor_terms.quality_floor
 		var sponsor_multiplier: float = 1.0 if result.sponsor_satisfied else material.sponsor_terms.failure_payout_multiplier
 		result.sponsor_payout = int(round(float(material.sponsor_terms.guaranteed_money) * sponsor_multiplier))
 		result.revenue += result.sponsor_payout
 	result.resulting_fan_vector = _resolve_fan_vector(fan_vector, fan_bias)
 	result.axes = axes
 	result.stress_delta = int(round(stress_delta))
-	result.streamer_exp_gain = balance.stream_exp_reward
+	result.skill_exp_gains = material.skill_exp_rewards.to_dict()
+	result.streamer_exp_gain = material.skill_exp_rewards.get_total()
 	result.material_use = {
 		"instance_id": String(plan.material_instance_id),
 		"material_type": String(material.material_type),
@@ -132,61 +69,40 @@ func _get_skill_level(plan: StreamPlanSnapshot, family: StringName) -> int:
 	return clampi(int(levels.get(String(family), 1)), 1, 5)
 
 
-func _are_all_seams_full(cards: Array[BehaviorCardResource]) -> bool:
-	for index: int in range(1, cards.size()):
-		var card: BehaviorCardResource = cards[index]
-		if card.left_slots.is_empty() or card.get_fill_ratio(cards[index - 1].right_slots) < 1.0:
-			return false
-	return true
+func _get_approach_skill_multiplier(
+	plan: StreamPlanSnapshot,
+	material: LiveStreamMaterialResource,
+	profile: Dictionary,
+	balance: LiveStreamBalance
+) -> float:
+	var families: Array[StringName] = []
+	if material.skill_exp_rewards != null:
+		for family: StringName in GameState.SKILL_FAMILIES:
+			if material.skill_exp_rewards.get_value(family) > 0:
+				families.append(family)
+	for family_value: Variant in profile.get("support_families", []):
+		var family := StringName(str(family_value))
+		if family not in families:
+			families.append(family)
+	if families.is_empty():
+		return 1.0
+	var total: float = 0.0
+	for family: StringName in families:
+		var skill_level: int = _get_skill_level(plan, family)
+		var skill_multiplier: float = 1.0 + balance.skill_bonus_per_level * float(maxi(skill_level - 1, 0))
+		total += skill_multiplier * material.affinity.get_value(family)
+	return total / float(families.size())
 
 
-func _get_material_axis_multiplier(card: BehaviorCardResource, material: LiveStreamMaterialResource, axis_key: StringName) -> float:
-	var result: float = 1.0
-	for boost: StreamTagEffect in card.material_boosts:
-		if boost != null and boost.axis_key == axis_key and boost.with_tag in material.tags:
-			result *= boost.multiplier
-	for combo: StreamTagEffect in material.combo_effects:
-		if combo != null and combo.axis_key == axis_key and combo.with_tag in card.tags:
-			result *= combo.multiplier
-	return result
+func _accumulate_axes(target: Dictionary, additions: Dictionary, multiplier: float) -> void:
+	for axis_key: StringName in StreamAxisValues.KEYS:
+		var key := String(axis_key)
+		target[key] = float(target.get(key, 0.0)) + float(additions.get(key, 0.0)) * multiplier
 
 
-func _get_card_modifier_multiplier(card: BehaviorCardResource, modifiers: Array[ModifierCardResource], axis_key: StringName) -> float:
-	var result: float = 1.0
-	for modifier: ModifierCardResource in modifiers:
-		if modifier.target_family != &"" and modifier.target_family != card.family:
-			continue
-		if modifier.target_family == &"":
-			continue
-		result *= 1.0 + modifier.axis_multiplier_bonus.get_value(axis_key)
-	return maxf(result, 0.0)
-
-
-func _get_global_modifier_multiplier(modifiers: Array[ModifierCardResource], axis_key: StringName) -> float:
-	var result: float = 1.0
-	for modifier: ModifierCardResource in modifiers:
-		if modifier.target_family == &"":
-			result *= 1.0 + modifier.axis_multiplier_bonus.get_value(axis_key)
-	return maxf(result, 0.0)
-
-
-func _has_effect(card_ids: Array[StringName], catalog: LiveStreamCatalog, effect_id: StringName) -> bool:
-	for card_id: StringName in card_ids:
-		var card: LiveStreamCardResource = catalog.get_card(card_id)
-		if card == null:
-			continue
-		for effect: StreamSpecialEffect in card.special_effects:
-			if effect != null and effect.effect_id == effect_id:
-				return true
-	return false
-
-
-func _accumulate_fan_bias(target: Dictionary, bias: StreamFanBias) -> void:
-	if bias == null:
-		return
-	var values: Dictionary = bias.to_dict()
-	for key: String in values:
-		target[key] = float(target.get(key, 0.0)) + float(values[key])
+func _accumulate_fan_bias(target: Dictionary, additions: Dictionary) -> void:
+	for key: String in additions:
+		target[key] = float(target.get(key, 0.0)) + float(additions[key])
 
 
 func _apply_private_state_penalties(axes: Dictionary, state: Dictionary) -> void:

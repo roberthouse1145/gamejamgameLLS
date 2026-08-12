@@ -158,7 +158,7 @@ horizontal_alignment = 1
 layout_mode = 2
 theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
 theme_override_font_sizes/font_size = 21
-text = "已解锁卡牌"
+text = "素材库存"
 horizontal_alignment = 1
 
 [node name="SkillMetric" type="VBoxContainer" parent="PageMargin/Content/ChannelPanel/ChannelMargin/ChannelRow/ChannelMetrics"]
@@ -205,13 +205,13 @@ theme_override_constants/separation = 10
 [node name="AbilityTitle" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent"]
 layout_mode = 2
 theme_override_font_sizes/font_size = 32
-text = "主播能力"
+text = "中之人能力"
 
 [node name="AbilitySubtitle" type="Label" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
 theme_override_font_sizes/font_size = 22
-text = "五系技能 · 最高 Lv.5"
+text = "按直播素材积累五系熟练度 · 最高 Lv.5"
 
 [node name="AbilityBody" type="HBoxContainer" parent="PageMargin/Content/DashboardRow/AbilityPanel/AbilityMargin/AbilityContent"]
 layout_mode = 2
@@ -417,13 +417,13 @@ layout_mode = 2
 [node name="CardLabel" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/CardRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-text = "卡牌库"
+text = "素材库存"
 
 [node name="CardProgress" type="Label" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent/CardRow"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_color = Color(0.408, 0.451, 0.541, 1)
-text = "已解锁 0 / 0 张"
+text = "库存中暂无素材"
 horizontal_alignment = 2
 
 [node name="SkillRow" type="HBoxContainer" parent="PageMargin/Content/DashboardRow/SideColumn/GrowthPanel/GrowthMargin/GrowthContent"]
